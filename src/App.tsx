@@ -641,6 +641,16 @@ export function App() {
               <span
                 className={
                   item.purchased
+                    ? `${styles.itemCheck} ${styles.itemCheckPurchased}`
+                    : styles.itemCheck
+                }
+                aria-hidden="true"
+              >
+                <Icon name="check" />
+              </span>
+              <span
+                className={
+                  item.purchased
                     ? `${styles.itemName} ${styles.itemNamePurchased}`
                     : styles.itemName
                 }

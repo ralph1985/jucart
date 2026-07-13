@@ -10,6 +10,7 @@ import {
 const baseItem: ShoppingItem = {
   id: "item-1",
   name: "Leche",
+  sectionId: "mercadona",
   purchased: false,
   createdAt: 100,
   updatedAt: 100,
@@ -21,7 +22,7 @@ describe("shopping item logic", () => {
   });
 
   it("does not add empty products", () => {
-    expect(addShoppingItem([], "   ", () => "item-1")).toEqual([]);
+    expect(addShoppingItem([], "   ", "mercadona", () => "item-1")).toEqual([]);
   });
 
   it("adds normalized products as pending items", () => {
@@ -29,6 +30,7 @@ describe("shopping item logic", () => {
       addShoppingItem(
         [],
         "  Pan   integral  ",
+        "mercadona",
         () => "item-1",
         () => 100,
       ),
@@ -36,6 +38,7 @@ describe("shopping item logic", () => {
       {
         id: "item-1",
         name: "Pan integral",
+        sectionId: "mercadona",
         purchased: false,
         createdAt: 100,
         updatedAt: 100,
@@ -44,12 +47,34 @@ describe("shopping item logic", () => {
   });
 
   it("detects duplicate names ignoring case", () => {
-    expect(hasItemWithName([baseItem], " leche ")).toBe(true);
+    expect(hasItemWithName([baseItem], " leche ", "mercadona")).toBe(true);
   });
 
-  it("does not add duplicate products", () => {
-    expect(addShoppingItem([baseItem], "leche", () => "item-2")).toEqual([
+  it("does not add duplicate products in the same section", () => {
+    expect(
+      addShoppingItem([baseItem], "leche", "mercadona", () => "item-2"),
+    ).toEqual([baseItem]);
+  });
+
+  it("allows the same product name in different sections", () => {
+    expect(
+      addShoppingItem(
+        [baseItem],
+        "leche",
+        "alcampo",
+        () => "item-2",
+        () => 200,
+      ),
+    ).toEqual([
       baseItem,
+      {
+        id: "item-2",
+        name: "leche",
+        sectionId: "alcampo",
+        purchased: false,
+        createdAt: 200,
+        updatedAt: 200,
+      },
     ]);
   });
 

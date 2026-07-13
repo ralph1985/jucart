@@ -1,9 +1,17 @@
 import Dexie, { Table } from "dexie";
 
-import { ShoppingItem } from "./shoppingItems";
+import {
+  isShoppingSectionId,
+  ShoppingItem,
+  ShoppingSectionId,
+} from "./shoppingItems";
+
+type StoredShoppingItem = Omit<ShoppingItem, "sectionId"> & {
+  sectionId?: ShoppingSectionId;
+};
 
 class JucartDatabase extends Dexie {
-  shoppingItems!: Table<ShoppingItem, string>;
+  shoppingItems!: Table<StoredShoppingItem, string>;
 
   constructor() {
     super("jucart");
@@ -11,13 +19,19 @@ class JucartDatabase extends Dexie {
     this.version(1).stores({
       shoppingItems: "id, createdAt, updatedAt, purchased",
     });
+
+    this.version(2).stores({
+      shoppingItems: "id, sectionId, createdAt, updatedAt, purchased",
+    });
   }
 }
 
 export const db = new JucartDatabase();
 
 export async function getStoredShoppingItems() {
-  return db.shoppingItems.orderBy("createdAt").toArray();
+  const items = await db.shoppingItems.orderBy("createdAt").toArray();
+
+  return items.map(normalizeStoredShoppingItem);
 }
 
 export async function replaceStoredShoppingItems(items: ShoppingItem[]) {
@@ -29,4 +43,14 @@ export async function replaceStoredShoppingItems(items: ShoppingItem[]) {
 
 export async function resetShoppingItemsDatabase() {
   await db.shoppingItems.clear();
+}
+
+function normalizeStoredShoppingItem(item: StoredShoppingItem): ShoppingItem {
+  return {
+    ...item,
+    sectionId:
+      item.sectionId && isShoppingSectionId(item.sectionId)
+        ? item.sectionId
+        : "general",
+  };
 }

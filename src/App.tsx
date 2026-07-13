@@ -1,10 +1,12 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import styles from "./App.module.scss";
 import {
   addShoppingItem,
   removeShoppingItem,
   ShoppingItem,
+  ShoppingSectionId,
+  shoppingSections,
   toggleShoppingItem,
 } from "./shoppingItems";
 import {
@@ -15,17 +17,10 @@ import {
 export function App() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [itemName, setItemName] = useState("");
+  const [selectedSectionId, setSelectedSectionId] =
+    useState<ShoppingSectionId>("mercadona");
   const [isLoaded, setIsLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
-
-  const pendingItems = useMemo(
-    () => items.filter((item) => !item.purchased),
-    [items],
-  );
-  const purchasedItems = useMemo(
-    () => items.filter((item) => item.purchased),
-    [items],
-  );
 
   useEffect(() => {
     let isActive = true;
@@ -75,20 +70,30 @@ export function App() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setItems((currentItems) => addShoppingItem(currentItems, itemName));
+    setItems((currentItems) =>
+      addShoppingItem(currentItems, itemName, selectedSectionId),
+    );
     setItemName("");
   }
 
-  function renderItems(sectionItems: ShoppingItem[], emptyMessage: string) {
+  function renderItems(sectionItems: ShoppingItem[]) {
     if (sectionItems.length === 0) {
-      return <p className={styles.empty}>{emptyMessage}</p>;
+      return <p className={styles.empty}>Sin productos.</p>;
     }
 
     return (
       <ul className={styles.list}>
         {sectionItems.map((item) => (
           <li className={styles.item} key={item.id}>
-            <span className={styles.itemName}>{item.name}</span>
+            <span
+              className={
+                item.purchased
+                  ? `${styles.itemName} ${styles.itemNamePurchased}`
+                  : styles.itemName
+              }
+            >
+              {item.name}
+            </span>
             <div className={styles.itemActions}>
               <button
                 className={styles.secondaryButton}
@@ -150,6 +155,24 @@ export function App() {
             Añadir
           </button>
         </div>
+        <label className={styles.label} htmlFor="section-id">
+          Sección
+        </label>
+        <select
+          id="section-id"
+          className={styles.select}
+          value={selectedSectionId}
+          onChange={(event) =>
+            setSelectedSectionId(event.target.value as ShoppingSectionId)
+          }
+          disabled={!isLoaded}
+        >
+          {shoppingSections.map((section) => (
+            <option key={section.id} value={section.id}>
+              {section.name}
+            </option>
+          ))}
+        </select>
       </form>
 
       {!isLoaded ? (
@@ -160,20 +183,25 @@ export function App() {
         </p>
       ) : null}
 
-      <section className={styles.section} aria-labelledby="pending-title">
-        <div className={styles.sectionHeader}>
-          <h2 id="pending-title">Pendientes</h2>
-          <span className={styles.count}>{pendingItems.length}</span>
-        </div>
-        {renderItems(pendingItems, "No hay productos pendientes.")}
-      </section>
+      <section className={styles.board} aria-label="Lista por secciones">
+        {shoppingSections.map((section) => {
+          const sectionItems = items.filter(
+            (item) => item.sectionId === section.id,
+          );
+          const pendingCount = sectionItems.filter(
+            (item) => !item.purchased,
+          ).length;
 
-      <section className={styles.section} aria-labelledby="purchased-title">
-        <div className={styles.sectionHeader}>
-          <h2 id="purchased-title">Comprados</h2>
-          <span className={styles.count}>{purchasedItems.length}</span>
-        </div>
-        {renderItems(purchasedItems, "No hay productos comprados.")}
+          return (
+            <article className={styles.column} key={section.id}>
+              <div className={styles.sectionHeader}>
+                <h2>{section.name}</h2>
+                <span className={styles.count}>{pendingCount}</span>
+              </div>
+              {renderItems(sectionItems)}
+            </article>
+          );
+        })}
       </section>
     </main>
   );

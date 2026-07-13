@@ -16,6 +16,7 @@ describe("shopping items database", () => {
       {
         id: "item-2",
         name: "Pan",
+        sectionId: "alcampo",
         purchased: true,
         createdAt: 200,
         updatedAt: 210,
@@ -23,6 +24,7 @@ describe("shopping items database", () => {
       {
         id: "item-1",
         name: "Leche",
+        sectionId: "mercadona",
         purchased: false,
         createdAt: 100,
         updatedAt: 100,
@@ -33,6 +35,7 @@ describe("shopping items database", () => {
       {
         id: "item-1",
         name: "Leche",
+        sectionId: "mercadona",
         purchased: false,
         createdAt: 100,
         updatedAt: 100,
@@ -40,6 +43,7 @@ describe("shopping items database", () => {
       {
         id: "item-2",
         name: "Pan",
+        sectionId: "alcampo",
         purchased: true,
         createdAt: 200,
         updatedAt: 210,
@@ -52,6 +56,7 @@ describe("shopping items database", () => {
       {
         id: "item-1",
         name: "Leche",
+        sectionId: "mercadona",
         purchased: false,
         createdAt: 100,
         updatedAt: 100,

@@ -40,31 +40,32 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Producto"), {
       target: { value: "  Leche  " },
     });
+    fireEvent.change(screen.getByLabelText("Sección"), {
+      target: { value: "alcampo" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
 
-    const pendingSection = screen
-      .getByRole("heading", { name: "Pendientes" })
-      .closest("section");
+    const alcampoColumn = screen
+      .getByRole("heading", { name: "Alcampo" })
+      .closest("article");
 
-    expect(pendingSection).not.toBeNull();
+    expect(alcampoColumn).not.toBeNull();
     expect(
-      within(pendingSection as HTMLElement).getByText("Leche"),
+      within(alcampoColumn as HTMLElement).getByText("Leche"),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Comprado" }));
-
-    const purchasedSection = screen
-      .getByRole("heading", { name: "Comprados" })
-      .closest("section");
-
-    expect(purchasedSection).not.toBeNull();
     expect(
-      within(purchasedSection as HTMLElement).getByText("Leche"),
+      within(alcampoColumn as HTMLElement).getByRole("button", {
+        name: "Pendiente",
+      }),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Pendiente" }));
     expect(
-      within(pendingSection as HTMLElement).getByText("Leche"),
+      within(alcampoColumn as HTMLElement).getByRole("button", {
+        name: "Comprado",
+      }),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Eliminar" }));
@@ -76,6 +77,7 @@ describe("App", () => {
       {
         id: "item-1",
         name: "Leche",
+        sectionId: "farmacia",
         purchased: false,
         createdAt: 100,
         updatedAt: 100,
@@ -84,6 +86,16 @@ describe("App", () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByText("Leche")).toBeInTheDocument());
+    const farmaciaColumn = await screen.findByRole("heading", {
+      name: "Farmacia",
+    });
+
+    await waitFor(() =>
+      expect(
+        within(farmaciaColumn.closest("article") as HTMLElement).getByText(
+          "Leche",
+        ),
+      ).toBeInTheDocument(),
+    );
   });
 });

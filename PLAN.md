@@ -113,3 +113,11 @@
 - [x] Cambiar la acción de borrar comprados a botón con icono.
 - [x] Mantener nombres accesibles para lectores de pantalla y tests.
 - [x] Mantener tamaños táctiles mínimos.
+
+## Hito 12 — Alta compacta
+
+- [x] Compactar la zona de alta.
+- [x] Mostrar sección y persona antes del producto.
+- [x] Dejar el nombre del producto como último campo.
+- [x] Mantener el alta por Enter desde el campo de producto.
+- [x] Añadir test del orden del formulario.

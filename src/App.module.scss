@@ -9,19 +9,21 @@
 
 .header {
   width: min(100% - 2rem, 80rem);
-  margin: 0 auto 1.5rem;
+  margin: 0 auto 1rem;
 }
 
 .form {
   width: min(100% - 2rem, 42rem);
-  margin-bottom: 1.5rem;
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
   margin-inline: auto;
 }
 
 .listActions {
   display: flex;
   width: min(100% - 2rem, 42rem);
-  margin: -0.5rem auto 1.5rem;
+  margin: -0.35rem auto 1rem;
   justify-content: flex-end;
 }
 
@@ -48,8 +50,20 @@ h2 {
 
 .label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.3rem;
+  color: #52606d;
+  font-size: 0.86rem;
   font-weight: 700;
+}
+
+.formOptions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.formField {
+  min-width: 0;
 }
 
 .addRow {
@@ -60,7 +74,7 @@ h2 {
 
 .input {
   min-width: 0;
-  min-height: 3rem;
+  min-height: 2.75rem;
   border: 1px solid #bcccdc;
   border-radius: 0.5rem;
   padding: 0 0.9rem;
@@ -70,9 +84,7 @@ h2 {
 
 .select {
   width: 100%;
-  min-height: 3rem;
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
+  min-height: 2.75rem;
   border: 1px solid #bcccdc;
   border-radius: 0.5rem;
   padding: 0 0.9rem;
@@ -124,7 +136,7 @@ h2 {
 }
 
 .primaryButton {
-  min-height: 3rem;
+  min-height: 2.75rem;
   background: #1f7a5c;
   color: #ffffff;
 }

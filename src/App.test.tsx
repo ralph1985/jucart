@@ -104,6 +104,27 @@ describe("App", () => {
     expect(screen.getByLabelText("Añadido por")).toHaveValue("begona");
   });
 
+  it("shows product name as the last add form field", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    const sectionSelect = screen.getByLabelText("Sección");
+    const userSelect = screen.getByLabelText("Añadido por");
+    const productInput = screen.getByLabelText("Producto");
+
+    expect(
+      sectionSelect.compareDocumentPosition(productInput) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      userSelect.compareDocumentPosition(productInput) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("marks the selected section and updates the selector when a column is clicked", async () => {
     render(<App />);
 

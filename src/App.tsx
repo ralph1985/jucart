@@ -462,66 +462,74 @@ export function App() {
       </section>
 
       <form className={styles.form} onSubmit={handleSubmit}>
-        <label className={styles.label} htmlFor="item-name">
-          Producto
-        </label>
-        <div className={styles.addRow}>
-          <input
-            id="item-name"
-            ref={itemNameInputRef}
-            className={styles.input}
-            autoComplete="off"
-            autoFocus
-            value={itemName}
-            onChange={(event) => setItemName(event.target.value)}
-            placeholder="Leche, pan, fruta..."
-            type="text"
-            disabled={!isLoaded}
-          />
-          <button
-            className={styles.primaryButton}
-            type="submit"
-            disabled={!isLoaded}
-          >
-            Añadir
-          </button>
+        <div className={styles.formOptions}>
+          <div className={styles.formField}>
+            <label className={styles.label} htmlFor="section-id">
+              Sección
+            </label>
+            <select
+              id="section-id"
+              className={styles.select}
+              value={selectedSectionId}
+              onChange={(event) =>
+                setSelectedSectionId(event.target.value as ShoppingSectionId)
+              }
+              disabled={!isLoaded}
+            >
+              {shoppingSections.map((section) => (
+                <option key={section.id} value={section.id}>
+                  {section.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.formField}>
+            <label className={styles.label} htmlFor="user-id">
+              Añadido por
+            </label>
+            <select
+              id="user-id"
+              className={styles.select}
+              value={selectedUserId}
+              onChange={(event) =>
+                setSelectedUserId(event.target.value as ShoppingUserId)
+              }
+              disabled={!isLoaded}
+            >
+              {shoppingUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-        <label className={styles.label} htmlFor="section-id">
-          Sección
-        </label>
-        <select
-          id="section-id"
-          className={styles.select}
-          value={selectedSectionId}
-          onChange={(event) =>
-            setSelectedSectionId(event.target.value as ShoppingSectionId)
-          }
-          disabled={!isLoaded}
-        >
-          {shoppingSections.map((section) => (
-            <option key={section.id} value={section.id}>
-              {section.name}
-            </option>
-          ))}
-        </select>
-        <label className={styles.label} htmlFor="user-id">
-          Añadido por
-        </label>
-        <select
-          id="user-id"
-          className={styles.select}
-          value={selectedUserId}
-          onChange={(event) =>
-            setSelectedUserId(event.target.value as ShoppingUserId)
-          }
-          disabled={!isLoaded}
-        >
-          {shoppingUsers.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.name}
-            </option>
-          ))}
-        </select>
+        <div className={styles.formField}>
+          <label className={styles.label} htmlFor="item-name">
+            Producto
+          </label>
+          <div className={styles.addRow}>
+            <input
+              id="item-name"
+              ref={itemNameInputRef}
+              className={styles.input}
+              autoComplete="off"
+              autoFocus
+              value={itemName}
+              onChange={(event) => setItemName(event.target.value)}
+              placeholder="Leche, pan, fruta..."
+              type="text"
+              disabled={!isLoaded}
+            />
+            <button
+              className={styles.primaryButton}
+              type="submit"
+              disabled={!isLoaded}
+            >
+              Añadir
+            </button>
+          </div>
+        </div>
       </form>
 
       <section className={styles.listActions} aria-label="Acciones de lista">

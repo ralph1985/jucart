@@ -67,3 +67,5 @@ El Hito 9 mejora el uso durante la compra: muestra primero los pendientes dentro
 El Hito 10 sincroniza el selector de sección con el tablero: marca la columna seleccionada y desplaza el tablero móvil al cambiar de sección.
 
 El Hito 11 compacta la interfaz usando iconos en las acciones de productos y limpieza, sin perder nombres accesibles.
+
+El Hito 12 compacta la zona de alta y deja el nombre del producto como último campo del formulario.

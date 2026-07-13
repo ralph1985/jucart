@@ -65,6 +65,12 @@ En el Hito 11, las acciones repetidas de productos pasan a botones con iconos pa
 
 Los botones conservan `aria-label` y `title` con la acción completa. No se añade una librería de iconos porque la app mantiene una superficie pequeña y no hay otra necesidad actual de una dependencia nueva.
 
+## Alta compacta
+
+En el Hito 12, el formulario de alta muestra primero la sección y la persona, y deja el nombre del producto como último campo.
+
+Este orden prioriza preparar el contexto una vez y terminar escribiendo el producto, de forma que Enter complete el alta. La zona se compacta reduciendo márgenes y agrupando los selectores sin cambiar la pantalla única.
+
 ## Persistencia local
 
 En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.

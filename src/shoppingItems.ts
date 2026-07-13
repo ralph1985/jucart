@@ -150,3 +150,10 @@ export function removeShoppingItem(items: ShoppingItem[], itemId: string) {
 export function removePurchasedShoppingItems(items: ShoppingItem[]) {
   return items.filter((item) => !item.purchased);
 }
+
+export function sortShoppingItemsForShopping(items: ShoppingItem[]) {
+  return [
+    ...items.filter((item) => !item.purchased),
+    ...items.filter((item) => item.purchased),
+  ];
+}

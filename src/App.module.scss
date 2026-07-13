@@ -211,6 +211,19 @@ h2 {
   background: #f8f6f0;
 }
 
+.itemPurchased {
+  border-style: dashed;
+  background: #f0f4f8;
+}
+
+.purchasedDivider {
+  margin-bottom: -0.2rem;
+  color: #627d98;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .itemName {
   overflow-wrap: anywhere;
   font-size: 1.1rem;

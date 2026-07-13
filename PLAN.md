@@ -90,3 +90,11 @@
 - [x] Mantener los productos pendientes intactos.
 - [x] Persistir automáticamente la limpieza.
 - [x] Añadir tests razonables de la limpieza.
+
+## Hito 9 — Compra en tienda
+
+- [x] Mostrar los productos pendientes antes que los comprados en cada sección.
+- [x] Mantener el orden relativo dentro de pendientes y comprados.
+- [x] Diferenciar visualmente los productos comprados.
+- [x] Añadir un separador cuando una sección mezcle pendientes y comprados.
+- [x] Añadir tests razonables del orden de compra.

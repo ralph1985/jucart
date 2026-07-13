@@ -139,6 +139,55 @@ describe("App", () => {
     expect(screen.queryByText("Pan")).not.toBeInTheDocument();
   });
 
+  it("shows pending products before purchased products in each section", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Yogur",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: true,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      {
+        id: "item-2",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "begona",
+        purchased: false,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+      {
+        id: "item-3",
+        name: "Pan",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 300,
+        updatedAt: 300,
+      },
+    ]);
+
+    render(<App />);
+
+    const mercadonaColumn = (
+      await screen.findByRole("heading", { name: "Mercadona" })
+    ).closest("article");
+
+    expect(mercadonaColumn).not.toBeNull();
+
+    const productNames = within(mercadonaColumn as HTMLElement)
+      .getAllByText(/^(Leche|Pan|Yogur)$/)
+      .map((productName) => productName.textContent);
+
+    expect(productNames).toEqual(["Leche", "Pan", "Yogur"]);
+    expect(
+      within(mercadonaColumn as HTMLElement).getByText("Comprados"),
+    ).toBeInTheDocument();
+  });
+
   it("edits a product name and section", async () => {
     render(<App />);
 

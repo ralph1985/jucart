@@ -47,6 +47,12 @@ En el Hito 8, Jucart permite borrar todos los productos comprados con una acció
 
 La limpieza pide confirmación antes de borrar y conserva los productos pendientes. No se añade papelera, historial ni deshacer porque la aplicación sigue siendo una lista local sencilla; si un producto se borra por error, se vuelve a añadir manualmente.
 
+## Compra en tienda
+
+En el Hito 9, cada sección muestra primero los productos pendientes y después los comprados.
+
+El orden relativo se conserva dentro de cada grupo para que la lista no salte de forma inesperada. Cuando una sección tiene pendientes y comprados, se muestra un separador sencillo antes de los comprados y sus tarjetas quedan visualmente más apagadas.
+
 ## Persistencia local
 
 En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.

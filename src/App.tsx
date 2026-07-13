@@ -13,6 +13,7 @@ import {
   ShoppingUserId,
   shoppingSections,
   shoppingUsers,
+  sortShoppingItemsForShopping,
   toggleShoppingItem,
   updateShoppingItem,
 } from "./shoppingItems";
@@ -190,10 +191,27 @@ export function App() {
       return <p className={styles.empty}>Sin productos.</p>;
     }
 
+    const visibleItems = sortShoppingItemsForShopping(sectionItems);
+    const hasPendingItems = sectionItems.some((item) => !item.purchased);
+    const hasPurchasedItems = sectionItems.some((item) => item.purchased);
+    const shouldShowPurchasedDivider = hasPendingItems && hasPurchasedItems;
+
     return (
       <ul className={styles.list}>
-        {sectionItems.map((item) => (
-          <li className={styles.item} key={item.id}>
+        {visibleItems.map((item, index) => (
+          <li
+            className={
+              item.purchased
+                ? `${styles.item} ${styles.itemPurchased}`
+                : styles.item
+            }
+            key={item.id}
+          >
+            {shouldShowPurchasedDivider &&
+            item.purchased &&
+            !visibleItems[index - 1]?.purchased ? (
+              <span className={styles.purchasedDivider}>Comprados</span>
+            ) : null}
             {editingItemId === item.id ? (
               <form
                 className={styles.editForm}

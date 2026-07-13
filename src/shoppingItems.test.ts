@@ -5,6 +5,7 @@ import {
   removePurchasedShoppingItems,
   removeShoppingItem,
   ShoppingItem,
+  sortShoppingItemsForShopping,
   toggleShoppingItem,
   updateShoppingItem,
 } from "./shoppingItems";
@@ -149,5 +150,23 @@ describe("shopping item logic", () => {
     expect(removePurchasedShoppingItems([baseItem, purchasedItem])).toEqual([
       baseItem,
     ]);
+  });
+
+  it("sorts pending products before purchased products", () => {
+    const pendingItem: ShoppingItem = {
+      ...baseItem,
+      id: "item-2",
+      name: "Pan",
+    };
+    const purchasedItem: ShoppingItem = {
+      ...baseItem,
+      id: "item-3",
+      name: "Yogur",
+      purchased: true,
+    };
+
+    expect(
+      sortShoppingItemsForShopping([purchasedItem, baseItem, pendingItem]),
+    ).toEqual([baseItem, pendingItem, purchasedItem]);
   });
 });

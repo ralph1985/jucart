@@ -43,6 +43,9 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Sección"), {
       target: { value: "alcampo" },
     });
+    fireEvent.change(screen.getByLabelText("Añadido por"), {
+      target: { value: "begona" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
 
     const alcampoColumn = screen
@@ -52,6 +55,9 @@ describe("App", () => {
     expect(alcampoColumn).not.toBeNull();
     expect(
       within(alcampoColumn as HTMLElement).getByText("Leche"),
+    ).toBeInTheDocument();
+    expect(
+      within(alcampoColumn as HTMLElement).getByText("Añadido por Begoña"),
     ).toBeInTheDocument();
 
     fireEvent.click(
@@ -120,6 +126,7 @@ describe("App", () => {
         id: "item-1",
         name: "Leche",
         sectionId: "farmacia",
+        addedBy: "rafa",
         purchased: false,
         createdAt: 100,
         updatedAt: 100,

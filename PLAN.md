@@ -65,3 +65,12 @@
 - [x] Añadir tests de la lógica de edición.
 - [x] Añadir test de edición desde la interfaz.
 - [x] Verificar typecheck, lint, formato, tests y build.
+
+## Hito 6 — Autor del alta
+
+- [x] Definir las personas disponibles: Rafa y Begoña.
+- [x] Añadir un selector básico de persona al formulario de alta.
+- [x] Guardar quién ha añadido cada producto.
+- [x] Mostrar quién añadió cada producto en la tarjeta.
+- [x] Mantener compatibilidad con productos guardados antes de este campo.
+- [x] Añadir tests razonables del nuevo campo.

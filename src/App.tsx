@@ -3,10 +3,13 @@ import { FormEvent, useEffect, useState } from "react";
 import styles from "./App.module.scss";
 import {
   addShoppingItem,
+  getShoppingUserName,
   removeShoppingItem,
   ShoppingItem,
   ShoppingSectionId,
+  ShoppingUserId,
   shoppingSections,
+  shoppingUsers,
   toggleShoppingItem,
   updateShoppingItem,
 } from "./shoppingItems";
@@ -20,6 +23,7 @@ export function App() {
   const [itemName, setItemName] = useState("");
   const [selectedSectionId, setSelectedSectionId] =
     useState<ShoppingSectionId>("mercadona");
+  const [selectedUserId, setSelectedUserId] = useState<ShoppingUserId>("rafa");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
   const [editingSectionId, setEditingSectionId] =
@@ -76,7 +80,12 @@ export function App() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setItems((currentItems) =>
-      addShoppingItem(currentItems, itemName, selectedSectionId),
+      addShoppingItem(
+        currentItems,
+        itemName,
+        selectedSectionId,
+        selectedUserId,
+      ),
     );
     setItemName("");
   }
@@ -167,6 +176,9 @@ export function App() {
                   }
                 >
                   {item.name}
+                </span>
+                <span className={styles.itemMeta}>
+                  Añadido por {getShoppingUserName(item.addedBy)}
                 </span>
                 <div className={styles.itemActions}>
                   <button
@@ -260,6 +272,24 @@ export function App() {
           {shoppingSections.map((section) => (
             <option key={section.id} value={section.id}>
               {section.name}
+            </option>
+          ))}
+        </select>
+        <label className={styles.label} htmlFor="user-id">
+          Añadido por
+        </label>
+        <select
+          id="user-id"
+          className={styles.select}
+          value={selectedUserId}
+          onChange={(event) =>
+            setSelectedUserId(event.target.value as ShoppingUserId)
+          }
+          disabled={!isLoaded}
+        >
+          {shoppingUsers.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name}
             </option>
           ))}
         </select>

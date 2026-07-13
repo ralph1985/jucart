@@ -215,6 +215,13 @@ h2 {
   text-decoration: line-through;
 }
 
+.itemMeta {
+  margin-top: -0.35rem;
+  color: #627d98;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .itemActions {
   display: grid;
   grid-template-columns: 1fr;

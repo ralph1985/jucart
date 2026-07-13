@@ -29,6 +29,12 @@ La edición reutiliza las mismas reglas que el alta: se normalizan los espacios,
 
 No se añade una pantalla nueva, modal ni historial de cambios. La edición se hace en la propia tarjeta para mantener la aplicación rápida y de una sola pantalla.
 
+## Autor del alta
+
+Jucart guarda quién ha añadido cada producto con un selector básico entre Rafa y Begoña.
+
+No se implementan usuarios, login ni permisos. El dato se guarda como parte del producto para dar contexto en la lista compartida. Los productos antiguos sin este campo se normalizan como añadidos por Rafa.
+
 ## Persistencia local
 
 En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.

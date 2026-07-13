@@ -8,10 +8,18 @@ export const shoppingSections = [
 
 export type ShoppingSectionId = (typeof shoppingSections)[number]["id"];
 
+export const shoppingUsers = [
+  { id: "rafa", name: "Rafa" },
+  { id: "begona", name: "Begoña" },
+] as const;
+
+export type ShoppingUserId = (typeof shoppingUsers)[number]["id"];
+
 export type ShoppingItem = {
   id: string;
   name: string;
   sectionId: ShoppingSectionId;
+  addedBy: ShoppingUserId;
   purchased: boolean;
   createdAt: number;
   updatedAt: number;
@@ -23,6 +31,14 @@ export function normalizeItemName(value: string) {
 
 export function isShoppingSectionId(value: string): value is ShoppingSectionId {
   return shoppingSections.some((section) => section.id === value);
+}
+
+export function isShoppingUserId(value: string): value is ShoppingUserId {
+  return shoppingUsers.some((user) => user.id === value);
+}
+
+export function getShoppingUserName(userId: ShoppingUserId) {
+  return shoppingUsers.find((user) => user.id === userId)?.name ?? "Rafa";
 }
 
 export function hasItemWithName(
@@ -43,6 +59,7 @@ export function addShoppingItem(
   items: ShoppingItem[],
   rawName: string,
   sectionId: ShoppingSectionId,
+  addedBy: ShoppingUserId,
   createId: () => string = () => crypto.randomUUID(),
   now: () => number = () => Date.now(),
 ) {
@@ -60,6 +77,7 @@ export function addShoppingItem(
       id: createId(),
       name,
       sectionId,
+      addedBy,
       purchased: false,
       createdAt,
       updatedAt: createdAt,

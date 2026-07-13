@@ -1,13 +1,16 @@
 import Dexie, { Table } from "dexie";
 
 import {
+  isShoppingUserId,
   isShoppingSectionId,
   ShoppingItem,
   ShoppingSectionId,
+  ShoppingUserId,
 } from "./shoppingItems";
 
-type StoredShoppingItem = Omit<ShoppingItem, "sectionId"> & {
+type StoredShoppingItem = Omit<ShoppingItem, "sectionId" | "addedBy"> & {
   sectionId?: ShoppingSectionId;
+  addedBy?: ShoppingUserId;
 };
 
 class JucartDatabase extends Dexie {
@@ -22,6 +25,10 @@ class JucartDatabase extends Dexie {
 
     this.version(2).stores({
       shoppingItems: "id, sectionId, createdAt, updatedAt, purchased",
+    });
+
+    this.version(3).stores({
+      shoppingItems: "id, sectionId, addedBy, createdAt, updatedAt, purchased",
     });
   }
 }
@@ -52,5 +59,7 @@ function normalizeStoredShoppingItem(item: StoredShoppingItem): ShoppingItem {
       item.sectionId && isShoppingSectionId(item.sectionId)
         ? item.sectionId
         : "general",
+    addedBy:
+      item.addedBy && isShoppingUserId(item.addedBy) ? item.addedBy : "rafa",
   };
 }

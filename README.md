@@ -55,3 +55,5 @@ pnpm dev
 El MVP tiene completados los hitos 0, 1, 2, 3 y 4: inicialización, lista local, persistencia local, PWA/offline y revisión final.
 
 El Hito 5 añade edición básica de productos: cambiar nombre y mover productos entre secciones sin salir de la pantalla principal.
+
+El Hito 6 añade un selector básico para guardar si cada producto lo ha añadido Rafa o Begoña.

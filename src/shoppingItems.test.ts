@@ -12,6 +12,7 @@ const baseItem: ShoppingItem = {
   id: "item-1",
   name: "Leche",
   sectionId: "mercadona",
+  addedBy: "rafa",
   purchased: false,
   createdAt: 100,
   updatedAt: 100,
@@ -23,7 +24,9 @@ describe("shopping item logic", () => {
   });
 
   it("does not add empty products", () => {
-    expect(addShoppingItem([], "   ", "mercadona", () => "item-1")).toEqual([]);
+    expect(
+      addShoppingItem([], "   ", "mercadona", "rafa", () => "item-1"),
+    ).toEqual([]);
   });
 
   it("adds normalized products as pending items", () => {
@@ -32,6 +35,7 @@ describe("shopping item logic", () => {
         [],
         "  Pan   integral  ",
         "mercadona",
+        "begona",
         () => "item-1",
         () => 100,
       ),
@@ -40,6 +44,7 @@ describe("shopping item logic", () => {
         id: "item-1",
         name: "Pan integral",
         sectionId: "mercadona",
+        addedBy: "begona",
         purchased: false,
         createdAt: 100,
         updatedAt: 100,
@@ -53,7 +58,7 @@ describe("shopping item logic", () => {
 
   it("does not add duplicate products in the same section", () => {
     expect(
-      addShoppingItem([baseItem], "leche", "mercadona", () => "item-2"),
+      addShoppingItem([baseItem], "leche", "mercadona", "rafa", () => "item-2"),
     ).toEqual([baseItem]);
   });
 
@@ -63,6 +68,7 @@ describe("shopping item logic", () => {
         [baseItem],
         "leche",
         "alcampo",
+        "begona",
         () => "item-2",
         () => 200,
       ),
@@ -72,6 +78,7 @@ describe("shopping item logic", () => {
         id: "item-2",
         name: "leche",
         sectionId: "alcampo",
+        addedBy: "begona",
         purchased: false,
         createdAt: 200,
         updatedAt: 200,

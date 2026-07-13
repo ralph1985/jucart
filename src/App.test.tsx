@@ -15,6 +15,7 @@ import {
 
 afterEach(async () => {
   await resetShoppingItemsDatabase();
+  window.localStorage.clear();
 });
 
 describe("App", () => {
@@ -37,7 +38,9 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
     );
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    const productInput = screen.getByLabelText("Producto");
+
+    fireEvent.change(productInput, {
       target: { value: "  Leche  " },
     });
     fireEvent.change(screen.getByLabelText("Sección"), {
@@ -47,6 +50,9 @@ describe("App", () => {
       target: { value: "begona" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+
+    expect(productInput).toHaveFocus();
+    expect(productInput).toHaveValue("");
 
     const alcampoColumn = screen
       .getByRole("heading", { name: "Alcampo" })
@@ -80,6 +86,20 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
+  });
+
+  it("restores the last selected section and user", async () => {
+    window.localStorage.setItem("jucart:selected-section-id", "farmacia");
+    window.localStorage.setItem("jucart:selected-user-id", "begona");
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
+    expect(screen.getByLabelText("Añadido por")).toHaveValue("begona");
   });
 
   it("edits a product name and section", async () => {

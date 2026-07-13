@@ -1,9 +1,11 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 import styles from "./App.module.scss";
 import {
   addShoppingItem,
   getShoppingUserName,
+  isShoppingSectionId,
+  isShoppingUserId,
   removeShoppingItem,
   ShoppingItem,
   ShoppingSectionId,
@@ -18,18 +20,51 @@ import {
   replaceStoredShoppingItems,
 } from "./shoppingItemsDb";
 
+const selectedSectionStorageKey = "jucart:selected-section-id";
+const selectedUserStorageKey = "jucart:selected-user-id";
+
+function getInitialSelectedSectionId(): ShoppingSectionId {
+  try {
+    const storedSectionId = window.localStorage.getItem(
+      selectedSectionStorageKey,
+    );
+
+    return storedSectionId && isShoppingSectionId(storedSectionId)
+      ? storedSectionId
+      : "mercadona";
+  } catch {
+    return "mercadona";
+  }
+}
+
+function getInitialSelectedUserId(): ShoppingUserId {
+  try {
+    const storedUserId = window.localStorage.getItem(selectedUserStorageKey);
+
+    return storedUserId && isShoppingUserId(storedUserId)
+      ? storedUserId
+      : "rafa";
+  } catch {
+    return "rafa";
+  }
+}
+
 export function App() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [itemName, setItemName] = useState("");
-  const [selectedSectionId, setSelectedSectionId] =
-    useState<ShoppingSectionId>("mercadona");
-  const [selectedUserId, setSelectedUserId] = useState<ShoppingUserId>("rafa");
+  const [selectedSectionId, setSelectedSectionId] = useState<ShoppingSectionId>(
+    getInitialSelectedSectionId,
+  );
+  const [selectedUserId, setSelectedUserId] = useState<ShoppingUserId>(
+    getInitialSelectedUserId,
+  );
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
   const [editingSectionId, setEditingSectionId] =
     useState<ShoppingSectionId>("mercadona");
   const [isLoaded, setIsLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const itemNameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -77,6 +112,22 @@ export function App() {
     void storeItems();
   }, [isLoaded, items]);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(selectedSectionStorageKey, selectedSectionId);
+    } catch {
+      return;
+    }
+  }, [selectedSectionId]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(selectedUserStorageKey, selectedUserId);
+    } catch {
+      return;
+    }
+  }, [selectedUserId]);
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setItems((currentItems) =>
@@ -88,6 +139,7 @@ export function App() {
       ),
     );
     setItemName("");
+    itemNameInputRef.current?.focus();
   }
 
   function startEditing(item: ShoppingItem) {
@@ -240,6 +292,7 @@ export function App() {
         <div className={styles.addRow}>
           <input
             id="item-name"
+            ref={itemNameInputRef}
             className={styles.input}
             autoComplete="off"
             autoFocus

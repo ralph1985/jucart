@@ -74,3 +74,11 @@
 - [x] Mostrar quién añadió cada producto en la tarjeta.
 - [x] Mantener compatibilidad con productos guardados antes de este campo.
 - [x] Añadir tests razonables del nuevo campo.
+
+## Hito 7 — Alta más rápida
+
+- [x] Recordar la última sección seleccionada.
+- [x] Recordar la última persona seleccionada.
+- [x] Mantener el foco en el campo de producto después de añadir.
+- [x] Mantener la app en una sola pantalla.
+- [x] Añadir tests razonables del flujo de alta rápida.

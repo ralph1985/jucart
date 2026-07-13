@@ -57,3 +57,5 @@ El MVP tiene completados los hitos 0, 1, 2, 3 y 4: inicialización, lista local,
 El Hito 5 añade edición básica de productos: cambiar nombre y mover productos entre secciones sin salir de la pantalla principal.
 
 El Hito 6 añade un selector básico para guardar si cada producto lo ha añadido Rafa o Begoña.
+
+El Hito 7 mejora la rapidez del alta: recuerda la última sección y persona seleccionadas, y mantiene el foco en el campo de producto después de añadir.

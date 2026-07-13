@@ -48,9 +48,9 @@
 
 ## Hito 4 — Revisión del MVP
 
-- [ ] Revisar accesibilidad.
-- [ ] Revisar usabilidad móvil.
-- [ ] Revisar estados vacíos y errores.
-- [ ] Revisar el tamaño de los controles táctiles.
-- [ ] Ejecutar todas las comprobaciones.
-- [ ] Actualizar README y PLAN.
+- [x] Revisar accesibilidad.
+- [x] Revisar usabilidad móvil.
+- [x] Revisar estados vacíos y errores.
+- [x] Revisar el tamaño de los controles táctiles.
+- [x] Ejecutar todas las comprobaciones.
+- [x] Actualizar README y PLAN.

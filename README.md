@@ -52,4 +52,4 @@ pnpm dev
 
 ## Estado
 
-El proyecto tiene completados los hitos 0, 1, 2 y 3: inicialización, lista local, persistencia local y PWA/offline.
+El MVP tiene completados los hitos 0, 1, 2, 3 y 4: inicialización, lista local, persistencia local, PWA/offline y revisión final.

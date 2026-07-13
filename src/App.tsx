@@ -677,7 +677,7 @@ export function App() {
                 {item.name}
               </span>
               <span className={styles.itemMeta}>
-                Añadido por {getShoppingUserName(item.addedBy)}
+                {getShoppingUserName(item.addedBy)}
               </span>
               <div className={styles.itemActions}>
                 <button

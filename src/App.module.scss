@@ -397,6 +397,7 @@ h2 {
 }
 
 .item {
+  position: relative;
   display: grid;
   grid-template-columns: 2.35rem minmax(0, 1fr) auto;
   align-items: center;
@@ -465,13 +466,13 @@ h2 {
 }
 
 .itemMeta {
-  grid-column: 3;
-  grid-row: 2;
-  justify-self: end;
-  min-width: 0;
+  position: absolute;
+  right: 0.35rem;
+  bottom: 0.25rem;
   color: #64748b;
-  font-size: 0.68rem;
+  font-size: 0.58rem;
   font-weight: 750;
+  line-height: 1;
   text-align: right;
   text-transform: uppercase;
 }

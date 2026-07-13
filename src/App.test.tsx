@@ -65,7 +65,7 @@ describe("App", () => {
       within(alcampoColumn as HTMLElement).getByText("Leche"),
     ).toBeInTheDocument();
     expect(
-      within(alcampoColumn as HTMLElement).getByText("Añadido por Begoña"),
+      within(alcampoColumn as HTMLElement).getByText("Begoña"),
     ).toBeInTheDocument();
 
     fireEvent.click(

@@ -35,11 +35,9 @@ El objetivo del MVP es que añadir un producto sea más rápido que escribirlo e
 pnpm dev
 pnpm build
 pnpm preview
-pnpm supabase:start
-pnpm supabase:status
-pnpm supabase:db:reset
+pnpm supabase:login
+pnpm supabase:link
 pnpm supabase:db:push
-pnpm supabase:stop
 pnpm typecheck
 pnpm lint
 pnpm format
@@ -50,25 +48,32 @@ pnpm test:watch
 
 ## Desarrollo
 
-Supabase local necesita Docker o un runtime compatible disponible en la máquina.
-
 ```bash
 pnpm install
 cp .env.example .env.local
-pnpm supabase:start
 pnpm dev
 ```
 
-Supabase Studio local queda disponible en `http://127.0.0.1:54323`.
-El comando `pnpm supabase:status` muestra la URL local y la `anon key` que debe copiarse a `.env.local`.
+## Supabase remoto
 
-Para aplicar el esquema local desde cero:
+Jucart usa un proyecto Supabase remoto para sincronizar la lista entre los teléfonos de uso personal.
+
+1. Crear un proyecto en Supabase.
+2. Copiar `Project URL` y `anon public key` a `.env.local`.
+3. Elegir un `VITE_SUPABASE_LIST_ID` UUID fijo para la lista compartida.
+4. Iniciar sesión con la CLI:
 
 ```bash
-pnpm supabase:db:reset
+pnpm supabase:login
 ```
 
-Para subir las migraciones a un proyecto remoto, primero enlaza el proyecto con `pnpm supabase link --project-ref <project-ref>` y después ejecuta:
+5. Enlazar el repo al proyecto remoto:
+
+```bash
+pnpm supabase:link --project-ref <project-ref>
+```
+
+6. Subir las migraciones:
 
 ```bash
 pnpm supabase:db:push
@@ -102,4 +107,4 @@ El Hito 15 pule la experiencia visual con resumen de lista, panel superior compa
 
 El Hito 16 hace más rápido el modo compra: tocar una tarjeta alterna entre pendiente y comprado.
 
-El Hito 17 inicia la transición a Supabase: añade configuración local, migración de `shopping_items`, variables de entorno y scripts para trabajar primero en local y publicar después.
+El Hito 17 inicia la transición a Supabase remoto: añade configuración, migración de `shopping_items`, variables de entorno y scripts para publicar el esquema en el proyecto remoto.

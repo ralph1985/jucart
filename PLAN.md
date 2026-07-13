@@ -155,14 +155,17 @@
 - [x] Evitar que editar o borrar cambien el estado comprado.
 - [x] Añadir tests razonables de la interacción.
 
-## Hito 17 — Supabase local
+## Hito 17 — Supabase remoto
 
 - [x] Instalar Supabase CLI como dependencia de desarrollo.
-- [x] Inicializar configuración local de Supabase.
+- [x] Inicializar configuración de Supabase.
 - [x] Crear la primera migración para `shopping_items`.
-- [x] Preparar variables de entorno de ejemplo.
-- [x] Añadir scripts para arrancar, parar, resetear y publicar migraciones.
-- [x] Documentar el flujo local y remoto.
+- [x] Preparar variables de entorno de ejemplo para proyecto remoto.
+- [x] Añadir scripts para login, link y publicar migraciones.
+- [x] Documentar el flujo remoto.
+- [ ] Crear el proyecto remoto en Supabase.
+- [ ] Enlazar el repo con el proyecto remoto.
+- [ ] Publicar la migración en Supabase remoto.
 - [ ] Conectar la interfaz a Supabase.
 - [ ] Mantener Dexie como fallback local durante la transición.
 - [ ] Añadir tests razonables del adaptador Supabase.

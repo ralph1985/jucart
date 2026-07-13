@@ -146,3 +146,11 @@
 - [x] Modernizar paleta, superficies, sombras y estados.
 - [x] Mejorar la legibilidad de columnas y tarjetas.
 - [x] Mantener la interfaz en una sola pantalla.
+
+## Hito 16 — Modo compra rápido
+
+- [x] Permitir tocar una tarjeta para marcarla como comprada.
+- [x] Permitir tocar una tarjeta comprada para devolverla a pendiente.
+- [x] Mantener editar y borrar como acciones separadas.
+- [x] Evitar que editar o borrar cambien el estado comprado.
+- [x] Añadir tests razonables de la interacción.

@@ -75,3 +75,5 @@ El Hito 13 añade deshacer para el último borrado de producto o limpieza de com
 El Hito 14 añade Anime.js para animar navegación, altas, deshacer y feedback de botones respetando reducción de movimiento.
 
 El Hito 15 pule la experiencia visual con resumen de lista, panel superior compacto y un tablero más moderno y legible.
+
+El Hito 16 hace más rápido el modo compra: tocar una tarjeta alterna entre pendiente y comprado.

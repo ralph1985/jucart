@@ -487,6 +487,18 @@ export function App() {
     setSelectedSectionId(sectionId);
   }
 
+  function handleItemKeyDown(
+    event: KeyboardEvent<HTMLElement>,
+    itemId: string,
+  ) {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    setItems((currentItems) => toggleShoppingItem(currentItems, itemId));
+  }
+
   function renderUndoItem(removedItems: ShoppingItem[]) {
     return (
       <li
@@ -528,6 +540,7 @@ export function App() {
     const shouldShowPurchasedDivider = hasPendingItems && hasPurchasedItems;
     let hasRenderedUndoItem = false;
     const listItems = visibleItems.flatMap((item, index) => {
+      const isEditingItem = editingItemId === item.id;
       const itemContent = (
         <li
           ref={(itemElement) => {
@@ -542,17 +555,40 @@ export function App() {
               ? `${styles.item} ${styles.itemPurchased}`
               : styles.item
           }
+          aria-label={
+            isEditingItem
+              ? undefined
+              : item.purchased
+                ? `Devolver ${item.name} a pendientes`
+                : `Marcar ${item.name} como comprado`
+          }
+          role={isEditingItem ? undefined : "button"}
+          tabIndex={isEditingItem ? undefined : 0}
           key={item.id}
+          onClick={
+            isEditingItem
+              ? undefined
+              : () =>
+                  setItems((currentItems) =>
+                    toggleShoppingItem(currentItems, item.id),
+                  )
+          }
+          onKeyDown={
+            isEditingItem
+              ? undefined
+              : (event) => handleItemKeyDown(event, item.id)
+          }
         >
           {shouldShowPurchasedDivider &&
           item.purchased &&
           !visibleItems[index - 1]?.purchased ? (
             <span className={styles.purchasedDivider}>Comprados</span>
           ) : null}
-          {editingItemId === item.id ? (
+          {isEditingItem ? (
             <form
               className={styles.editForm}
               aria-label={`Editar ${item.name}`}
+              onClick={(event) => event.stopPropagation()}
               onSubmit={(event) => handleEditSubmit(event, item.id)}
             >
               <input
@@ -618,28 +654,13 @@ export function App() {
                 <button
                   className={styles.iconButton}
                   type="button"
-                  aria-label={
-                    item.purchased
-                      ? `Devolver ${item.name} a pendientes`
-                      : `Marcar ${item.name} como comprado`
-                  }
-                  title={item.purchased ? "Pendiente" : "Comprado"}
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={() =>
-                    setItems((currentItems) =>
-                      toggleShoppingItem(currentItems, item.id),
-                    )
-                  }
-                >
-                  <Icon name={item.purchased ? "undo" : "check"} />
-                </button>
-                <button
-                  className={styles.iconButton}
-                  type="button"
                   aria-label={`Editar ${item.name}`}
                   title="Editar"
                   onPointerDown={handleButtonPointerDown}
-                  onClick={() => startEditing(item)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    startEditing(item);
+                  }}
                 >
                   <Icon name="edit" />
                 </button>
@@ -649,7 +670,10 @@ export function App() {
                   aria-label={`Eliminar ${item.name}`}
                   title="Eliminar"
                   onPointerDown={handleButtonPointerDown}
-                  onClick={() => handleRemoveItem(item.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleRemoveItem(item.id);
+                  }}
                 >
                   <Icon name="trash" />
                 </button>

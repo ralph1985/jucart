@@ -89,6 +89,12 @@ En el Hito 15, Jucart adopta una interfaz más densa y actual sin cambiar el mod
 
 El encabezado muestra pendientes y comprados, el alta y la limpieza se agrupan en un panel superior, y el tablero usa superficies, sombras y estados más claros para mejorar la lectura en móvil y escritorio.
 
+## Modo compra rápido
+
+En el Hito 16, tocar una tarjeta alterna entre pendiente y comprado.
+
+La tarjeta completa es la acción principal durante la compra. Editar y borrar siguen como botones separados y detienen la propagación para evitar cambios accidentales de estado. En modo edición, la tarjeta deja de comportarse como botón.
+
 ## Persistencia local
 
 En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.

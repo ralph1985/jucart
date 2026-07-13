@@ -90,6 +90,30 @@ describe("App", () => {
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
   });
 
+  it("does not toggle a product when editing it", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "Leche" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Editar Leche" }));
+
+    expect(
+      screen.getByRole("form", { name: "Editar Leche" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(
+      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+    ).toBeInTheDocument();
+  });
+
   it("undoes a removed product", async () => {
     await replaceStoredShoppingItems([
       {

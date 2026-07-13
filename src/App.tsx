@@ -142,9 +142,11 @@ export function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [lastRemovedItems, setLastRemovedItems] = useState<ShoppingItem[]>([]);
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const itemNameInputRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
   const boardRef = useRef<HTMLElement>(null);
+  const clearDialogRef = useRef<HTMLDivElement>(null);
   const sectionColumnRefs = useRef<
     Partial<Record<ShoppingSectionId, HTMLElement>>
   >({});
@@ -155,6 +157,14 @@ export function App() {
   const undoItemRef = useRef<HTMLLIElement>(null);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
+  const removePurchasedButtonText =
+    purchasedCount === 1
+      ? "Borrar 1 producto"
+      : `Borrar ${purchasedCount} productos`;
+  const clearPurchasedDescription =
+    purchasedCount === 1
+      ? "Se borrará 1 producto comprado. Podrás deshacerlo después."
+      : `Se borrarán ${purchasedCount} productos comprados. Podrás deshacerlo después.`;
 
   useEffect(() => {
     let isActive = true;
@@ -332,6 +342,14 @@ export function App() {
     });
   }, [lastRemovedItems]);
 
+  useEffect(() => {
+    if (!isClearDialogOpen) {
+      return;
+    }
+
+    clearDialogRef.current?.focus();
+  }, [isClearDialogOpen]);
+
   function animateButtonPress(element: HTMLElement) {
     runAnimation(element, {
       scale: [0.92, 1],
@@ -388,11 +406,12 @@ export function App() {
       return;
     }
 
-    const shouldRemove = window.confirm(
-      `¿Borrar ${purchasedCount} productos comprados?`,
-    );
+    setIsClearDialogOpen(true);
+  }
 
-    if (!shouldRemove) {
+  function confirmRemovePurchasedItems() {
+    if (purchasedCount === 0) {
+      setIsClearDialogOpen(false);
       return;
     }
 
@@ -403,6 +422,7 @@ export function App() {
 
       return removePurchasedShoppingItems(currentItems);
     });
+    setIsClearDialogOpen(false);
   }
 
   function handleRemoveItem(itemId: string) {
@@ -890,6 +910,50 @@ export function App() {
           );
         })}
       </section>
+
+      {isClearDialogOpen ? (
+        <div
+          className={styles.modalBackdrop}
+          onClick={() => setIsClearDialogOpen(false)}
+        >
+          <div
+            ref={clearDialogRef}
+            className={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="clear-purchased-title"
+            aria-describedby="clear-purchased-description"
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setIsClearDialogOpen(false);
+              }
+            }}
+          >
+            <h2 id="clear-purchased-title">Borrar comprados</h2>
+            <p id="clear-purchased-description">{clearPurchasedDescription}</p>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onPointerDown={handleButtonPointerDown}
+                onClick={() => setIsClearDialogOpen(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className={styles.dangerButton}
+                type="button"
+                onPointerDown={handleButtonPointerDown}
+                onClick={confirmRemovePurchasedItems}
+              >
+                {removePurchasedButtonText}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

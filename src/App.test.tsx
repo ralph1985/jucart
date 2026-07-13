@@ -295,8 +295,6 @@ describe("App", () => {
   });
 
   it("removes purchased products after confirmation", async () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-
     await replaceStoredShoppingItems([
       {
         id: "item-1",
@@ -325,14 +323,52 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Borrar comprados" }));
 
-    expect(confirmSpy).toHaveBeenCalledWith("¿Borrar 1 productos comprados?");
+    const dialog = screen.getByRole("dialog", { name: "Borrar comprados" });
+
+    expect(
+      within(dialog).getByText(
+        "Se borrará 1 producto comprado. Podrás deshacerlo después.",
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Borrar 1 producto" }),
+    );
+
     expect(screen.getByText("Leche")).toBeInTheDocument();
     expect(screen.queryByText("Pan")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Borrar comprados" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps purchased products when clearing is cancelled", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Pan",
+        sectionId: "mercadona",
+        addedBy: "begona",
+        purchased: true,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Pan");
+
+    fireEvent.click(screen.getByRole("button", { name: "Borrar comprados" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.getByText("Pan")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Borrar comprados" }),
+    ).not.toBeInTheDocument();
   });
 
   it("undoes removing purchased products", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-
     await replaceStoredShoppingItems([
       {
         id: "item-1",
@@ -360,6 +396,11 @@ describe("App", () => {
     await screen.findByText("Pan");
 
     fireEvent.click(screen.getByRole("button", { name: "Borrar comprados" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Borrar comprados" }),
+      ).getByRole("button", { name: "Borrar 1 producto" }),
+    );
 
     expect(screen.queryByText("Pan")).not.toBeInTheDocument();
     expect(screen.getByText("Producto borrado.")).toBeInTheDocument();

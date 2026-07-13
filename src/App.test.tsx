@@ -54,21 +54,25 @@ describe("App", () => {
       within(alcampoColumn as HTMLElement).getByText("Leche"),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Comprado" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+    );
     expect(
       within(alcampoColumn as HTMLElement).getByRole("button", {
-        name: "Pendiente",
+        name: "Devolver Leche a pendientes",
       }),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Pendiente" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Devolver Leche a pendientes" }),
+    );
     expect(
       within(alcampoColumn as HTMLElement).getByRole("button", {
-        name: "Comprado",
+        name: "Marcar Leche como comprado",
       }),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Eliminar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
   });
 

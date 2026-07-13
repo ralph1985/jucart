@@ -98,6 +98,11 @@ export function App() {
               <button
                 className={styles.secondaryButton}
                 type="button"
+                aria-label={
+                  item.purchased
+                    ? `Devolver ${item.name} a pendientes`
+                    : `Marcar ${item.name} como comprado`
+                }
                 onClick={() =>
                   setItems((currentItems) =>
                     toggleShoppingItem(currentItems, item.id),
@@ -109,6 +114,7 @@ export function App() {
               <button
                 className={styles.dangerButton}
                 type="button"
+                aria-label={`Eliminar ${item.name}`}
                 onClick={() =>
                   setItems((currentItems) =>
                     removeShoppingItem(currentItems, item.id),
@@ -176,14 +182,20 @@ export function App() {
       </form>
 
       {!isLoaded ? (
-        <p className={styles.status}>Cargando lista...</p>
+        <p className={styles.status} role="status" aria-live="polite">
+          Cargando lista...
+        </p>
       ) : storageError ? (
         <p className={styles.error} role="alert">
           {storageError}
         </p>
       ) : null}
 
-      <section className={styles.board} aria-label="Lista por secciones">
+      <section
+        className={styles.board}
+        aria-label="Lista por secciones"
+        tabIndex={0}
+      >
         {shoppingSections.map((section) => {
           const sectionItems = items.filter(
             (item) => item.sectionId === section.id,
@@ -196,7 +208,12 @@ export function App() {
             <article className={styles.column} key={section.id}>
               <div className={styles.sectionHeader}>
                 <h2>{section.name}</h2>
-                <span className={styles.count}>{pendingCount}</span>
+                <span
+                  className={styles.count}
+                  aria-label={`${pendingCount} productos pendientes`}
+                >
+                  {pendingCount}
+                </span>
               </div>
               {renderItems(sectionItems)}
             </article>

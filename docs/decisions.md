@@ -28,3 +28,13 @@ En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.
 La aplicación lee todos los productos al arrancar y, después de esa carga inicial, reemplaza la lista guardada cada vez que cambia el estado local. Para una lista privada y pequeña evita una capa de sincronización más compleja y mantiene el código fácil de seguir.
 
 Los errores básicos de lectura o escritura se muestran en la pantalla sin bloquear el uso de la lista en memoria.
+
+## PWA y offline
+
+En el Hito 3, Jucart usa `vite-plugin-pwa` con Service Worker generado por Workbox.
+
+El Service Worker se registra con actualización automática y precachea el shell de la aplicación: HTML, JS, CSS, manifest e iconos. La navegación usa fallback a `index.html`, suficiente para una aplicación de una sola pantalla.
+
+Los iconos son provisionales y locales: SVG, PNG 192x192 y PNG 512x512. No se añade una dependencia solo para generar iconos.
+
+La persistencia de datos sigue dependiendo de IndexedDB mediante Dexie. Al no haber backend, la modificación de datos locales no requiere red.

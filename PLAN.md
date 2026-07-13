@@ -37,14 +37,14 @@
 
 ## Hito 3 — PWA y funcionamiento offline
 
-- [ ] Instalar y configurar `vite-plugin-pwa`.
-- [ ] Crear el manifest.
-- [ ] Añadir iconos provisionales mínimos.
-- [ ] Configurar el Service Worker.
-- [ ] Cachear el shell de la aplicación.
-- [ ] Verificar que abre sin conexión después de una primera carga con conexión.
-- [ ] Verificar que los datos locales pueden modificarse sin conexión.
-- [ ] Comprobar que puede instalarse.
+- [x] Instalar y configurar `vite-plugin-pwa`.
+- [x] Crear el manifest.
+- [x] Añadir iconos provisionales mínimos.
+- [x] Configurar el Service Worker.
+- [x] Cachear el shell de la aplicación.
+- [x] Verificar que abre sin conexión después de una primera carga con conexión.
+- [x] Verificar que los datos locales pueden modificarse sin conexión.
+- [x] Comprobar que puede instalarse.
 
 ## Hito 4 — Revisión del MVP
 

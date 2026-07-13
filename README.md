@@ -21,13 +21,13 @@ El objetivo del MVP es que añadir un producto sea más rápido que escribirlo e
 - TypeScript.
 - Vite.
 - SCSS Modules.
+- Dexie.
+- `vite-plugin-pwa`.
 - Vitest.
 - React Testing Library.
 - ESLint.
 - Prettier.
 - pnpm.
-
-Dexie y `vite-plugin-pwa` forman parte del stack previsto, pero se integrarán en los hitos donde aportan valor real: persistencia local y PWA/offline.
 
 ## Scripts
 
@@ -52,4 +52,4 @@ pnpm dev
 
 ## Estado
 
-El proyecto está en el Hito 0: inicialización del proyecto.
+El proyecto tiene completados los hitos 0, 1, 2 y 3: inicialización, lista local, persistencia local y PWA/offline.

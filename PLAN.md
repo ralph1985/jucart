@@ -26,12 +26,12 @@
 
 ## Hito 2 — Persistencia local
 
-- [ ] Instalar e integrar Dexie.
-- [ ] Crear la base de datos IndexedDB.
-- [ ] Guardar los cambios automáticamente.
-- [ ] Recuperar los datos al iniciar.
-- [ ] Gestionar errores básicos de almacenamiento.
-- [ ] Añadir tests razonables de persistencia.
+- [x] Instalar e integrar Dexie.
+- [x] Crear la base de datos IndexedDB.
+- [x] Guardar los cambios automáticamente.
+- [x] Recuperar los datos al iniciar.
+- [x] Gestionar errores básicos de almacenamiento.
+- [x] Añadir tests razonables de persistencia.
 
 ## Hito 3 — PWA y funcionamiento offline
 

@@ -82,3 +82,11 @@
 - [x] Mantener el foco en el campo de producto después de añadir.
 - [x] Mantener la app en una sola pantalla.
 - [x] Añadir tests razonables del flujo de alta rápida.
+
+## Hito 8 — Limpieza rápida de lista
+
+- [x] Añadir una acción para borrar productos comprados.
+- [x] Pedir confirmación antes de borrar varios productos.
+- [x] Mantener los productos pendientes intactos.
+- [x] Persistir automáticamente la limpieza.
+- [x] Añadir tests razonables de la limpieza.

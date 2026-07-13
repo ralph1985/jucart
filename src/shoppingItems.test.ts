@@ -2,6 +2,7 @@ import {
   addShoppingItem,
   hasItemWithName,
   normalizeItemName,
+  removePurchasedShoppingItems,
   removeShoppingItem,
   ShoppingItem,
   toggleShoppingItem,
@@ -135,5 +136,18 @@ describe("shopping item logic", () => {
 
   it("removes products", () => {
     expect(removeShoppingItem([baseItem], "item-1")).toEqual([]);
+  });
+
+  it("removes only purchased products", () => {
+    const purchasedItem: ShoppingItem = {
+      ...baseItem,
+      id: "item-2",
+      name: "Pan",
+      purchased: true,
+    };
+
+    expect(removePurchasedShoppingItems([baseItem, purchasedItem])).toEqual([
+      baseItem,
+    ]);
   });
 });

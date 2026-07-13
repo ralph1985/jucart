@@ -59,3 +59,5 @@ El Hito 5 añade edición básica de productos: cambiar nombre y mover productos
 El Hito 6 añade un selector básico para guardar si cada producto lo ha añadido Rafa o Begoña.
 
 El Hito 7 mejora la rapidez del alta: recuerda la última sección y persona seleccionadas, y mantiene el foco en el campo de producto después de añadir.
+
+El Hito 8 añade una limpieza rápida para borrar los productos comprados con confirmación, manteniendo intactos los pendientes.

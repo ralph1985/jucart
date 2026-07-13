@@ -5,7 +5,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
 
 import { App } from "./App";
 import {
@@ -14,6 +14,7 @@ import {
 } from "./shoppingItemsDb";
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await resetShoppingItemsDatabase();
   window.localStorage.clear();
 });
@@ -100,6 +101,42 @@ describe("App", () => {
 
     expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
     expect(screen.getByLabelText("Añadido por")).toHaveValue("begona");
+  });
+
+  it("removes purchased products after confirmation", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      {
+        id: "item-2",
+        name: "Pan",
+        sectionId: "mercadona",
+        addedBy: "begona",
+        purchased: true,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Leche");
+    await screen.findByText("Pan");
+
+    fireEvent.click(screen.getByRole("button", { name: "Borrar comprados" }));
+
+    expect(confirmSpy).toHaveBeenCalledWith("¿Borrar 1 productos comprados?");
+    expect(screen.getByText("Leche")).toBeInTheDocument();
+    expect(screen.queryByText("Pan")).not.toBeInTheDocument();
   });
 
   it("edits a product name and section", async () => {

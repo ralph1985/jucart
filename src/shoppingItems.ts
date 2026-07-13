@@ -146,3 +146,7 @@ export function updateShoppingItem(
 export function removeShoppingItem(items: ShoppingItem[], itemId: string) {
   return items.filter((item) => item.id !== itemId);
 }
+
+export function removePurchasedShoppingItems(items: ShoppingItem[]) {
+  return items.filter((item) => !item.purchased);
+}

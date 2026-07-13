@@ -6,6 +6,7 @@ import {
   getShoppingUserName,
   isShoppingSectionId,
   isShoppingUserId,
+  removePurchasedShoppingItems,
   removeShoppingItem,
   ShoppingItem,
   ShoppingSectionId,
@@ -65,6 +66,7 @@ export function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const itemNameInputRef = useRef<HTMLInputElement>(null);
+  const purchasedCount = items.filter((item) => item.purchased).length;
 
   useEffect(() => {
     let isActive = true;
@@ -165,6 +167,22 @@ export function App() {
       ),
     );
     cancelEditing();
+  }
+
+  function handleRemovePurchasedItems() {
+    if (purchasedCount === 0) {
+      return;
+    }
+
+    const shouldRemove = window.confirm(
+      `¿Borrar ${purchasedCount} productos comprados?`,
+    );
+
+    if (!shouldRemove) {
+      return;
+    }
+
+    setItems((currentItems) => removePurchasedShoppingItems(currentItems));
   }
 
   function renderItems(sectionItems: ShoppingItem[]) {
@@ -347,6 +365,17 @@ export function App() {
           ))}
         </select>
       </form>
+
+      <section className={styles.listActions} aria-label="Acciones de lista">
+        <button
+          className={styles.dangerButton}
+          type="button"
+          onClick={handleRemovePurchasedItems}
+          disabled={!isLoaded || purchasedCount === 0}
+        >
+          Borrar comprados
+        </button>
+      </section>
 
       {!isLoaded ? (
         <p className={styles.status} role="status" aria-live="polite">

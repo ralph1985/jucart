@@ -41,6 +41,12 @@ En el Hito 7, Jucart recuerda la última sección y la última persona seleccion
 
 Esta preferencia no forma parte de los productos ni requiere IndexedDB. Solo acelera el alta siguiente en el mismo navegador. Después de añadir un producto, el foco vuelve al campo de texto para poder seguir escribiendo sin tocar de nuevo la pantalla.
 
+## Limpieza de comprados
+
+En el Hito 8, Jucart permite borrar todos los productos comprados con una acción global.
+
+La limpieza pide confirmación antes de borrar y conserva los productos pendientes. No se añade papelera, historial ni deshacer porque la aplicación sigue siendo una lista local sencilla; si un producto se borra por error, se vuelve a añadir manualmente.
+
 ## Persistencia local
 
 En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.

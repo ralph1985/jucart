@@ -11,6 +11,16 @@ En el Hito 1, Jucart aplica estas reglas antes de añadir un producto:
 
 Esta decisión mantiene rápida la captura de productos y evita entradas accidentales como `leche`, `Leche` y `leche` repetidas. Cantidades y variantes quedan fuera del MVP.
 
+## Secciones por tienda
+
+Jucart usa secciones fijas por tienda: Alcampo, Día, Mercadona, Farmacia y General.
+
+Aunque las categorías estaban fuera del alcance inicial, estas secciones pasan a formar parte del flujo real porque el usuario organiza la compra por lugar. No se implementa gestión dinámica de secciones, drag and drop ni varias listas.
+
+Los duplicados se bloquean dentro de la misma sección, pero se permite repetir el mismo producto en secciones distintas.
+
+La interfaz se organiza como un tablero por columnas: en escritorio se muestran varias columnas a la vez y en móvil cada columna ocupa casi todo el ancho, con desplazamiento lateral.
+
 ## Persistencia local
 
 En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.

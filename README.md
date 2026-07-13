@@ -9,6 +9,8 @@ El objetivo del MVP es que añadir un producto sea más rápido que escribirlo e
 - Mobile first.
 - Offline first.
 - Una única pantalla.
+- Secciones fijas por tienda: Alcampo, Día, Mercadona, Farmacia y General.
+- Tablero por columnas, con desplazamiento lateral en móvil.
 - Código sencillo de entender y modificar.
 - Sin backend, login, usuarios ni sincronización entre dispositivos en el MVP.
 - Sin Tailwind, Redux, React Router ni librerías de componentes mientras no exista una necesidad real.

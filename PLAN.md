@@ -23,6 +23,8 @@
 - [x] Cambiar su estado.
 - [x] Eliminar productos.
 - [x] Añadir tests de la lógica principal.
+- [x] Organizar los productos en columnas fijas por tienda.
+- [x] Adaptar la vista a tablero tipo Trello con desplazamiento lateral en móvil.
 
 ## Hito 2 — Persistencia local
 

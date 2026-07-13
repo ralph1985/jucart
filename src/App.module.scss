@@ -152,6 +152,17 @@ h2 {
   padding: 1rem;
   background: #ffffff;
   scroll-snap-align: start;
+  cursor: pointer;
+}
+
+.column:focus-visible {
+  outline: 3px solid rgb(31 122 92 / 24%);
+  outline-offset: 2px;
+}
+
+.columnSelected {
+  border-color: #1f7a5c;
+  box-shadow: 0 0 0 2px rgb(31 122 92 / 18%);
 }
 
 .sectionHeader {

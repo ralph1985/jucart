@@ -98,3 +98,11 @@
 - [x] Diferenciar visualmente los productos comprados.
 - [x] Añadir un separador cuando una sección mezcle pendientes y comprados.
 - [x] Añadir tests razonables del orden de compra.
+
+## Hito 10 — Navegación de secciones
+
+- [x] Marcar visualmente la sección seleccionada en el tablero.
+- [x] Sincronizar el selector superior al seleccionar una columna.
+- [x] Desplazar el tablero móvil al cambiar la sección en el selector.
+- [x] Actualizar el selector al cambiar la sección desde el tablero.
+- [x] Añadir tests razonables de sincronización.

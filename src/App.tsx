@@ -1,4 +1,11 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
+import {
+  FormEvent,
+  KeyboardEvent,
+  UIEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import styles from "./App.module.scss";
 import {
@@ -67,6 +74,11 @@ export function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const itemNameInputRef = useRef<HTMLInputElement>(null);
+  const boardRef = useRef<HTMLElement>(null);
+  const sectionColumnRefs = useRef<
+    Partial<Record<ShoppingSectionId, HTMLElement>>
+  >({});
+  const programmaticScrollTimeoutRef = useRef<number | null>(null);
   const purchasedCount = items.filter((item) => item.purchased).length;
 
   useEffect(() => {
@@ -131,6 +143,42 @@ export function App() {
     }
   }, [selectedUserId]);
 
+  useEffect(() => {
+    const board = boardRef.current;
+    const selectedColumn = sectionColumnRefs.current[selectedSectionId];
+
+    if (
+      !board ||
+      !selectedColumn ||
+      typeof selectedColumn.scrollIntoView !== "function" ||
+      board.scrollWidth <= board.clientWidth
+    ) {
+      return;
+    }
+
+    if (programmaticScrollTimeoutRef.current) {
+      window.clearTimeout(programmaticScrollTimeoutRef.current);
+    }
+
+    programmaticScrollTimeoutRef.current = window.setTimeout(() => {
+      programmaticScrollTimeoutRef.current = null;
+    }, 500);
+
+    selectedColumn.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "start",
+    });
+  }, [selectedSectionId]);
+
+  useEffect(() => {
+    return () => {
+      if (programmaticScrollTimeoutRef.current) {
+        window.clearTimeout(programmaticScrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setItems((currentItems) =>
@@ -184,6 +232,52 @@ export function App() {
     }
 
     setItems((currentItems) => removePurchasedShoppingItems(currentItems));
+  }
+
+  function handleBoardScroll(event: UIEvent<HTMLElement>) {
+    const board = event.currentTarget;
+
+    if (
+      programmaticScrollTimeoutRef.current ||
+      board.scrollWidth <= board.clientWidth
+    ) {
+      return;
+    }
+
+    const nextSection = shoppingSections.reduce<{
+      distance: number;
+      id: ShoppingSectionId;
+    } | null>((closestSection, section) => {
+      const column = sectionColumnRefs.current[section.id];
+
+      if (!column) {
+        return closestSection;
+      }
+
+      const distance = Math.abs(column.offsetLeft - board.scrollLeft);
+
+      if (!closestSection || distance < closestSection.distance) {
+        return { distance, id: section.id };
+      }
+
+      return closestSection;
+    }, null);
+
+    if (nextSection && nextSection.id !== selectedSectionId) {
+      setSelectedSectionId(nextSection.id);
+    }
+  }
+
+  function handleColumnKeyDown(
+    event: KeyboardEvent<HTMLElement>,
+    sectionId: ShoppingSectionId,
+  ) {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    setSelectedSectionId(sectionId);
   }
 
   function renderItems(sectionItems: ShoppingItem[]) {
@@ -406,8 +500,10 @@ export function App() {
       ) : null}
 
       <section
+        ref={boardRef}
         className={styles.board}
         aria-label="Lista por secciones"
+        onScroll={handleBoardScroll}
         tabIndex={0}
       >
         {shoppingSections.map((section) => {
@@ -419,9 +515,28 @@ export function App() {
           ).length;
 
           return (
-            <article className={styles.column} key={section.id}>
+            <article
+              ref={(column) => {
+                if (column) {
+                  sectionColumnRefs.current[section.id] = column;
+                }
+              }}
+              className={
+                selectedSectionId === section.id
+                  ? `${styles.column} ${styles.columnSelected}`
+                  : styles.column
+              }
+              aria-current={
+                selectedSectionId === section.id ? "true" : undefined
+              }
+              aria-labelledby={`section-${section.id}-title`}
+              key={section.id}
+              onClick={() => setSelectedSectionId(section.id)}
+              onKeyDown={(event) => handleColumnKeyDown(event, section.id)}
+              tabIndex={0}
+            >
               <div className={styles.sectionHeader}>
-                <h2>{section.name}</h2>
+                <h2 id={`section-${section.id}-title`}>{section.name}</h2>
                 <span
                   className={styles.count}
                   aria-label={`${pendingCount} productos pendientes`}

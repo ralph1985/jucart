@@ -63,3 +63,5 @@ El Hito 7 mejora la rapidez del alta: recuerda la última sección y persona sel
 El Hito 8 añade una limpieza rápida para borrar los productos comprados con confirmación, manteniendo intactos los pendientes.
 
 El Hito 9 mejora el uso durante la compra: muestra primero los pendientes dentro de cada sección y separa visualmente los comprados.
+
+El Hito 10 sincroniza el selector de sección con el tablero: marca la columna seleccionada y desplaza el tablero móvil al cambiar de sección.

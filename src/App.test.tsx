@@ -15,6 +15,7 @@ import {
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  delete (Element.prototype as Partial<Element>).scrollIntoView;
   await resetShoppingItemsDatabase();
   window.localStorage.clear();
 });
@@ -103,6 +104,104 @@ describe("App", () => {
     expect(screen.getByLabelText("Añadido por")).toHaveValue("begona");
   });
 
+  it("marks the selected section and updates the selector when a column is clicked", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    const mercadonaColumn = screen
+      .getByRole("heading", { name: "Mercadona" })
+      .closest("article");
+    const farmaciaColumn = screen
+      .getByRole("heading", { name: "Farmacia" })
+      .closest("article");
+
+    expect(mercadonaColumn).toHaveAttribute("aria-current", "true");
+    expect(farmaciaColumn).not.toHaveAttribute("aria-current");
+
+    fireEvent.click(farmaciaColumn as HTMLElement);
+
+    expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
+    expect(farmaciaColumn).toHaveAttribute("aria-current", "true");
+  });
+
+  it("scrolls the board to the selected section when it is horizontally scrollable", async () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    const board = screen.getByLabelText("Lista por secciones");
+
+    Object.defineProperty(board, "scrollWidth", {
+      configurable: true,
+      value: 1200,
+    });
+    Object.defineProperty(board, "clientWidth", {
+      configurable: true,
+      value: 320,
+    });
+
+    fireEvent.change(screen.getByLabelText("Sección"), {
+      target: { value: "farmacia" },
+    });
+
+    await waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "start",
+      }),
+    );
+  });
+
+  it("updates the selected section when the board is scrolled on mobile", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    const board = screen.getByLabelText("Lista por secciones");
+    const alcampoColumn = screen
+      .getByRole("heading", { name: "Alcampo" })
+      .closest("article");
+    const farmaciaColumn = screen
+      .getByRole("heading", { name: "Farmacia" })
+      .closest("article");
+
+    Object.defineProperty(board, "scrollWidth", {
+      configurable: true,
+      value: 1200,
+    });
+    Object.defineProperty(board, "clientWidth", {
+      configurable: true,
+      value: 320,
+    });
+    Object.defineProperty(board, "scrollLeft", {
+      configurable: true,
+      value: 900,
+    });
+    Object.defineProperty(alcampoColumn as HTMLElement, "offsetLeft", {
+      configurable: true,
+      value: 0,
+    });
+    Object.defineProperty(farmaciaColumn as HTMLElement, "offsetLeft", {
+      configurable: true,
+      value: 900,
+    });
+
+    fireEvent.scroll(board);
+
+    expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
+  });
+
   it("removes purchased products after confirmation", async () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
 
@@ -171,6 +270,8 @@ describe("App", () => {
     ]);
 
     render(<App />);
+
+    await screen.findByText("Leche");
 
     const mercadonaColumn = (
       await screen.findByRole("heading", { name: "Mercadona" })

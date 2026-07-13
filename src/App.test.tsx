@@ -1,18 +1,41 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { afterEach } from "vitest";
 
 import { App } from "./App";
+import {
+  replaceStoredShoppingItems,
+  resetShoppingItemsDatabase,
+} from "./shoppingItemsDb";
+
+afterEach(async () => {
+  await resetShoppingItemsDatabase();
+});
 
 describe("App", () => {
-  it("renders the app name", () => {
+  it("renders the app name", async () => {
     render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
 
     expect(
       screen.getByRole("heading", { level: 1, name: "Jucart" }),
     ).toBeInTheDocument();
   });
 
-  it("adds, toggles and removes products", () => {
+  it("adds, toggles and removes products", async () => {
     render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
 
     fireEvent.change(screen.getByLabelText("Producto"), {
       target: { value: "  Leche  " },
@@ -46,5 +69,21 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Eliminar" }));
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
+  });
+
+  it("loads stored products when it starts", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("Leche")).toBeInTheDocument());
   });
 });

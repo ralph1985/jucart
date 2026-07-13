@@ -75,6 +75,13 @@ h2 {
   cursor: pointer;
 }
 
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .primaryButton {
   min-height: 3rem;
   background: #1f7a5c;
@@ -117,6 +124,23 @@ h2 {
 .empty {
   margin: 0;
   color: #627d98;
+}
+
+.status,
+.error {
+  margin: -0.5rem 0 1.25rem;
+  border-radius: 0.5rem;
+  padding: 0.75rem 0.9rem;
+}
+
+.status {
+  background: #edf2f7;
+  color: #52606d;
+}
+
+.error {
+  background: #ffe3e3;
+  color: #9b1c1c;
 }
 
 .list {

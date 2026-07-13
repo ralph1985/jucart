@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import styles from "./App.module.scss";
 import {
@@ -7,10 +7,16 @@ import {
   ShoppingItem,
   toggleShoppingItem,
 } from "./shoppingItems";
+import {
+  getStoredShoppingItems,
+  replaceStoredShoppingItems,
+} from "./shoppingItemsDb";
 
 export function App() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [itemName, setItemName] = useState("");
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [storageError, setStorageError] = useState<string | null>(null);
 
   const pendingItems = useMemo(
     () => items.filter((item) => !item.purchased),
@@ -20,6 +26,52 @@ export function App() {
     () => items.filter((item) => item.purchased),
     [items],
   );
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadItems() {
+      try {
+        const storedItems = await getStoredShoppingItems();
+
+        if (isActive) {
+          setItems(storedItems);
+          setStorageError(null);
+        }
+      } catch {
+        if (isActive) {
+          setStorageError("No se pudo cargar la lista guardada.");
+        }
+      } finally {
+        if (isActive) {
+          setIsLoaded(true);
+        }
+      }
+    }
+
+    void loadItems();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded) {
+      return;
+    }
+
+    async function storeItems() {
+      try {
+        await replaceStoredShoppingItems(items);
+        setStorageError(null);
+      } catch {
+        setStorageError("No se pudieron guardar los últimos cambios.");
+      }
+    }
+
+    void storeItems();
+  }, [isLoaded, items]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,12 +140,25 @@ export function App() {
             onChange={(event) => setItemName(event.target.value)}
             placeholder="Leche, pan, fruta..."
             type="text"
+            disabled={!isLoaded}
           />
-          <button className={styles.primaryButton} type="submit">
+          <button
+            className={styles.primaryButton}
+            type="submit"
+            disabled={!isLoaded}
+          >
             Añadir
           </button>
         </div>
       </form>
+
+      {!isLoaded ? (
+        <p className={styles.status}>Cargando lista...</p>
+      ) : storageError ? (
+        <p className={styles.error} role="alert">
+          {storageError}
+        </p>
+      ) : null}
 
       <section className={styles.section} aria-labelledby="pending-title">
         <div className={styles.sectionHeader}>

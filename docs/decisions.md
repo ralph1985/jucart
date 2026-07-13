@@ -103,6 +103,14 @@ La aplicación lee todos los productos al arrancar y, después de esa carga inic
 
 Los errores básicos de lectura o escritura se muestran en la pantalla sin bloquear el uso de la lista en memoria.
 
+## Supabase local
+
+En el Hito 17, Jucart empieza la transición a Supabase para poder sincronizar la lista entre varios teléfonos.
+
+El primer paso no sustituye Dexie ni conecta la interfaz todavía. Añade Supabase CLI, configuración local y una migración versionada para `shopping_items`. El flujo de trabajo pasa a ser: desarrollar y probar el esquema en local, guardar los cambios como migraciones SQL y subirlas después al proyecto remoto.
+
+La tabla usa `list_id` para identificar una lista compartida. Mientras no haya login, las políticas RLS permiten acceso `anon` y la aplicación deberá filtrar por `VITE_SUPABASE_LIST_ID`. Esta decisión es pragmática para una app privada y no equivale a permisos robustos para una aplicación pública. Si la app se expone fuera del uso personal, el siguiente paso debe ser Auth o una capa de acceso más estricta.
+
 ## PWA y offline
 
 En el Hito 3, Jucart usa `vite-plugin-pwa` con Service Worker generado por Workbox.

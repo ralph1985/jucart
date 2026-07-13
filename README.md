@@ -35,6 +35,11 @@ El objetivo del MVP es que añadir un producto sea más rápido que escribirlo e
 pnpm dev
 pnpm build
 pnpm preview
+pnpm supabase:start
+pnpm supabase:status
+pnpm supabase:db:reset
+pnpm supabase:db:push
+pnpm supabase:stop
 pnpm typecheck
 pnpm lint
 pnpm format
@@ -45,9 +50,28 @@ pnpm test:watch
 
 ## Desarrollo
 
+Supabase local necesita Docker o un runtime compatible disponible en la máquina.
+
 ```bash
 pnpm install
+cp .env.example .env.local
+pnpm supabase:start
 pnpm dev
+```
+
+Supabase Studio local queda disponible en `http://127.0.0.1:54323`.
+El comando `pnpm supabase:status` muestra la URL local y la `anon key` que debe copiarse a `.env.local`.
+
+Para aplicar el esquema local desde cero:
+
+```bash
+pnpm supabase:db:reset
+```
+
+Para subir las migraciones a un proyecto remoto, primero enlaza el proyecto con `pnpm supabase link --project-ref <project-ref>` y después ejecuta:
+
+```bash
+pnpm supabase:db:push
 ```
 
 ## Estado
@@ -77,3 +101,5 @@ El Hito 14 añade Anime.js para animar navegación, altas, deshacer y feedback d
 El Hito 15 pule la experiencia visual con resumen de lista, panel superior compacto y un tablero más moderno y legible.
 
 El Hito 16 hace más rápido el modo compra: tocar una tarjeta alterna entre pendiente y comprado.
+
+El Hito 17 inicia la transición a Supabase: añade configuración local, migración de `shopping_items`, variables de entorno y scripts para trabajar primero en local y publicar después.

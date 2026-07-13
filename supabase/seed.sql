@@ -1,0 +1,2 @@
+-- Local seed intentionally empty.
+-- Add temporary development products here only when a manual scenario needs them.

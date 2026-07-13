@@ -54,3 +54,14 @@
 - [x] Revisar el tamaño de los controles táctiles.
 - [x] Ejecutar todas las comprobaciones.
 - [x] Actualizar README y PLAN.
+
+## Hito 5 — Edición básica
+
+- [x] Permitir editar el nombre de un producto.
+- [x] Permitir mover un producto a otra sección.
+- [x] Mantener las mismas reglas de textos vacíos, espacios y duplicados.
+- [x] Conservar el estado comprado o pendiente al editar.
+- [x] Persistir automáticamente los cambios editados.
+- [x] Añadir tests de la lógica de edición.
+- [x] Añadir test de edición desde la interfaz.
+- [x] Verificar typecheck, lint, formato, tests y build.

@@ -8,6 +8,7 @@ import {
   ShoppingSectionId,
   shoppingSections,
   toggleShoppingItem,
+  updateShoppingItem,
 } from "./shoppingItems";
 import {
   getStoredShoppingItems,
@@ -18,6 +19,10 @@ export function App() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [itemName, setItemName] = useState("");
   const [selectedSectionId, setSelectedSectionId] =
+    useState<ShoppingSectionId>("mercadona");
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemName, setEditingItemName] = useState("");
+  const [editingSectionId, setEditingSectionId] =
     useState<ShoppingSectionId>("mercadona");
   const [isLoaded, setIsLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
@@ -76,6 +81,31 @@ export function App() {
     setItemName("");
   }
 
+  function startEditing(item: ShoppingItem) {
+    setEditingItemId(item.id);
+    setEditingItemName(item.name);
+    setEditingSectionId(item.sectionId);
+  }
+
+  function cancelEditing() {
+    setEditingItemId(null);
+    setEditingItemName("");
+    setEditingSectionId("mercadona");
+  }
+
+  function handleEditSubmit(event: FormEvent<HTMLFormElement>, itemId: string) {
+    event.preventDefault();
+    setItems((currentItems) =>
+      updateShoppingItem(
+        currentItems,
+        itemId,
+        editingItemName,
+        editingSectionId,
+      ),
+    );
+    cancelEditing();
+  }
+
   function renderItems(sectionItems: ShoppingItem[]) {
     if (sectionItems.length === 0) {
       return <p className={styles.empty}>Sin productos.</p>;
@@ -85,45 +115,99 @@ export function App() {
       <ul className={styles.list}>
         {sectionItems.map((item) => (
           <li className={styles.item} key={item.id}>
-            <span
-              className={
-                item.purchased
-                  ? `${styles.itemName} ${styles.itemNamePurchased}`
-                  : styles.itemName
-              }
-            >
-              {item.name}
-            </span>
-            <div className={styles.itemActions}>
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                aria-label={
-                  item.purchased
-                    ? `Devolver ${item.name} a pendientes`
-                    : `Marcar ${item.name} como comprado`
-                }
-                onClick={() =>
-                  setItems((currentItems) =>
-                    toggleShoppingItem(currentItems, item.id),
-                  )
-                }
+            {editingItemId === item.id ? (
+              <form
+                className={styles.editForm}
+                aria-label={`Editar ${item.name}`}
+                onSubmit={(event) => handleEditSubmit(event, item.id)}
               >
-                {item.purchased ? "Pendiente" : "Comprado"}
-              </button>
-              <button
-                className={styles.dangerButton}
-                type="button"
-                aria-label={`Eliminar ${item.name}`}
-                onClick={() =>
-                  setItems((currentItems) =>
-                    removeShoppingItem(currentItems, item.id),
-                  )
-                }
-              >
-                Eliminar
-              </button>
-            </div>
+                <input
+                  className={styles.editInput}
+                  aria-label="Nombre del producto"
+                  autoComplete="off"
+                  autoFocus
+                  value={editingItemName}
+                  onChange={(event) => setEditingItemName(event.target.value)}
+                  type="text"
+                />
+                <select
+                  className={styles.editSelect}
+                  aria-label="Sección del producto"
+                  value={editingSectionId}
+                  onChange={(event) =>
+                    setEditingSectionId(event.target.value as ShoppingSectionId)
+                  }
+                >
+                  {shoppingSections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.name}
+                    </option>
+                  ))}
+                </select>
+                <div className={styles.editActions}>
+                  <button className={styles.secondaryButton} type="submit">
+                    Guardar
+                  </button>
+                  <button
+                    className={styles.secondaryButton}
+                    type="button"
+                    onClick={cancelEditing}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <span
+                  className={
+                    item.purchased
+                      ? `${styles.itemName} ${styles.itemNamePurchased}`
+                      : styles.itemName
+                  }
+                >
+                  {item.name}
+                </span>
+                <div className={styles.itemActions}>
+                  <button
+                    className={styles.secondaryButton}
+                    type="button"
+                    aria-label={
+                      item.purchased
+                        ? `Devolver ${item.name} a pendientes`
+                        : `Marcar ${item.name} como comprado`
+                    }
+                    onClick={() =>
+                      setItems((currentItems) =>
+                        toggleShoppingItem(currentItems, item.id),
+                      )
+                    }
+                  >
+                    {item.purchased ? "Pendiente" : "Comprado"}
+                  </button>
+                  <button
+                    className={styles.secondaryButton}
+                    type="button"
+                    aria-label={`Editar ${item.name}`}
+                    onClick={() => startEditing(item)}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    className={styles.dangerButton}
+                    type="button"
+                    aria-label={`Eliminar ${item.name}`}
+                    onClick={() =>
+                      setItems((currentItems) =>
+                        removeShoppingItem(currentItems, item.id),
+                      )
+                    }
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </>
+            )}
           </li>
         ))}
       </ul>

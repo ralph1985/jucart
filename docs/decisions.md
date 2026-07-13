@@ -21,6 +21,14 @@ Los duplicados se bloquean dentro de la misma sección, pero se permite repetir 
 
 La interfaz se organiza como un tablero por columnas: en escritorio se muestran varias columnas a la vez y en móvil cada columna ocupa casi todo el ancho, con desplazamiento lateral.
 
+## Edición básica de productos
+
+En el Hito 5, editar un producto permite cambiar su nombre y moverlo a otra sección.
+
+La edición reutiliza las mismas reglas que el alta: se normalizan los espacios, no se aceptan nombres vacíos y se bloquean duplicados dentro de la misma sección. El estado comprado o pendiente se conserva al editar.
+
+No se añade una pantalla nueva, modal ni historial de cambios. La edición se hace en la propia tarjeta para mantener la aplicación rápida y de una sola pantalla.
+
 ## Persistencia local
 
 En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.

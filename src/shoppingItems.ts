@@ -79,6 +79,52 @@ export function toggleShoppingItem(
   );
 }
 
+export function updateShoppingItem(
+  items: ShoppingItem[],
+  itemId: string,
+  rawName: string,
+  sectionId: ShoppingSectionId,
+  now: () => number = () => Date.now(),
+) {
+  const name = normalizeItemName(rawName);
+
+  if (!name) {
+    return items;
+  }
+
+  const itemToUpdate = items.find((item) => item.id === itemId);
+
+  if (!itemToUpdate) {
+    return items;
+  }
+
+  const duplicateExists = items.some(
+    (item) =>
+      item.id !== itemId &&
+      item.sectionId === sectionId &&
+      item.name.toLocaleLowerCase("es-ES") === name.toLocaleLowerCase("es-ES"),
+  );
+
+  if (duplicateExists) {
+    return items;
+  }
+
+  if (itemToUpdate.name === name && itemToUpdate.sectionId === sectionId) {
+    return items;
+  }
+
+  return items.map((item) =>
+    item.id === itemId
+      ? {
+          ...item,
+          name,
+          sectionId,
+          updatedAt: now(),
+        }
+      : item,
+  );
+}
+
 export function removeShoppingItem(items: ShoppingItem[], itemId: string) {
   return items.filter((item) => item.id !== itemId);
 }

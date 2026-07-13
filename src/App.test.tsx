@@ -76,6 +76,44 @@ describe("App", () => {
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
   });
 
+  it("edits a product name and section", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "Leche" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Editar Leche" }));
+
+    fireEvent.change(screen.getByLabelText("Nombre del producto"), {
+      target: { value: "Pan integral" },
+    });
+    fireEvent.change(screen.getByLabelText("Sección del producto"), {
+      target: { value: "farmacia" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    const farmaciaColumn = screen
+      .getByRole("heading", { name: "Farmacia" })
+      .closest("article");
+    const mercadonaColumn = screen
+      .getByRole("heading", { name: "Mercadona" })
+      .closest("article");
+
+    expect(farmaciaColumn).not.toBeNull();
+    expect(mercadonaColumn).not.toBeNull();
+    expect(
+      within(farmaciaColumn as HTMLElement).getByText("Pan integral"),
+    ).toBeInTheDocument();
+    expect(
+      within(mercadonaColumn as HTMLElement).queryByText("Leche"),
+    ).not.toBeInTheDocument();
+  });
+
   it("loads stored products when it starts", async () => {
     await replaceStoredShoppingItems([
       {

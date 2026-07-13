@@ -5,6 +5,7 @@ import {
   removeShoppingItem,
   ShoppingItem,
   toggleShoppingItem,
+  updateShoppingItem,
 } from "./shoppingItems";
 
 const baseItem: ShoppingItem = {
@@ -86,6 +87,43 @@ describe("shopping item logic", () => {
         updatedAt: 200,
       },
     ]);
+  });
+
+  it("updates product name and section", () => {
+    expect(
+      updateShoppingItem(
+        [baseItem],
+        "item-1",
+        "  Pan   integral ",
+        "alcampo",
+        () => 200,
+      ),
+    ).toEqual([
+      {
+        ...baseItem,
+        name: "Pan integral",
+        sectionId: "alcampo",
+        updatedAt: 200,
+      },
+    ]);
+  });
+
+  it("does not update a product to an empty name", () => {
+    expect(updateShoppingItem([baseItem], "item-1", "   ", "alcampo")).toEqual([
+      baseItem,
+    ]);
+  });
+
+  it("does not update a product to a duplicate name in the same section", () => {
+    const secondItem: ShoppingItem = {
+      ...baseItem,
+      id: "item-2",
+      name: "Pan",
+    };
+
+    expect(
+      updateShoppingItem([baseItem, secondItem], "item-1", "pan", "mercadona"),
+    ).toEqual([baseItem, secondItem]);
   });
 
   it("removes products", () => {

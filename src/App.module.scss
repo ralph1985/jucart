@@ -75,6 +75,8 @@ h2 {
 
 .input:focus-visible,
 .select:focus-visible,
+.editInput:focus-visible,
+.editSelect:focus-visible,
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
 .dangerButton:focus-visible,
@@ -215,6 +217,29 @@ h2 {
 
 .itemActions {
   display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.editForm {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.editInput,
+.editSelect {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  border: 1px solid #bcccdc;
+  border-radius: 0.5rem;
+  padding: 0 0.8rem;
+  background: #ffffff;
+  color: #102a43;
+}
+
+.editActions {
+  display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
 }
@@ -247,6 +272,10 @@ h2 {
 @media (min-width: 68rem) {
   .itemActions {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .dangerButton {
+    grid-column: 1 / -1;
   }
 }
 

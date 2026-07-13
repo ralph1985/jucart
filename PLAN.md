@@ -106,3 +106,10 @@
 - [x] Desplazar el tablero móvil al cambiar la sección en el selector.
 - [x] Actualizar el selector al cambiar la sección desde el tablero.
 - [x] Añadir tests razonables de sincronización.
+
+## Hito 11 — Interfaz compacta
+
+- [x] Cambiar las acciones de tarjeta a botones con iconos.
+- [x] Cambiar la acción de borrar comprados a botón con icono.
+- [x] Mantener nombres accesibles para lectores de pantalla y tests.
+- [x] Mantener tamaños táctiles mínimos.

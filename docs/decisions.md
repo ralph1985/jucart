@@ -59,6 +59,12 @@ En el Hito 10, el selector de sección y el tablero se sincronizan.
 
 La sección seleccionada se marca con un borde verde. En móvil, cambiar el selector desplaza el tablero horizontal hasta la columna correspondiente. Al seleccionar una columna desde el tablero, el selector superior se actualiza con esa sección.
 
+## Interfaz compacta
+
+En el Hito 11, las acciones repetidas de productos pasan a botones con iconos para reducir espacio en cada tarjeta.
+
+Los botones conservan `aria-label` y `title` con la acción completa. No se añade una librería de iconos porque la app mantiene una superficie pequeña y no hay otra necesidad actual de una dependencia nueva.
+
 ## Persistencia local
 
 En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.

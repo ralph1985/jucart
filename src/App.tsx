@@ -32,6 +32,42 @@ import {
 const selectedSectionStorageKey = "jucart:selected-section-id";
 const selectedUserStorageKey = "jucart:selected-user-id";
 
+type IconName = "check" | "edit" | "trash" | "undo" | "save" | "close";
+
+function Icon({ name }: { name: IconName }) {
+  const paths: Record<IconName, string[]> = {
+    check: ["M5 12l4 4L19 6"],
+    edit: ["M12 20h9", "M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"],
+    trash: [
+      "M3 6h18",
+      "M8 6V4h8v2",
+      "M6 6l1 14h10l1-14",
+      "M10 11v5",
+      "M14 11v5",
+    ],
+    undo: ["M9 14l-4-4 4-4", "M5 10h9a5 5 0 1 1 0 10h-2"],
+    save: ["M5 3h12l2 2v16H5z", "M8 3v6h8V3", "M8 17h8"],
+    close: ["M6 6l12 12", "M18 6L6 18"],
+  };
+
+  return (
+    <svg
+      className={styles.buttonIcon}
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+    >
+      {paths[name].map((path) => (
+        <path d={path} key={path} />
+      ))}
+    </svg>
+  );
+}
+
 function getInitialSelectedSectionId(): ShoppingSectionId {
   try {
     const storedSectionId = window.localStorage.getItem(
@@ -336,15 +372,22 @@ export function App() {
                   ))}
                 </select>
                 <div className={styles.editActions}>
-                  <button className={styles.secondaryButton} type="submit">
-                    Guardar
+                  <button
+                    className={styles.iconButton}
+                    type="submit"
+                    aria-label="Guardar"
+                    title="Guardar"
+                  >
+                    <Icon name="save" />
                   </button>
                   <button
-                    className={styles.secondaryButton}
+                    className={styles.iconButton}
                     type="button"
+                    aria-label="Cancelar"
+                    title="Cancelar"
                     onClick={cancelEditing}
                   >
-                    Cancelar
+                    <Icon name="close" />
                   </button>
                 </div>
               </form>
@@ -364,40 +407,43 @@ export function App() {
                 </span>
                 <div className={styles.itemActions}>
                   <button
-                    className={styles.secondaryButton}
+                    className={styles.iconButton}
                     type="button"
                     aria-label={
                       item.purchased
                         ? `Devolver ${item.name} a pendientes`
                         : `Marcar ${item.name} como comprado`
                     }
+                    title={item.purchased ? "Pendiente" : "Comprado"}
                     onClick={() =>
                       setItems((currentItems) =>
                         toggleShoppingItem(currentItems, item.id),
                       )
                     }
                   >
-                    {item.purchased ? "Pendiente" : "Comprado"}
+                    <Icon name={item.purchased ? "undo" : "check"} />
                   </button>
                   <button
-                    className={styles.secondaryButton}
+                    className={styles.iconButton}
                     type="button"
                     aria-label={`Editar ${item.name}`}
+                    title="Editar"
                     onClick={() => startEditing(item)}
                   >
-                    Editar
+                    <Icon name="edit" />
                   </button>
                   <button
-                    className={styles.dangerButton}
+                    className={styles.iconButtonDanger}
                     type="button"
                     aria-label={`Eliminar ${item.name}`}
+                    title="Eliminar"
                     onClick={() =>
                       setItems((currentItems) =>
                         removeShoppingItem(currentItems, item.id),
                       )
                     }
                   >
-                    Eliminar
+                    <Icon name="trash" />
                   </button>
                 </div>
               </>
@@ -480,12 +526,14 @@ export function App() {
 
       <section className={styles.listActions} aria-label="Acciones de lista">
         <button
-          className={styles.dangerButton}
+          className={styles.iconButtonDanger}
           type="button"
+          aria-label="Borrar comprados"
+          title="Borrar comprados"
           onClick={handleRemovePurchasedItems}
           disabled={!isLoaded || purchasedCount === 0}
         >
-          Borrar comprados
+          <Icon name="trash" />
         </button>
       </section>
 

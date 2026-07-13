@@ -87,6 +87,8 @@ h2 {
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
 .dangerButton:focus-visible,
+.iconButton:focus-visible,
+.iconButtonDanger:focus-visible,
 .board:focus-visible {
   border-color: #2f80ed;
   outline: 3px solid rgb(47 128 237 / 22%);
@@ -101,7 +103,9 @@ h2 {
 
 .primaryButton,
 .secondaryButton,
-.dangerButton {
+.dangerButton,
+.iconButton,
+.iconButtonDanger {
   min-height: 2.75rem;
   border: 0;
   border-radius: 0.5rem;
@@ -112,7 +116,9 @@ h2 {
 
 .primaryButton:disabled,
 .secondaryButton:disabled,
-.dangerButton:disabled {
+.dangerButton:disabled,
+.iconButton:disabled,
+.iconButtonDanger:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -128,9 +134,33 @@ h2 {
   color: #102a43;
 }
 
+.iconButton,
+.iconButtonDanger {
+  display: inline-grid;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  place-items: center;
+  padding: 0;
+}
+
+.iconButton {
+  background: #d9e2ec;
+  color: #102a43;
+}
+
 .dangerButton {
   background: #ffe3e3;
   color: #9b1c1c;
+}
+
+.iconButtonDanger {
+  background: #ffe3e3;
+  color: #9b1c1c;
+}
+
+.buttonIcon {
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
 .board {
@@ -255,8 +285,9 @@ h2 {
 
 .itemActions {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, 2.75rem);
   gap: 0.5rem;
+  justify-content: end;
 }
 
 .editForm {
@@ -278,8 +309,9 @@ h2 {
 
 .editActions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 2.75rem);
   gap: 0.5rem;
+  justify-content: end;
 }
 
 @media (min-width: 42rem) {
@@ -303,17 +335,13 @@ h2 {
   }
 
   .itemActions {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 2.75rem);
   }
 }
 
 @media (min-width: 68rem) {
   .itemActions {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .dangerButton {
-    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, 2.75rem);
   }
 }
 

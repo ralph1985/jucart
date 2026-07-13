@@ -138,3 +138,11 @@
 - [x] Animar el desplazamiento horizontal del tablero móvil.
 - [x] Animar altas, deshacer y pulsaciones de botones.
 - [x] Respetar `prefers-reduced-motion`.
+
+## Hito 15 — Pulido UX 2026
+
+- [x] Añadir resumen visible de pendientes y comprados.
+- [x] Agrupar el alta y la limpieza en un panel superior.
+- [x] Modernizar paleta, superficies, sombras y estados.
+- [x] Mejorar la legibilidad de columnas y tarjetas.
+- [x] Mantener la interfaz en una sola pantalla.

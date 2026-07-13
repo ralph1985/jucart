@@ -73,3 +73,5 @@ El Hito 12 compacta la zona de alta y deja el nombre del producto como último c
 El Hito 13 añade deshacer para el último borrado de producto o limpieza de comprados.
 
 El Hito 14 añade Anime.js para animar navegación, altas, deshacer y feedback de botones respetando reducción de movimiento.
+
+El Hito 15 pule la experiencia visual con resumen de lista, panel superior compacto y un tablero más moderno y legible.

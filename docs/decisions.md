@@ -83,6 +83,12 @@ En el Hito 14, Jucart usa Anime.js para dar feedback visual a la navegación y a
 
 Las animaciones se aplican a la entrada del tablero, la sección seleccionada, el desplazamiento horizontal móvil, las tarjetas nuevas, el deshacer y la pulsación de botones. Si el navegador indica `prefers-reduced-motion: reduce`, las animaciones se omiten.
 
+## Pulido visual
+
+En el Hito 15, Jucart adopta una interfaz más densa y actual sin cambiar el modelo de una sola pantalla.
+
+El encabezado muestra pendientes y comprados, el alta y la limpieza se agrupan en un panel superior, y el tablero usa superficies, sombras y estados más claros para mejorar la lectura en móvil y escritorio.
+
 ## Persistencia local
 
 En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.

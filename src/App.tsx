@@ -153,6 +153,7 @@ export function App() {
   const previousItemIdsRef = useRef<Set<string>>(new Set());
   const previousUndoKeyRef = useRef<string | null>(null);
   const undoItemRef = useRef<HTMLLIElement>(null);
+  const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
 
   useEffect(() => {
@@ -681,94 +682,109 @@ export function App() {
   return (
     <main className={styles.app}>
       <section className={styles.header} aria-labelledby="app-title">
-        <p className={styles.kicker}>Lista de la compra</p>
-        <h1 id="app-title">Jucart</h1>
+        <div>
+          <p className={styles.kicker}>Lista de la compra</p>
+          <h1 id="app-title">Jucart</h1>
+        </div>
+        <dl className={styles.summary} aria-label="Resumen de la lista">
+          <div className={styles.summaryItem}>
+            <dt>Pendientes</dt>
+            <dd>{pendingCount}</dd>
+          </div>
+          <div className={styles.summaryItem}>
+            <dt>Comprados</dt>
+            <dd>{purchasedCount}</dd>
+          </div>
+        </dl>
       </section>
 
-      <form className={styles.form} onSubmit={handleSubmit}>
-        <div className={styles.formOptions}>
-          <div className={styles.formField}>
-            <label className={styles.label} htmlFor="section-id">
-              Sección
-            </label>
-            <select
-              id="section-id"
-              className={styles.select}
-              value={selectedSectionId}
-              onChange={(event) =>
-                setSelectedSectionId(event.target.value as ShoppingSectionId)
-              }
-              disabled={!isLoaded}
-            >
-              {shoppingSections.map((section) => (
-                <option key={section.id} value={section.id}>
-                  {section.name}
-                </option>
-              ))}
-            </select>
+      <section className={styles.commandPanel} aria-label="Añadir producto">
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <div className={styles.formOptions}>
+            <div className={styles.formField}>
+              <label className={styles.label} htmlFor="section-id">
+                Sección
+              </label>
+              <select
+                id="section-id"
+                className={styles.select}
+                value={selectedSectionId}
+                onChange={(event) =>
+                  setSelectedSectionId(event.target.value as ShoppingSectionId)
+                }
+                disabled={!isLoaded}
+              >
+                {shoppingSections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.formField}>
+              <label className={styles.label} htmlFor="user-id">
+                Añadido por
+              </label>
+              <select
+                id="user-id"
+                className={styles.select}
+                value={selectedUserId}
+                onChange={(event) =>
+                  setSelectedUserId(event.target.value as ShoppingUserId)
+                }
+                disabled={!isLoaded}
+              >
+                {shoppingUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className={styles.formField}>
-            <label className={styles.label} htmlFor="user-id">
-              Añadido por
+            <label className={styles.label} htmlFor="item-name">
+              Producto
             </label>
-            <select
-              id="user-id"
-              className={styles.select}
-              value={selectedUserId}
-              onChange={(event) =>
-                setSelectedUserId(event.target.value as ShoppingUserId)
-              }
-              disabled={!isLoaded}
-            >
-              {shoppingUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
+            <div className={styles.addRow}>
+              <input
+                id="item-name"
+                ref={itemNameInputRef}
+                className={styles.input}
+                autoComplete="off"
+                autoFocus
+                value={itemName}
+                onChange={(event) => setItemName(event.target.value)}
+                placeholder="Leche, pan, fruta..."
+                type="text"
+                disabled={!isLoaded}
+              />
+              <button
+                className={styles.primaryButton}
+                type="submit"
+                onPointerDown={handleButtonPointerDown}
+                disabled={!isLoaded}
+              >
+                Añadir
+              </button>
+            </div>
           </div>
-        </div>
-        <div className={styles.formField}>
-          <label className={styles.label} htmlFor="item-name">
-            Producto
-          </label>
-          <div className={styles.addRow}>
-            <input
-              id="item-name"
-              ref={itemNameInputRef}
-              className={styles.input}
-              autoComplete="off"
-              autoFocus
-              value={itemName}
-              onChange={(event) => setItemName(event.target.value)}
-              placeholder="Leche, pan, fruta..."
-              type="text"
-              disabled={!isLoaded}
-            />
-            <button
-              className={styles.primaryButton}
-              type="submit"
-              onPointerDown={handleButtonPointerDown}
-              disabled={!isLoaded}
-            >
-              Añadir
-            </button>
-          </div>
-        </div>
-      </form>
+        </form>
 
-      <section className={styles.listActions} aria-label="Acciones de lista">
-        <button
-          className={styles.iconButtonDanger}
-          type="button"
-          aria-label="Borrar comprados"
-          title="Borrar comprados"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handleRemovePurchasedItems}
-          disabled={!isLoaded || purchasedCount === 0}
-        >
-          <Icon name="trash" />
-        </button>
+        <div className={styles.listActions}>
+          <button
+            className={styles.clearButton}
+            type="button"
+            aria-label="Borrar comprados"
+            title="Borrar comprados"
+            onPointerDown={handleButtonPointerDown}
+            onClick={handleRemovePurchasedItems}
+            disabled={!isLoaded || purchasedCount === 0}
+          >
+            <Icon name="trash" />
+            <span>Comprados</span>
+          </button>
+        </div>
       </section>
 
       {!isLoaded ? (

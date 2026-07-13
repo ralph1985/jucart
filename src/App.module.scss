@@ -273,7 +273,10 @@ h2 {
 }
 
 .column {
+  display: flex;
+  flex-direction: column;
   min-height: 15rem;
+  max-height: clamp(16rem, calc(100dvh - 18rem), 32rem);
   border: 1px solid rgb(148 163 184 / 32%);
   border-radius: 0.5rem;
   padding: 1rem;
@@ -343,9 +346,14 @@ h2 {
 
 .list {
   display: grid;
+  flex: 1 1 auto;
   gap: 0.75rem;
+  min-height: 0;
   margin: 0;
   padding: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
   list-style: none;
 }
 
@@ -484,6 +492,7 @@ h2 {
 
   .column {
     min-height: 22rem;
+    max-height: clamp(22rem, calc(100dvh - 17rem), 36rem);
   }
 
   .item {

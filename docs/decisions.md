@@ -77,6 +77,12 @@ En el Hito 13, Jucart permite deshacer el último borrado.
 
 La aplicación guarda en memoria los últimos productos borrados y muestra una acción `Deshacer` en la sección donde estaban. La restauración usa el flujo normal de estado y persistencia local. No se implementa historial múltiple ni papelera permanente para mantener la interfaz sencilla.
 
+## Animaciones de navegación
+
+En el Hito 14, Jucart usa Anime.js para dar feedback visual a la navegación y a las acciones principales.
+
+Las animaciones se aplican a la entrada del tablero, la sección seleccionada, el desplazamiento horizontal móvil, las tarjetas nuevas, el deshacer y la pulsación de botones. Si el navegador indica `prefers-reduced-motion: reduce`, las animaciones se omiten.
+
 ## Persistencia local
 
 En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.

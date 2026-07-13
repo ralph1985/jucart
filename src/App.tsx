@@ -1,11 +1,13 @@
 import {
   FormEvent,
   KeyboardEvent,
+  MouseEvent,
   UIEvent,
   useEffect,
   useRef,
   useState,
 } from "react";
+import { animate, stagger } from "animejs";
 
 import styles from "./App.module.scss";
 import {
@@ -105,6 +107,25 @@ function compareShoppingItemsForVisibleOrder(
   return firstItem.createdAt - secondItem.createdAt;
 }
 
+function shouldAnimate() {
+  return !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
+
+function runAnimation(
+  targets: HTMLElement | HTMLElement[],
+  parameters: Parameters<typeof animate>[1],
+) {
+  if (!shouldAnimate()) {
+    return;
+  }
+
+  try {
+    animate(targets, parameters);
+  } catch {
+    return;
+  }
+}
+
 export function App() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [itemName, setItemName] = useState("");
@@ -122,11 +143,16 @@ export function App() {
   const [storageError, setStorageError] = useState<string | null>(null);
   const [lastRemovedItems, setLastRemovedItems] = useState<ShoppingItem[]>([]);
   const itemNameInputRef = useRef<HTMLInputElement>(null);
+  const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
   const boardRef = useRef<HTMLElement>(null);
   const sectionColumnRefs = useRef<
     Partial<Record<ShoppingSectionId, HTMLElement>>
   >({});
   const programmaticScrollTimeoutRef = useRef<number | null>(null);
+  const hasAnimatedInitialColumnsRef = useRef(false);
+  const previousItemIdsRef = useRef<Set<string>>(new Set());
+  const previousUndoKeyRef = useRef<string | null>(null);
+  const undoItemRef = useRef<HTMLLIElement>(null);
   const purchasedCount = items.filter((item) => item.purchased).length;
 
   useEffect(() => {
@@ -195,12 +221,7 @@ export function App() {
     const board = boardRef.current;
     const selectedColumn = sectionColumnRefs.current[selectedSectionId];
 
-    if (
-      !board ||
-      !selectedColumn ||
-      typeof selectedColumn.scrollIntoView !== "function" ||
-      board.scrollWidth <= board.clientWidth
-    ) {
+    if (!board || !selectedColumn || board.scrollWidth <= board.clientWidth) {
       return;
     }
 
@@ -212,10 +233,10 @@ export function App() {
       programmaticScrollTimeoutRef.current = null;
     }, 500);
 
-    selectedColumn.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: "start",
+    runAnimation(board, {
+      scrollLeft: selectedColumn.offsetLeft,
+      duration: 420,
+      ease: "outCubic",
     });
   }, [selectedSectionId]);
 
@@ -226,6 +247,101 @@ export function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!isLoaded || hasAnimatedInitialColumnsRef.current) {
+      return;
+    }
+
+    const columns = shoppingSections
+      .map((section) => sectionColumnRefs.current[section.id])
+      .filter((column): column is HTMLElement => Boolean(column));
+
+    if (columns.length === 0) {
+      return;
+    }
+
+    hasAnimatedInitialColumnsRef.current = true;
+    runAnimation(columns, {
+      opacity: [0, 1],
+      y: [14, 0],
+      duration: 420,
+      delay: stagger(55),
+      ease: "outCubic",
+    });
+  }, [isLoaded]);
+
+  useEffect(() => {
+    const selectedColumn = sectionColumnRefs.current[selectedSectionId];
+
+    if (!selectedColumn) {
+      return;
+    }
+
+    runAnimation(selectedColumn, {
+      scale: [0.985, 1],
+      duration: 280,
+      ease: "outBack",
+    });
+  }, [selectedSectionId]);
+
+  useEffect(() => {
+    const previousItemIds = previousItemIdsRef.current;
+    const newItems = items.filter((item) => !previousItemIds.has(item.id));
+
+    previousItemIdsRef.current = new Set(items.map((item) => item.id));
+
+    const newItemElements = newItems
+      .map((item) => itemRefs.current[item.id])
+      .filter((item): item is HTMLElement => Boolean(item));
+
+    if (newItemElements.length === 0) {
+      return;
+    }
+
+    runAnimation(newItemElements, {
+      opacity: [0, 1],
+      y: [-8, 0],
+      scale: [0.97, 1],
+      duration: 320,
+      delay: stagger(35),
+      ease: "outBack",
+    });
+  }, [items]);
+
+  useEffect(() => {
+    if (lastRemovedItems.length === 0) {
+      previousUndoKeyRef.current = null;
+      return;
+    }
+
+    const undoKey = lastRemovedItems.map((item) => item.id).join("-");
+
+    if (undoKey === previousUndoKeyRef.current || !undoItemRef.current) {
+      return;
+    }
+
+    previousUndoKeyRef.current = undoKey;
+    runAnimation(undoItemRef.current, {
+      opacity: [0, 1],
+      y: [-6, 0],
+      scale: [0.98, 1],
+      duration: 260,
+      ease: "outBack",
+    });
+  }, [lastRemovedItems]);
+
+  function animateButtonPress(element: HTMLElement) {
+    runAnimation(element, {
+      scale: [0.92, 1],
+      duration: 220,
+      ease: "outBack",
+    });
+  }
+
+  function handleButtonPointerDown(event: MouseEvent<HTMLButtonElement>) {
+    animateButtonPress(event.currentTarget);
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -372,7 +488,11 @@ export function App() {
 
   function renderUndoItem(removedItems: ShoppingItem[]) {
     return (
-      <li className={styles.undoItem} key={`undo-${removedItems[0].id}`}>
+      <li
+        ref={undoItemRef}
+        className={styles.undoItem}
+        key={`undo-${removedItems[0].id}`}
+      >
         <span>
           {removedItems.length === 1
             ? "Producto borrado."
@@ -381,6 +501,7 @@ export function App() {
         <button
           className={styles.undoButton}
           type="button"
+          onPointerDown={handleButtonPointerDown}
           onClick={handleUndoRemoveItems}
         >
           Deshacer
@@ -408,6 +529,13 @@ export function App() {
     const listItems = visibleItems.flatMap((item, index) => {
       const itemContent = (
         <li
+          ref={(itemElement) => {
+            if (itemElement) {
+              itemRefs.current[item.id] = itemElement;
+            } else {
+              delete itemRefs.current[item.id];
+            }
+          }}
           className={
             item.purchased
               ? `${styles.item} ${styles.itemPurchased}`
@@ -455,6 +583,7 @@ export function App() {
                   type="submit"
                   aria-label="Guardar"
                   title="Guardar"
+                  onPointerDown={handleButtonPointerDown}
                 >
                   <Icon name="save" />
                 </button>
@@ -463,6 +592,7 @@ export function App() {
                   type="button"
                   aria-label="Cancelar"
                   title="Cancelar"
+                  onPointerDown={handleButtonPointerDown}
                   onClick={cancelEditing}
                 >
                   <Icon name="close" />
@@ -493,6 +623,7 @@ export function App() {
                       : `Marcar ${item.name} como comprado`
                   }
                   title={item.purchased ? "Pendiente" : "Comprado"}
+                  onPointerDown={handleButtonPointerDown}
                   onClick={() =>
                     setItems((currentItems) =>
                       toggleShoppingItem(currentItems, item.id),
@@ -506,6 +637,7 @@ export function App() {
                   type="button"
                   aria-label={`Editar ${item.name}`}
                   title="Editar"
+                  onPointerDown={handleButtonPointerDown}
                   onClick={() => startEditing(item)}
                 >
                   <Icon name="edit" />
@@ -515,6 +647,7 @@ export function App() {
                   type="button"
                   aria-label={`Eliminar ${item.name}`}
                   title="Eliminar"
+                  onPointerDown={handleButtonPointerDown}
                   onClick={() => handleRemoveItem(item.id)}
                 >
                   <Icon name="trash" />
@@ -615,6 +748,7 @@ export function App() {
             <button
               className={styles.primaryButton}
               type="submit"
+              onPointerDown={handleButtonPointerDown}
               disabled={!isLoaded}
             >
               Añadir
@@ -629,6 +763,7 @@ export function App() {
           type="button"
           aria-label="Borrar comprados"
           title="Borrar comprados"
+          onPointerDown={handleButtonPointerDown}
           onClick={handleRemovePurchasedItems}
           disabled={!isLoaded || purchasedCount === 0}
         >

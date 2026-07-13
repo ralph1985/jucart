@@ -71,3 +71,5 @@ El Hito 11 compacta la interfaz usando iconos en las acciones de productos y lim
 El Hito 12 compacta la zona de alta y deja el nombre del producto como último campo del formulario.
 
 El Hito 13 añade deshacer para el último borrado de producto o limpieza de comprados.
+
+El Hito 14 añade Anime.js para animar navegación, altas, deshacer y feedback de botones respetando reducción de movimiento.

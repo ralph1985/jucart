@@ -39,6 +39,8 @@
   color: #1f4d36;
   font-size: 0.92rem;
   font-weight: 700;
+  transform-origin: center top;
+  will-change: transform, opacity;
 }
 
 .kicker {
@@ -217,6 +219,8 @@ h2 {
   background: #ffffff;
   scroll-snap-align: start;
   cursor: pointer;
+  transform-origin: center top;
+  will-change: transform, opacity;
 }
 
 .column:focus-visible {
@@ -284,6 +288,8 @@ h2 {
   border: 1px solid #d9e2ec;
   border-radius: 0.5rem;
   background: #f8f6f0;
+  transform-origin: center top;
+  will-change: transform, opacity;
 }
 
 .itemPurchased {

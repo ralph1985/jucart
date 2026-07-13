@@ -129,3 +129,12 @@
 - [x] Restaurar los productos sin duplicarlos si ya existen.
 - [x] Mantener una sola oportunidad de deshacer.
 - [x] Añadir tests razonables de deshacer.
+
+## Hito 14 — Animaciones de navegación
+
+- [x] Instalar Anime.js.
+- [x] Animar la entrada inicial del tablero.
+- [x] Animar el cambio de sección seleccionada.
+- [x] Animar el desplazamiento horizontal del tablero móvil.
+- [x] Animar altas, deshacer y pulsaciones de botones.
+- [x] Respetar `prefers-reduced-motion`.

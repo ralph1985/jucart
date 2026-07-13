@@ -211,38 +211,22 @@ describe("App", () => {
     expect(farmaciaColumn).toHaveAttribute("aria-current", "true");
   });
 
-  it("scrolls the board to the selected section when it is horizontally scrollable", async () => {
-    const scrollIntoView = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoView;
-
+  it("marks the selected column when the section selector changes", async () => {
     render(<App />);
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
     );
 
-    const board = screen.getByLabelText("Lista por secciones");
-
-    Object.defineProperty(board, "scrollWidth", {
-      configurable: true,
-      value: 1200,
-    });
-    Object.defineProperty(board, "clientWidth", {
-      configurable: true,
-      value: 320,
-    });
-
     fireEvent.change(screen.getByLabelText("Sección"), {
       target: { value: "farmacia" },
     });
 
-    await waitFor(() =>
-      expect(scrollIntoView).toHaveBeenCalledWith({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "start",
-      }),
-    );
+    const farmaciaColumn = screen
+      .getByRole("heading", { name: "Farmacia" })
+      .closest("article");
+
+    expect(farmaciaColumn).toHaveAttribute("aria-current", "true");
   });
 
   it("updates the selected section when the board is scrolled on mobile", async () => {

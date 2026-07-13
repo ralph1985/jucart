@@ -27,13 +27,11 @@
   justify-content: flex-end;
 }
 
-.undoNotice {
+.undoItem {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  width: min(100% - 2rem, 42rem);
-  margin: -0.35rem auto 1rem;
   border: 1px solid #b7e4c7;
   border-radius: 0.5rem;
   padding: 0.65rem 0.75rem;

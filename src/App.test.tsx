@@ -91,24 +91,65 @@ describe("App", () => {
   });
 
   it("undoes a removed product", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Pan",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      {
+        id: "item-2",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+      {
+        id: "item-3",
+        name: "Yogur",
+        sectionId: "mercadona",
+        addedBy: "begona",
+        purchased: false,
+        createdAt: 300,
+        updatedAt: 300,
+      },
+    ]);
+
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await screen.findByText("Leche");
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
-      target: { value: "Leche" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
 
-    expect(screen.queryByText("Leche")).not.toBeInTheDocument();
-    expect(screen.getByText("Producto borrado.")).toBeInTheDocument();
+    const mercadonaColumn = screen
+      .getByRole("heading", { name: "Mercadona" })
+      .closest("article");
 
-    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+    expect(mercadonaColumn).not.toBeNull();
+    expect(
+      within(mercadonaColumn as HTMLElement).queryByText("Leche"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(mercadonaColumn as HTMLElement)
+        .getAllByText(/^(Pan|Producto borrado\.|Yogur)$/)
+        .map((element) => element.textContent),
+    ).toEqual(["Pan", "Producto borrado.", "Yogur"]);
 
-    expect(screen.getByText("Leche")).toBeInTheDocument();
+    fireEvent.click(
+      within(mercadonaColumn as HTMLElement).getByRole("button", {
+        name: "Deshacer",
+      }),
+    );
+
+    expect(
+      within(mercadonaColumn as HTMLElement).getByText("Leche"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Producto borrado.")).not.toBeInTheDocument();
   });
 

@@ -94,6 +94,17 @@ function getInitialSelectedUserId(): ShoppingUserId {
   }
 }
 
+function compareShoppingItemsForVisibleOrder(
+  firstItem: ShoppingItem,
+  secondItem: ShoppingItem,
+) {
+  if (firstItem.purchased !== secondItem.purchased) {
+    return firstItem.purchased ? 1 : -1;
+  }
+
+  return firstItem.createdAt - secondItem.createdAt;
+}
+
 export function App() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [itemName, setItemName] = useState("");
@@ -359,138 +370,179 @@ export function App() {
     setSelectedSectionId(sectionId);
   }
 
-  function renderItems(sectionItems: ShoppingItem[]) {
-    if (sectionItems.length === 0) {
+  function renderUndoItem(removedItems: ShoppingItem[]) {
+    return (
+      <li className={styles.undoItem} key={`undo-${removedItems[0].id}`}>
+        <span>
+          {removedItems.length === 1
+            ? "Producto borrado."
+            : `${removedItems.length} productos borrados.`}
+        </span>
+        <button
+          className={styles.undoButton}
+          type="button"
+          onClick={handleUndoRemoveItems}
+        >
+          Deshacer
+        </button>
+      </li>
+    );
+  }
+
+  function renderItems(
+    sectionItems: ShoppingItem[],
+    removedSectionItems: ShoppingItem[],
+  ) {
+    if (sectionItems.length === 0 && removedSectionItems.length === 0) {
       return <p className={styles.empty}>Sin productos.</p>;
     }
 
     const visibleItems = sortShoppingItemsForShopping(sectionItems);
+    const sortedRemovedItems = [...removedSectionItems].sort(
+      compareShoppingItemsForVisibleOrder,
+    );
     const hasPendingItems = sectionItems.some((item) => !item.purchased);
     const hasPurchasedItems = sectionItems.some((item) => item.purchased);
     const shouldShowPurchasedDivider = hasPendingItems && hasPurchasedItems;
-
-    return (
-      <ul className={styles.list}>
-        {visibleItems.map((item, index) => (
-          <li
-            className={
-              item.purchased
-                ? `${styles.item} ${styles.itemPurchased}`
-                : styles.item
-            }
-            key={item.id}
-          >
-            {shouldShowPurchasedDivider &&
-            item.purchased &&
-            !visibleItems[index - 1]?.purchased ? (
-              <span className={styles.purchasedDivider}>Comprados</span>
-            ) : null}
-            {editingItemId === item.id ? (
-              <form
-                className={styles.editForm}
-                aria-label={`Editar ${item.name}`}
-                onSubmit={(event) => handleEditSubmit(event, item.id)}
+    let hasRenderedUndoItem = false;
+    const listItems = visibleItems.flatMap((item, index) => {
+      const itemContent = (
+        <li
+          className={
+            item.purchased
+              ? `${styles.item} ${styles.itemPurchased}`
+              : styles.item
+          }
+          key={item.id}
+        >
+          {shouldShowPurchasedDivider &&
+          item.purchased &&
+          !visibleItems[index - 1]?.purchased ? (
+            <span className={styles.purchasedDivider}>Comprados</span>
+          ) : null}
+          {editingItemId === item.id ? (
+            <form
+              className={styles.editForm}
+              aria-label={`Editar ${item.name}`}
+              onSubmit={(event) => handleEditSubmit(event, item.id)}
+            >
+              <input
+                className={styles.editInput}
+                aria-label="Nombre del producto"
+                autoComplete="off"
+                autoFocus
+                value={editingItemName}
+                onChange={(event) => setEditingItemName(event.target.value)}
+                type="text"
+              />
+              <select
+                className={styles.editSelect}
+                aria-label="Sección del producto"
+                value={editingSectionId}
+                onChange={(event) =>
+                  setEditingSectionId(event.target.value as ShoppingSectionId)
+                }
               >
-                <input
-                  className={styles.editInput}
-                  aria-label="Nombre del producto"
-                  autoComplete="off"
-                  autoFocus
-                  value={editingItemName}
-                  onChange={(event) => setEditingItemName(event.target.value)}
-                  type="text"
-                />
-                <select
-                  className={styles.editSelect}
-                  aria-label="Sección del producto"
-                  value={editingSectionId}
-                  onChange={(event) =>
-                    setEditingSectionId(event.target.value as ShoppingSectionId)
-                  }
+                {shoppingSections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.name}
+                  </option>
+                ))}
+              </select>
+              <div className={styles.editActions}>
+                <button
+                  className={styles.iconButton}
+                  type="submit"
+                  aria-label="Guardar"
+                  title="Guardar"
                 >
-                  {shoppingSections.map((section) => (
-                    <option key={section.id} value={section.id}>
-                      {section.name}
-                    </option>
-                  ))}
-                </select>
-                <div className={styles.editActions}>
-                  <button
-                    className={styles.iconButton}
-                    type="submit"
-                    aria-label="Guardar"
-                    title="Guardar"
-                  >
-                    <Icon name="save" />
-                  </button>
-                  <button
-                    className={styles.iconButton}
-                    type="button"
-                    aria-label="Cancelar"
-                    title="Cancelar"
-                    onClick={cancelEditing}
-                  >
-                    <Icon name="close" />
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <>
-                <span
-                  className={
+                  <Icon name="save" />
+                </button>
+                <button
+                  className={styles.iconButton}
+                  type="button"
+                  aria-label="Cancelar"
+                  title="Cancelar"
+                  onClick={cancelEditing}
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <span
+                className={
+                  item.purchased
+                    ? `${styles.itemName} ${styles.itemNamePurchased}`
+                    : styles.itemName
+                }
+              >
+                {item.name}
+              </span>
+              <span className={styles.itemMeta}>
+                Añadido por {getShoppingUserName(item.addedBy)}
+              </span>
+              <div className={styles.itemActions}>
+                <button
+                  className={styles.iconButton}
+                  type="button"
+                  aria-label={
                     item.purchased
-                      ? `${styles.itemName} ${styles.itemNamePurchased}`
-                      : styles.itemName
+                      ? `Devolver ${item.name} a pendientes`
+                      : `Marcar ${item.name} como comprado`
+                  }
+                  title={item.purchased ? "Pendiente" : "Comprado"}
+                  onClick={() =>
+                    setItems((currentItems) =>
+                      toggleShoppingItem(currentItems, item.id),
+                    )
                   }
                 >
-                  {item.name}
-                </span>
-                <span className={styles.itemMeta}>
-                  Añadido por {getShoppingUserName(item.addedBy)}
-                </span>
-                <div className={styles.itemActions}>
-                  <button
-                    className={styles.iconButton}
-                    type="button"
-                    aria-label={
-                      item.purchased
-                        ? `Devolver ${item.name} a pendientes`
-                        : `Marcar ${item.name} como comprado`
-                    }
-                    title={item.purchased ? "Pendiente" : "Comprado"}
-                    onClick={() =>
-                      setItems((currentItems) =>
-                        toggleShoppingItem(currentItems, item.id),
-                      )
-                    }
-                  >
-                    <Icon name={item.purchased ? "undo" : "check"} />
-                  </button>
-                  <button
-                    className={styles.iconButton}
-                    type="button"
-                    aria-label={`Editar ${item.name}`}
-                    title="Editar"
-                    onClick={() => startEditing(item)}
-                  >
-                    <Icon name="edit" />
-                  </button>
-                  <button
-                    className={styles.iconButtonDanger}
-                    type="button"
-                    aria-label={`Eliminar ${item.name}`}
-                    title="Eliminar"
-                    onClick={() => handleRemoveItem(item.id)}
-                  >
-                    <Icon name="trash" />
-                  </button>
-                </div>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
-    );
+                  <Icon name={item.purchased ? "undo" : "check"} />
+                </button>
+                <button
+                  className={styles.iconButton}
+                  type="button"
+                  aria-label={`Editar ${item.name}`}
+                  title="Editar"
+                  onClick={() => startEditing(item)}
+                >
+                  <Icon name="edit" />
+                </button>
+                <button
+                  className={styles.iconButtonDanger}
+                  type="button"
+                  aria-label={`Eliminar ${item.name}`}
+                  title="Eliminar"
+                  onClick={() => handleRemoveItem(item.id)}
+                >
+                  <Icon name="trash" />
+                </button>
+              </div>
+            </>
+          )}
+        </li>
+      );
+
+      if (
+        !hasRenderedUndoItem &&
+        sortedRemovedItems.length > 0 &&
+        compareShoppingItemsForVisibleOrder(sortedRemovedItems[0], item) < 0
+      ) {
+        hasRenderedUndoItem = true;
+
+        return [renderUndoItem(sortedRemovedItems), itemContent];
+      }
+
+      return [itemContent];
+    });
+
+    if (!hasRenderedUndoItem && sortedRemovedItems.length > 0) {
+      listItems.push(renderUndoItem(sortedRemovedItems));
+    }
+
+    return <ul className={styles.list}>{listItems}</ul>;
   }
 
   return (
@@ -584,23 +636,6 @@ export function App() {
         </button>
       </section>
 
-      {lastRemovedItems.length > 0 ? (
-        <section className={styles.undoNotice} role="status" aria-live="polite">
-          <span>
-            {lastRemovedItems.length === 1
-              ? "Producto borrado."
-              : `${lastRemovedItems.length} productos borrados.`}
-          </span>
-          <button
-            className={styles.undoButton}
-            type="button"
-            onClick={handleUndoRemoveItems}
-          >
-            Deshacer
-          </button>
-        </section>
-      ) : null}
-
       {!isLoaded ? (
         <p className={styles.status} role="status" aria-live="polite">
           Cargando lista...
@@ -620,6 +655,9 @@ export function App() {
       >
         {shoppingSections.map((section) => {
           const sectionItems = items.filter(
+            (item) => item.sectionId === section.id,
+          );
+          const removedSectionItems = lastRemovedItems.filter(
             (item) => item.sectionId === section.id,
           );
           const pendingCount = sectionItems.filter(
@@ -656,7 +694,7 @@ export function App() {
                   {pendingCount}
                 </span>
               </div>
-              {renderItems(sectionItems)}
+              {renderItems(sectionItems, removedSectionItems)}
             </article>
           );
         })}

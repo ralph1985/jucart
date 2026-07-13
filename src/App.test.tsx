@@ -411,14 +411,11 @@ describe("App", () => {
 
     expect(mercadonaColumn).not.toBeNull();
 
-    const productNames = within(mercadonaColumn as HTMLElement)
-      .getAllByText(/^(Leche|Pan|Yogur)$/)
+    const shoppingOrder = within(mercadonaColumn as HTMLElement)
+      .getAllByText(/^(Leche|Pan|Comprados|Yogur)$/)
       .map((productName) => productName.textContent);
 
-    expect(productNames).toEqual(["Leche", "Pan", "Yogur"]);
-    expect(
-      within(mercadonaColumn as HTMLElement).getByText("Comprados"),
-    ).toBeInTheDocument();
+    expect(shoppingOrder).toEqual(["Leche", "Pan", "Comprados", "Yogur"]);
   });
 
   it("edits a product name and section", async () => {

@@ -541,6 +541,10 @@ export function App() {
     let hasRenderedUndoItem = false;
     const listItems = visibleItems.flatMap((item, index) => {
       const isEditingItem = editingItemId === item.id;
+      const shouldRenderPurchasedDivider =
+        shouldShowPurchasedDivider &&
+        item.purchased &&
+        !visibleItems[index - 1]?.purchased;
       const itemContent = (
         <li
           ref={(itemElement) => {
@@ -579,11 +583,6 @@ export function App() {
               : (event) => handleItemKeyDown(event, item.id)
           }
         >
-          {shouldShowPurchasedDivider &&
-          item.purchased &&
-          !visibleItems[index - 1]?.purchased ? (
-            <span className={styles.purchasedDivider}>Comprados</span>
-          ) : null}
           {isEditingItem ? (
             <form
               className={styles.editForm}
@@ -692,18 +691,25 @@ export function App() {
           )}
         </li>
       );
-
-      if (
+      const purchasedDivider = shouldRenderPurchasedDivider ? (
+        <li className={styles.purchasedDivider} key="purchased-divider">
+          Comprados
+        </li>
+      ) : null;
+      const shouldRenderUndoItem =
         !hasRenderedUndoItem &&
         sortedRemovedItems.length > 0 &&
-        compareShoppingItemsForVisibleOrder(sortedRemovedItems[0], item) < 0
-      ) {
+        compareShoppingItemsForVisibleOrder(sortedRemovedItems[0], item) < 0;
+
+      if (shouldRenderUndoItem) {
         hasRenderedUndoItem = true;
 
-        return [renderUndoItem(sortedRemovedItems), itemContent];
+        return sortedRemovedItems[0].purchased
+          ? [purchasedDivider, renderUndoItem(sortedRemovedItems), itemContent]
+          : [renderUndoItem(sortedRemovedItems), purchasedDivider, itemContent];
       }
 
-      return [itemContent];
+      return [purchasedDivider, itemContent];
     });
 
     if (!hasRenderedUndoItem && sortedRemovedItems.length > 0) {

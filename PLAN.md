@@ -16,13 +16,13 @@
 
 ## Hito 1 — Lista local
 
-- [ ] Definir el modelo mínimo de producto.
-- [ ] Decidir y documentar el tratamiento de textos vacíos, espacios y duplicados.
-- [ ] Añadir productos.
-- [ ] Mostrar productos pendientes y comprados.
-- [ ] Cambiar su estado.
-- [ ] Eliminar productos.
-- [ ] Añadir tests de la lógica principal.
+- [x] Definir el modelo mínimo de producto.
+- [x] Decidir y documentar el tratamiento de textos vacíos, espacios y duplicados.
+- [x] Añadir productos.
+- [x] Mostrar productos pendientes y comprados.
+- [x] Cambiar su estado.
+- [x] Eliminar productos.
+- [x] Añadir tests de la lógica principal.
 
 ## Hito 2 — Persistencia local
 

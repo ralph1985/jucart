@@ -55,12 +55,20 @@ export function hasItemWithName(
   );
 }
 
+export function createShoppingItemId() {
+  if (typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function addShoppingItem(
   items: ShoppingItem[],
   rawName: string,
   sectionId: ShoppingSectionId,
   addedBy: ShoppingUserId,
-  createId: () => string = () => crypto.randomUUID(),
+  createId: () => string = createShoppingItemId,
   now: () => number = () => Date.now(),
 ) {
   const name = normalizeItemName(rawName);

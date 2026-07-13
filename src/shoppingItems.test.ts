@@ -1,5 +1,6 @@
 import {
   addShoppingItem,
+  createShoppingItemId,
   hasItemWithName,
   normalizeItemName,
   removePurchasedShoppingItems,
@@ -52,6 +53,24 @@ describe("shopping item logic", () => {
         updatedAt: 100,
       },
     ]);
+  });
+
+  it("creates ids without crypto randomUUID support", () => {
+    const originalRandomUUID = crypto.randomUUID;
+
+    Object.defineProperty(crypto, "randomUUID", {
+      configurable: true,
+      value: undefined,
+    });
+
+    try {
+      expect(createShoppingItemId()).toMatch(/^[a-z0-9]+-[a-z0-9]+$/);
+    } finally {
+      Object.defineProperty(crypto, "randomUUID", {
+        configurable: true,
+        value: originalRandomUUID,
+      });
+    }
   });
 
   it("detects duplicate names ignoring case", () => {

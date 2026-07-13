@@ -71,6 +71,12 @@ En el Hito 12, el formulario de alta muestra primero la sección y la persona, y
 
 Este orden prioriza preparar el contexto una vez y terminar escribiendo el producto, de forma que Enter complete el alta. La zona se compacta reduciendo márgenes y agrupando los selectores sin cambiar la pantalla única.
 
+## Deshacer borrado
+
+En el Hito 13, Jucart permite deshacer el último borrado.
+
+La aplicación guarda en memoria los últimos productos borrados y muestra una acción `Deshacer`. La restauración usa el flujo normal de estado y persistencia local. No se implementa historial múltiple ni papelera permanente para mantener la interfaz sencilla.
+
 ## Persistencia local
 
 En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.

@@ -121,3 +121,11 @@
 - [x] Dejar el nombre del producto como último campo.
 - [x] Mantener el alta por Enter desde el campo de producto.
 - [x] Añadir test del orden del formulario.
+
+## Hito 13 — Deshacer borrado
+
+- [x] Permitir deshacer el último producto borrado.
+- [x] Permitir deshacer la última limpieza de comprados.
+- [x] Restaurar los productos sin duplicarlos si ya existen.
+- [x] Mantener una sola oportunidad de deshacer.
+- [x] Añadir tests razonables de deshacer.

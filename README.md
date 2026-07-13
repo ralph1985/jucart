@@ -69,3 +69,5 @@ El Hito 10 sincroniza el selector de sección con el tablero: marca la columna s
 El Hito 11 compacta la interfaz usando iconos en las acciones de productos y limpieza, sin perder nombres accesibles.
 
 El Hito 12 compacta la zona de alta y deja el nombre del producto como último campo del formulario.
+
+El Hito 13 añade deshacer para el último borrado de producto o limpieza de comprados.

@@ -90,6 +90,28 @@ describe("App", () => {
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
   });
 
+  it("undoes a removed product", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "Leche" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
+
+    expect(screen.queryByText("Leche")).not.toBeInTheDocument();
+    expect(screen.getByText("Producto borrado.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(screen.getByText("Leche")).toBeInTheDocument();
+    expect(screen.queryByText("Producto borrado.")).not.toBeInTheDocument();
+  });
+
   it("restores the last selected section and user", async () => {
     window.localStorage.setItem("jucart:selected-section-id", "farmacia");
     window.localStorage.setItem("jucart:selected-user-id", "begona");
@@ -257,6 +279,46 @@ describe("App", () => {
     expect(confirmSpy).toHaveBeenCalledWith("¿Borrar 1 productos comprados?");
     expect(screen.getByText("Leche")).toBeInTheDocument();
     expect(screen.queryByText("Pan")).not.toBeInTheDocument();
+  });
+
+  it("undoes removing purchased products", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      {
+        id: "item-2",
+        name: "Pan",
+        sectionId: "mercadona",
+        addedBy: "begona",
+        purchased: true,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Leche");
+    await screen.findByText("Pan");
+
+    fireEvent.click(screen.getByRole("button", { name: "Borrar comprados" }));
+
+    expect(screen.queryByText("Pan")).not.toBeInTheDocument();
+    expect(screen.getByText("Producto borrado.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(screen.getByText("Leche")).toBeInTheDocument();
+    expect(screen.getByText("Pan")).toBeInTheDocument();
   });
 
   it("shows pending products before purchased products in each section", async () => {

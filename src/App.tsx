@@ -109,6 +109,7 @@ export function App() {
     useState<ShoppingSectionId>("mercadona");
   const [isLoaded, setIsLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [lastRemovedItems, setLastRemovedItems] = useState<ShoppingItem[]>([]);
   const itemNameInputRef = useRef<HTMLInputElement>(null);
   const boardRef = useRef<HTMLElement>(null);
   const sectionColumnRefs = useRef<
@@ -267,7 +268,49 @@ export function App() {
       return;
     }
 
-    setItems((currentItems) => removePurchasedShoppingItems(currentItems));
+    setItems((currentItems) => {
+      const removedItems = currentItems.filter((item) => item.purchased);
+
+      setLastRemovedItems(removedItems);
+
+      return removePurchasedShoppingItems(currentItems);
+    });
+  }
+
+  function handleRemoveItem(itemId: string) {
+    setItems((currentItems) => {
+      const removedItem = currentItems.find((item) => item.id === itemId);
+
+      if (!removedItem) {
+        return currentItems;
+      }
+
+      setLastRemovedItems([removedItem]);
+
+      return removeShoppingItem(currentItems, itemId);
+    });
+  }
+
+  function handleUndoRemoveItems() {
+    if (lastRemovedItems.length === 0) {
+      return;
+    }
+
+    setItems((currentItems) => {
+      const currentItemIds = new Set(currentItems.map((item) => item.id));
+      const restorableItems = lastRemovedItems.filter(
+        (item) => !currentItemIds.has(item.id),
+      );
+
+      if (restorableItems.length === 0) {
+        return currentItems;
+      }
+
+      return [...currentItems, ...restorableItems].sort(
+        (firstItem, secondItem) => firstItem.createdAt - secondItem.createdAt,
+      );
+    });
+    setLastRemovedItems([]);
   }
 
   function handleBoardScroll(event: UIEvent<HTMLElement>) {
@@ -437,11 +480,7 @@ export function App() {
                     type="button"
                     aria-label={`Eliminar ${item.name}`}
                     title="Eliminar"
-                    onClick={() =>
-                      setItems((currentItems) =>
-                        removeShoppingItem(currentItems, item.id),
-                      )
-                    }
+                    onClick={() => handleRemoveItem(item.id)}
                   >
                     <Icon name="trash" />
                   </button>
@@ -544,6 +583,23 @@ export function App() {
           <Icon name="trash" />
         </button>
       </section>
+
+      {lastRemovedItems.length > 0 ? (
+        <section className={styles.undoNotice} role="status" aria-live="polite">
+          <span>
+            {lastRemovedItems.length === 1
+              ? "Producto borrado."
+              : `${lastRemovedItems.length} productos borrados.`}
+          </span>
+          <button
+            className={styles.undoButton}
+            type="button"
+            onClick={handleUndoRemoveItems}
+          >
+            Deshacer
+          </button>
+        </section>
+      ) : null}
 
       {!isLoaded ? (
         <p className={styles.status} role="status" aria-live="polite">

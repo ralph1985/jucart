@@ -1085,7 +1085,13 @@ export function App() {
   }
 
   return (
-    <main className={styles.app}>
+    <main
+      className={
+        activeView === "shopping"
+          ? `${styles.app} ${styles.appShopping}`
+          : styles.app
+      }
+    >
       <section className={styles.header} aria-labelledby="app-title">
         <div className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">

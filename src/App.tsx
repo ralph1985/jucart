@@ -938,11 +938,17 @@ export function App() {
   ) {
     if (sectionItems.length === 0 && removedSectionItems.length === 0) {
       return (
-        <p
+        <div
           className={`${styles.empty} ${styles[`shoppingListColor${sectionColor}`]}`}
         >
-          Sin productos.
-        </p>
+          <span className={styles.emptyIcon} aria-hidden="true">
+            <Icon name="list" />
+          </span>
+          <p className={styles.emptyTitle}>No hay productos</p>
+          <p className={styles.emptyDescription}>
+            Añade el primero usando el formulario superior.
+          </p>
+        </div>
       );
     }
 
@@ -1266,12 +1272,14 @@ export function App() {
                 tabIndex={0}
               >
                 <div className={styles.sectionHeader}>
-                  <h2 id={`section-${section.id}-title`}>{section.name}</h2>
-                  <span
-                    className={styles.count}
-                    aria-label={`${pendingCount} productos pendientes`}
-                  >
-                    {pendingCount}
+                  <h2 id={`section-${section.id}-title`}>
+                    <span>{section.name}</span>
+                    <span className={styles.count} aria-hidden="true">
+                      · {pendingCount}
+                    </span>
+                  </h2>
+                  <span className={styles.visuallyHidden}>
+                    {pendingCount} productos pendientes
                   </span>
                 </div>
                 {renderItems(sectionItems, removedSectionItems, section.color)}

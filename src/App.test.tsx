@@ -300,9 +300,11 @@ describe("App", () => {
       .getByRole("heading", { name: "Frutería" })
       .closest("article");
 
-    expect(fruteriaColumn?.querySelector("p")?.className).toContain(
-      "shoppingListColoramber",
-    );
+    expect(
+      within(fruteriaColumn as HTMLElement)
+        .getByText("No hay productos")
+        .closest("div")?.className,
+    ).toContain("shoppingListColoramber");
 
     fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
 

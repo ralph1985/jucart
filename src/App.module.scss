@@ -212,7 +212,7 @@ h2 {
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.25rem;
   border-top: 1px solid rgb(148 163 184 / 24%);
   padding: 0.5rem max(1rem, env(safe-area-inset-right, 0px))

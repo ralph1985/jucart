@@ -605,15 +605,6 @@ export function App() {
     animateButtonPress(event.currentTarget);
   }
 
-  function focusAddProductField() {
-    runHapticFeedback("light");
-    document.getElementById("add-product")?.scrollIntoView?.({
-      behavior: shouldAnimate() ? "smooth" : "auto",
-      block: "start",
-    });
-    itemNameInputRef.current?.focus({ preventScroll: true });
-  }
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextItems = addShoppingItem(
@@ -1426,29 +1417,6 @@ export function App() {
       )}
 
       <nav className={styles.bottomNav} aria-label="Navegación principal">
-        <button
-          className={
-            activeView === "shopping"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          aria-label="Ir a añadir producto"
-          onPointerDown={handleButtonPointerDown}
-          onClick={() => {
-            if (activeView !== "shopping") {
-              showShoppingView();
-              window.setTimeout(focusAddProductField, 0);
-              return;
-            }
-
-            focusAddProductField();
-          }}
-          disabled={!isLoaded}
-        >
-          <Icon name="plus" />
-          <span>Añadir</span>
-        </button>
         <button
           className={
             activeView === "shopping"

@@ -247,23 +247,6 @@ describe("App", () => {
     ).toBeTruthy();
   });
 
-  it("focuses the product field from the bottom add action", async () => {
-    render(<App />);
-
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
-
-    const productInput = screen.getByLabelText("Producto");
-
-    productInput.blur();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Ir a añadir producto" }),
-    );
-
-    expect(productInput).toHaveFocus();
-  });
-
   it("keeps list settings as the rightmost bottom navigation action", async () => {
     render(<App />);
 
@@ -279,7 +262,7 @@ describe("App", () => {
       within(navigation)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Añadir", "Lista", "Limpiar", "Listas"]);
+    ).toEqual(["Lista", "Limpiar", "Listas"]);
   });
 
   it("manages shopping lists from the bottom navigation", async () => {

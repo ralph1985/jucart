@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -14,6 +15,7 @@ import {
 } from "./shoppingItemsDb";
 
 afterEach(async () => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   delete (Element.prototype as Partial<Element>).scrollIntoView;
   await resetShoppingItemsDatabase();
@@ -178,6 +180,35 @@ describe("App", () => {
     expect(
       within(mercadonaColumn as HTMLElement).getByText("Leche"),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Producto borrado.")).not.toBeInTheDocument();
+  });
+
+  it("hides the removed product message after five seconds", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Leche");
+
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
+
+    expect(screen.getByText("Producto borrado.")).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
     expect(screen.queryByText("Producto borrado.")).not.toBeInTheDocument();
   });
 

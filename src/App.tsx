@@ -574,6 +574,18 @@ export function App() {
   }, [lastRemovedItems]);
 
   useEffect(() => {
+    if (lastRemovedItems.length === 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setLastRemovedItems([]);
+    }, 5000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [lastRemovedItems]);
+
+  useEffect(() => {
     if (!isClearDialogOpen) {
       return;
     }
@@ -1126,6 +1138,26 @@ export function App() {
           >
             {getSyncStatusText(syncStatus)}
           </p>
+          <div className={styles.headerUserField}>
+            <label className={styles.headerUserLabel} htmlFor="user-id">
+              Añadido por
+            </label>
+            <select
+              id="user-id"
+              className={styles.headerUserSelect}
+              value={selectedUserId}
+              onChange={(event) =>
+                setSelectedUserId(event.target.value as ShoppingUserId)
+              }
+              disabled={!isLoaded}
+            >
+              {shoppingUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </section>
 
@@ -1155,26 +1187,6 @@ export function App() {
                   {sections.map((section) => (
                     <option key={section.id} value={section.id}>
                       {section.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="user-id">
-                  Añadido por
-                </label>
-                <select
-                  id="user-id"
-                  className={styles.select}
-                  value={selectedUserId}
-                  onChange={(event) =>
-                    setSelectedUserId(event.target.value as ShoppingUserId)
-                  }
-                  disabled={!isLoaded}
-                >
-                  {shoppingUsers.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
                     </option>
                   ))}
                 </select>

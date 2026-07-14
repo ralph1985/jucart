@@ -1,6 +1,6 @@
 .app {
   --header-height: calc(4.1rem + env(safe-area-inset-top, 0px));
-  --command-height: 6.25rem;
+  --command-height: 3.45rem;
   --bottom-nav-height: calc(4.75rem + env(safe-area-inset-bottom, 0px));
 
   min-height: 100svh;
@@ -63,9 +63,10 @@
 }
 
 .headerMeta {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem 0.5rem;
 }
 
 .commandPanel {
@@ -174,6 +175,34 @@ h2 {
   font-weight: 850;
   text-align: center;
   text-transform: uppercase;
+}
+
+.headerUserField {
+  grid-column: 2;
+  display: grid;
+  gap: 0.12rem;
+  min-width: 5.2rem;
+}
+
+.headerUserLabel {
+  color: #536b7c;
+  font-size: 0.52rem;
+  font-weight: 850;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.headerUserSelect {
+  width: 100%;
+  min-height: 1.8rem;
+  border: 1px solid rgb(148 163 184 / 34%);
+  border-radius: 0.45rem;
+  padding: 0 0.45rem;
+  background: rgb(255 255 255 / 78%);
+  color: #102033;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .bottomNav {
@@ -314,6 +343,7 @@ h2 {
 
 .input:focus-visible,
 .select:focus-visible,
+.headerUserSelect:focus-visible,
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
 .dangerButton:focus-visible,
@@ -843,11 +873,28 @@ h2 {
 
 @media (max-width: 38rem) {
   .formOptions {
-    grid-template-columns: 1fr;
+    display: none;
   }
 
-  .sectionSelectField {
+  .headerMeta {
+    grid-template-columns: auto;
+    justify-items: end;
+  }
+
+  .summary {
     display: none;
+  }
+
+  .syncStatus,
+  .headerUserField {
+    grid-column: 1;
+    width: 5.2rem;
+    min-width: 0;
+  }
+
+  .headerUserSelect {
+    min-height: 1.7rem;
+    font-size: 0.74rem;
   }
 
   .board {
@@ -858,23 +905,11 @@ h2 {
     align-items: start;
     gap: 0.65rem;
   }
-
-  .summary {
-    display: none;
-  }
-
-  .syncStatus {
-    min-width: 4.6rem;
-  }
 }
 
 @media (min-width: 42rem) {
-  .app {
-    --command-height: 3.45rem;
-  }
-
   .form {
-    grid-template-columns: 10rem 9rem minmax(18rem, 1fr);
+    grid-template-columns: 10rem minmax(18rem, 1fr);
     align-items: end;
   }
 

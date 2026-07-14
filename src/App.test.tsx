@@ -233,6 +233,42 @@ describe("App", () => {
     expect(productInput).toHaveFocus();
   });
 
+  it("uses haptic feedback for high-intent actions", async () => {
+    const vibrate = vi.fn();
+
+    Object.defineProperty(navigator, "vibrate", {
+      configurable: true,
+      value: vibrate,
+    });
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "Leche" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+
+    expect(vibrate).toHaveBeenLastCalledWith([14, 32, 18]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+    );
+
+    expect(vibrate).toHaveBeenLastCalledWith(18);
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
+
+    expect(vibrate).toHaveBeenLastCalledWith([28, 42, 36]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(vibrate).toHaveBeenLastCalledWith([14, 32, 18]);
+  });
+
   it("marks the selected section and updates the selector when a column is clicked", async () => {
     render(<App />);
 

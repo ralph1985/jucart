@@ -50,6 +50,14 @@ type IconName =
   | "list"
   | "sync";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
+type HapticFeedback = "light" | "medium" | "success" | "warning";
+
+const hapticFeedbackPatterns: Record<HapticFeedback, VibratePattern> = {
+  light: 10,
+  medium: 18,
+  success: [14, 32, 18],
+  warning: [28, 42, 36],
+};
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, string[]> = {
@@ -205,6 +213,14 @@ function runAnimation(
 
   try {
     animate(targets, parameters);
+  } catch {
+    return;
+  }
+}
+
+function runHapticFeedback(feedback: HapticFeedback) {
+  try {
+    void navigator.vibrate?.(hapticFeedbackPatterns[feedback]);
   } catch {
     return;
   }
@@ -529,6 +545,7 @@ export function App() {
   }
 
   function focusAddProductField() {
+    runHapticFeedback("light");
     document.getElementById("add-product")?.scrollIntoView?.({
       behavior: shouldAnimate() ? "smooth" : "auto",
       block: "start",
@@ -538,41 +555,55 @@ export function App() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setItems((currentItems) =>
-      addShoppingItem(
-        currentItems,
-        itemName,
-        selectedSectionId,
-        selectedUserId,
-      ),
+    const nextItems = addShoppingItem(
+      items,
+      itemName,
+      selectedSectionId,
+      selectedUserId,
     );
+
+    if (nextItems !== items) {
+      runHapticFeedback("success");
+      setItems(nextItems);
+    }
+
     setItemName("");
     itemNameInputRef.current?.focus();
   }
 
   function startEditing(item: ShoppingItem) {
+    runHapticFeedback("light");
     setEditingItemId(item.id);
     setEditingItemName(item.name);
     setEditingSectionId(item.sectionId);
   }
 
-  function cancelEditing() {
+  function resetEditing() {
     setEditingItemId(null);
     setEditingItemName("");
     setEditingSectionId("mercadona");
   }
 
+  function cancelEditing() {
+    runHapticFeedback("light");
+    resetEditing();
+  }
+
   function handleEditSubmit(event: FormEvent<HTMLFormElement>, itemId: string) {
     event.preventDefault();
-    setItems((currentItems) =>
-      updateShoppingItem(
-        currentItems,
-        itemId,
-        editingItemName,
-        editingSectionId,
-      ),
+    const nextItems = updateShoppingItem(
+      items,
+      itemId,
+      editingItemName,
+      editingSectionId,
     );
-    cancelEditing();
+
+    if (nextItems !== items) {
+      runHapticFeedback("success");
+      setItems(nextItems);
+    }
+
+    resetEditing();
   }
 
   function handleRemovePurchasedItems() {
@@ -580,6 +611,7 @@ export function App() {
       return;
     }
 
+    runHapticFeedback("light");
     setIsClearDialogOpen(true);
   }
 
@@ -589,28 +621,29 @@ export function App() {
       return;
     }
 
-    setItems((currentItems) => {
-      const removedItems = currentItems.filter((item) => item.purchased);
+    const removedItems = items.filter((item) => item.purchased);
 
-      setLastRemovedItems(removedItems);
+    if (removedItems.length === 0) {
+      setIsClearDialogOpen(false);
+      return;
+    }
 
-      return removePurchasedShoppingItems(currentItems);
-    });
+    runHapticFeedback("warning");
+    setLastRemovedItems(removedItems);
+    setItems(removePurchasedShoppingItems(items));
     setIsClearDialogOpen(false);
   }
 
   function handleRemoveItem(itemId: string) {
-    setItems((currentItems) => {
-      const removedItem = currentItems.find((item) => item.id === itemId);
+    const removedItem = items.find((item) => item.id === itemId);
 
-      if (!removedItem) {
-        return currentItems;
-      }
+    if (!removedItem) {
+      return;
+    }
 
-      setLastRemovedItems([removedItem]);
-
-      return removeShoppingItem(currentItems, itemId);
-    });
+    runHapticFeedback("warning");
+    setLastRemovedItems([removedItem]);
+    setItems(removeShoppingItem(items, itemId));
   }
 
   function handleUndoRemoveItems() {
@@ -633,6 +666,16 @@ export function App() {
       );
     });
     setLastRemovedItems([]);
+    runHapticFeedback("success");
+  }
+
+  function handleToggleItem(itemId: string) {
+    if (!items.some((item) => item.id === itemId)) {
+      return;
+    }
+
+    setItems(toggleShoppingItem(items, itemId));
+    runHapticFeedback("medium");
   }
 
   function handleBoardScroll(event: UIEvent<HTMLElement>) {
@@ -669,6 +712,15 @@ export function App() {
     }
   }
 
+  function selectSection(sectionId: ShoppingSectionId) {
+    if (sectionId === selectedSectionId) {
+      return;
+    }
+
+    setSelectedSectionId(sectionId);
+    runHapticFeedback("light");
+  }
+
   function handleColumnKeyDown(
     event: KeyboardEvent<HTMLElement>,
     sectionId: ShoppingSectionId,
@@ -678,7 +730,7 @@ export function App() {
     }
 
     event.preventDefault();
-    setSelectedSectionId(sectionId);
+    selectSection(sectionId);
   }
 
   function handleItemKeyDown(
@@ -690,7 +742,7 @@ export function App() {
     }
 
     event.preventDefault();
-    setItems((currentItems) => toggleShoppingItem(currentItems, itemId));
+    handleToggleItem(itemId);
   }
 
   function renderUndoItem(removedItems: ShoppingItem[]) {
@@ -763,14 +815,7 @@ export function App() {
           role={isEditingItem ? undefined : "button"}
           tabIndex={isEditingItem ? undefined : 0}
           key={item.id}
-          onClick={
-            isEditingItem
-              ? undefined
-              : () =>
-                  setItems((currentItems) =>
-                    toggleShoppingItem(currentItems, item.id),
-                  )
-          }
+          onClick={isEditingItem ? undefined : () => handleToggleItem(item.id)}
           onKeyDown={
             isEditingItem
               ? undefined
@@ -961,7 +1006,7 @@ export function App() {
                 className={styles.select}
                 value={selectedSectionId}
                 onChange={(event) =>
-                  setSelectedSectionId(event.target.value as ShoppingSectionId)
+                  selectSection(event.target.value as ShoppingSectionId)
                 }
                 disabled={!isLoaded}
               >
@@ -1069,7 +1114,7 @@ export function App() {
               }
               aria-labelledby={`section-${section.id}-title`}
               key={section.id}
-              onClick={() => setSelectedSectionId(section.id)}
+              onClick={() => selectSection(section.id)}
               onKeyDown={(event) => handleColumnKeyDown(event, section.id)}
               tabIndex={0}
             >
@@ -1120,7 +1165,10 @@ export function App() {
       {isClearDialogOpen ? (
         <div
           className={styles.modalBackdrop}
-          onClick={() => setIsClearDialogOpen(false)}
+          onClick={() => {
+            runHapticFeedback("light");
+            setIsClearDialogOpen(false);
+          }}
         >
           <div
             ref={clearDialogRef}
@@ -1133,6 +1181,7 @@ export function App() {
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
+                runHapticFeedback("light");
                 setIsClearDialogOpen(false);
               }
             }}
@@ -1144,7 +1193,10 @@ export function App() {
                 className={styles.secondaryButton}
                 type="button"
                 onPointerDown={handleButtonPointerDown}
-                onClick={() => setIsClearDialogOpen(false)}
+                onClick={() => {
+                  runHapticFeedback("light");
+                  setIsClearDialogOpen(false);
+                }}
               >
                 Cancelar
               </button>

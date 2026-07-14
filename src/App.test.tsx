@@ -276,6 +276,9 @@ describe("App", () => {
     expect(
       screen.getByRole("button", { name: "Poner Frutería en color amber" }),
     ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByLabelText("Nombre de Frutería").closest("li")?.className,
+    ).toContain("sectionColoramber");
 
     fireEvent.change(screen.getByLabelText("Nombre de General"), {
       target: { value: "Varios" },

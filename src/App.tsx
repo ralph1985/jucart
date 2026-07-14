@@ -1247,7 +1247,10 @@ export function App() {
                 isLoaded && sections.length > 1 && sectionProductCount === 0;
 
               return (
-                <li className={styles.sectionManagerItem} key={section.id}>
+                <li
+                  className={`${styles.sectionManagerItem} ${styles[`sectionColor${section.color}`]}`}
+                  key={section.id}
+                >
                   <span className={styles.sectionPosition}>{index + 1}</span>
                   <div className={styles.sectionFields}>
                     <input

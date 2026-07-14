@@ -24,12 +24,15 @@ import {
   removeShoppingItem,
   renameShoppingSection,
   ShoppingItem,
+  shoppingSectionColors,
+  ShoppingSectionColor,
   ShoppingSection,
   ShoppingSectionId,
   ShoppingUserId,
   shoppingUsers,
   sortShoppingItemsForShopping,
   toggleShoppingItem,
+  updateShoppingSectionColor,
   updateShoppingItem,
 } from "./shoppingItems";
 import {
@@ -817,6 +820,20 @@ export function App() {
     setSections(nextSections);
   }
 
+  function handleSectionColorChange(
+    sectionId: ShoppingSectionId,
+    color: ShoppingSectionColor,
+  ) {
+    const nextSections = updateShoppingSectionColor(sections, sectionId, color);
+
+    if (nextSections === sections) {
+      return;
+    }
+
+    runHapticFeedback("light");
+    setSections(nextSections);
+  }
+
   function handleRemoveSection(sectionId: ShoppingSectionId) {
     const nextSections = removeShoppingSection(sections, items, sectionId);
 
@@ -1157,8 +1174,8 @@ export function App() {
                 }}
                 className={
                   selectedSectionId === section.id
-                    ? `${styles.column} ${styles.columnSelected}`
-                    : styles.column
+                    ? `${styles.column} ${styles[`sectionColor${section.color}`]} ${styles.columnSelected}`
+                    : `${styles.column} ${styles[`sectionColor${section.color}`]}`
                 }
                 aria-current={
                   selectedSectionId === section.id ? "true" : undefined
@@ -1232,16 +1249,42 @@ export function App() {
               return (
                 <li className={styles.sectionManagerItem} key={section.id}>
                   <span className={styles.sectionPosition}>{index + 1}</span>
-                  <input
-                    className={styles.input}
-                    aria-label={`Nombre de ${section.name}`}
-                    value={section.name}
-                    onChange={(event) =>
-                      handleSectionNameChange(section.id, event)
-                    }
-                    disabled={!isLoaded}
-                    type="text"
-                  />
+                  <div className={styles.sectionFields}>
+                    <input
+                      className={styles.input}
+                      aria-label={`Nombre de ${section.name}`}
+                      value={section.name}
+                      onChange={(event) =>
+                        handleSectionNameChange(section.id, event)
+                      }
+                      disabled={!isLoaded}
+                      type="text"
+                    />
+                    <div
+                      className={styles.sectionColorPicker}
+                      aria-label={`Color de ${section.name}`}
+                      role="group"
+                    >
+                      {shoppingSectionColors.map((color) => (
+                        <button
+                          className={
+                            section.color === color
+                              ? `${styles.sectionColorButton} ${styles.sectionColorButtonSelected} ${styles[`sectionColorSwatch${color}`]}`
+                              : `${styles.sectionColorButton} ${styles[`sectionColorSwatch${color}`]}`
+                          }
+                          type="button"
+                          aria-label={`Poner ${section.name} en color ${color}`}
+                          aria-pressed={section.color === color}
+                          key={color}
+                          onPointerDown={handleButtonPointerDown}
+                          onClick={() =>
+                            handleSectionColorChange(section.id, color)
+                          }
+                          disabled={!isLoaded}
+                        />
+                      ))}
+                    </div>
+                  </div>
                   <div className={styles.sectionActions}>
                     <button
                       className={styles.iconButton}

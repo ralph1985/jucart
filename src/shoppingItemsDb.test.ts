@@ -86,16 +86,16 @@ describe("shopping items database", () => {
     await replaceStoredShoppingData({
       items: [],
       sections: [
-        { id: "mercadona", name: "Mercadona" },
-        { id: "fruteria", name: "Frutería" },
+        { id: "mercadona", name: "Mercadona", color: "mint" },
+        { id: "fruteria", name: "Frutería", color: "amber" },
       ],
     });
 
     await expect(getStoredShoppingData()).resolves.toEqual({
       items: [],
       sections: [
-        { id: "mercadona", name: "Mercadona" },
-        { id: "fruteria", name: "Frutería" },
+        { id: "mercadona", name: "Mercadona", color: "mint" },
+        { id: "fruteria", name: "Frutería", color: "amber" },
       ],
     });
   });

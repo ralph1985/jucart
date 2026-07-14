@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 import {
   defaultShoppingSections,
+  isShoppingSectionColor,
   isShoppingUserId,
   ShoppingItem,
   ShoppingSection,
@@ -25,6 +26,7 @@ type ShoppingSectionRow = {
   id: string;
   list_id: string;
   name: string;
+  color: string;
   position: number;
   created_at: string;
   updated_at: string;
@@ -225,11 +227,13 @@ export function mapRowToShoppingItem(row: ShoppingItemRow): ShoppingItem {
 }
 
 export function mapRowToShoppingSection(
-  row: Pick<ShoppingSectionRow, "id" | "name">,
+  row: Pick<ShoppingSectionRow, "id" | "name"> &
+    Partial<Pick<ShoppingSectionRow, "color">>,
 ): ShoppingSection {
   return {
     id: normalizeSectionId(row.id),
     name: row.name,
+    color: row.color && isShoppingSectionColor(row.color) ? row.color : "mint",
   };
 }
 
@@ -260,6 +264,7 @@ export function mapShoppingSectionToRow(
     id: section.id,
     list_id: listId,
     name: section.name,
+    color: section.color,
     position,
     created_at: now,
     updated_at: now,

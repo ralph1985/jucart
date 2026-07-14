@@ -287,6 +287,7 @@ h2 {
 .undoButton:focus-visible,
 .bottomNavItem:focus-visible,
 .bottomNavItemActive:focus-visible,
+.sectionColorButton:focus-visible,
 .board:focus-visible {
   border-color: #2f80ed;
   outline: 3px solid rgb(47 128 237 / 22%);
@@ -450,13 +451,43 @@ h2 {
 .sectionManagerItem {
   display: grid;
   grid-template-columns: 2rem minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 0.55rem;
   border: 1px solid rgb(148 163 184 / 28%);
   border-radius: 0.5rem;
   padding: 0.55rem;
   background: #ffffff;
   box-shadow: 0 0.55rem 1.25rem rgb(15 23 42 / 6%);
+}
+
+.sectionFields {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.sectionColorPicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sectionColorButton {
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 2px solid rgb(255 255 255 / 90%);
+  border-radius: 999px;
+  padding: 0;
+  box-shadow:
+    0 0 0 1px rgb(148 163 184 / 32%),
+    0 0.35rem 0.75rem rgb(15 23 42 / 12%);
+  cursor: pointer;
+}
+
+.sectionColorButtonSelected {
+  box-shadow:
+    0 0 0 3px rgb(22 124 90 / 34%),
+    0 0.35rem 0.75rem rgb(15 23 42 / 12%);
 }
 
 .sectionPosition {
@@ -488,6 +519,60 @@ h2 {
   padding: 0.15rem 1rem 1rem;
   scroll-padding-inline: 1rem;
   scroll-snap-type: x mandatory;
+}
+
+.sectionColormint {
+  border-color: rgb(22 124 90 / 34%);
+  background: linear-gradient(180deg, #f8fffc 0%, #ecfdf5 100%);
+}
+
+.sectionColorblue {
+  border-color: rgb(37 99 235 / 32%);
+  background: linear-gradient(180deg, #f8fbff 0%, #eff6ff 100%);
+}
+
+.sectionColorviolet {
+  border-color: rgb(124 58 237 / 30%);
+  background: linear-gradient(180deg, #fcfaff 0%, #f5f3ff 100%);
+}
+
+.sectionColoramber {
+  border-color: rgb(217 119 6 / 32%);
+  background: linear-gradient(180deg, #fffdf7 0%, #fffbeb 100%);
+}
+
+.sectionColorrose {
+  border-color: rgb(225 29 72 / 28%);
+  background: linear-gradient(180deg, #fffafa 0%, #fff1f2 100%);
+}
+
+.sectionColorslate {
+  border-color: rgb(71 85 105 / 28%);
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+}
+
+.sectionColorSwatchmint {
+  background: #34d399;
+}
+
+.sectionColorSwatchblue {
+  background: #60a5fa;
+}
+
+.sectionColorSwatchviolet {
+  background: #a78bfa;
+}
+
+.sectionColorSwatchamber {
+  background: #fbbf24;
+}
+
+.sectionColorSwatchrose {
+  background: #fb7185;
+}
+
+.sectionColorSwatchslate {
+  background: #94a3b8;
 }
 
 .column {

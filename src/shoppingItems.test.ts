@@ -10,8 +10,10 @@ import {
   removeShoppingSection,
   removeShoppingItem,
   ShoppingItem,
+  ShoppingSection,
   sortShoppingItemsForShopping,
   toggleShoppingItem,
+  updateShoppingSectionColor,
   updateShoppingItem,
 } from "./shoppingItems";
 
@@ -196,25 +198,25 @@ describe("shopping item logic", () => {
   it("adds normalized shopping sections", () => {
     expect(
       addShoppingSection(
-        [{ id: "mercadona", name: "Mercadona" }],
+        [{ id: "mercadona", name: "Mercadona", color: "mint" }],
         "  Frutería  ",
         () => "fruteria",
       ),
     ).toEqual([
-      { id: "mercadona", name: "Mercadona" },
-      { id: "fruteria", name: "Frutería" },
+      { id: "mercadona", name: "Mercadona", color: "mint" },
+      { id: "fruteria", name: "Frutería", color: "mint" },
     ]);
   });
 
   it("renames shopping sections without duplicating names", () => {
-    const sections = [
-      { id: "mercadona", name: "Mercadona" },
-      { id: "general", name: "General" },
+    const sections: ShoppingSection[] = [
+      { id: "mercadona", name: "Mercadona", color: "mint" },
+      { id: "general", name: "General", color: "slate" },
     ];
 
     expect(renameShoppingSection(sections, "general", "Varios")).toEqual([
-      { id: "mercadona", name: "Mercadona" },
-      { id: "general", name: "Varios" },
+      { id: "mercadona", name: "Mercadona", color: "mint" },
+      { id: "general", name: "Varios", color: "slate" },
     ]);
     expect(renameShoppingSection(sections, "general", "mercadona")).toBe(
       sections,
@@ -222,28 +224,41 @@ describe("shopping item logic", () => {
   });
 
   it("reorders shopping sections", () => {
-    const sections = [
-      { id: "alcampo", name: "Alcampo" },
-      { id: "mercadona", name: "Mercadona" },
-      { id: "general", name: "General" },
+    const sections: ShoppingSection[] = [
+      { id: "alcampo", name: "Alcampo", color: "blue" },
+      { id: "mercadona", name: "Mercadona", color: "mint" },
+      { id: "general", name: "General", color: "slate" },
     ];
 
     expect(moveShoppingSection(sections, "general", -1)).toEqual([
-      { id: "alcampo", name: "Alcampo" },
-      { id: "general", name: "General" },
-      { id: "mercadona", name: "Mercadona" },
+      { id: "alcampo", name: "Alcampo", color: "blue" },
+      { id: "general", name: "General", color: "slate" },
+      { id: "mercadona", name: "Mercadona", color: "mint" },
     ]);
     expect(moveShoppingSection(sections, "alcampo", -1)).toBe(sections);
   });
 
+  it("updates shopping section colors", () => {
+    const sections: ShoppingSection[] = [
+      { id: "mercadona", name: "Mercadona", color: "mint" },
+    ];
+
+    expect(updateShoppingSectionColor(sections, "mercadona", "amber")).toEqual([
+      { id: "mercadona", name: "Mercadona", color: "amber" },
+    ]);
+    expect(updateShoppingSectionColor(sections, "mercadona", "mint")).toBe(
+      sections,
+    );
+  });
+
   it("removes only empty shopping sections", () => {
-    const sections = [
-      { id: "mercadona", name: "Mercadona" },
-      { id: "fruteria", name: "Frutería" },
+    const sections: ShoppingSection[] = [
+      { id: "mercadona", name: "Mercadona", color: "mint" },
+      { id: "fruteria", name: "Frutería", color: "amber" },
     ];
 
     expect(removeShoppingSection(sections, [], "fruteria")).toEqual([
-      { id: "mercadona", name: "Mercadona" },
+      { id: "mercadona", name: "Mercadona", color: "mint" },
     ]);
     expect(removeShoppingSection(sections, [baseItem], "mercadona")).toBe(
       sections,

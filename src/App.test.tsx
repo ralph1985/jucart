@@ -269,6 +269,14 @@ describe("App", () => {
 
     expect(screen.getByLabelText("Nombre de Frutería")).toHaveValue("Frutería");
 
+    fireEvent.click(
+      screen.getByRole("button", { name: "Poner Frutería en color amber" }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Poner Frutería en color amber" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
     fireEvent.change(screen.getByLabelText("Nombre de General"), {
       target: { value: "Varios" },
     });

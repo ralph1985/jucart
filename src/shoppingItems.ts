@@ -1,16 +1,28 @@
 export type ShoppingSectionId = string;
 
+export const shoppingSectionColors = [
+  "mint",
+  "blue",
+  "violet",
+  "amber",
+  "rose",
+  "slate",
+] as const;
+
+export type ShoppingSectionColor = (typeof shoppingSectionColors)[number];
+
 export type ShoppingSection = {
   id: ShoppingSectionId;
   name: string;
+  color: ShoppingSectionColor;
 };
 
 export const defaultShoppingSections: ShoppingSection[] = [
-  { id: "alcampo", name: "Alcampo" },
-  { id: "dia", name: "Día" },
-  { id: "mercadona", name: "Mercadona" },
-  { id: "farmacia", name: "Farmacia" },
-  { id: "general", name: "General" },
+  { id: "alcampo", name: "Alcampo", color: "blue" },
+  { id: "dia", name: "Día", color: "rose" },
+  { id: "mercadona", name: "Mercadona", color: "mint" },
+  { id: "farmacia", name: "Farmacia", color: "violet" },
+  { id: "general", name: "General", color: "slate" },
 ];
 
 export const shoppingUsers = [
@@ -43,6 +55,12 @@ export function isShoppingSectionId(
 
 export function isShoppingUserId(value: string): value is ShoppingUserId {
   return shoppingUsers.some((user) => user.id === value);
+}
+
+export function isShoppingSectionColor(
+  value: string,
+): value is ShoppingSectionColor {
+  return shoppingSectionColors.some((color) => color === value);
 }
 
 export function getShoppingUserName(userId: ShoppingUserId) {
@@ -86,7 +104,7 @@ export function addShoppingSection(
     return sections;
   }
 
-  return [...sections, { id: createId(), name }];
+  return [...sections, { id: createId(), name, color: "mint" as const }];
 }
 
 export function renameShoppingSection(
@@ -141,6 +159,22 @@ export function moveShoppingSection(
   nextSections.splice(nextIndex, 0, section);
 
   return nextSections;
+}
+
+export function updateShoppingSectionColor(
+  sections: ShoppingSection[],
+  sectionId: ShoppingSectionId,
+  color: ShoppingSectionColor,
+) {
+  const sectionToUpdate = sections.find((section) => section.id === sectionId);
+
+  if (!sectionToUpdate || sectionToUpdate.color === color) {
+    return sections;
+  }
+
+  return sections.map((section) =>
+    section.id === sectionId ? { ...section, color } : section,
+  );
 }
 
 export function removeShoppingSection(

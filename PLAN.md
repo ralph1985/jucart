@@ -190,6 +190,7 @@
 - [x] Añadir una pantalla accesible desde el menú inferior para gestionar listas.
 - [x] Permitir dar de alta nuevas listas.
 - [x] Permitir renombrar listas existentes.
+- [x] Permitir elegir color para cada lista.
 - [x] Permitir reordenar listas.
 - [x] Permitir borrar listas vacías.
 - [x] Impedir borrar listas con productos.

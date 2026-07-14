@@ -2,6 +2,7 @@ import Dexie, { Table } from "dexie";
 
 import {
   defaultShoppingSections,
+  isShoppingSectionColor,
   isShoppingUserId,
   ShoppingItem,
   ShoppingSection,
@@ -18,7 +19,8 @@ type StoredShoppingItem = Omit<ShoppingItem, "sectionId" | "addedBy"> & {
   sectionId?: ShoppingSectionId;
   addedBy?: ShoppingUserId;
 };
-type StoredShoppingSection = ShoppingSection & {
+type StoredShoppingSection = Omit<ShoppingSection, "color"> & {
+  color?: string;
   position: number;
 };
 export type ShoppingItemsStorageMode = "local" | "remote" | "fallback";
@@ -49,6 +51,11 @@ class JucartDatabase extends Dexie {
     });
 
     this.version(4).stores({
+      shoppingItems: "id, sectionId, addedBy, createdAt, updatedAt, purchased",
+      shoppingSections: "id, position",
+    });
+
+    this.version(5).stores({
       shoppingItems: "id, sectionId, addedBy, createdAt, updatedAt, purchased",
       shoppingSections: "id, position",
     });
@@ -169,6 +176,10 @@ function normalizeStoredSection(
   return {
     id: section.id,
     name: section.name,
+    color:
+      section.color && isShoppingSectionColor(section.color)
+        ? section.color
+        : "mint",
   };
 }
 

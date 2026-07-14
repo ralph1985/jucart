@@ -81,10 +81,12 @@ describe("shopping items Supabase adapter", () => {
       mapRowToShoppingSection({
         id: "fruteria",
         name: "Frutería",
+        color: "amber",
       }),
     ).toEqual({
       id: "fruteria",
       name: "Frutería",
+      color: "amber",
     });
   });
 
@@ -94,6 +96,7 @@ describe("shopping items Supabase adapter", () => {
         {
           id: "fruteria",
           name: "Frutería",
+          color: "amber",
         },
         2,
         "00000000-0000-4000-8000-000000000001",
@@ -102,6 +105,7 @@ describe("shopping items Supabase adapter", () => {
       id: "fruteria",
       list_id: "00000000-0000-4000-8000-000000000001",
       name: "Frutería",
+      color: "amber",
       position: 2,
     });
   });

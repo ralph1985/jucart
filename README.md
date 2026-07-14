@@ -111,3 +111,5 @@ El Hito 17 inicia la transición a Supabase remoto: añade configuración, migra
 La interfaz usa Supabase cuando `.env.local` tiene URL, key y `list_id`; si no están configurados o Supabase falla, Dexie mantiene la lista local como fallback. Realtime refresca la lista cuando otro dispositivo cambia productos.
 
 El Hito 18 endurece la sincronización con un estado visible y evita guardar de vuelta justo después de cargar datos.
+
+El Hito 19 hace que Jucart se sienta más como una aplicación instalada: cabecera fija, logo compacto y menú inferior para acciones principales.

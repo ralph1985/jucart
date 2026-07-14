@@ -89,6 +89,12 @@ En el Hito 15, Jucart adopta una interfaz más densa y actual sin cambiar el mod
 
 El encabezado muestra pendientes y comprados, el alta y la limpieza se agrupan en un panel superior, y el tablero usa superficies, sombras y estados más claros para mejorar la lectura en móvil y escritorio.
 
+## Estructura de aplicación
+
+En el Hito 19, Jucart adopta una estructura más cercana a una app instalada sin añadir rutas ni pantallas.
+
+La cabecera queda fija para mantener visible marca, resumen y estado de sincronización. El menú inferior da acceso táctil a añadir, lista y limpieza de comprados. La navegación inferior no introduce vistas nuevas: solo salta a zonas de la misma pantalla y mantiene la acción de limpieza existente.
+
 ## Modo compra rápido
 
 En el Hito 16, tocar una tarjeta alterna entre pendiente y comprado.

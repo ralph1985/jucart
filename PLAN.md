@@ -177,3 +177,10 @@
 - [x] Evitar guardado automático inmediatamente después de la carga inicial.
 - [x] Diferenciar Supabase remoto, local puro y fallback local.
 - [ ] Revisar permisos RLS antes de exponer la app fuera del uso personal.
+
+## Hito 19 — Estructura de aplicación
+
+- [x] Mantener la cabecera visible durante el uso.
+- [x] Añadir un logo compacto en la cabecera.
+- [x] Añadir menú inferior para acciones principales.
+- [x] Mantener una sola pantalla sin rutas.

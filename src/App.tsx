@@ -39,7 +39,16 @@ import {
 const selectedSectionStorageKey = "jucart:selected-section-id";
 const selectedUserStorageKey = "jucart:selected-user-id";
 
-type IconName = "check" | "edit" | "trash" | "undo" | "save" | "close";
+type IconName =
+  | "check"
+  | "edit"
+  | "trash"
+  | "undo"
+  | "save"
+  | "close"
+  | "plus"
+  | "list"
+  | "sync";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 
 function Icon({ name }: { name: IconName }) {
@@ -56,6 +65,19 @@ function Icon({ name }: { name: IconName }) {
     undo: ["M9 14l-4-4 4-4", "M5 10h9a5 5 0 1 1 0 10h-2"],
     save: ["M5 3h12l2 2v16H5z", "M8 3v6h8V3", "M8 17h8"],
     close: ["M6 6l12 12", "M18 6L6 18"],
+    plus: ["M12 5v14", "M5 12h14"],
+    list: [
+      "M8 6h13",
+      "M8 12h13",
+      "M8 18h13",
+      "M3 6h.01",
+      "M3 12h.01",
+      "M3 18h.01",
+    ],
+    sync: [
+      "M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4",
+      "M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4",
+    ],
   };
 
   return (
@@ -830,29 +852,40 @@ export function App() {
   return (
     <main className={styles.app}>
       <section className={styles.header} aria-labelledby="app-title">
-        <div>
-          <p className={styles.kicker}>Lista de la compra</p>
-          <h1 id="app-title">Jucart</h1>
+        <div className={styles.brand}>
+          <span className={styles.logo} aria-hidden="true">
+            <Icon name="check" />
+          </span>
+          <div>
+            <p className={styles.kicker}>Lista de la compra</p>
+            <h1 id="app-title">Jucart</h1>
+          </div>
         </div>
-        <dl className={styles.summary} aria-label="Resumen de la lista">
-          <div className={styles.summaryItem}>
-            <dt>Pendientes</dt>
-            <dd>{pendingCount}</dd>
-          </div>
-          <div className={styles.summaryItem}>
-            <dt>Comprados</dt>
-            <dd>{purchasedCount}</dd>
-          </div>
-        </dl>
-        <p
-          className={`${styles.syncStatus} ${styles[`syncStatus${syncStatus}`]}`}
-          aria-live="polite"
-        >
-          {getSyncStatusText(syncStatus)}
-        </p>
+        <div className={styles.headerMeta}>
+          <dl className={styles.summary} aria-label="Resumen de la lista">
+            <div className={styles.summaryItem}>
+              <dt>Pendientes</dt>
+              <dd>{pendingCount}</dd>
+            </div>
+            <div className={styles.summaryItem}>
+              <dt>Comprados</dt>
+              <dd>{purchasedCount}</dd>
+            </div>
+          </dl>
+          <p
+            className={`${styles.syncStatus} ${styles[`syncStatus${syncStatus}`]}`}
+            aria-live="polite"
+          >
+            {getSyncStatusText(syncStatus)}
+          </p>
+        </div>
       </section>
 
-      <section className={styles.commandPanel} aria-label="Añadir producto">
+      <section
+        id="add-product"
+        className={styles.commandPanel}
+        aria-label="Añadir producto"
+      >
         <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.formOptions}>
             <div className={styles.formField}>
@@ -952,6 +985,7 @@ export function App() {
       ) : null}
 
       <section
+        id="shopping-board"
         ref={boardRef}
         className={styles.board}
         aria-label="Lista por secciones"
@@ -1004,6 +1038,27 @@ export function App() {
           );
         })}
       </section>
+
+      <nav className={styles.bottomNav} aria-label="Navegación principal">
+        <a className={styles.bottomNavItem} href="#add-product">
+          <Icon name="plus" />
+          <span>Añadir</span>
+        </a>
+        <a className={styles.bottomNavItemActive} href="#shopping-board">
+          <Icon name="list" />
+          <span>Lista</span>
+        </a>
+        <button
+          className={styles.bottomNavItem}
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={handleRemovePurchasedItems}
+          disabled={!isLoaded || purchasedCount === 0}
+        >
+          <Icon name="trash" />
+          <span>Limpiar</span>
+        </button>
+      </nav>
 
       {isClearDialogOpen ? (
         <div

@@ -32,6 +32,9 @@ describe("App", () => {
       screen.getByRole("heading", { level: 1, name: "Jucart" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Local")).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: "Navegación principal" }),
+    ).toBeInTheDocument();
   });
 
   it("adds, toggles and removes products", async () => {

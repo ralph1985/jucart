@@ -900,9 +900,16 @@ export function App() {
   function renderItems(
     sectionItems: ShoppingItem[],
     removedSectionItems: ShoppingItem[],
+    sectionColor: ShoppingSectionColor,
   ) {
     if (sectionItems.length === 0 && removedSectionItems.length === 0) {
-      return <p className={styles.empty}>Sin productos.</p>;
+      return (
+        <p
+          className={`${styles.empty} ${styles[`shoppingListColor${sectionColor}`]}`}
+        >
+          Sin productos.
+        </p>
+      );
     }
 
     const visibleItems = sortShoppingItemsForShopping(sectionItems);
@@ -1020,7 +1027,13 @@ export function App() {
       listItems.push(renderUndoItem(sortedRemovedItems));
     }
 
-    return <ul className={styles.list}>{listItems}</ul>;
+    return (
+      <ul
+        className={`${styles.list} ${styles[`shoppingListColor${sectionColor}`]}`}
+      >
+        {listItems}
+      </ul>
+    );
   }
 
   return (
@@ -1195,7 +1208,7 @@ export function App() {
                     {pendingCount}
                   </span>
                 </div>
-                {renderItems(sectionItems, removedSectionItems)}
+                {renderItems(sectionItems, removedSectionItems, section.color)}
               </article>
             );
           })}

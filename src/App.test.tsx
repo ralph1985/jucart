@@ -280,6 +280,18 @@ describe("App", () => {
       screen.getByLabelText("Nombre de Frutería").closest("li")?.className,
     ).toContain("sectionColoramber");
 
+    fireEvent.click(screen.getByRole("button", { name: "Lista" }));
+
+    const fruteriaColumn = screen
+      .getByRole("heading", { name: "Frutería" })
+      .closest("article");
+
+    expect(fruteriaColumn?.querySelector("p")?.className).toContain(
+      "shoppingListColoramber",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
+
     fireEvent.change(screen.getByLabelText("Nombre de General"), {
       target: { value: "Varios" },
     });

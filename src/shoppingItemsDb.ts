@@ -7,6 +7,11 @@ import {
   ShoppingSectionId,
   ShoppingUserId,
 } from "./shoppingItems";
+import {
+  getSupabaseShoppingItems,
+  isSupabaseConfigured,
+  replaceSupabaseShoppingItems,
+} from "./shoppingItemsSupabase";
 
 type StoredShoppingItem = Omit<ShoppingItem, "sectionId" | "addedBy"> & {
   sectionId?: ShoppingSectionId;
@@ -36,20 +41,51 @@ class JucartDatabase extends Dexie {
 export const db = new JucartDatabase();
 
 export async function getStoredShoppingItems() {
+  if (isSupabaseConfigured()) {
+    try {
+      const remoteItems = await getSupabaseShoppingItems();
+
+      if (remoteItems) {
+        await replaceLocalShoppingItems(remoteItems);
+
+        return remoteItems;
+      }
+    } catch {
+      return getLocalShoppingItems();
+    }
+  }
+
+  return getLocalShoppingItems();
+}
+
+export async function replaceStoredShoppingItems(items: ShoppingItem[]) {
+  if (isSupabaseConfigured()) {
+    try {
+      await replaceSupabaseShoppingItems(items);
+    } catch {
+      await replaceLocalShoppingItems(items);
+      return;
+    }
+  }
+
+  await replaceLocalShoppingItems(items);
+}
+
+export async function resetShoppingItemsDatabase() {
+  await db.shoppingItems.clear();
+}
+
+async function getLocalShoppingItems() {
   const items = await db.shoppingItems.orderBy("createdAt").toArray();
 
   return items.map(normalizeStoredShoppingItem);
 }
 
-export async function replaceStoredShoppingItems(items: ShoppingItem[]) {
+async function replaceLocalShoppingItems(items: ShoppingItem[]) {
   await db.transaction("rw", db.shoppingItems, async () => {
     await db.shoppingItems.clear();
     await db.shoppingItems.bulkAdd(items);
   });
-}
-
-export async function resetShoppingItemsDatabase() {
-  await db.shoppingItems.clear();
 }
 
 function normalizeStoredShoppingItem(item: StoredShoppingItem): ShoppingItem {

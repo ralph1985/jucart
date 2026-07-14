@@ -107,7 +107,9 @@ Los errores básicos de lectura o escritura se muestran en la pantalla sin bloqu
 
 En el Hito 17, Jucart empieza la transición a Supabase para poder sincronizar la lista entre varios teléfonos.
 
-El primer paso no sustituye Dexie ni conecta la interfaz todavía. Añade Supabase CLI, configuración y una migración versionada para `shopping_items`. Para este proyecto se prioriza un Supabase remoto de uso personal en lugar de Docker local, porque la aplicación la usarán solo Rafa y Begoña y el objetivo inmediato es sincronizar varios teléfonos.
+El primer paso añade Supabase CLI, configuración, una migración versionada para `shopping_items` y conexión desde la capa de persistencia. Para este proyecto se prioriza un Supabase remoto de uso personal en lugar de Docker local, porque la aplicación la usarán solo Rafa y Begoña y el objetivo inmediato es sincronizar varios teléfonos.
+
+La interfaz mantiene la misma API interna de persistencia. Cuando `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_SUPABASE_LIST_ID` están configurados, lee y guarda en Supabase. Dexie queda como caché local y fallback si falta configuración o falla la red. El Hito 17 no añade todavía suscripciones Realtime; eso queda como siguiente paso para actualizaciones automáticas entre teléfonos.
 
 La tabla usa `list_id` para identificar una lista compartida. Mientras no haya login, las políticas RLS permiten acceso `anon` y la aplicación deberá filtrar por `VITE_SUPABASE_LIST_ID`. Esta decisión es pragmática para una app privada y no equivale a permisos robustos para una aplicación pública. Si la app se expone fuera del uso personal, el siguiente paso debe ser Auth o una capa de acceso más estricta.
 

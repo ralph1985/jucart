@@ -167,7 +167,7 @@ describe("App", () => {
       within(mercadonaColumn as HTMLElement)
         .getAllByText(/^(Pan|Producto borrado\.|Yogur)$/)
         .map((element) => element.textContent),
-    ).toEqual(["Pan", "Producto borrado.", "Yogur"]);
+    ).toEqual(["Producto borrado.", "Yogur", "Pan"]);
 
     fireEvent.click(
       within(mercadonaColumn as HTMLElement).getByRole("button", {
@@ -392,6 +392,34 @@ describe("App", () => {
 
     expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
     expect(farmaciaColumn).toHaveAttribute("aria-current", "true");
+  });
+
+  it("groups products by inferred category inside each list", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "Leche" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "Pan" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+
+    const mercadonaColumn = screen
+      .getByRole("heading", { name: "Mercadona" })
+      .closest("article");
+
+    expect(mercadonaColumn).not.toBeNull();
+    expect(
+      within(mercadonaColumn as HTMLElement)
+        .getAllByText(/^(Lácteos|Leche|Panadería|Pan)$/)
+        .map((element) => element.textContent),
+    ).toEqual(["Lácteos", "Leche", "Panadería", "Pan"]);
   });
 
   it("marks the selected column when the section selector changes", async () => {

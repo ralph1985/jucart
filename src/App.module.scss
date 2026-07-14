@@ -723,9 +723,18 @@ h2 {
   background: #f6f8fb;
 }
 
+.categoryDivider {
+  grid-column: 1 / -1;
+  margin: 0.1rem 0 -0.35rem;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .purchasedDivider {
   grid-column: 1 / -1;
-  margin-bottom: -0.15rem;
+  margin: 0.2rem 0 -0.15rem;
   color: #64748b;
   font-size: 0.78rem;
   font-weight: 800;

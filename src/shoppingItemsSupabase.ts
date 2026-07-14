@@ -2,6 +2,8 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 import {
   defaultShoppingSections,
+  inferShoppingCategoryId,
+  isShoppingCategoryId,
   isShoppingSectionColor,
   isShoppingUserId,
   ShoppingItem,
@@ -16,6 +18,7 @@ type ShoppingItemRow = {
   list_id: string;
   name: string;
   section_id: string;
+  category_id?: string;
   added_by: string;
   purchased: boolean;
   created_at: string;
@@ -219,6 +222,7 @@ export function mapRowToShoppingItem(row: ShoppingItemRow): ShoppingItem {
     id: row.id,
     name: row.name,
     sectionId: normalizeSectionId(row.section_id),
+    categoryId: normalizeCategoryId(row.category_id, row.name),
     addedBy: normalizeUserId(row.added_by),
     purchased: row.purchased,
     createdAt: Date.parse(row.created_at),
@@ -246,6 +250,7 @@ export function mapShoppingItemToRow(
     list_id: listId,
     name: item.name,
     section_id: item.sectionId,
+    category_id: item.categoryId ?? inferShoppingCategoryId(item.name),
     added_by: item.addedBy,
     purchased: item.purchased,
     created_at: new Date(item.createdAt).toISOString(),
@@ -283,6 +288,12 @@ function normalizeSectionId(value: string): ShoppingSectionId {
 
 function normalizeUserId(value: string): ShoppingUserId {
   return isShoppingUserId(value) ? value : "rafa";
+}
+
+function normalizeCategoryId(value: string | undefined, itemName: string) {
+  return value && isShoppingCategoryId(value)
+    ? value
+    : inferShoppingCategoryId(itemName);
 }
 
 function encodePostgrestTextList(values: string[]) {

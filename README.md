@@ -115,3 +115,5 @@ El Hito 18 endurece la sincronización con un estado visible y evita guardar de 
 El Hito 19 hace que Jucart se sienta más como una aplicación instalada: cabecera fija, logo compacto y menú inferior para acciones principales.
 
 El Hito 20 añade gestión de listas desde el menú inferior: crear, renombrar, elegir color, reordenar y borrar listas vacías. Las listas con productos no se pueden borrar. Las listas se guardan en IndexedDB y se sincronizan con Supabase junto con los productos.
+
+El Hito 21 agrupa los productos por categoría dentro de cada lista. La categoría se infiere automáticamente desde un catálogo maestro inicial de productos y se guarda junto con cada producto.

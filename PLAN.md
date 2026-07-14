@@ -198,3 +198,16 @@
 - [x] Sincronizar las listas con Supabase remoto.
 - [x] Mantener compatibilidad con las listas iniciales.
 - [x] Añadir tests razonables de lógica, persistencia e interfaz.
+
+## Hito 21 — Categorías de productos
+
+- [x] Definir categorías de compra ordenadas.
+- [x] Añadir un catálogo maestro inicial de productos.
+- [x] Inferir categoría al añadir un producto.
+- [x] Recalcular categoría al renombrar un producto.
+- [x] Agrupar productos por categoría dentro de cada lista.
+- [x] Mantener pendientes antes que comprados.
+- [x] Persistir categoría en IndexedDB.
+- [x] Sincronizar categoría con Supabase remoto.
+- [x] Mantener compatibilidad con productos antiguos sin categoría.
+- [x] Añadir tests razonables de catálogo, persistencia y agrupación.

@@ -3,6 +3,7 @@ import {
   addShoppingSection,
   createShoppingItemId,
   hasItemWithName,
+  inferShoppingCategoryId,
   moveShoppingSection,
   normalizeItemName,
   renameShoppingSection,
@@ -32,6 +33,12 @@ describe("shopping item logic", () => {
     expect(normalizeItemName("  pan   integral  ")).toBe("pan integral");
   });
 
+  it("infers categories from the master product catalog", () => {
+    expect(inferShoppingCategoryId("  Leche entera ")).toBe("dairy");
+    expect(inferShoppingCategoryId("Pan integral")).toBe("bakery");
+    expect(inferShoppingCategoryId("Producto raro")).toBe("other");
+  });
+
   it("does not add empty products", () => {
     expect(
       addShoppingItem([], "   ", "mercadona", "rafa", () => "item-1"),
@@ -53,6 +60,7 @@ describe("shopping item logic", () => {
         id: "item-1",
         name: "Pan integral",
         sectionId: "mercadona",
+        categoryId: "bakery",
         addedBy: "begona",
         purchased: false,
         createdAt: 100,
@@ -105,6 +113,7 @@ describe("shopping item logic", () => {
         id: "item-2",
         name: "leche",
         sectionId: "alcampo",
+        categoryId: "dairy",
         addedBy: "begona",
         purchased: false,
         createdAt: 200,
@@ -137,6 +146,7 @@ describe("shopping item logic", () => {
         ...baseItem,
         name: "Pan integral",
         sectionId: "alcampo",
+        categoryId: "bakery",
         updatedAt: 200,
       },
     ]);

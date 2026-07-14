@@ -32,10 +32,85 @@ export const shoppingUsers = [
 
 export type ShoppingUserId = (typeof shoppingUsers)[number]["id"];
 
+export const shoppingCategories = [
+  { id: "fruit", name: "Fruta" },
+  { id: "vegetables", name: "Verdura" },
+  { id: "meat", name: "Carne" },
+  { id: "fish", name: "Pescado" },
+  { id: "dairy", name: "Lácteos" },
+  { id: "bakery", name: "Panadería" },
+  { id: "pantry", name: "Despensa" },
+  { id: "drinks", name: "Bebidas" },
+  { id: "frozen", name: "Congelados" },
+  { id: "cleaning", name: "Limpieza" },
+  { id: "hygiene", name: "Higiene" },
+  { id: "pharmacy", name: "Farmacia" },
+  { id: "pets", name: "Mascotas" },
+  { id: "other", name: "Otros" },
+] as const;
+
+export type ShoppingCategoryId = (typeof shoppingCategories)[number]["id"];
+
+const shoppingProductCatalog: Record<ShoppingCategoryId, string[]> = {
+  fruit: [
+    "aguacate",
+    "fresa",
+    "fruta",
+    "kiwi",
+    "limón",
+    "mandarina",
+    "manzana",
+    "melocotón",
+    "naranja",
+    "pera",
+    "plátano",
+    "uvas",
+  ],
+  vegetables: [
+    "ajo",
+    "berenjena",
+    "calabacín",
+    "cebolla",
+    "lechuga",
+    "patata",
+    "pepino",
+    "pimiento",
+    "tomate",
+    "verdura",
+    "zanahoria",
+  ],
+  meat: ["carne", "cerdo", "chorizo", "jamón", "lomo", "pollo", "ternera"],
+  fish: ["atún", "bacalao", "gambas", "merluza", "pescado", "salmón"],
+  dairy: ["huevos", "leche", "mantequilla", "queso", "yogur"],
+  bakery: ["barra", "bollos", "croissant", "pan", "pan integral"],
+  pantry: [
+    "aceite",
+    "arroz",
+    "azúcar",
+    "café",
+    "cereales",
+    "galletas",
+    "garbanzos",
+    "harina",
+    "lentejas",
+    "pasta",
+    "sal",
+    "tomate frito",
+  ],
+  drinks: ["agua", "cerveza", "refresco", "vino", "zumo"],
+  frozen: ["congelado", "croquetas", "helado", "pizza"],
+  cleaning: ["detergente", "fregasuelos", "lavavajillas", "lejía", "limpieza"],
+  hygiene: ["champú", "gel", "higiene", "papel higiénico", "pasta de dientes"],
+  pharmacy: ["ibuprofeno", "medicina", "paracetamol", "tiritas"],
+  pets: ["arena", "comida gato", "comida perro", "mascota", "pienso"],
+  other: [],
+};
+
 export type ShoppingItem = {
   id: string;
   name: string;
   sectionId: ShoppingSectionId;
+  categoryId?: ShoppingCategoryId;
   addedBy: ShoppingUserId;
   purchased: boolean;
   createdAt: number;
@@ -57,6 +132,12 @@ export function isShoppingUserId(value: string): value is ShoppingUserId {
   return shoppingUsers.some((user) => user.id === value);
 }
 
+export function isShoppingCategoryId(
+  value: string,
+): value is ShoppingCategoryId {
+  return shoppingCategories.some((category) => category.id === value);
+}
+
 export function isShoppingSectionColor(
   value: string,
 ): value is ShoppingSectionColor {
@@ -65,6 +146,42 @@ export function isShoppingSectionColor(
 
 export function getShoppingUserName(userId: ShoppingUserId) {
   return shoppingUsers.find((user) => user.id === userId)?.name ?? "Rafa";
+}
+
+export function getShoppingCategoryName(categoryId: ShoppingCategoryId) {
+  return (
+    shoppingCategories.find((category) => category.id === categoryId)?.name ??
+    "Otros"
+  );
+}
+
+export function getShoppingItemCategoryId(
+  item: Pick<ShoppingItem, "name" | "categoryId">,
+) {
+  return item.categoryId && isShoppingCategoryId(item.categoryId)
+    ? item.categoryId
+    : inferShoppingCategoryId(item.name);
+}
+
+export function inferShoppingCategoryId(rawName: string): ShoppingCategoryId {
+  const normalizedName = normalizeCatalogText(rawName);
+
+  for (const category of shoppingCategories) {
+    if (
+      shoppingProductCatalog[category.id].some((catalogName) => {
+        const normalizedCatalogName = normalizeCatalogText(catalogName);
+
+        return (
+          normalizedName === normalizedCatalogName ||
+          normalizedName.includes(normalizedCatalogName)
+        );
+      })
+    ) {
+      return category.id;
+    }
+  }
+
+  return "other";
 }
 
 export function hasItemWithName(
@@ -223,6 +340,7 @@ export function addShoppingItem(
       id: createId(),
       name,
       sectionId,
+      categoryId: inferShoppingCategoryId(name),
       addedBy,
       purchased: false,
       createdAt,
@@ -283,6 +401,7 @@ export function updateShoppingItem(
           ...item,
           name,
           sectionId,
+          categoryId: inferShoppingCategoryId(name),
           updatedAt: now(),
         }
       : item,
@@ -298,8 +417,38 @@ export function removePurchasedShoppingItems(items: ShoppingItem[]) {
 }
 
 export function sortShoppingItemsForShopping(items: ShoppingItem[]) {
-  return [
-    ...items.filter((item) => !item.purchased),
-    ...items.filter((item) => item.purchased),
-  ];
+  return [...items].sort(compareShoppingItemsForShopping);
+}
+
+export function compareShoppingItemsForShopping(
+  firstItem: ShoppingItem,
+  secondItem: ShoppingItem,
+) {
+  if (firstItem.purchased !== secondItem.purchased) {
+    return firstItem.purchased ? 1 : -1;
+  }
+
+  const firstCategoryOrder = getShoppingCategoryOrder(
+    getShoppingItemCategoryId(firstItem),
+  );
+  const secondCategoryOrder = getShoppingCategoryOrder(
+    getShoppingItemCategoryId(secondItem),
+  );
+
+  if (firstCategoryOrder !== secondCategoryOrder) {
+    return firstCategoryOrder - secondCategoryOrder;
+  }
+
+  return firstItem.createdAt - secondItem.createdAt;
+}
+
+function getShoppingCategoryOrder(categoryId: ShoppingCategoryId) {
+  return shoppingCategories.findIndex((category) => category.id === categoryId);
+}
+
+function normalizeCatalogText(value: string) {
+  return normalizeItemName(value)
+    .toLocaleLowerCase("es-ES")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
 }

@@ -23,6 +23,14 @@ Los duplicados se bloquean dentro de la misma lista, pero se permite repetir el 
 
 La interfaz se organiza como un tablero por columnas: en escritorio se muestran varias columnas a la vez y en móvil cada columna ocupa casi todo el ancho, con desplazamiento lateral.
 
+## Categorías de productos
+
+En el Hito 21, los productos se agrupan por categoría dentro de cada lista para comprar productos relacionados juntos.
+
+La app usa un catálogo maestro inicial mantenido en código para inferir la categoría a partir del nombre del producto. No se añade todavía una pantalla de edición del catálogo porque la prioridad es validar el flujo de compra; los productos no reconocidos caen en `Otros`.
+
+La categoría inferida se guarda en el producto y se recalcula al renombrarlo. Los productos antiguos sin categoría se normalizan al cargar usando el mismo catálogo.
+
 ## Edición básica de productos
 
 En el Hito 5, editar un producto permite cambiar su nombre y moverlo a otra sección.

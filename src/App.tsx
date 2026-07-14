@@ -14,7 +14,10 @@ import styles from "./App.module.scss";
 import {
   addShoppingItem,
   addShoppingSection,
+  compareShoppingItemsForShopping,
   defaultShoppingSections,
+  getShoppingCategoryName,
+  getShoppingItemCategoryId,
   moveShoppingSection,
   getShoppingUserName,
   isShoppingSectionId,
@@ -212,11 +215,7 @@ function compareShoppingItemsForVisibleOrder(
   firstItem: ShoppingItem,
   secondItem: ShoppingItem,
 ) {
-  if (firstItem.purchased !== secondItem.purchased) {
-    return firstItem.purchased ? 1 : -1;
-  }
-
-  return firstItem.createdAt - secondItem.createdAt;
+  return compareShoppingItemsForShopping(firstItem, secondItem);
 }
 
 function shouldAnimate() {
@@ -946,6 +945,12 @@ export function App() {
     const shouldShowPurchasedDivider = hasPendingItems && hasPurchasedItems;
     let hasRenderedUndoItem = false;
     const listItems = visibleItems.flatMap((item, index) => {
+      const itemCategoryId = getShoppingItemCategoryId(item);
+      const previousItem = visibleItems[index - 1];
+      const shouldRenderCategoryDivider =
+        !previousItem ||
+        previousItem.purchased !== item.purchased ||
+        getShoppingItemCategoryId(previousItem) !== itemCategoryId;
       const shouldRenderPurchasedDivider =
         shouldShowPurchasedDivider &&
         item.purchased &&
@@ -1032,6 +1037,14 @@ export function App() {
           Comprados
         </li>
       ) : null;
+      const categoryDivider = shouldRenderCategoryDivider ? (
+        <li
+          className={styles.categoryDivider}
+          key={`${item.purchased ? "purchased" : "pending"}-${itemCategoryId}`}
+        >
+          {getShoppingCategoryName(itemCategoryId)}
+        </li>
+      ) : null;
       const shouldRenderUndoItem =
         !hasRenderedUndoItem &&
         sortedRemovedItems.length > 0 &&
@@ -1041,11 +1054,21 @@ export function App() {
         hasRenderedUndoItem = true;
 
         return sortedRemovedItems[0].purchased
-          ? [purchasedDivider, renderUndoItem(sortedRemovedItems), itemContent]
-          : [renderUndoItem(sortedRemovedItems), purchasedDivider, itemContent];
+          ? [
+              purchasedDivider,
+              categoryDivider,
+              renderUndoItem(sortedRemovedItems),
+              itemContent,
+            ]
+          : [
+              renderUndoItem(sortedRemovedItems),
+              purchasedDivider,
+              categoryDivider,
+              itemContent,
+            ];
       }
 
-      return [purchasedDivider, itemContent];
+      return [purchasedDivider, categoryDivider, itemContent];
     });
 
     if (!hasRenderedUndoItem && sortedRemovedItems.length > 0) {

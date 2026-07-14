@@ -1288,6 +1288,17 @@ export function App() {
           <span>Lista</span>
         </button>
         <button
+          className={styles.bottomNavItem}
+          type="button"
+          aria-label="Borrar comprados"
+          onPointerDown={handleButtonPointerDown}
+          onClick={handleRemovePurchasedItems}
+          disabled={!isLoaded || purchasedCount === 0}
+        >
+          <Icon name="trash" />
+          <span>Limpiar</span>
+        </button>
+        <button
           className={
             activeView === "sections"
               ? styles.bottomNavItemActive
@@ -1301,17 +1312,6 @@ export function App() {
         >
           <Icon name="settings" />
           <span>Listas</span>
-        </button>
-        <button
-          className={styles.bottomNavItem}
-          type="button"
-          aria-label="Borrar comprados"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handleRemovePurchasedItems}
-          disabled={!isLoaded || purchasedCount === 0}
-        >
-          <Icon name="trash" />
-          <span>Limpiar</span>
         </button>
       </nav>
 

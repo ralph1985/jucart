@@ -233,6 +233,24 @@ describe("App", () => {
     expect(productInput).toHaveFocus();
   });
 
+  it("keeps list settings as the rightmost bottom navigation action", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    const navigation = screen.getByRole("navigation", {
+      name: "Navegación principal",
+    });
+
+    expect(
+      within(navigation)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Añadir", "Lista", "Limpiar", "Listas"]);
+  });
+
   it("manages shopping lists from the bottom navigation", async () => {
     render(<App />);
 

@@ -13,6 +13,7 @@ Bloquea el cierre si detectas:
 - cambios fuera de alcance;
 - fallos de persistencia, tests, typecheck, lint, formato o build;
 - datos sensibles o credenciales.
+- cambios en Supabase, migraciones, Realtime, `.env.example` o exposición pública que introduzcan credenciales, acceso no previsto o permisos nuevos sin petición explícita.
 
 No edites archivos, no prepares commits y no ejecutes operaciones Git de escritura.
 """

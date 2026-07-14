@@ -133,7 +133,7 @@ Realtime usa Postgres Changes sobre `shopping_items` y `shopping_sections` filtr
 
 En el Hito 18, la UI muestra un estado discreto de sincronización. La app también evita guardar automáticamente justo después de la carga inicial, para no reenviar una lista recién cargada ni arriesgar que una caché local antigua pise datos remotos al arrancar. La capa de persistencia informa si el último acceso fue remoto, local o fallback local.
 
-La tabla usa `list_id` para identificar una lista compartida. Mientras no haya login, las políticas RLS permiten acceso `anon` y la aplicación deberá filtrar por `VITE_SUPABASE_LIST_ID`. Esta decisión es pragmática para una app privada y no equivale a permisos robustos para una aplicación pública. Si la app se expone fuera del uso personal, el siguiente paso debe ser Auth o una capa de acceso más estricta.
+La tabla usa `list_id` para identificar una lista compartida y la aplicación filtra por `VITE_SUPABASE_LIST_ID`. Esta decisión es pragmática para una app privada de uso personal; no se planifica una capa de autenticación o permisos más compleja mientras ese siga siendo el alcance.
 
 ## PWA y offline
 

@@ -19,22 +19,25 @@ Jucart es una aplicación web privada para gestionar una lista de la compra pers
 
 ## Estado Técnico Actual
 
-- Stack: React, TypeScript, Vite, SCSS Modules, Dexie, Vitest, React Testing Library, ESLint, Prettier y pnpm.
+- Stack: React, TypeScript, Vite, SCSS Modules, Dexie, Supabase, `vite-plugin-pwa`, Anime.js, Vitest, React Testing Library, ESLint, Prettier y pnpm.
 - Entrada de la app: `src/main.tsx`.
 - Pantalla principal: `src/App.tsx`.
 - Lógica local de productos: `src/shoppingItems.ts`.
-- Persistencia local IndexedDB/Dexie: `src/shoppingItemsDb.ts`.
+- Persistencia local y caché IndexedDB/Dexie: `src/shoppingItemsDb.ts`.
+- Persistencia remota Supabase y Realtime: `src/shoppingItemsSupabase.ts`.
+- Migraciones Supabase: `supabase/migrations/*.sql`.
 - Estilos globales: `src/styles/global.scss`.
 - Estilos de la pantalla: `src/App.module.scss`.
 - Tests: `src/*.test.ts` y `src/*.test.tsx`.
 
 ## Restricciones Técnicas
 
-- No añadir backend, login, usuarios, sincronización, rutas, Redux, Tailwind, librerías de componentes, analítica ni dependencias nuevas sin necesidad actual y permiso explícito.
+- No añadir nuevos backends, login, usuarios, rutas, Redux, Tailwind, librerías de componentes, analítica ni dependencias nuevas sin necesidad actual y permiso explícito.
 - No introducir React Router mientras exista una sola pantalla.
 - No implementar funciones de hitos futuros por anticipado.
 - No tocar `.env` ni credenciales.
-- Dexie pertenece a persistencia local; `vite-plugin-pwa` pertenece al Hito 3.
+- Supabase remoto ya forma parte de la sincronización actual; no ampliar autenticación, permisos ni exposición pública sin petición explícita.
+- Dexie, Supabase, `vite-plugin-pwa` y Anime.js ya forman parte del proyecto; no añadir alternativas paralelas sin necesidad actual.
 - Antes de cerrar un hito, ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build`.
 
 ## Selección De Agentes

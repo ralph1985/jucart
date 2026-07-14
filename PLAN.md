@@ -176,7 +176,6 @@
 - [x] Mostrar estado discreto de sincronización.
 - [x] Evitar guardado automático inmediatamente después de la carga inicial.
 - [x] Diferenciar Supabase remoto, local puro y fallback local.
-- [ ] Revisar permisos RLS antes de exponer la app fuera del uso personal.
 
 ## Hito 19 — Estructura de aplicación
 

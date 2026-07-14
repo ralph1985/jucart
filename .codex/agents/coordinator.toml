@@ -18,13 +18,18 @@ Modo rápido:
 Estado actual:
 - React + TypeScript + Vite.
 - SCSS Modules.
-- Lógica local en `src/shoppingItems.ts`.
-- Persistencia Dexie en `src/shoppingItemsDb.ts`.
+- PWA con `vite-plugin-pwa`.
+- Anime.js para animaciones ya integradas.
+- Lógica de productos y listas en `src/shoppingItems.ts`.
+- Persistencia local y caché Dexie en `src/shoppingItemsDb.ts`.
+- Persistencia remota Supabase y Realtime en `src/shoppingItemsSupabase.ts`.
+- Migraciones Supabase en `supabase/migrations/*.sql`.
 - Tests con Vitest, React Testing Library y fake IndexedDB.
 
 Límites:
-- No implementar PWA antes del Hito 3.
-- No introducir backend, login, usuarios, sync, router, Redux, Tailwind ni librerías de componentes.
+- No introducir nuevos backends, login, usuarios, router, Redux, Tailwind ni librerías de componentes.
+- Supabase remoto ya es parte del proyecto; no ampliar autenticación, permisos o exposición pública sin petición explícita.
+- Mantén navegación interna sin React Router: cabecera, menú inferior y vistas internas existentes forman parte de la app actual.
 - No actualizar documentación salvo cambio estable o avance de hito.
 - Solo el coordinador crea ramas, prepara stage y crea commits.
 - Usa `git add` con rutas explícitas.

@@ -283,6 +283,32 @@ describe("App", () => {
 
     expect(listNameInputs.at(-2)).toBe("Frutería");
     expect(listNameInputs.at(-1)).toBe("Varios");
+
+    fireEvent.click(screen.getByRole("button", { name: "Borrar Frutería" }));
+
+    expect(
+      screen.queryByLabelText("Nombre de Frutería"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not allow removing shopping lists with products", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "Leche" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
+
+    expect(
+      screen.getByRole("button", {
+        name: "No se puede borrar Mercadona porque tiene productos",
+      }),
+    ).toBeDisabled();
   });
 
   it("uses haptic feedback for high-intent actions", async () => {

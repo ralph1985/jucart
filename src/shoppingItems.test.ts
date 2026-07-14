@@ -7,6 +7,7 @@ import {
   normalizeItemName,
   renameShoppingSection,
   removePurchasedShoppingItems,
+  removeShoppingSection,
   removeShoppingItem,
   ShoppingItem,
   sortShoppingItemsForShopping,
@@ -233,5 +234,22 @@ describe("shopping item logic", () => {
       { id: "mercadona", name: "Mercadona" },
     ]);
     expect(moveShoppingSection(sections, "alcampo", -1)).toBe(sections);
+  });
+
+  it("removes only empty shopping sections", () => {
+    const sections = [
+      { id: "mercadona", name: "Mercadona" },
+      { id: "fruteria", name: "Frutería" },
+    ];
+
+    expect(removeShoppingSection(sections, [], "fruteria")).toEqual([
+      { id: "mercadona", name: "Mercadona" },
+    ]);
+    expect(removeShoppingSection(sections, [baseItem], "mercadona")).toBe(
+      sections,
+    );
+    expect(removeShoppingSection([sections[0]], [], "mercadona")).toEqual([
+      sections[0],
+    ]);
   });
 });

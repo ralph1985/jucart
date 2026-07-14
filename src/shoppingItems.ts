@@ -143,6 +143,22 @@ export function moveShoppingSection(
   return nextSections;
 }
 
+export function removeShoppingSection(
+  sections: ShoppingSection[],
+  items: ShoppingItem[],
+  sectionId: ShoppingSectionId,
+) {
+  if (
+    sections.length <= 1 ||
+    !sections.some((section) => section.id === sectionId) ||
+    items.some((item) => item.sectionId === sectionId)
+  ) {
+    return sections;
+  }
+
+  return sections.filter((section) => section.id !== sectionId);
+}
+
 function hasSectionWithName(sections: ShoppingSection[], rawName: string) {
   const name = normalizeItemName(rawName).toLocaleLowerCase("es-ES");
 

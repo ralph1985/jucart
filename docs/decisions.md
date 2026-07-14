@@ -15,7 +15,9 @@ Esta decisión mantiene rápida la captura de productos y evita entradas acciden
 
 Jucart organiza los productos en listas por tienda o contexto.
 
-La aplicación mantiene como listas iniciales Alcampo, Día, Mercadona, Farmacia y General por compatibilidad con el flujo original, pero desde el Hito 20 esas listas se pueden crear, renombrar y reordenar desde una pantalla accesible en el menú inferior.
+La aplicación mantiene como listas iniciales Alcampo, Día, Mercadona, Farmacia y General por compatibilidad con el flujo original, pero desde el Hito 20 esas listas se pueden crear, renombrar, reordenar y borrar desde una pantalla accesible en el menú inferior.
+
+El borrado solo se permite para listas vacías. Una lista con productos debe conservarse para evitar pérdida accidental de información o productos huérfanos.
 
 Los duplicados se bloquean dentro de la misma lista, pero se permite repetir el mismo producto en listas distintas.
 

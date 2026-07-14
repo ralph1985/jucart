@@ -20,6 +20,7 @@ import {
   isShoppingSectionId,
   isShoppingUserId,
   removePurchasedShoppingItems,
+  removeShoppingSection,
   removeShoppingItem,
   renameShoppingSection,
   ShoppingItem,
@@ -816,6 +817,21 @@ export function App() {
     setSections(nextSections);
   }
 
+  function handleRemoveSection(sectionId: ShoppingSectionId) {
+    const nextSections = removeShoppingSection(sections, items, sectionId);
+
+    if (nextSections === sections) {
+      return;
+    }
+
+    runHapticFeedback("warning");
+    setSections(nextSections);
+
+    if (selectedSectionId === sectionId) {
+      setSelectedSectionId(nextSections[0]?.id || "general");
+    }
+  }
+
   function handleColumnKeyDown(
     event: KeyboardEvent<HTMLElement>,
     sectionId: ShoppingSectionId,
@@ -1206,45 +1222,72 @@ export function App() {
             </div>
           </form>
           <ol className={styles.sectionManagerList}>
-            {sections.map((section, index) => (
-              <li className={styles.sectionManagerItem} key={section.id}>
-                <span className={styles.sectionPosition}>{index + 1}</span>
-                <input
-                  className={styles.input}
-                  aria-label={`Nombre de ${section.name}`}
-                  value={section.name}
-                  onChange={(event) =>
-                    handleSectionNameChange(section.id, event)
-                  }
-                  disabled={!isLoaded}
-                  type="text"
-                />
-                <div className={styles.sectionActions}>
-                  <button
-                    className={styles.iconButton}
-                    type="button"
-                    aria-label={`Subir ${section.name}`}
-                    title="Subir"
-                    onPointerDown={handleButtonPointerDown}
-                    onClick={() => handleMoveSection(section.id, -1)}
-                    disabled={!isLoaded || index === 0}
-                  >
-                    <Icon name="arrowUp" />
-                  </button>
-                  <button
-                    className={styles.iconButton}
-                    type="button"
-                    aria-label={`Bajar ${section.name}`}
-                    title="Bajar"
-                    onPointerDown={handleButtonPointerDown}
-                    onClick={() => handleMoveSection(section.id, 1)}
-                    disabled={!isLoaded || index === sections.length - 1}
-                  >
-                    <Icon name="arrowDown" />
-                  </button>
-                </div>
-              </li>
-            ))}
+            {sections.map((section, index) => {
+              const sectionProductCount = items.filter(
+                (item) => item.sectionId === section.id,
+              ).length;
+              const canRemoveSection =
+                isLoaded && sections.length > 1 && sectionProductCount === 0;
+
+              return (
+                <li className={styles.sectionManagerItem} key={section.id}>
+                  <span className={styles.sectionPosition}>{index + 1}</span>
+                  <input
+                    className={styles.input}
+                    aria-label={`Nombre de ${section.name}`}
+                    value={section.name}
+                    onChange={(event) =>
+                      handleSectionNameChange(section.id, event)
+                    }
+                    disabled={!isLoaded}
+                    type="text"
+                  />
+                  <div className={styles.sectionActions}>
+                    <button
+                      className={styles.iconButton}
+                      type="button"
+                      aria-label={`Subir ${section.name}`}
+                      title="Subir"
+                      onPointerDown={handleButtonPointerDown}
+                      onClick={() => handleMoveSection(section.id, -1)}
+                      disabled={!isLoaded || index === 0}
+                    >
+                      <Icon name="arrowUp" />
+                    </button>
+                    <button
+                      className={styles.iconButton}
+                      type="button"
+                      aria-label={`Bajar ${section.name}`}
+                      title="Bajar"
+                      onPointerDown={handleButtonPointerDown}
+                      onClick={() => handleMoveSection(section.id, 1)}
+                      disabled={!isLoaded || index === sections.length - 1}
+                    >
+                      <Icon name="arrowDown" />
+                    </button>
+                    <button
+                      className={styles.iconButtonDanger}
+                      type="button"
+                      aria-label={
+                        sectionProductCount > 0
+                          ? `No se puede borrar ${section.name} porque tiene productos`
+                          : `Borrar ${section.name}`
+                      }
+                      title={
+                        sectionProductCount > 0
+                          ? "No se puede borrar una lista con productos"
+                          : "Borrar"
+                      }
+                      onPointerDown={handleButtonPointerDown}
+                      onClick={() => handleRemoveSection(section.id)}
+                      disabled={!canRemoveSection}
+                    >
+                      <Icon name="trash" />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         </section>
       )}

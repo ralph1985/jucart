@@ -191,6 +191,8 @@
 - [x] Permitir dar de alta nuevas listas.
 - [x] Permitir renombrar listas existentes.
 - [x] Permitir reordenar listas.
+- [x] Permitir borrar listas vacías.
+- [x] Impedir borrar listas con productos.
 - [x] Persistir las listas en IndexedDB.
 - [x] Sincronizar las listas con Supabase remoto.
 - [x] Mantener compatibilidad con las listas iniciales.

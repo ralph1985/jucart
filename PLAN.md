@@ -170,3 +170,10 @@
 - [x] Mantener Dexie como fallback local durante la transición.
 - [x] Añadir tests razonables del adaptador Supabase.
 - [x] Suscribirse a Realtime para refrescar cambios remotos.
+
+## Hito 18 — Endurecimiento de sincronización
+
+- [x] Mostrar estado discreto de sincronización.
+- [x] Evitar guardado automático inmediatamente después de la carga inicial.
+- [x] Diferenciar Supabase remoto, local puro y fallback local.
+- [ ] Revisar permisos RLS antes de exponer la app fuera del uso personal.

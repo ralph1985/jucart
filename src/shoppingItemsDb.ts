@@ -17,6 +17,9 @@ type StoredShoppingItem = Omit<ShoppingItem, "sectionId" | "addedBy"> & {
   sectionId?: ShoppingSectionId;
   addedBy?: ShoppingUserId;
 };
+export type ShoppingItemsStorageMode = "local" | "remote" | "fallback";
+
+let lastStorageMode: ShoppingItemsStorageMode = "local";
 
 class JucartDatabase extends Dexie {
   shoppingItems!: Table<StoredShoppingItem, string>;
@@ -40,6 +43,10 @@ class JucartDatabase extends Dexie {
 
 export const db = new JucartDatabase();
 
+export function getShoppingItemsStorageMode() {
+  return lastStorageMode;
+}
+
 export async function getStoredShoppingItems() {
   if (isSupabaseConfigured()) {
     try {
@@ -47,14 +54,17 @@ export async function getStoredShoppingItems() {
 
       if (remoteItems) {
         await replaceLocalShoppingItems(remoteItems);
+        lastStorageMode = "remote";
 
         return remoteItems;
       }
     } catch {
+      lastStorageMode = "fallback";
       return getLocalShoppingItems();
     }
   }
 
+  lastStorageMode = "local";
   return getLocalShoppingItems();
 }
 
@@ -62,13 +72,19 @@ export async function replaceStoredShoppingItems(items: ShoppingItem[]) {
   if (isSupabaseConfigured()) {
     try {
       await replaceSupabaseShoppingItems(items);
+      lastStorageMode = "remote";
     } catch {
       await replaceLocalShoppingItems(items);
+      lastStorageMode = "fallback";
       return;
     }
   }
 
   await replaceLocalShoppingItems(items);
+
+  if (!isSupabaseConfigured()) {
+    lastStorageMode = "local";
+  }
 }
 
 export async function resetShoppingItemsDatabase() {

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  getShoppingItemsStorageMode,
   getStoredShoppingItems,
   replaceStoredShoppingItems,
   resetShoppingItemsDatabase,
@@ -71,5 +72,11 @@ describe("shopping items database", () => {
     await replaceStoredShoppingItems([]);
 
     await expect(getStoredShoppingItems()).resolves.toEqual([]);
+  });
+
+  it("reports local storage mode when Supabase is disabled in tests", async () => {
+    await replaceStoredShoppingItems([]);
+
+    expect(getShoppingItemsStorageMode()).toBe("local");
   });
 });

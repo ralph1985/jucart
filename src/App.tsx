@@ -27,15 +27,20 @@ import {
   updateShoppingItem,
 } from "./shoppingItems";
 import {
+  getShoppingItemsStorageMode,
   getStoredShoppingItems,
   replaceStoredShoppingItems,
 } from "./shoppingItemsDb";
-import { subscribeToSupabaseShoppingItems } from "./shoppingItemsSupabase";
+import {
+  isSupabaseConfigured,
+  subscribeToSupabaseShoppingItems,
+} from "./shoppingItemsSupabase";
 
 const selectedSectionStorageKey = "jucart:selected-section-id";
 const selectedUserStorageKey = "jucart:selected-user-id";
 
 type IconName = "check" | "edit" | "trash" | "undo" | "save" | "close";
+type SyncStatus = "local" | "syncing" | "synced" | "offline";
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, string[]> = {
@@ -127,6 +132,36 @@ function runAnimation(
   }
 }
 
+function getSyncStatusText(status: SyncStatus) {
+  if (status === "syncing") {
+    return "Sincronizando";
+  }
+
+  if (status === "synced") {
+    return "Sincronizado";
+  }
+
+  if (status === "offline") {
+    return "Offline";
+  }
+
+  return "Local";
+}
+
+function getSyncStatusFromStorageMode() {
+  const storageMode = getShoppingItemsStorageMode();
+
+  if (storageMode === "remote") {
+    return "synced";
+  }
+
+  if (storageMode === "fallback") {
+    return "offline";
+  }
+
+  return "local";
+}
+
 export function App() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [itemName, setItemName] = useState("");
@@ -142,6 +177,9 @@ export function App() {
     useState<ShoppingSectionId>("mercadona");
   const [isLoaded, setIsLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(
+    isSupabaseConfigured() ? "syncing" : "local",
+  );
   const [lastRemovedItems, setLastRemovedItems] = useState<ShoppingItem[]>([]);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const itemNameInputRef = useRef<HTMLInputElement>(null);
@@ -156,7 +194,7 @@ export function App() {
   const previousItemIdsRef = useRef<Set<string>>(new Set());
   const previousUndoKeyRef = useRef<string | null>(null);
   const undoItemRef = useRef<HTMLLIElement>(null);
-  const skipNextStoreRef = useRef(false);
+  const skipNextStoreRef = useRef(true);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
   const removePurchasedButtonText =
@@ -176,12 +214,15 @@ export function App() {
         const storedItems = await getStoredShoppingItems();
 
         if (isActive) {
+          skipNextStoreRef.current = true;
           setItems(storedItems);
           setStorageError(null);
+          setSyncStatus(getSyncStatusFromStorageMode());
         }
       } catch {
         if (isActive) {
           setStorageError("No se pudo cargar la lista guardada.");
+          setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
         }
       } finally {
         if (isActive) {
@@ -209,10 +250,13 @@ export function App() {
 
     async function storeItems() {
       try {
+        setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
         await replaceStoredShoppingItems(items);
         setStorageError(null);
+        setSyncStatus(getSyncStatusFromStorageMode());
       } catch {
         setStorageError("No se pudieron guardar los últimos cambios.");
+        setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
       }
     }
 
@@ -237,9 +281,11 @@ export function App() {
         skipNextStoreRef.current = true;
         setItems(storedItems);
         setStorageError(null);
+        setSyncStatus(getSyncStatusFromStorageMode());
       } catch {
         if (isActive) {
           setStorageError("No se pudo sincronizar la lista.");
+          setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
         }
       }
     }
@@ -798,6 +844,12 @@ export function App() {
             <dd>{purchasedCount}</dd>
           </div>
         </dl>
+        <p
+          className={`${styles.syncStatus} ${styles[`syncStatus${syncStatus}`]}`}
+          aria-live="polite"
+        >
+          {getSyncStatusText(syncStatus)}
+        </p>
       </section>
 
       <section className={styles.commandPanel} aria-label="Añadir producto">

@@ -106,6 +106,42 @@ h2 {
   line-height: 1;
 }
 
+.syncStatus {
+  min-width: 6.4rem;
+  margin: 0;
+  border: 1px solid rgb(148 163 184 / 26%);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  background: rgb(255 255 255 / 72%);
+  color: #536b7c;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.syncStatussynced {
+  border-color: rgb(22 124 90 / 28%);
+  background: #dff4ea;
+  color: #126548;
+}
+
+.syncStatussyncing {
+  border-color: rgb(47 128 237 / 24%);
+  background: #edf5ff;
+  color: #1d4f91;
+}
+
+.syncStatusoffline {
+  border-color: rgb(159 18 57 / 18%);
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+.syncStatuslocal {
+  background: #edf2f7;
+}
+
 .label {
   display: block;
   margin-bottom: 0.3rem;
@@ -519,6 +555,10 @@ h2 {
 
   .summary {
     width: 100%;
+  }
+
+  .syncStatus {
+    align-self: stretch;
   }
 }
 

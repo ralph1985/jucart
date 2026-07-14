@@ -113,6 +113,8 @@ La interfaz mantiene la misma API interna de persistencia. Cuando `VITE_SUPABASE
 
 Realtime usa Postgres Changes sobre `shopping_items` filtrado por `list_id`. Al recibir un evento remoto, la app recarga la lista completa desde Supabase en lugar de aplicar parches item a item. Para una lista pequeña es más simple y evita inconsistencias entre eventos locales, borrados múltiples y deshacer.
 
+En el Hito 18, la UI muestra un estado discreto de sincronización. La app también evita guardar automáticamente justo después de la carga inicial, para no reenviar una lista recién cargada ni arriesgar que una caché local antigua pise datos remotos al arrancar. La capa de persistencia informa si el último acceso fue remoto, local o fallback local.
+
 La tabla usa `list_id` para identificar una lista compartida. Mientras no haya login, las políticas RLS permiten acceso `anon` y la aplicación deberá filtrar por `VITE_SUPABASE_LIST_ID`. Esta decisión es pragmática para una app privada y no equivale a permisos robustos para una aplicación pública. Si la app se expone fuera del uso personal, el siguiente paso debe ser Auth o una capa de acceso más estricta.
 
 ## PWA y offline

@@ -163,9 +163,9 @@
 - [x] Preparar variables de entorno de ejemplo para proyecto remoto.
 - [x] Añadir scripts para login, link y publicar migraciones.
 - [x] Documentar el flujo remoto.
-- [ ] Crear el proyecto remoto en Supabase.
-- [ ] Enlazar el repo con el proyecto remoto.
-- [ ] Publicar la migración en Supabase remoto.
+- [x] Crear el proyecto remoto en Supabase.
+- [x] Enlazar el repo con el proyecto remoto.
+- [x] Publicar la migración en Supabase remoto.
 - [ ] Conectar la interfaz a Supabase.
 - [ ] Mantener Dexie como fallback local durante la transición.
 - [ ] Añadir tests razonables del adaptador Supabase.

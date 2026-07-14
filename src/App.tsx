@@ -98,6 +98,62 @@ function Icon({ name }: { name: IconName }) {
   );
 }
 
+function HeaderLogo() {
+  return (
+    <svg
+      className={styles.logoMark}
+      aria-hidden="true"
+      viewBox="0 0 64 64"
+      fill="none"
+    >
+      <path
+        d="M13 18h8l5 27h23l6-20H25"
+        stroke="currentColor"
+        strokeWidth="4.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M26 25h24"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.5"
+      />
+      <path
+        d="M29 34h14"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        opacity="0.5"
+      />
+      <path
+        d="M16 18l7-8h18l8 8"
+        stroke="currentColor"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.75"
+      />
+      <path
+        d="M33 42l7-9 6 5"
+        stroke="#dff4ea"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="30" cy="51" r="4.5" fill="currentColor" />
+      <circle cx="48" cy="51" r="4.5" fill="currentColor" />
+      <path
+        d="M8 29h8M10 38h10"
+        stroke="#dff4ea"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function getInitialSelectedSectionId(): ShoppingSectionId {
   try {
     const storedSectionId = window.localStorage.getItem(
@@ -854,7 +910,7 @@ export function App() {
       <section className={styles.header} aria-labelledby="app-title">
         <div className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">
-            <Icon name="check" />
+            <HeaderLogo />
           </span>
           <div>
             <p className={styles.kicker}>Lista de la compra</p>

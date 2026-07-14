@@ -36,14 +36,21 @@
 
 .logo {
   display: inline-grid;
-  width: 2.6rem;
-  height: 2.6rem;
+  width: 2.9rem;
+  height: 2.9rem;
   flex: 0 0 auto;
   place-items: center;
   border-radius: 0.8rem;
-  background: #167c5a;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 18%) 0%, transparent 45%), #167c5a;
   color: #ffffff;
   box-shadow: 0 0.6rem 1.4rem rgb(22 124 90 / 24%);
+}
+
+.logoMark {
+  width: 2.35rem;
+  height: 2.35rem;
+  filter: drop-shadow(0 0.12rem 0.18rem rgb(15 23 42 / 18%));
 }
 
 .headerMeta {

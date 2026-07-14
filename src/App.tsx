@@ -957,21 +957,6 @@ export function App() {
             </div>
           </div>
         </form>
-
-        <div className={styles.listActions}>
-          <button
-            className={styles.clearButton}
-            type="button"
-            aria-label="Borrar comprados"
-            title="Borrar comprados"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handleRemovePurchasedItems}
-            disabled={!isLoaded || purchasedCount === 0}
-          >
-            <Icon name="trash" />
-            <span>Comprados</span>
-          </button>
-        </div>
       </section>
 
       {!isLoaded ? (
@@ -1051,6 +1036,7 @@ export function App() {
         <button
           className={styles.bottomNavItem}
           type="button"
+          aria-label="Borrar comprados"
           onPointerDown={handleButtonPointerDown}
           onClick={handleRemovePurchasedItems}
           disabled={!isLoaded || purchasedCount === 0}

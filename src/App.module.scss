@@ -1,7 +1,7 @@
 .app {
   min-height: 100svh;
   margin: 0 auto;
-  padding: 4.85rem 0 calc(5.5rem + env(safe-area-inset-bottom));
+  padding: 4.85rem 0 calc(5.75rem + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(180deg, #edf4f2 0%, #f7f8fb 42%, #f1f5f9 100%);
   color: #17212b;
   overflow-x: hidden;
@@ -19,9 +19,9 @@
   gap: 0.7rem;
   min-height: 4.1rem;
   border-bottom: 1px solid rgb(148 163 184 / 24%);
-  padding: calc(0.38rem + env(safe-area-inset-top))
-    max(0.85rem, env(safe-area-inset-right)) 0.38rem
-    max(1rem, env(safe-area-inset-left));
+  padding: calc(0.38rem + env(safe-area-inset-top, 0px))
+    max(0.85rem, env(safe-area-inset-right, 0px)) 0.38rem
+    max(1rem, env(safe-area-inset-left, 0px));
   background: rgb(237 244 242 / 88%);
   backdrop-filter: blur(0.8rem);
   box-shadow: 0 0.75rem 2rem rgb(15 23 42 / 8%);
@@ -167,9 +167,9 @@ h2 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.25rem;
   border-top: 1px solid rgb(148 163 184 / 24%);
-  padding: 0.5rem max(1rem, env(safe-area-inset-right))
-    calc(0.5rem + env(safe-area-inset-bottom))
-    max(1rem, env(safe-area-inset-left));
+  padding: 0.5rem max(1rem, env(safe-area-inset-right, 0px))
+    calc(0.75rem + env(safe-area-inset-bottom, 0px))
+    max(1rem, env(safe-area-inset-left, 0px));
   background: rgb(255 255 255 / 90%);
   backdrop-filter: blur(0.8rem);
   box-shadow: 0 -0.75rem 2rem rgb(15 23 42 / 8%);

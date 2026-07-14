@@ -113,6 +113,32 @@ export async function replaceSupabaseShoppingItems(items: ShoppingItem[]) {
   return true;
 }
 
+export function subscribeToSupabaseShoppingItems(onChange: () => void) {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return () => undefined;
+  }
+
+  const channel = getSupabaseClient(config)
+    .channel(`shopping_items:${config.listId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_items",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
+    .subscribe();
+
+  return () => {
+    void getSupabaseClient(config).removeChannel(channel);
+  };
+}
+
 export function mapRowToShoppingItem(row: ShoppingItemRow): ShoppingItem {
   return {
     id: row.id,

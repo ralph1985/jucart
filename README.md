@@ -108,4 +108,4 @@ El Hito 15 pule la experiencia visual con resumen de lista, panel superior compa
 El Hito 16 hace más rápido el modo compra: tocar una tarjeta alterna entre pendiente y comprado.
 
 El Hito 17 inicia la transición a Supabase remoto: añade configuración, migración de `shopping_items`, variables de entorno y scripts para publicar el esquema en el proyecto remoto.
-La interfaz usa Supabase cuando `.env.local` tiene URL, key y `list_id`; si no están configurados o Supabase falla, Dexie mantiene la lista local como fallback.
+La interfaz usa Supabase cuando `.env.local` tiene URL, key y `list_id`; si no están configurados o Supabase falla, Dexie mantiene la lista local como fallback. Realtime refresca la lista cuando otro dispositivo cambia productos.

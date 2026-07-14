@@ -169,3 +169,4 @@
 - [x] Conectar la interfaz a Supabase.
 - [x] Mantener Dexie como fallback local durante la transición.
 - [x] Añadir tests razonables del adaptador Supabase.
+- [x] Suscribirse a Realtime para refrescar cambios remotos.

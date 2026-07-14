@@ -30,6 +30,7 @@ import {
   getStoredShoppingItems,
   replaceStoredShoppingItems,
 } from "./shoppingItemsDb";
+import { subscribeToSupabaseShoppingItems } from "./shoppingItemsSupabase";
 
 const selectedSectionStorageKey = "jucart:selected-section-id";
 const selectedUserStorageKey = "jucart:selected-user-id";
@@ -155,6 +156,7 @@ export function App() {
   const previousItemIdsRef = useRef<Set<string>>(new Set());
   const previousUndoKeyRef = useRef<string | null>(null);
   const undoItemRef = useRef<HTMLLIElement>(null);
+  const skipNextStoreRef = useRef(false);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
   const removePurchasedButtonText =
@@ -200,6 +202,11 @@ export function App() {
       return;
     }
 
+    if (skipNextStoreRef.current) {
+      skipNextStoreRef.current = false;
+      return;
+    }
+
     async function storeItems() {
       try {
         await replaceStoredShoppingItems(items);
@@ -211,6 +218,41 @@ export function App() {
 
     void storeItems();
   }, [isLoaded, items]);
+
+  useEffect(() => {
+    if (!isLoaded) {
+      return;
+    }
+
+    let isActive = true;
+
+    async function refreshItemsFromSupabase() {
+      try {
+        const storedItems = await getStoredShoppingItems();
+
+        if (!isActive) {
+          return;
+        }
+
+        skipNextStoreRef.current = true;
+        setItems(storedItems);
+        setStorageError(null);
+      } catch {
+        if (isActive) {
+          setStorageError("No se pudo sincronizar la lista.");
+        }
+      }
+    }
+
+    const unsubscribe = subscribeToSupabaseShoppingItems(() => {
+      void refreshItemsFromSupabase();
+    });
+
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
+  }, [isLoaded]);
 
   useEffect(() => {
     try {

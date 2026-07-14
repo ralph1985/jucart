@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   mapRowToShoppingItem,
   mapShoppingItemToRow,
+  subscribeToSupabaseShoppingItems,
 } from "./shoppingItemsSupabase";
 
 describe("shopping items Supabase adapter", () => {
@@ -71,5 +72,9 @@ describe("shopping items Supabase adapter", () => {
       sectionId: "general",
       addedBy: "rafa",
     });
+  });
+
+  it("does not subscribe to Supabase while running tests", () => {
+    expect(subscribeToSupabaseShoppingItems(() => undefined)()).toBeUndefined();
   });
 });

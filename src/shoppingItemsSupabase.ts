@@ -1,12 +1,14 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  isShoppingSectionId,
+  defaultShoppingSections,
   isShoppingUserId,
   ShoppingItem,
+  ShoppingSection,
   ShoppingSectionId,
   ShoppingUserId,
 } from "./shoppingItems";
+import type { ShoppingData } from "./shoppingItemsDb";
 
 type ShoppingItemRow = {
   id: string;
@@ -15,6 +17,15 @@ type ShoppingItemRow = {
   section_id: string;
   added_by: string;
   purchased: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+type ShoppingSectionRow = {
+  id: string;
+  list_id: string;
+  name: string;
+  position: number;
   created_at: string;
   updated_at: string;
 };
@@ -53,27 +64,45 @@ export function isSupabaseConfigured() {
   return getSupabaseConfig() !== null;
 }
 
-export async function getSupabaseShoppingItems() {
+export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
   const config = getSupabaseConfig();
 
   if (!config) {
     return null;
   }
 
-  const { data, error } = await getSupabaseClient(config)
-    .from("shopping_items")
-    .select("*")
-    .eq("list_id", config.listId)
-    .order("created_at", { ascending: true });
+  const client = getSupabaseClient(config);
+  const [itemsResult, sectionsResult] = await Promise.all([
+    client
+      .from("shopping_items")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("created_at", { ascending: true }),
+    client
+      .from("shopping_sections")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("position", { ascending: true }),
+  ]);
 
-  if (error) {
-    throw error;
+  if (itemsResult.error) {
+    throw itemsResult.error;
   }
 
-  return (data ?? []).map(mapRowToShoppingItem);
+  if (sectionsResult.error) {
+    throw sectionsResult.error;
+  }
+
+  return {
+    items: (itemsResult.data ?? []).map(mapRowToShoppingItem),
+    sections:
+      sectionsResult.data && sectionsResult.data.length > 0
+        ? sectionsResult.data.map(mapRowToShoppingSection)
+        : defaultShoppingSections,
+  };
 }
 
-export async function replaceSupabaseShoppingItems(items: ShoppingItem[]) {
+export async function replaceSupabaseShoppingData(data: ShoppingData) {
   const config = getSupabaseConfig();
 
   if (!config) {
@@ -81,10 +110,44 @@ export async function replaceSupabaseShoppingItems(items: ShoppingItem[]) {
   }
 
   const client = getSupabaseClient(config);
-  const rows = items.map((item) => mapShoppingItemToRow(item, config.listId));
+  const itemRows = data.items.map((item) =>
+    mapShoppingItemToRow(item, config.listId),
+  );
+  const sectionRows = data.sections.map((section, index) =>
+    mapShoppingSectionToRow(section, index, config.listId),
+  );
 
-  if (rows.length > 0) {
-    const { error } = await client.from("shopping_items").upsert(rows);
+  if (sectionRows.length > 0) {
+    const { error } = await client
+      .from("shopping_sections")
+      .upsert(sectionRows);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  let deleteSectionsQuery = client
+    .from("shopping_sections")
+    .delete()
+    .eq("list_id", config.listId);
+
+  if (data.sections.length > 0) {
+    deleteSectionsQuery = deleteSectionsQuery.not(
+      "id",
+      "in",
+      encodePostgrestTextList(data.sections.map((section) => section.id)),
+    );
+  }
+
+  const { error: deleteSectionsError } = await deleteSectionsQuery;
+
+  if (deleteSectionsError) {
+    throw deleteSectionsError;
+  }
+
+  if (itemRows.length > 0) {
+    const { error } = await client.from("shopping_items").upsert(itemRows);
 
     if (error) {
       throw error;
@@ -96,11 +159,11 @@ export async function replaceSupabaseShoppingItems(items: ShoppingItem[]) {
     .delete()
     .eq("list_id", config.listId);
 
-  if (items.length > 0) {
+  if (data.items.length > 0) {
     deleteQuery = deleteQuery.not(
       "id",
       "in",
-      encodePostgrestTextList(items.map((item) => item.id)),
+      encodePostgrestTextList(data.items.map((item) => item.id)),
     );
   }
 
@@ -132,6 +195,16 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
       },
       onChange,
     )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_sections",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
     .subscribe();
 
   return () => {
@@ -151,6 +224,15 @@ export function mapRowToShoppingItem(row: ShoppingItemRow): ShoppingItem {
   };
 }
 
+export function mapRowToShoppingSection(
+  row: Pick<ShoppingSectionRow, "id" | "name">,
+): ShoppingSection {
+  return {
+    id: normalizeSectionId(row.id),
+    name: row.name,
+  };
+}
+
 export function mapShoppingItemToRow(
   item: ShoppingItem,
   listId: string,
@@ -167,6 +249,23 @@ export function mapShoppingItemToRow(
   };
 }
 
+export function mapShoppingSectionToRow(
+  section: ShoppingSection,
+  position: number,
+  listId: string,
+): ShoppingSectionRow {
+  const now = new Date().toISOString();
+
+  return {
+    id: section.id,
+    list_id: listId,
+    name: section.name,
+    position,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
 function getSupabaseClient(config: SupabaseConfig) {
   supabaseClient ??= createClient(config.url, config.anonKey);
 
@@ -174,7 +273,7 @@ function getSupabaseClient(config: SupabaseConfig) {
 }
 
 function normalizeSectionId(value: string): ShoppingSectionId {
-  return isShoppingSectionId(value) ? value : "general";
+  return value.trim() ? value : "general";
 }
 
 function normalizeUserId(value: string): ShoppingUserId {

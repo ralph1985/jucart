@@ -11,13 +11,13 @@ En el Hito 1, Jucart aplica estas reglas antes de añadir un producto:
 
 Esta decisión mantiene rápida la captura de productos y evita entradas accidentales como `leche`, `Leche` y `leche` repetidas. Cantidades y variantes quedan fuera del MVP.
 
-## Secciones por tienda
+## Listas de compra
 
-Jucart usa secciones fijas por tienda: Alcampo, Día, Mercadona, Farmacia y General.
+Jucart organiza los productos en listas por tienda o contexto.
 
-Aunque las categorías estaban fuera del alcance inicial, estas secciones pasan a formar parte del flujo real porque el usuario organiza la compra por lugar. No se implementa gestión dinámica de secciones, drag and drop ni varias listas.
+La aplicación mantiene como listas iniciales Alcampo, Día, Mercadona, Farmacia y General por compatibilidad con el flujo original, pero desde el Hito 20 esas listas se pueden crear, renombrar y reordenar desde una pantalla accesible en el menú inferior.
 
-Los duplicados se bloquean dentro de la misma sección, pero se permite repetir el mismo producto en secciones distintas.
+Los duplicados se bloquean dentro de la misma lista, pero se permite repetir el mismo producto en listas distintas.
 
 La interfaz se organiza como un tablero por columnas: en escritorio se muestran varias columnas a la vez y en móvil cada columna ocupa casi todo el ancho, con desplazamiento lateral.
 
@@ -91,9 +91,11 @@ El encabezado muestra pendientes y comprados, el alta y la limpieza se agrupan e
 
 ## Estructura de aplicación
 
-En el Hito 19, Jucart adopta una estructura más cercana a una app instalada sin añadir rutas ni pantallas.
+En el Hito 19, Jucart adopta una estructura más cercana a una app instalada sin añadir rutas.
 
 La cabecera queda fija para mantener visible marca, resumen y estado de sincronización. El menú inferior da acceso táctil a añadir, lista y limpieza de comprados. La navegación inferior no introduce vistas nuevas: solo salta a zonas de la misma pantalla y mantiene la acción de limpieza existente.
+
+En el Hito 20, el menú inferior añade una vista interna de gestión de listas. Se mantiene sin React Router porque la aplicación sigue siendo pequeña y no necesita URLs por pantalla.
 
 ## Modo compra rápido
 
@@ -117,7 +119,7 @@ El primer paso añade Supabase CLI, configuración, una migración versionada pa
 
 La interfaz mantiene la misma API interna de persistencia. Cuando `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_SUPABASE_LIST_ID` están configurados, lee y guarda en Supabase. Dexie queda como caché local y fallback si falta configuración o falla la red.
 
-Realtime usa Postgres Changes sobre `shopping_items` filtrado por `list_id`. Al recibir un evento remoto, la app recarga la lista completa desde Supabase en lugar de aplicar parches item a item. Para una lista pequeña es más simple y evita inconsistencias entre eventos locales, borrados múltiples y deshacer.
+Realtime usa Postgres Changes sobre `shopping_items` y `shopping_sections` filtrado por `list_id`. Al recibir un evento remoto, la app recarga los datos completos desde Supabase en lugar de aplicar parches item a item. Para una lista pequeña es más simple y evita inconsistencias entre eventos locales, borrados múltiples, cambios de orden y deshacer.
 
 En el Hito 18, la UI muestra un estado discreto de sincronización. La app también evita guardar automáticamente justo después de la carga inicial, para no reenviar una lista recién cargada ni arriesgar que una caché local antigua pise datos remotos al arrancar. La capa de persistencia informa si el último acceso fue remoto, local o fallback local.
 

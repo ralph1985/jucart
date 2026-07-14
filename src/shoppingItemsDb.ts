@@ -1,28 +1,37 @@
 import Dexie, { Table } from "dexie";
 
 import {
+  defaultShoppingSections,
   isShoppingUserId,
-  isShoppingSectionId,
   ShoppingItem,
+  ShoppingSection,
   ShoppingSectionId,
   ShoppingUserId,
 } from "./shoppingItems";
 import {
-  getSupabaseShoppingItems,
+  getSupabaseShoppingData,
   isSupabaseConfigured,
-  replaceSupabaseShoppingItems,
+  replaceSupabaseShoppingData,
 } from "./shoppingItemsSupabase";
 
 type StoredShoppingItem = Omit<ShoppingItem, "sectionId" | "addedBy"> & {
   sectionId?: ShoppingSectionId;
   addedBy?: ShoppingUserId;
 };
+type StoredShoppingSection = ShoppingSection & {
+  position: number;
+};
 export type ShoppingItemsStorageMode = "local" | "remote" | "fallback";
+export type ShoppingData = {
+  items: ShoppingItem[];
+  sections: ShoppingSection[];
+};
 
 let lastStorageMode: ShoppingItemsStorageMode = "local";
 
 class JucartDatabase extends Dexie {
   shoppingItems!: Table<StoredShoppingItem, string>;
+  shoppingSections!: Table<StoredShoppingSection, string>;
 
   constructor() {
     super("jucart");
@@ -38,6 +47,11 @@ class JucartDatabase extends Dexie {
     this.version(3).stores({
       shoppingItems: "id, sectionId, addedBy, createdAt, updatedAt, purchased",
     });
+
+    this.version(4).stores({
+      shoppingItems: "id, sectionId, addedBy, createdAt, updatedAt, purchased",
+      shoppingSections: "id, position",
+    });
   }
 }
 
@@ -47,48 +61,67 @@ export function getShoppingItemsStorageMode() {
   return lastStorageMode;
 }
 
-export async function getStoredShoppingItems() {
+export async function getStoredShoppingData(): Promise<ShoppingData> {
   if (isSupabaseConfigured()) {
     try {
-      const remoteItems = await getSupabaseShoppingItems();
+      const remoteData = await getSupabaseShoppingData();
 
-      if (remoteItems) {
-        await replaceLocalShoppingItems(remoteItems);
+      if (remoteData) {
+        await replaceLocalShoppingData(remoteData);
         lastStorageMode = "remote";
 
-        return remoteItems;
+        return remoteData;
       }
     } catch {
       lastStorageMode = "fallback";
-      return getLocalShoppingItems();
+      return getLocalShoppingData();
     }
   }
 
   lastStorageMode = "local";
-  return getLocalShoppingItems();
+  return getLocalShoppingData();
 }
 
-export async function replaceStoredShoppingItems(items: ShoppingItem[]) {
+export async function getStoredShoppingItems() {
+  return (await getStoredShoppingData()).items;
+}
+
+export async function replaceStoredShoppingData(data: ShoppingData) {
   if (isSupabaseConfigured()) {
     try {
-      await replaceSupabaseShoppingItems(items);
+      await replaceSupabaseShoppingData(data);
       lastStorageMode = "remote";
     } catch {
-      await replaceLocalShoppingItems(items);
+      await replaceLocalShoppingData(data);
       lastStorageMode = "fallback";
       return;
     }
   }
 
-  await replaceLocalShoppingItems(items);
+  await replaceLocalShoppingData(data);
 
   if (!isSupabaseConfigured()) {
     lastStorageMode = "local";
   }
 }
 
+export async function replaceStoredShoppingItems(items: ShoppingItem[]) {
+  await replaceStoredShoppingData({
+    items,
+    sections: defaultShoppingSections,
+  });
+}
+
 export async function resetShoppingItemsDatabase() {
-  await db.shoppingItems.clear();
+  await db.transaction(
+    "rw",
+    db.shoppingItems,
+    db.shoppingSections,
+    async () => {
+      await db.shoppingItems.clear();
+      await db.shoppingSections.clear();
+    },
+  );
 }
 
 async function getLocalShoppingItems() {
@@ -97,20 +130,52 @@ async function getLocalShoppingItems() {
   return items.map(normalizeStoredShoppingItem);
 }
 
-async function replaceLocalShoppingItems(items: ShoppingItem[]) {
-  await db.transaction("rw", db.shoppingItems, async () => {
-    await db.shoppingItems.clear();
-    await db.shoppingItems.bulkAdd(items);
-  });
+async function getLocalShoppingData() {
+  const [items, sections] = await Promise.all([
+    getLocalShoppingItems(),
+    getLocalShoppingSections(),
+  ]);
+
+  return { items, sections };
+}
+
+async function getLocalShoppingSections() {
+  const sections = await db.shoppingSections.orderBy("position").toArray();
+
+  return sections.length > 0
+    ? sections.map(normalizeStoredSection)
+    : defaultShoppingSections;
+}
+
+async function replaceLocalShoppingData(data: ShoppingData) {
+  await db.transaction(
+    "rw",
+    db.shoppingItems,
+    db.shoppingSections,
+    async () => {
+      await db.shoppingItems.clear();
+      await db.shoppingSections.clear();
+      await db.shoppingItems.bulkAdd(data.items);
+      await db.shoppingSections.bulkAdd(
+        data.sections.map((section, position) => ({ ...section, position })),
+      );
+    },
+  );
+}
+
+function normalizeStoredSection(
+  section: StoredShoppingSection,
+): ShoppingSection {
+  return {
+    id: section.id,
+    name: section.name,
+  };
 }
 
 function normalizeStoredShoppingItem(item: StoredShoppingItem): ShoppingItem {
   return {
     ...item,
-    sectionId:
-      item.sectionId && isShoppingSectionId(item.sectionId)
-        ? item.sectionId
-        : "general",
+    sectionId: item.sectionId?.trim() ? item.sectionId : "general",
     addedBy:
       item.addedBy && isShoppingUserId(item.addedBy) ? item.addedBy : "rafa",
   };

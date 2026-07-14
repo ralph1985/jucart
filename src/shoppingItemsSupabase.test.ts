@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   mapRowToShoppingItem,
+  mapRowToShoppingSection,
   mapShoppingItemToRow,
+  mapShoppingSectionToRow,
   subscribeToSupabaseShoppingItems,
 } from "./shoppingItemsSupabase";
 
@@ -56,7 +58,7 @@ describe("shopping items Supabase adapter", () => {
     });
   });
 
-  it("normalizes unknown section and user values from Supabase", () => {
+  it("keeps custom section ids and normalizes unknown users from Supabase", () => {
     expect(
       mapRowToShoppingItem({
         id: "item-1",
@@ -69,8 +71,38 @@ describe("shopping items Supabase adapter", () => {
         updated_at: "2026-07-14T10:00:00.000Z",
       }),
     ).toMatchObject({
-      sectionId: "general",
+      sectionId: "unknown",
       addedBy: "rafa",
+    });
+  });
+
+  it("maps Supabase section rows", () => {
+    expect(
+      mapRowToShoppingSection({
+        id: "fruteria",
+        name: "Frutería",
+      }),
+    ).toEqual({
+      id: "fruteria",
+      name: "Frutería",
+    });
+  });
+
+  it("maps shopping sections to Supabase rows", () => {
+    expect(
+      mapShoppingSectionToRow(
+        {
+          id: "fruteria",
+          name: "Frutería",
+        },
+        2,
+        "00000000-0000-4000-8000-000000000001",
+      ),
+    ).toMatchObject({
+      id: "fruteria",
+      list_id: "00000000-0000-4000-8000-000000000001",
+      name: "Frutería",
+      position: 2,
     });
   });
 

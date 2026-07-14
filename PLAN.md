@@ -183,4 +183,15 @@
 - [x] Mantener la cabecera visible durante el uso.
 - [x] Añadir un logo compacto en la cabecera.
 - [x] Añadir menú inferior para acciones principales.
-- [x] Mantener una sola pantalla sin rutas.
+- [x] Mantener navegación interna sin rutas.
+
+## Hito 20 — Gestión de listas
+
+- [x] Añadir una pantalla accesible desde el menú inferior para gestionar listas.
+- [x] Permitir dar de alta nuevas listas.
+- [x] Permitir renombrar listas existentes.
+- [x] Permitir reordenar listas.
+- [x] Persistir las listas en IndexedDB.
+- [x] Sincronizar las listas con Supabase remoto.
+- [x] Mantener compatibilidad con las listas iniciales.
+- [x] Añadir tests razonables de lógica, persistencia e interfaz.

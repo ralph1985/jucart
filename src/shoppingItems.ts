@@ -1,12 +1,17 @@
-export const shoppingSections = [
+export type ShoppingSectionId = string;
+
+export type ShoppingSection = {
+  id: ShoppingSectionId;
+  name: string;
+};
+
+export const defaultShoppingSections: ShoppingSection[] = [
   { id: "alcampo", name: "Alcampo" },
   { id: "dia", name: "Día" },
   { id: "mercadona", name: "Mercadona" },
   { id: "farmacia", name: "Farmacia" },
   { id: "general", name: "General" },
-] as const;
-
-export type ShoppingSectionId = (typeof shoppingSections)[number]["id"];
+];
 
 export const shoppingUsers = [
   { id: "rafa", name: "Rafa" },
@@ -29,8 +34,11 @@ export function normalizeItemName(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
 
-export function isShoppingSectionId(value: string): value is ShoppingSectionId {
-  return shoppingSections.some((section) => section.id === value);
+export function isShoppingSectionId(
+  value: string,
+  sections: ShoppingSection[] = defaultShoppingSections,
+): value is ShoppingSectionId {
+  return sections.some((section) => section.id === value);
 }
 
 export function isShoppingUserId(value: string): value is ShoppingUserId {
@@ -61,6 +69,86 @@ export function createShoppingItemId() {
   }
 
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+export function createShoppingSectionId() {
+  return `section-${createShoppingItemId()}`;
+}
+
+export function addShoppingSection(
+  sections: ShoppingSection[],
+  rawName: string,
+  createId: () => string = createShoppingSectionId,
+) {
+  const name = normalizeItemName(rawName);
+
+  if (!name || hasSectionWithName(sections, name)) {
+    return sections;
+  }
+
+  return [...sections, { id: createId(), name }];
+}
+
+export function renameShoppingSection(
+  sections: ShoppingSection[],
+  sectionId: ShoppingSectionId,
+  rawName: string,
+) {
+  const name = normalizeItemName(rawName);
+
+  if (!name) {
+    return sections;
+  }
+
+  const sectionToUpdate = sections.find((section) => section.id === sectionId);
+
+  if (!sectionToUpdate || sectionToUpdate.name === name) {
+    return sections;
+  }
+
+  if (
+    sections.some(
+      (section) =>
+        section.id !== sectionId &&
+        section.name.toLocaleLowerCase("es-ES") ===
+          name.toLocaleLowerCase("es-ES"),
+    )
+  ) {
+    return sections;
+  }
+
+  return sections.map((section) =>
+    section.id === sectionId ? { ...section, name } : section,
+  );
+}
+
+export function moveShoppingSection(
+  sections: ShoppingSection[],
+  sectionId: ShoppingSectionId,
+  direction: -1 | 1,
+) {
+  const currentIndex = sections.findIndex(
+    (section) => section.id === sectionId,
+  );
+  const nextIndex = currentIndex + direction;
+
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= sections.length) {
+    return sections;
+  }
+
+  const nextSections = [...sections];
+  const [section] = nextSections.splice(currentIndex, 1);
+  nextSections.splice(nextIndex, 0, section);
+
+  return nextSections;
+}
+
+function hasSectionWithName(sections: ShoppingSection[], rawName: string) {
+  const name = normalizeItemName(rawName).toLocaleLowerCase("es-ES");
+
+  return sections.some(
+    (section) => section.name.toLocaleLowerCase("es-ES") === name,
+  );
 }
 
 export function addShoppingItem(

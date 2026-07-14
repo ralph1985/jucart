@@ -233,6 +233,40 @@ describe("App", () => {
     expect(productInput).toHaveFocus();
   });
 
+  it("manages shopping lists from the bottom navigation", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
+
+    expect(screen.getByRole("heading", { name: "Listas" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Nueva lista"), {
+      target: { value: "Frutería" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Crear" }));
+
+    expect(screen.getByLabelText("Nombre de Frutería")).toHaveValue("Frutería");
+
+    fireEvent.change(screen.getByLabelText("Nombre de General"), {
+      target: { value: "Varios" },
+    });
+
+    expect(screen.getByLabelText("Nombre de Varios")).toHaveValue("Varios");
+
+    fireEvent.click(screen.getByRole("button", { name: "Subir Frutería" }));
+
+    const listNameInputs = screen
+      .getAllByLabelText(/^Nombre de /)
+      .map((input) => (input as HTMLInputElement).value);
+
+    expect(listNameInputs.at(-2)).toBe("Frutería");
+    expect(listNameInputs.at(-1)).toBe("Varios");
+  });
+
   it("uses haptic feedback for high-intent actions", async () => {
     const vibrate = vi.fn();
 

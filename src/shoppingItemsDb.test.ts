@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   getShoppingItemsStorageMode,
+  getStoredShoppingData,
   getStoredShoppingItems,
+  replaceStoredShoppingData,
   replaceStoredShoppingItems,
   resetShoppingItemsDatabase,
 } from "./shoppingItemsDb";
@@ -78,5 +80,23 @@ describe("shopping items database", () => {
     await replaceStoredShoppingItems([]);
 
     expect(getShoppingItemsStorageMode()).toBe("local");
+  });
+
+  it("stores and reads custom shopping sections", async () => {
+    await replaceStoredShoppingData({
+      items: [],
+      sections: [
+        { id: "mercadona", name: "Mercadona" },
+        { id: "fruteria", name: "Frutería" },
+      ],
+    });
+
+    await expect(getStoredShoppingData()).resolves.toEqual({
+      items: [],
+      sections: [
+        { id: "mercadona", name: "Mercadona" },
+        { id: "fruteria", name: "Frutería" },
+      ],
+    });
   });
 });

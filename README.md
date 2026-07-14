@@ -8,8 +8,8 @@ El objetivo del MVP es que añadir un producto sea más rápido que escribirlo e
 
 - Mobile first.
 - Offline first.
-- Una única pantalla.
-- Secciones fijas por tienda: Alcampo, Día, Mercadona, Farmacia y General.
+- Navegación interna simple, sin rutas.
+- Listas configurables para organizar la compra por tienda o contexto.
 - Tablero por columnas, con desplazamiento lateral en móvil.
 - Código sencillo de entender y modificar.
 - Sin backend, login, usuarios ni sincronización entre dispositivos en el MVP.
@@ -113,3 +113,5 @@ La interfaz usa Supabase cuando `.env.local` tiene URL, key y `list_id`; si no e
 El Hito 18 endurece la sincronización con un estado visible y evita guardar de vuelta justo después de cargar datos.
 
 El Hito 19 hace que Jucart se sienta más como una aplicación instalada: cabecera fija, logo compacto y menú inferior para acciones principales.
+
+El Hito 20 añade gestión de listas desde el menú inferior: crear, renombrar y reordenar listas. Las listas se guardan en IndexedDB y se sincronizan con Supabase junto con los productos.

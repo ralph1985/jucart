@@ -1,8 +1,11 @@
 import {
   addShoppingItem,
+  addShoppingSection,
   createShoppingItemId,
   hasItemWithName,
+  moveShoppingSection,
   normalizeItemName,
+  renameShoppingSection,
   removePurchasedShoppingItems,
   removeShoppingItem,
   ShoppingItem,
@@ -187,5 +190,48 @@ describe("shopping item logic", () => {
     expect(
       sortShoppingItemsForShopping([purchasedItem, baseItem, pendingItem]),
     ).toEqual([baseItem, pendingItem, purchasedItem]);
+  });
+
+  it("adds normalized shopping sections", () => {
+    expect(
+      addShoppingSection(
+        [{ id: "mercadona", name: "Mercadona" }],
+        "  Frutería  ",
+        () => "fruteria",
+      ),
+    ).toEqual([
+      { id: "mercadona", name: "Mercadona" },
+      { id: "fruteria", name: "Frutería" },
+    ]);
+  });
+
+  it("renames shopping sections without duplicating names", () => {
+    const sections = [
+      { id: "mercadona", name: "Mercadona" },
+      { id: "general", name: "General" },
+    ];
+
+    expect(renameShoppingSection(sections, "general", "Varios")).toEqual([
+      { id: "mercadona", name: "Mercadona" },
+      { id: "general", name: "Varios" },
+    ]);
+    expect(renameShoppingSection(sections, "general", "mercadona")).toBe(
+      sections,
+    );
+  });
+
+  it("reorders shopping sections", () => {
+    const sections = [
+      { id: "alcampo", name: "Alcampo" },
+      { id: "mercadona", name: "Mercadona" },
+      { id: "general", name: "General" },
+    ];
+
+    expect(moveShoppingSection(sections, "general", -1)).toEqual([
+      { id: "alcampo", name: "Alcampo" },
+      { id: "general", name: "General" },
+      { id: "mercadona", name: "Mercadona" },
+    ]);
+    expect(moveShoppingSection(sections, "alcampo", -1)).toBe(sections);
   });
 });

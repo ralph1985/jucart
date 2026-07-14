@@ -1,5 +1,6 @@
 import {
   FormEvent,
+  ChangeEvent,
   KeyboardEvent,
   MouseEvent,
   UIEvent,
@@ -12,15 +13,19 @@ import { animate, stagger } from "animejs";
 import styles from "./App.module.scss";
 import {
   addShoppingItem,
+  addShoppingSection,
+  defaultShoppingSections,
+  moveShoppingSection,
   getShoppingUserName,
   isShoppingSectionId,
   isShoppingUserId,
   removePurchasedShoppingItems,
   removeShoppingItem,
+  renameShoppingSection,
   ShoppingItem,
+  ShoppingSection,
   ShoppingSectionId,
   ShoppingUserId,
-  shoppingSections,
   shoppingUsers,
   sortShoppingItemsForShopping,
   toggleShoppingItem,
@@ -28,8 +33,8 @@ import {
 } from "./shoppingItems";
 import {
   getShoppingItemsStorageMode,
-  getStoredShoppingItems,
-  replaceStoredShoppingItems,
+  getStoredShoppingData,
+  replaceStoredShoppingData,
 } from "./shoppingItemsDb";
 import {
   isSupabaseConfigured,
@@ -38,6 +43,8 @@ import {
 
 const selectedSectionStorageKey = "jucart:selected-section-id";
 const selectedUserStorageKey = "jucart:selected-user-id";
+
+type AppView = "shopping" | "sections";
 
 type IconName =
   | "check"
@@ -48,6 +55,9 @@ type IconName =
   | "close"
   | "plus"
   | "list"
+  | "settings"
+  | "arrowUp"
+  | "arrowDown"
   | "sync";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 type HapticFeedback = "light" | "medium" | "success" | "warning";
@@ -82,6 +92,12 @@ function Icon({ name }: { name: IconName }) {
       "M3 12h.01",
       "M3 18h.01",
     ],
+    settings: [
+      "M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
+      "M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c0 .4.21.77.6 1 .3.26.68.4 1.1.4H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51.6z",
+    ],
+    arrowUp: ["M12 19V5", "M5 12l7-7 7 7"],
+    arrowDown: ["M12 5v14", "M19 12l-7 7-7-7"],
     sync: [
       "M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4",
       "M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4",
@@ -257,8 +273,13 @@ function getSyncStatusFromStorageMode() {
 }
 
 export function App() {
+  const [activeView, setActiveView] = useState<AppView>("shopping");
   const [items, setItems] = useState<ShoppingItem[]>([]);
+  const [sections, setSections] = useState<ShoppingSection[]>(
+    defaultShoppingSections,
+  );
   const [itemName, setItemName] = useState("");
+  const [sectionName, setSectionName] = useState("");
   const [selectedSectionId, setSelectedSectionId] = useState<ShoppingSectionId>(
     getInitialSelectedSectionId,
   );
@@ -280,6 +301,7 @@ export function App() {
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
   const boardRef = useRef<HTMLElement>(null);
   const clearDialogRef = useRef<HTMLDivElement>(null);
+  const sectionNameInputRef = useRef<HTMLInputElement>(null);
   const sectionColumnRefs = useRef<
     Partial<Record<ShoppingSectionId, HTMLElement>>
   >({});
@@ -308,11 +330,17 @@ export function App() {
 
     async function loadItems() {
       try {
-        const storedItems = await getStoredShoppingItems();
+        const storedData = await getStoredShoppingData();
 
         if (isActive) {
           skipNextStoreRef.current = true;
-          setItems(storedItems);
+          setItems(storedData.items);
+          setSections(storedData.sections);
+          setSelectedSectionId((currentSectionId) =>
+            isShoppingSectionId(currentSectionId, storedData.sections)
+              ? currentSectionId
+              : storedData.sections[0]?.id || "general",
+          );
           setStorageError(null);
           setSyncStatus(getSyncStatusFromStorageMode());
         }
@@ -348,7 +376,7 @@ export function App() {
     async function storeItems() {
       try {
         setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
-        await replaceStoredShoppingItems(items);
+        await replaceStoredShoppingData({ items, sections });
         setStorageError(null);
         setSyncStatus(getSyncStatusFromStorageMode());
       } catch {
@@ -358,7 +386,7 @@ export function App() {
     }
 
     void storeItems();
-  }, [isLoaded, items]);
+  }, [isLoaded, items, sections]);
 
   useEffect(() => {
     if (!isLoaded) {
@@ -369,14 +397,20 @@ export function App() {
 
     async function refreshItemsFromSupabase() {
       try {
-        const storedItems = await getStoredShoppingItems();
+        const storedData = await getStoredShoppingData();
 
         if (!isActive) {
           return;
         }
 
         skipNextStoreRef.current = true;
-        setItems(storedItems);
+        setItems(storedData.items);
+        setSections(storedData.sections);
+        setSelectedSectionId((currentSectionId) =>
+          isShoppingSectionId(currentSectionId, storedData.sections)
+            ? currentSectionId
+            : storedData.sections[0]?.id || "general",
+        );
         setStorageError(null);
         setSyncStatus(getSyncStatusFromStorageMode());
       } catch {
@@ -449,7 +483,7 @@ export function App() {
       return;
     }
 
-    const columns = shoppingSections
+    const columns = sections
       .map((section) => sectionColumnRefs.current[section.id])
       .filter((column): column is HTMLElement => Boolean(column));
 
@@ -465,7 +499,7 @@ export function App() {
       delay: stagger(55),
       ease: "outCubic",
     });
-  }, [isLoaded]);
+  }, [isLoaded, sections]);
 
   useEffect(() => {
     const selectedColumn = sectionColumnRefs.current[selectedSectionId];
@@ -696,7 +730,7 @@ export function App() {
       return;
     }
 
-    const nextSection = shoppingSections.reduce<{
+    const nextSection = sections.reduce<{
       distance: number;
       id: ShoppingSectionId;
     } | null>((closestSection, section) => {
@@ -727,6 +761,59 @@ export function App() {
 
     setSelectedSectionId(sectionId);
     runHapticFeedback("light");
+  }
+
+  function showSectionsView() {
+    setActiveView("sections");
+    runHapticFeedback("light");
+    window.setTimeout(() => sectionNameInputRef.current?.focus(), 0);
+  }
+
+  function showShoppingView() {
+    setActiveView("shopping");
+    runHapticFeedback("light");
+  }
+
+  function handleSectionNameChange(
+    sectionId: ShoppingSectionId,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const nextSections = renameShoppingSection(
+      sections,
+      sectionId,
+      event.target.value,
+    );
+
+    if (nextSections !== sections) {
+      setSections(nextSections);
+    }
+  }
+
+  function handleSectionSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const nextSections = addShoppingSection(sections, sectionName);
+
+    if (nextSections === sections) {
+      return;
+    }
+
+    runHapticFeedback("success");
+    setSections(nextSections);
+    setSelectedSectionId(nextSections[nextSections.length - 1].id);
+    setSectionName("");
+    sectionNameInputRef.current?.focus();
+  }
+
+  function handleMoveSection(sectionId: ShoppingSectionId, direction: -1 | 1) {
+    const nextSections = moveShoppingSection(sections, sectionId, direction);
+
+    if (nextSections === sections) {
+      return;
+    }
+
+    runHapticFeedback("medium");
+    setSections(nextSections);
   }
 
   function handleColumnKeyDown(
@@ -935,83 +1022,85 @@ export function App() {
         </div>
       </section>
 
-      <section
-        id="add-product"
-        className={styles.commandPanel}
-        aria-label="Añadir producto"
-      >
-        <form className={styles.form} onSubmit={handleSubmit}>
-          <div className={styles.formOptions}>
-            <div className={styles.formField}>
-              <label className={styles.label} htmlFor="section-id">
-                Sección
-              </label>
-              <select
-                id="section-id"
-                className={styles.select}
-                value={selectedSectionId}
-                onChange={(event) =>
-                  selectSection(event.target.value as ShoppingSectionId)
-                }
-                disabled={!isLoaded}
-              >
-                {shoppingSections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.name}
-                  </option>
-                ))}
-              </select>
+      {activeView === "shopping" ? (
+        <section
+          id="add-product"
+          className={styles.commandPanel}
+          aria-label="Añadir producto"
+        >
+          <form className={styles.form} onSubmit={handleSubmit}>
+            <div className={styles.formOptions}>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="section-id">
+                  Sección
+                </label>
+                <select
+                  id="section-id"
+                  className={styles.select}
+                  value={selectedSectionId}
+                  onChange={(event) =>
+                    selectSection(event.target.value as ShoppingSectionId)
+                  }
+                  disabled={!isLoaded}
+                >
+                  {sections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="user-id">
+                  Añadido por
+                </label>
+                <select
+                  id="user-id"
+                  className={styles.select}
+                  value={selectedUserId}
+                  onChange={(event) =>
+                    setSelectedUserId(event.target.value as ShoppingUserId)
+                  }
+                  disabled={!isLoaded}
+                >
+                  {shoppingUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className={styles.formField}>
-              <label className={styles.label} htmlFor="user-id">
-                Añadido por
+              <label className={styles.label} htmlFor="item-name">
+                Producto
               </label>
-              <select
-                id="user-id"
-                className={styles.select}
-                value={selectedUserId}
-                onChange={(event) =>
-                  setSelectedUserId(event.target.value as ShoppingUserId)
-                }
-                disabled={!isLoaded}
-              >
-                {shoppingUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))}
-              </select>
+              <div className={styles.addRow}>
+                <input
+                  id="item-name"
+                  ref={itemNameInputRef}
+                  className={styles.input}
+                  autoComplete="off"
+                  autoFocus
+                  value={itemName}
+                  onChange={(event) => setItemName(event.target.value)}
+                  placeholder="Leche, pan, fruta..."
+                  type="text"
+                  disabled={!isLoaded}
+                />
+                <button
+                  className={styles.primaryButton}
+                  type="submit"
+                  onPointerDown={handleButtonPointerDown}
+                  disabled={!isLoaded}
+                >
+                  Añadir
+                </button>
+              </div>
             </div>
-          </div>
-          <div className={styles.formField}>
-            <label className={styles.label} htmlFor="item-name">
-              Producto
-            </label>
-            <div className={styles.addRow}>
-              <input
-                id="item-name"
-                ref={itemNameInputRef}
-                className={styles.input}
-                autoComplete="off"
-                autoFocus
-                value={itemName}
-                onChange={(event) => setItemName(event.target.value)}
-                placeholder="Leche, pan, fruta..."
-                type="text"
-                disabled={!isLoaded}
-              />
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-                disabled={!isLoaded}
-              >
-                Añadir
-              </button>
-            </div>
-          </div>
-        </form>
-      </section>
+          </form>
+        </section>
+      ) : null}
 
       {!isLoaded ? (
         <p className={styles.status} role="status" aria-live="polite">
@@ -1023,77 +1112,196 @@ export function App() {
         </p>
       ) : null}
 
-      <section
-        id="shopping-board"
-        ref={boardRef}
-        className={styles.board}
-        aria-label="Lista por secciones"
-        onScroll={handleBoardScroll}
-        tabIndex={0}
-      >
-        {shoppingSections.map((section) => {
-          const sectionItems = items.filter(
-            (item) => item.sectionId === section.id,
-          );
-          const removedSectionItems = lastRemovedItems.filter(
-            (item) => item.sectionId === section.id,
-          );
-          const pendingCount = sectionItems.filter(
-            (item) => !item.purchased,
-          ).length;
+      {activeView === "shopping" ? (
+        <section
+          id="shopping-board"
+          ref={boardRef}
+          className={styles.board}
+          aria-label="Lista por secciones"
+          onScroll={handleBoardScroll}
+          tabIndex={0}
+        >
+          {sections.map((section) => {
+            const sectionItems = items.filter(
+              (item) => item.sectionId === section.id,
+            );
+            const removedSectionItems = lastRemovedItems.filter(
+              (item) => item.sectionId === section.id,
+            );
+            const pendingCount = sectionItems.filter(
+              (item) => !item.purchased,
+            ).length;
 
-          return (
-            <article
-              ref={(column) => {
-                if (column) {
-                  sectionColumnRefs.current[section.id] = column;
+            return (
+              <article
+                ref={(column) => {
+                  if (column) {
+                    sectionColumnRefs.current[section.id] = column;
+                  }
+                }}
+                className={
+                  selectedSectionId === section.id
+                    ? `${styles.column} ${styles.columnSelected}`
+                    : styles.column
                 }
-              }}
-              className={
-                selectedSectionId === section.id
-                  ? `${styles.column} ${styles.columnSelected}`
-                  : styles.column
-              }
-              aria-current={
-                selectedSectionId === section.id ? "true" : undefined
-              }
-              aria-labelledby={`section-${section.id}-title`}
-              key={section.id}
-              onClick={() => selectSection(section.id)}
-              onKeyDown={(event) => handleColumnKeyDown(event, section.id)}
-              tabIndex={0}
-            >
-              <div className={styles.sectionHeader}>
-                <h2 id={`section-${section.id}-title`}>{section.name}</h2>
-                <span
-                  className={styles.count}
-                  aria-label={`${pendingCount} productos pendientes`}
-                >
-                  {pendingCount}
-                </span>
-              </div>
-              {renderItems(sectionItems, removedSectionItems)}
-            </article>
-          );
-        })}
-      </section>
+                aria-current={
+                  selectedSectionId === section.id ? "true" : undefined
+                }
+                aria-labelledby={`section-${section.id}-title`}
+                key={section.id}
+                onClick={() => selectSection(section.id)}
+                onKeyDown={(event) => handleColumnKeyDown(event, section.id)}
+                tabIndex={0}
+              >
+                <div className={styles.sectionHeader}>
+                  <h2 id={`section-${section.id}-title`}>{section.name}</h2>
+                  <span
+                    className={styles.count}
+                    aria-label={`${pendingCount} productos pendientes`}
+                  >
+                    {pendingCount}
+                  </span>
+                </div>
+                {renderItems(sectionItems, removedSectionItems)}
+              </article>
+            );
+          })}
+        </section>
+      ) : (
+        <section
+          className={styles.sectionsScreen}
+          aria-labelledby="sections-title"
+        >
+          <div className={styles.sectionsHeader}>
+            <h2 id="sections-title">Listas</h2>
+            <span className={styles.count}>{sections.length}</span>
+          </div>
+          <form
+            className={styles.sectionCreateForm}
+            onSubmit={handleSectionSubmit}
+          >
+            <label className={styles.label} htmlFor="section-name">
+              Nueva lista
+            </label>
+            <div className={styles.addRow}>
+              <input
+                id="section-name"
+                ref={sectionNameInputRef}
+                className={styles.input}
+                autoComplete="off"
+                value={sectionName}
+                onChange={(event) => setSectionName(event.target.value)}
+                placeholder="Carrefour, frutería..."
+                type="text"
+                disabled={!isLoaded}
+              />
+              <button
+                className={styles.primaryButton}
+                type="submit"
+                onPointerDown={handleButtonPointerDown}
+                disabled={!isLoaded}
+              >
+                Crear
+              </button>
+            </div>
+          </form>
+          <ol className={styles.sectionManagerList}>
+            {sections.map((section, index) => (
+              <li className={styles.sectionManagerItem} key={section.id}>
+                <span className={styles.sectionPosition}>{index + 1}</span>
+                <input
+                  className={styles.input}
+                  aria-label={`Nombre de ${section.name}`}
+                  value={section.name}
+                  onChange={(event) =>
+                    handleSectionNameChange(section.id, event)
+                  }
+                  disabled={!isLoaded}
+                  type="text"
+                />
+                <div className={styles.sectionActions}>
+                  <button
+                    className={styles.iconButton}
+                    type="button"
+                    aria-label={`Subir ${section.name}`}
+                    title="Subir"
+                    onPointerDown={handleButtonPointerDown}
+                    onClick={() => handleMoveSection(section.id, -1)}
+                    disabled={!isLoaded || index === 0}
+                  >
+                    <Icon name="arrowUp" />
+                  </button>
+                  <button
+                    className={styles.iconButton}
+                    type="button"
+                    aria-label={`Bajar ${section.name}`}
+                    title="Bajar"
+                    onPointerDown={handleButtonPointerDown}
+                    onClick={() => handleMoveSection(section.id, 1)}
+                    disabled={!isLoaded || index === sections.length - 1}
+                  >
+                    <Icon name="arrowDown" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <nav className={styles.bottomNav} aria-label="Navegación principal">
         <button
-          className={styles.bottomNavItem}
+          className={
+            activeView === "shopping"
+              ? styles.bottomNavItemActive
+              : styles.bottomNavItem
+          }
           type="button"
           aria-label="Ir a añadir producto"
           onPointerDown={handleButtonPointerDown}
-          onClick={focusAddProductField}
+          onClick={() => {
+            if (activeView !== "shopping") {
+              showShoppingView();
+              window.setTimeout(focusAddProductField, 0);
+              return;
+            }
+
+            focusAddProductField();
+          }}
           disabled={!isLoaded}
         >
           <Icon name="plus" />
           <span>Añadir</span>
         </button>
-        <a className={styles.bottomNavItemActive} href="#shopping-board">
+        <button
+          className={
+            activeView === "shopping"
+              ? styles.bottomNavItemActive
+              : styles.bottomNavItem
+          }
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={showShoppingView}
+          disabled={!isLoaded}
+        >
           <Icon name="list" />
           <span>Lista</span>
-        </a>
+        </button>
+        <button
+          className={
+            activeView === "sections"
+              ? styles.bottomNavItemActive
+              : styles.bottomNavItem
+          }
+          type="button"
+          aria-label="Gestionar listas"
+          onPointerDown={handleButtonPointerDown}
+          onClick={showSectionsView}
+          disabled={!isLoaded}
+        >
+          <Icon name="settings" />
+          <span>Listas</span>
+        </button>
         <button
           className={styles.bottomNavItem}
           type="button"
@@ -1201,7 +1409,7 @@ export function App() {
                     setEditingSectionId(event.target.value as ShoppingSectionId)
                   }
                 >
-                  {shoppingSections.map((section) => (
+                  {sections.map((section) => (
                     <option key={section.id} value={section.id}>
                       {section.name}
                     </option>

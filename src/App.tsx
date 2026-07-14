@@ -312,6 +312,7 @@ export function App() {
     Partial<Record<ShoppingSectionId, HTMLElement>>
   >({});
   const programmaticScrollTimeoutRef = useRef<number | null>(null);
+  const skipSelectedSectionScrollRef = useRef(false);
   const hasAnimatedInitialColumnsRef = useRef(false);
   const previousItemIdsRef = useRef<Set<string>>(new Set());
   const previousUndoKeyRef = useRef<string | null>(null);
@@ -458,6 +459,11 @@ export function App() {
     const selectedColumn = sectionColumnRefs.current[selectedSectionId];
 
     if (!board || !selectedColumn || board.scrollWidth <= board.clientWidth) {
+      return;
+    }
+
+    if (skipSelectedSectionScrollRef.current) {
+      skipSelectedSectionScrollRef.current = false;
       return;
     }
 
@@ -756,6 +762,7 @@ export function App() {
     }, null);
 
     if (nextSection && nextSection.id !== selectedSectionId) {
+      skipSelectedSectionScrollRef.current = true;
       setSelectedSectionId(nextSection.id);
     }
   }
@@ -1130,7 +1137,9 @@ export function App() {
         >
           <form className={styles.form} onSubmit={handleSubmit}>
             <div className={styles.formOptions}>
-              <div className={styles.formField}>
+              <div
+                className={`${styles.formField} ${styles.sectionSelectField}`}
+              >
                 <label className={styles.label} htmlFor="section-id">
                   Sección
                 </label>

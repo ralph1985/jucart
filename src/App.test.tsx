@@ -108,7 +108,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Editar Leche" }));
 
     expect(
-      screen.getByRole("form", { name: "Editar Leche" }),
+      screen.getByRole("dialog", { name: "Editar Leche" }),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
@@ -529,13 +529,15 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
     fireEvent.click(screen.getByRole("button", { name: "Editar Leche" }));
 
-    fireEvent.change(screen.getByLabelText("Nombre del producto"), {
+    const dialog = screen.getByRole("dialog", { name: "Editar Leche" });
+
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "Pan integral" },
     });
-    fireEvent.change(screen.getByLabelText("Sección del producto"), {
+    fireEvent.change(within(dialog).getByLabelText("Sección"), {
       target: { value: "farmacia" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar" }));
 
     const farmaciaColumn = screen
       .getByRole("heading", { name: "Farmacia" })

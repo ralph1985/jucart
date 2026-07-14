@@ -291,6 +291,9 @@ export function App() {
   const skipNextStoreRef = useRef(true);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
+  const editingItem = editingItemId
+    ? items.find((item) => item.id === editingItemId)
+    : null;
   const removePurchasedButtonText =
     purchasedCount === 1
       ? "Borrar 1 producto"
@@ -589,11 +592,16 @@ export function App() {
     resetEditing();
   }
 
-  function handleEditSubmit(event: FormEvent<HTMLFormElement>, itemId: string) {
+  function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!editingItemId) {
+      return;
+    }
+
     const nextItems = updateShoppingItem(
       items,
-      itemId,
+      editingItemId,
       editingItemName,
       editingSectionId,
     );
@@ -786,7 +794,6 @@ export function App() {
     const shouldShowPurchasedDivider = hasPendingItems && hasPurchasedItems;
     let hasRenderedUndoItem = false;
     const listItems = visibleItems.flatMap((item, index) => {
-      const isEditingItem = editingItemId === item.id;
       const shouldRenderPurchasedDivider =
         shouldShowPurchasedDivider &&
         item.purchased &&
@@ -806,128 +813,66 @@ export function App() {
               : styles.item
           }
           aria-label={
-            isEditingItem
-              ? undefined
-              : item.purchased
-                ? `Devolver ${item.name} a pendientes`
-                : `Marcar ${item.name} como comprado`
+            item.purchased
+              ? `Devolver ${item.name} a pendientes`
+              : `Marcar ${item.name} como comprado`
           }
-          role={isEditingItem ? undefined : "button"}
-          tabIndex={isEditingItem ? undefined : 0}
+          role="button"
+          tabIndex={0}
           key={item.id}
-          onClick={isEditingItem ? undefined : () => handleToggleItem(item.id)}
-          onKeyDown={
-            isEditingItem
-              ? undefined
-              : (event) => handleItemKeyDown(event, item.id)
-          }
+          onClick={() => handleToggleItem(item.id)}
+          onKeyDown={(event) => handleItemKeyDown(event, item.id)}
         >
-          {isEditingItem ? (
-            <form
-              className={styles.editForm}
+          <span
+            className={
+              item.purchased
+                ? `${styles.itemCheck} ${styles.itemCheckPurchased}`
+                : styles.itemCheck
+            }
+            aria-hidden="true"
+          >
+            <Icon name="check" />
+          </span>
+          <span
+            className={
+              item.purchased
+                ? `${styles.itemName} ${styles.itemNamePurchased}`
+                : styles.itemName
+            }
+          >
+            {item.name}
+          </span>
+          <span className={styles.itemMeta}>
+            {getShoppingUserName(item.addedBy)}
+          </span>
+          <div className={styles.itemActions}>
+            <button
+              className={styles.iconButton}
+              type="button"
               aria-label={`Editar ${item.name}`}
-              onClick={(event) => event.stopPropagation()}
-              onSubmit={(event) => handleEditSubmit(event, item.id)}
+              title="Editar"
+              onPointerDown={handleButtonPointerDown}
+              onClick={(event) => {
+                event.stopPropagation();
+                startEditing(item);
+              }}
             >
-              <input
-                className={styles.editInput}
-                aria-label="Nombre del producto"
-                autoComplete="off"
-                autoFocus
-                value={editingItemName}
-                onChange={(event) => setEditingItemName(event.target.value)}
-                type="text"
-              />
-              <select
-                className={styles.editSelect}
-                aria-label="Sección del producto"
-                value={editingSectionId}
-                onChange={(event) =>
-                  setEditingSectionId(event.target.value as ShoppingSectionId)
-                }
-              >
-                {shoppingSections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.name}
-                  </option>
-                ))}
-              </select>
-              <div className={styles.editActions}>
-                <button
-                  className={styles.iconButton}
-                  type="submit"
-                  aria-label="Guardar"
-                  title="Guardar"
-                  onPointerDown={handleButtonPointerDown}
-                >
-                  <Icon name="save" />
-                </button>
-                <button
-                  className={styles.iconButton}
-                  type="button"
-                  aria-label="Cancelar"
-                  title="Cancelar"
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={cancelEditing}
-                >
-                  <Icon name="close" />
-                </button>
-              </div>
-            </form>
-          ) : (
-            <>
-              <span
-                className={
-                  item.purchased
-                    ? `${styles.itemCheck} ${styles.itemCheckPurchased}`
-                    : styles.itemCheck
-                }
-                aria-hidden="true"
-              >
-                <Icon name="check" />
-              </span>
-              <span
-                className={
-                  item.purchased
-                    ? `${styles.itemName} ${styles.itemNamePurchased}`
-                    : styles.itemName
-                }
-              >
-                {item.name}
-              </span>
-              <span className={styles.itemMeta}>
-                {getShoppingUserName(item.addedBy)}
-              </span>
-              <div className={styles.itemActions}>
-                <button
-                  className={styles.iconButton}
-                  type="button"
-                  aria-label={`Editar ${item.name}`}
-                  title="Editar"
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    startEditing(item);
-                  }}
-                >
-                  <Icon name="edit" />
-                </button>
-                <button
-                  className={styles.iconButtonDanger}
-                  type="button"
-                  aria-label={`Eliminar ${item.name}`}
-                  title="Eliminar"
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleRemoveItem(item.id);
-                  }}
-                >
-                  <Icon name="trash" />
-                </button>
-              </div>
-            </>
-          )}
+              <Icon name="edit" />
+            </button>
+            <button
+              className={styles.iconButtonDanger}
+              type="button"
+              aria-label={`Eliminar ${item.name}`}
+              title="Eliminar"
+              onPointerDown={handleButtonPointerDown}
+              onClick={(event) => {
+                event.stopPropagation();
+                handleRemoveItem(item.id);
+              }}
+            >
+              <Icon name="trash" />
+            </button>
+          </div>
         </li>
       );
       const purchasedDivider = shouldRenderPurchasedDivider ? (
@@ -1210,6 +1155,78 @@ export function App() {
               </button>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {editingItem ? (
+        <div className={styles.modalBackdrop} onClick={cancelEditing}>
+          <form
+            className={`${styles.modal} ${styles.editModal}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-product-title"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                cancelEditing();
+              }
+            }}
+            onSubmit={handleEditSubmit}
+          >
+            <h2 id="edit-product-title">Editar {editingItem.name}</h2>
+            <div className={styles.modalForm}>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="edit-item-name">
+                  Producto
+                </label>
+                <input
+                  id="edit-item-name"
+                  className={styles.input}
+                  autoComplete="off"
+                  autoFocus
+                  value={editingItemName}
+                  onChange={(event) => setEditingItemName(event.target.value)}
+                  type="text"
+                />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="edit-section-id">
+                  Sección
+                </label>
+                <select
+                  id="edit-section-id"
+                  className={styles.select}
+                  value={editingSectionId}
+                  onChange={(event) =>
+                    setEditingSectionId(event.target.value as ShoppingSectionId)
+                  }
+                >
+                  {shoppingSections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onPointerDown={handleButtonPointerDown}
+                onClick={cancelEditing}
+              >
+                Cancelar
+              </button>
+              <button
+                className={styles.primaryButton}
+                type="submit"
+                onPointerDown={handleButtonPointerDown}
+              >
+                Guardar
+              </button>
+            </div>
+          </form>
         </div>
       ) : null}
     </main>

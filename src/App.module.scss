@@ -737,8 +737,10 @@ h2 {
   position: relative;
   display: grid;
   grid-template-columns: 2.35rem minmax(0, 1fr) auto;
+  grid-template-rows: minmax(2.75rem, auto);
   align-items: center;
   gap: 0.55rem;
+  min-height: 4.35rem;
   padding: 0.75rem;
   border: 1px solid rgb(203 213 225 / 74%);
   border-radius: 0.5rem;
@@ -804,6 +806,7 @@ h2 {
   overflow-wrap: anywhere;
   font-size: 1rem;
   font-weight: 850;
+  line-height: 1.2;
 }
 
 .itemNamePurchased {

@@ -528,6 +528,14 @@ export function App() {
     animateButtonPress(event.currentTarget);
   }
 
+  function focusAddProductField() {
+    document.getElementById("add-product")?.scrollIntoView?.({
+      behavior: shouldAnimate() ? "smooth" : "auto",
+      block: "start",
+    });
+    itemNameInputRef.current?.focus({ preventScroll: true });
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setItems((currentItems) =>
@@ -1081,10 +1089,17 @@ export function App() {
       </section>
 
       <nav className={styles.bottomNav} aria-label="Navegación principal">
-        <a className={styles.bottomNavItem} href="#add-product">
+        <button
+          className={styles.bottomNavItem}
+          type="button"
+          aria-label="Ir a añadir producto"
+          onPointerDown={handleButtonPointerDown}
+          onClick={focusAddProductField}
+          disabled={!isLoaded}
+        >
           <Icon name="plus" />
           <span>Añadir</span>
-        </a>
+        </button>
         <a className={styles.bottomNavItemActive} href="#shopping-board">
           <Icon name="list" />
           <span>Lista</span>

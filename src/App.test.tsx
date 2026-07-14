@@ -216,6 +216,23 @@ describe("App", () => {
     ).toBeTruthy();
   });
 
+  it("focuses the product field from the bottom add action", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    const productInput = screen.getByLabelText("Producto");
+
+    productInput.blur();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ir a añadir producto" }),
+    );
+
+    expect(productInput).toHaveFocus();
+  });
+
   it("marks the selected section and updates the selector when a column is clicked", async () => {
     render(<App />);
 

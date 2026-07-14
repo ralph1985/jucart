@@ -284,6 +284,9 @@ export function App() {
   );
   const [itemName, setItemName] = useState("");
   const [sectionName, setSectionName] = useState("");
+  const [sectionActionMessage, setSectionActionMessage] = useState<
+    string | null
+  >(null);
   const [selectedSectionId, setSelectedSectionId] = useState<ShoppingSectionId>(
     getInitialSelectedSectionId,
   );
@@ -805,6 +808,7 @@ export function App() {
     runHapticFeedback("success");
     setSections(nextSections);
     setSelectedSectionId(nextSections[nextSections.length - 1].id);
+    setSectionActionMessage(null);
     setSectionName("");
     sectionNameInputRef.current?.focus();
   }
@@ -817,6 +821,7 @@ export function App() {
     }
 
     runHapticFeedback("medium");
+    setSectionActionMessage(null);
     setSections(nextSections);
   }
 
@@ -831,18 +836,38 @@ export function App() {
     }
 
     runHapticFeedback("light");
+    setSectionActionMessage(null);
     setSections(nextSections);
   }
 
   function handleRemoveSection(sectionId: ShoppingSectionId) {
+    const sectionToRemove = sections.find(
+      (section) => section.id === sectionId,
+    );
+    const sectionProductCount = items.filter(
+      (item) => item.sectionId === sectionId,
+    ).length;
     const nextSections = removeShoppingSection(sections, items, sectionId);
 
     if (nextSections === sections) {
+      runHapticFeedback("warning");
+
+      if (sectionProductCount > 0 && sectionToRemove) {
+        setSectionActionMessage(
+          `No se puede borrar ${sectionToRemove.name} porque tiene productos.`,
+        );
+      } else if (sections.length <= 1) {
+        setSectionActionMessage("No se puede borrar la última lista.");
+      }
+
       return;
     }
 
     runHapticFeedback("warning");
     setSections(nextSections);
+    setSectionActionMessage(
+      sectionToRemove ? `${sectionToRemove.name} borrada.` : null,
+    );
 
     if (selectedSectionId === sectionId) {
       setSelectedSectionId(nextSections[0]?.id || "general");
@@ -1251,13 +1276,16 @@ export function App() {
               </button>
             </div>
           </form>
+          {sectionActionMessage ? (
+            <p className={styles.sectionActionMessage} role="status">
+              {sectionActionMessage}
+            </p>
+          ) : null}
           <ol className={styles.sectionManagerList}>
             {sections.map((section, index) => {
               const sectionProductCount = items.filter(
                 (item) => item.sectionId === section.id,
               ).length;
-              const canRemoveSection =
-                isLoaded && sections.length > 1 && sectionProductCount === 0;
 
               return (
                 <li
@@ -1327,11 +1355,7 @@ export function App() {
                     <button
                       className={styles.iconButtonDanger}
                       type="button"
-                      aria-label={
-                        sectionProductCount > 0
-                          ? `No se puede borrar ${section.name} porque tiene productos`
-                          : `Borrar ${section.name}`
-                      }
+                      aria-label={`Borrar ${section.name}`}
                       title={
                         sectionProductCount > 0
                           ? "No se puede borrar una lista con productos"
@@ -1339,7 +1363,7 @@ export function App() {
                       }
                       onPointerDown={handleButtonPointerDown}
                       onClick={() => handleRemoveSection(section.id)}
-                      disabled={!canRemoveSection}
+                      disabled={!isLoaded}
                     >
                       <Icon name="trash" />
                     </button>

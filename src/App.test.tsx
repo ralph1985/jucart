@@ -327,11 +327,12 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
     fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
 
+    fireEvent.click(screen.getByRole("button", { name: "Borrar Mercadona" }));
+
     expect(
-      screen.getByRole("button", {
-        name: "No se puede borrar Mercadona porque tiene productos",
-      }),
-    ).toBeDisabled();
+      screen.getByText("No se puede borrar Mercadona porque tiene productos."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre de Mercadona")).toBeInTheDocument();
   });
 
   it("uses haptic feedback for high-intent actions", async () => {

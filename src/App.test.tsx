@@ -808,6 +808,144 @@ describe("App", () => {
     expect(screen.getByText("Yogur")).toBeInTheDocument();
   });
 
+  it("shows undo when a product is marked as purchased while purchased products are hidden", async () => {
+    window.localStorage.setItem("jucart:show-purchased-items", "false");
+
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Leche");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+    );
+
+    expect(screen.queryByText("Leche")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Producto marcado como comprado."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(screen.getByText("Leche")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Producto marcado como comprado."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show undo when a product is marked as purchased while purchased products are visible", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Leche");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+    );
+
+    expect(screen.getByText("Leche")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Producto marcado como comprado."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the marked as purchased undo message after five seconds", async () => {
+    window.localStorage.setItem("jucart:show-purchased-items", "false");
+
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Leche");
+
+    vi.useFakeTimers();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+    );
+
+    expect(
+      screen.getByText("Producto marcado como comprado."),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(
+      screen.queryByText("Producto marcado como comprado."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("clears the marked as purchased undo when purchased products become visible again", async () => {
+    window.localStorage.setItem("jucart:show-purchased-items", "false");
+
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Leche");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+    );
+
+    expect(
+      screen.getByText("Producto marcado como comprado."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Comprados"));
+
+    expect(screen.getByText("Leche")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Producto marcado como comprado."),
+    ).not.toBeInTheDocument();
+  });
+
   it("edits a product name and section", async () => {
     render(<App />);
 

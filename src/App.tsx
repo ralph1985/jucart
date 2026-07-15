@@ -3,12 +3,12 @@ import {
   ChangeEvent,
   KeyboardEvent,
   MouseEvent,
-  UIEvent,
   useEffect,
   useRef,
   useState,
 } from "react";
 import { animate, stagger } from "animejs";
+import useEmblaCarousel from "embla-carousel-react";
 
 import styles from "./App.module.scss";
 import {
@@ -305,14 +305,13 @@ export function App() {
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const itemNameInputRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
-  const boardRef = useRef<HTMLElement>(null);
   const clearDialogRef = useRef<HTMLDivElement>(null);
   const sectionNameInputRef = useRef<HTMLInputElement>(null);
   const sectionColumnRefs = useRef<
     Partial<Record<ShoppingSectionId, HTMLElement>>
   >({});
-  const programmaticScrollTimeoutRef = useRef<number | null>(null);
-  const skipSelectedSectionScrollRef = useRef(false);
+  const sectionsRef = useRef(sections);
+  const selectedSectionIdRef = useRef(selectedSectionId);
   const hasAnimatedInitialColumnsRef = useRef(false);
   const previousItemIdsRef = useRef<Set<string>>(new Set());
   const previousUndoKeyRef = useRef<string | null>(null);
@@ -320,6 +319,19 @@ export function App() {
   const skipNextStoreRef = useRef(true);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
+  const selectedSectionIndex = Math.max(
+    sections.findIndex((section) => section.id === selectedSectionId),
+    0,
+  );
+  const [boardRef, boardApi] = useEmblaCarousel({
+    align: "start",
+    containScroll: false,
+    dragFree: false,
+    duration: shouldAnimate() ? 25 : 0,
+    skipSnaps: false,
+    slidesToScroll: 1,
+    startIndex: selectedSectionIndex,
+  });
   const editingItem = editingItemId
     ? items.find((item) => item.id === editingItemId)
     : null;
@@ -455,40 +467,65 @@ export function App() {
   }, [selectedUserId]);
 
   useEffect(() => {
-    const board = boardRef.current;
-    const selectedColumn = sectionColumnRefs.current[selectedSectionId];
+    sectionsRef.current = sections;
+  }, [sections]);
 
-    if (!board || !selectedColumn || board.scrollWidth <= board.clientWidth) {
-      return;
-    }
-
-    if (skipSelectedSectionScrollRef.current) {
-      skipSelectedSectionScrollRef.current = false;
-      return;
-    }
-
-    if (programmaticScrollTimeoutRef.current) {
-      window.clearTimeout(programmaticScrollTimeoutRef.current);
-    }
-
-    programmaticScrollTimeoutRef.current = window.setTimeout(() => {
-      programmaticScrollTimeoutRef.current = null;
-    }, 500);
-
-    runAnimation(board, {
-      scrollLeft: selectedColumn.offsetLeft,
-      duration: 420,
-      ease: "outCubic",
-    });
+  useEffect(() => {
+    selectedSectionIdRef.current = selectedSectionId;
   }, [selectedSectionId]);
 
   useEffect(() => {
-    return () => {
-      if (programmaticScrollTimeoutRef.current) {
-        window.clearTimeout(programmaticScrollTimeoutRef.current);
+    if (!boardApi) {
+      return;
+    }
+
+    const api = boardApi;
+
+    function syncSelectedSection() {
+      const nextSection = sectionsRef.current[api.selectedScrollSnap()];
+
+      if (!nextSection || nextSection.id === selectedSectionIdRef.current) {
+        return;
       }
+
+      setSelectedSectionId(nextSection.id);
+    }
+
+    api.on("select", syncSelectedSection);
+
+    return () => {
+      api.off("select", syncSelectedSection);
     };
-  }, []);
+  }, [boardApi]);
+
+  useEffect(() => {
+    if (!boardApi || activeView !== "shopping") {
+      return;
+    }
+
+    boardApi.scrollTo(selectedSectionIndex, !shouldAnimate());
+  }, [activeView, boardApi, selectedSectionId, selectedSectionIndex]);
+
+  useEffect(() => {
+    if (!boardApi || activeView !== "shopping") {
+      return;
+    }
+
+    const api = boardApi;
+    const animationFrame = window.requestAnimationFrame(() => {
+      const nextSectionIndex = Math.max(
+        sectionsRef.current.findIndex(
+          (section) => section.id === selectedSectionIdRef.current,
+        ),
+        0,
+      );
+
+      api.reInit();
+      api.scrollTo(nextSectionIndex, true);
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [activeView, boardApi, sections]);
 
   useEffect(() => {
     if (!isLoaded || hasAnimatedInitialColumnsRef.current) {
@@ -733,41 +770,6 @@ export function App() {
 
     setItems(toggleShoppingItem(items, itemId));
     runHapticFeedback("medium");
-  }
-
-  function handleBoardScroll(event: UIEvent<HTMLElement>) {
-    const board = event.currentTarget;
-
-    if (
-      programmaticScrollTimeoutRef.current ||
-      board.scrollWidth <= board.clientWidth
-    ) {
-      return;
-    }
-
-    const nextSection = sections.reduce<{
-      distance: number;
-      id: ShoppingSectionId;
-    } | null>((closestSection, section) => {
-      const column = sectionColumnRefs.current[section.id];
-
-      if (!column) {
-        return closestSection;
-      }
-
-      const distance = Math.abs(column.offsetLeft - board.scrollLeft);
-
-      if (!closestSection || distance < closestSection.distance) {
-        return { distance, id: section.id };
-      }
-
-      return closestSection;
-    }, null);
-
-    if (nextSection && nextSection.id !== selectedSectionId) {
-      skipSelectedSectionScrollRef.current = true;
-      setSelectedSectionId(nextSection.id);
-    }
   }
 
   function selectSection(sectionId: ShoppingSectionId) {
@@ -1236,56 +1238,63 @@ export function App() {
           ref={boardRef}
           className={styles.board}
           aria-label="Lista por secciones"
-          onScroll={handleBoardScroll}
           tabIndex={0}
         >
-          {sections.map((section) => {
-            const sectionItems = items.filter(
-              (item) => item.sectionId === section.id,
-            );
-            const removedSectionItems = lastRemovedItems.filter(
-              (item) => item.sectionId === section.id,
-            );
-            const pendingCount = sectionItems.filter(
-              (item) => !item.purchased,
-            ).length;
+          <div className={styles.boardTrack}>
+            {sections.map((section) => {
+              const sectionItems = items.filter(
+                (item) => item.sectionId === section.id,
+              );
+              const removedSectionItems = lastRemovedItems.filter(
+                (item) => item.sectionId === section.id,
+              );
+              const pendingCount = sectionItems.filter(
+                (item) => !item.purchased,
+              ).length;
 
-            return (
-              <article
-                ref={(column) => {
-                  if (column) {
-                    sectionColumnRefs.current[section.id] = column;
+              return (
+                <article
+                  ref={(column) => {
+                    if (column) {
+                      sectionColumnRefs.current[section.id] = column;
+                    } else {
+                      delete sectionColumnRefs.current[section.id];
+                    }
+                  }}
+                  className={
+                    selectedSectionId === section.id
+                      ? `${styles.column} ${styles[`sectionColor${section.color}`]} ${styles.columnSelected}`
+                      : `${styles.column} ${styles[`sectionColor${section.color}`]}`
                   }
-                }}
-                className={
-                  selectedSectionId === section.id
-                    ? `${styles.column} ${styles[`sectionColor${section.color}`]} ${styles.columnSelected}`
-                    : `${styles.column} ${styles[`sectionColor${section.color}`]}`
-                }
-                aria-current={
-                  selectedSectionId === section.id ? "true" : undefined
-                }
-                aria-labelledby={`section-${section.id}-title`}
-                key={section.id}
-                onClick={() => selectSection(section.id)}
-                onKeyDown={(event) => handleColumnKeyDown(event, section.id)}
-                tabIndex={0}
-              >
-                <div className={styles.sectionHeader}>
-                  <h2 id={`section-${section.id}-title`}>
-                    <span>{section.name}</span>
-                    <span className={styles.count} aria-hidden="true">
-                      · {pendingCount}
+                  aria-current={
+                    selectedSectionId === section.id ? "true" : undefined
+                  }
+                  aria-labelledby={`section-${section.id}-title`}
+                  key={section.id}
+                  onClick={() => selectSection(section.id)}
+                  onKeyDown={(event) => handleColumnKeyDown(event, section.id)}
+                  tabIndex={0}
+                >
+                  <div className={styles.sectionHeader}>
+                    <h2 id={`section-${section.id}-title`}>
+                      <span>{section.name}</span>
+                      <span className={styles.count} aria-hidden="true">
+                        · {pendingCount}
+                      </span>
+                    </h2>
+                    <span className={styles.visuallyHidden}>
+                      {pendingCount} productos pendientes
                     </span>
-                  </h2>
-                  <span className={styles.visuallyHidden}>
-                    {pendingCount} productos pendientes
-                  </span>
-                </div>
-                {renderItems(sectionItems, removedSectionItems, section.color)}
-              </article>
-            );
-          })}
+                  </div>
+                  {renderItems(
+                    sectionItems,
+                    removedSectionItems,
+                    section.color,
+                  )}
+                </article>
+              );
+            })}
+          </div>
         </section>
       ) : (
         <section

@@ -605,9 +605,6 @@ h2 {
 }
 
 .board {
-  display: flex;
-  align-items: stretch;
-  gap: 0.75rem;
   max-width: 100%;
   height: calc(
     100dvh - var(--header-height) - var(--command-height) - var(
@@ -616,12 +613,20 @@ h2 {
       0.75rem
   );
   min-height: 16rem;
-  overflow-x: auto;
+  overflow: hidden;
   overscroll-behavior-x: contain;
   padding: 0.1rem 0.75rem 0.6rem;
-  scroll-padding-inline: 0.75rem;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+.boardTrack {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  height: 100%;
 }
 
 .sectionColormint {
@@ -689,7 +694,6 @@ h2 {
   border-radius: 0.5rem;
   padding: 0.72rem;
   box-shadow: 0 0.45rem 1.15rem var(--surface-shadow);
-  scroll-snap-align: start;
   cursor: pointer;
   transform-origin: center top;
   will-change: transform, opacity;
@@ -972,10 +976,6 @@ h2 {
     font-size: 0.74rem;
   }
 
-  .board {
-    scroll-snap-type: x proximity;
-  }
-
   .header {
     align-items: start;
     gap: 0.65rem;
@@ -1001,7 +1001,6 @@ h2 {
     width: min(100% - 2rem, 80rem);
     margin: 0 auto;
     padding-inline: 0;
-    scroll-padding-inline: 0;
   }
 
   .column {

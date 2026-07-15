@@ -1242,7 +1242,6 @@ export function App() {
                   className={styles.input}
                   autoCapitalize="sentences"
                   autoCorrect="on"
-                  autoFocus
                   enterKeyHint="done"
                   inputMode="text"
                   spellCheck

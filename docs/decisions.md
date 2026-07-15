@@ -123,9 +123,9 @@ En el Hito 20, el menú inferior añade una vista interna de gestión de listas.
 
 ## Modo compra rápido
 
-En el Hito 16, tocar una tarjeta alterna entre pendiente y comprado.
+En el Hito 16, tocar el check de una tarjeta alterna entre pendiente y comprado.
 
-La tarjeta completa es la acción principal durante la compra. Editar y borrar siguen como botones separados y detienen la propagación para evitar cambios accidentales de estado. En modo edición, la tarjeta deja de comportarse como botón.
+El check es la acción principal durante la compra. Editar y borrar siguen como botones separados para evitar cambios accidentales de estado.
 
 ## Persistencia local
 

@@ -1616,6 +1616,37 @@ export function App() {
     );
   }
 
+  function renderLoadingItems() {
+    return (
+      <ul className={`${styles.list} ${styles.loadingList}`} aria-hidden="true">
+        {[0, 1, 2].map((itemIndex) => (
+          <li className={styles.loadingItem} key={itemIndex}>
+            <span className={styles.loadingCheck} />
+            <span className={styles.loadingText} />
+            <span className={styles.loadingMeta} />
+            <span className={styles.loadingAction} />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  function renderLoadingBoard() {
+    return [0, 1, 2].map((columnIndex) => (
+      <article
+        className={`${styles.column} ${styles.loadingColumn}`}
+        aria-hidden="true"
+        key={columnIndex}
+      >
+        <div className={styles.sectionHeader}>
+          <span className={styles.loadingTitle} />
+          <span className={styles.loadingCount} />
+        </div>
+        {renderLoadingItems()}
+      </article>
+    ));
+  }
+
   function renderHistoryEvents() {
     if (displayedHistoryEvents.length === 0) {
       return (
@@ -1745,11 +1776,23 @@ export function App() {
           <dl className={styles.summary} aria-label="Resumen de la lista">
             <div className={styles.summaryItem}>
               <dt>Pendientes</dt>
-              <dd>{pendingCount}</dd>
+              <dd>
+                {isLoaded ? (
+                  pendingCount
+                ) : (
+                  <span className={styles.loadingSummaryValue} />
+                )}
+              </dd>
             </div>
             <div className={styles.summaryItem}>
               <dt>Comprados</dt>
-              <dd>{purchasedCount}</dd>
+              <dd>
+                {isLoaded ? (
+                  purchasedCount
+                ) : (
+                  <span className={styles.loadingSummaryValue} />
+                )}
+              </dd>
             </div>
           </dl>
           <p
@@ -1869,7 +1912,7 @@ export function App() {
       ) : null}
 
       {!isLoaded ? (
-        <p className={styles.status} role="status" aria-live="polite">
+        <p className={styles.loadingStatus} role="status" aria-live="polite">
           Cargando lista...
         </p>
       ) : storageError ? (
@@ -1906,66 +1949,68 @@ export function App() {
             tabIndex={0}
           >
             <div className={styles.boardTrack}>
-              {sections.map((section) => {
-                const sectionItems = items.filter(
-                  (item) => item.sectionId === section.id,
-                );
-                const removedSectionItems = lastRemovedItems.filter(
-                  (item) => item.sectionId === section.id,
-                );
-                const hiddenPurchasedSectionItem =
-                  lastHiddenPurchasedItem?.sectionId === section.id
-                    ? lastHiddenPurchasedItem
-                    : null;
-                const pendingCount = sectionItems.filter(
-                  (item) => !item.purchased,
-                ).length;
+              {!isLoaded
+                ? renderLoadingBoard()
+                : sections.map((section) => {
+                    const sectionItems = items.filter(
+                      (item) => item.sectionId === section.id,
+                    );
+                    const removedSectionItems = lastRemovedItems.filter(
+                      (item) => item.sectionId === section.id,
+                    );
+                    const hiddenPurchasedSectionItem =
+                      lastHiddenPurchasedItem?.sectionId === section.id
+                        ? lastHiddenPurchasedItem
+                        : null;
+                    const pendingCount = sectionItems.filter(
+                      (item) => !item.purchased,
+                    ).length;
 
-                return (
-                  <article
-                    ref={(column) => {
-                      if (column) {
-                        sectionColumnRefs.current[section.id] = column;
-                      } else {
-                        delete sectionColumnRefs.current[section.id];
-                      }
-                    }}
-                    className={
-                      selectedSectionId === section.id
-                        ? `${styles.column} ${styles[`sectionColor${section.color}`]} ${styles.columnSelected}`
-                        : `${styles.column} ${styles[`sectionColor${section.color}`]}`
-                    }
-                    aria-current={
-                      selectedSectionId === section.id ? "true" : undefined
-                    }
-                    aria-labelledby={`section-${section.id}-title`}
-                    key={section.id}
-                    onClick={() => selectSection(section.id)}
-                    onKeyDown={(event) =>
-                      handleColumnKeyDown(event, section.id)
-                    }
-                    tabIndex={0}
-                  >
-                    <div className={styles.sectionHeader}>
-                      <h2 id={`section-${section.id}-title`}>
-                        <span>{section.name}</span>
-                        <span className={styles.count} aria-hidden="true">
-                          · {pendingCount}
-                        </span>
-                      </h2>
-                      <span className={styles.visuallyHidden}>
-                        {pendingCount} productos pendientes
-                      </span>
-                    </div>
-                    {renderItems(
-                      sectionItems,
-                      removedSectionItems,
-                      hiddenPurchasedSectionItem,
-                      section.color,
-                    )}
-                  </article>
-                );
-              })}
+                    return (
+                      <article
+                        ref={(column) => {
+                          if (column) {
+                            sectionColumnRefs.current[section.id] = column;
+                          } else {
+                            delete sectionColumnRefs.current[section.id];
+                          }
+                        }}
+                        className={
+                          selectedSectionId === section.id
+                            ? `${styles.column} ${styles[`sectionColor${section.color}`]} ${styles.columnSelected}`
+                            : `${styles.column} ${styles[`sectionColor${section.color}`]}`
+                        }
+                        aria-current={
+                          selectedSectionId === section.id ? "true" : undefined
+                        }
+                        aria-labelledby={`section-${section.id}-title`}
+                        key={section.id}
+                        onClick={() => selectSection(section.id)}
+                        onKeyDown={(event) =>
+                          handleColumnKeyDown(event, section.id)
+                        }
+                        tabIndex={0}
+                      >
+                        <div className={styles.sectionHeader}>
+                          <h2 id={`section-${section.id}-title`}>
+                            <span>{section.name}</span>
+                            <span className={styles.count} aria-hidden="true">
+                              · {pendingCount}
+                            </span>
+                          </h2>
+                          <span className={styles.visuallyHidden}>
+                            {pendingCount} productos pendientes
+                          </span>
+                        </div>
+                        {renderItems(
+                          sectionItems,
+                          removedSectionItems,
+                          hiddenPurchasedSectionItem,
+                          section.color,
+                        )}
+                      </article>
+                    );
+                  })}
             </div>
           </section>
           {isLoaded ? (
@@ -1991,7 +2036,16 @@ export function App() {
                 />
               ))}
             </nav>
-          ) : null}
+          ) : (
+            <div className={styles.sectionIndicators} aria-hidden="true">
+              {[0, 1, 2].map((indicatorIndex) => (
+                <span
+                  className={styles.loadingIndicator}
+                  key={indicatorIndex}
+                />
+              ))}
+            </div>
+          )}
         </>
       ) : null}
 

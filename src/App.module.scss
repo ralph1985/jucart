@@ -204,6 +204,31 @@ h2 {
   line-height: 1;
 }
 
+.loadingSummaryValue,
+.loadingTitle,
+.loadingCount,
+.loadingText,
+.loadingMeta,
+.loadingCheck,
+.loadingAction,
+.loadingIndicator {
+  display: block;
+  border-radius: 999rem;
+  background: linear-gradient(
+    90deg,
+    rgb(226 232 240 / 72%) 0%,
+    rgb(248 250 252 / 92%) 46%,
+    rgb(226 232 240 / 72%) 100%
+  );
+  background-size: 220% 100%;
+  animation: loadingShimmer 1.35s ease-in-out infinite;
+}
+
+.loadingSummaryValue {
+  width: 1.55rem;
+  height: 0.98rem;
+}
+
 .syncStatus {
   min-width: 5.2rem;
   margin: 0;
@@ -913,6 +938,11 @@ h2 {
   background: #167c5a;
 }
 
+.loadingIndicator {
+  width: 1.4rem;
+  height: 0.42rem;
+}
+
 .sectionColormint {
   border-color: rgb(22 124 90 / 34%);
   background: linear-gradient(180deg, #f8fffc 0%, #ecfdf5 100%);
@@ -995,6 +1025,12 @@ h2 {
     0 0.6rem 1.45rem var(--surface-shadow-strong);
 }
 
+.loadingColumn {
+  border-color: rgb(148 163 184 / 24%);
+  background: linear-gradient(180deg, #fbfdff 0%, #eef4f3 100%);
+  cursor: default;
+}
+
 .sectionHeader {
   flex: 0 0 auto;
   display: flex;
@@ -1021,6 +1057,16 @@ h2 {
   font-size: 0.88rem;
   font-weight: 850;
   white-space: nowrap;
+}
+
+.loadingTitle {
+  width: 7.6rem;
+  height: 1.15rem;
+}
+
+.loadingCount {
+  width: 1.4rem;
+  height: 0.88rem;
 }
 
 .empty {
@@ -1073,6 +1119,25 @@ h2 {
   color: #536b7c;
 }
 
+.loadingStatus {
+  position: fixed;
+  z-index: 9;
+  right: max(1rem, env(safe-area-inset-right, 0px));
+  bottom: calc(var(--bottom-nav-height) + 0.75rem);
+  left: max(1rem, env(safe-area-inset-left, 0px));
+  width: fit-content;
+  max-width: calc(100% - 2rem);
+  margin: 0 auto;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 999rem;
+  padding: 0.48rem 0.75rem;
+  background: rgb(255 255 255 / 88%);
+  color: #536b7c;
+  box-shadow: 0 0.45rem 1rem var(--surface-shadow);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
 .error {
   background: #fee2e2;
   color: #991b1b;
@@ -1117,6 +1182,59 @@ h2 {
 
 .shoppingListColorslate {
   background: rgb(226 232 240 / 56%);
+}
+
+.loadingList {
+  background: rgb(226 232 240 / 38%);
+}
+
+.loadingItem {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 0.45rem;
+  row-gap: 0.4rem;
+  min-height: 5.5rem;
+  border: 1px solid rgb(203 213 225 / 58%);
+  border-radius: 0.5rem;
+  padding: 0.55rem;
+  background: rgb(255 255 255 / 74%);
+}
+
+.loadingCheck {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 1.92rem;
+  height: 1.92rem;
+  align-self: center;
+  justify-self: center;
+}
+
+.loadingText {
+  grid-column: 2;
+  grid-row: 1;
+  width: min(12rem, 74%);
+  height: 1.08rem;
+  border-radius: 0.35rem;
+}
+
+.loadingMeta {
+  grid-column: 2;
+  grid-row: 2;
+  width: min(7rem, 48%);
+  height: 0.72rem;
+  border-radius: 0.35rem;
+}
+
+.loadingAction {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  width: 2.35rem;
+  height: 2.35rem;
+  align-self: center;
+  justify-self: end;
+  border-radius: 0.5rem;
 }
 
 .item {
@@ -1317,5 +1435,28 @@ h2 {
 @media (min-width: 68rem) {
   .itemActions {
     grid-template-columns: repeat(2, 2.75rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingSummaryValue,
+  .loadingTitle,
+  .loadingCount,
+  .loadingText,
+  .loadingMeta,
+  .loadingCheck,
+  .loadingAction,
+  .loadingIndicator {
+    animation: none;
+  }
+}
+
+@keyframes loadingShimmer {
+  0% {
+    background-position: 120% 0;
+  }
+
+  100% {
+    background-position: -120% 0;
   }
 }

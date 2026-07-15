@@ -10,11 +10,14 @@ import {
 import { afterEach, vi } from "vitest";
 
 import { App } from "./App";
+import { defaultShoppingSections } from "./shoppingItems";
+import * as shoppingItemsDb from "./shoppingItemsDb";
 import {
   replaceStoredShoppingData,
   replaceStoredShoppingItems,
   resetShoppingItemsDatabase,
 } from "./shoppingItemsDb";
+import type { ShoppingData } from "./shoppingItemsDb";
 
 const emblaCarouselMock = vi.hoisted(() => {
   const listeners = new Map<string, Set<() => void>>();
@@ -94,6 +97,49 @@ describe("App", () => {
     expect(
       screen.getByRole("navigation", { name: "Navegación principal" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows the integrated loading skeleton while stored products are loading", async () => {
+    let resolveStoredData: (data: ShoppingData) => void = () => {};
+    const storedDataPromise = new Promise<ShoppingData>((resolve) => {
+      resolveStoredData = resolve;
+    });
+
+    vi.spyOn(shoppingItemsDb, "getStoredShoppingData").mockReturnValue(
+      storedDataPromise,
+    );
+
+    render(<App />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Cargando lista...");
+    expect(screen.getByRole("button", { name: "Añadir" })).toBeDisabled();
+    expect(screen.getByLabelText("Producto")).toBeDisabled();
+    expect(screen.getByLabelText("Añadido por")).toBeDisabled();
+    expect(screen.queryByText("Leche")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveStoredData({
+        items: [
+          {
+            id: "item-1",
+            name: "Leche",
+            sectionId: "farmacia",
+            addedBy: "rafa",
+            purchased: false,
+            createdAt: 100,
+            updatedAt: 100,
+          },
+        ],
+        sections: defaultShoppingSections,
+        historyEvents: [],
+      });
+
+      await storedDataPromise;
+    });
+
+    expect(await screen.findByText("Leche")).toBeInTheDocument();
+    expect(screen.queryByText("Cargando lista...")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled();
   });
 
   it("shows the developer view only when Rafa is selected", async () => {

@@ -64,6 +64,7 @@ const shoppingProductCatalog: Record<ShoppingCategoryId, string[]> = {
     "naranja",
     "pera",
     "plátano",
+    "sandía",
     "uvas",
   ],
   vegetables: [
@@ -75,6 +76,7 @@ const shoppingProductCatalog: Record<ShoppingCategoryId, string[]> = {
     "patata",
     "pepino",
     "pimiento",
+    "repollo",
     "tomate",
     "verdura",
     "zanahoria",
@@ -99,9 +101,32 @@ const shoppingProductCatalog: Record<ShoppingCategoryId, string[]> = {
   ],
   drinks: ["agua", "cerveza", "refresco", "vino", "zumo"],
   frozen: ["congelado", "croquetas", "helado", "pizza"],
-  cleaning: ["detergente", "fregasuelos", "lavavajillas", "lejía", "limpieza"],
-  hygiene: ["champú", "gel", "higiene", "papel higiénico", "pasta de dientes"],
-  pharmacy: ["ibuprofeno", "medicina", "paracetamol", "tiritas"],
+  cleaning: [
+    "detergente",
+    "fregasuelos",
+    "lavavajillas",
+    "lejía",
+    "limpiador biberones",
+    "limpieza",
+  ],
+  hygiene: [
+    "cabezales oral b",
+    "champú",
+    "gel",
+    "higiene",
+    "pañales",
+    "papel higiénico",
+    "parodontax",
+    "pasta de dientes",
+  ],
+  pharmacy: [
+    "guantes",
+    "ibuprofeno",
+    "lavado nasal",
+    "medicina",
+    "paracetamol",
+    "tiritas",
+  ],
   pets: ["arena", "comida gato", "comida perro", "mascota", "pienso"],
   other: [],
 };
@@ -171,10 +196,7 @@ export function inferShoppingCategoryId(rawName: string): ShoppingCategoryId {
       shoppingProductCatalog[category.id].some((catalogName) => {
         const normalizedCatalogName = normalizeCatalogText(catalogName);
 
-        return (
-          normalizedName === normalizedCatalogName ||
-          normalizedName.includes(normalizedCatalogName)
-        );
+        return catalogNameMatches(normalizedName, normalizedCatalogName);
       })
     ) {
       return category.id;
@@ -450,5 +472,14 @@ function normalizeCatalogText(value: string) {
   return normalizeItemName(value)
     .toLocaleLowerCase("es-ES")
     .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "");
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
+    .trim();
+}
+
+function catalogNameMatches(
+  normalizedName: string,
+  normalizedCatalogName: string,
+) {
+  return ` ${normalizedName} `.includes(` ${normalizedCatalogName} `);
 }

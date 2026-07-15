@@ -1240,7 +1240,12 @@ export function App() {
                   id="item-name"
                   ref={itemNameInputRef}
                   className={styles.input}
+                  autoCapitalize="sentences"
+                  autoCorrect="on"
                   autoFocus
+                  enterKeyHint="done"
+                  inputMode="text"
+                  spellCheck
                   value={itemName}
                   onChange={(event) => setItemName(event.target.value)}
                   placeholder="Leche, pan, fruta..."
@@ -1612,8 +1617,12 @@ export function App() {
                 <input
                   id="edit-item-name"
                   className={styles.input}
-                  autoComplete="off"
+                  autoCapitalize="sentences"
+                  autoCorrect="on"
                   autoFocus
+                  enterKeyHint="done"
+                  inputMode="text"
+                  spellCheck
                   value={editingItemName}
                   onChange={(event) => setEditingItemName(event.target.value)}
                   type="text"

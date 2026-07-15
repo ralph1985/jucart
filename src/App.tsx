@@ -46,6 +46,7 @@ import {
   isSupabaseConfigured,
   subscribeToSupabaseShoppingItems,
 } from "./shoppingItemsSupabase";
+import { updateBadge } from "./services/badgeService";
 
 const selectedSectionStorageKey = "jucart:selected-section-id";
 const selectedUserStorageKey = "jucart:selected-user-id";
@@ -403,6 +404,10 @@ export function App() {
       isActive = false;
     };
   }, []);
+
+  useEffect(() => {
+    void updateBadge(pendingCount);
+  }, [pendingCount]);
 
   useEffect(() => {
     if (!isLoaded) {

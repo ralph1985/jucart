@@ -14,9 +14,61 @@ import {
   resetShoppingItemsDatabase,
 } from "./shoppingItemsDb";
 
+const emblaCarouselMock = vi.hoisted(() => {
+  const listeners = new Map<string, Set<() => void>>();
+  const viewportRef = vi.fn();
+  let selectedIndex = 0;
+
+  function emit(eventName: string) {
+    listeners.get(eventName)?.forEach((listener) => listener());
+  }
+
+  const api = {
+    on: vi.fn((eventName: string, listener: () => void) => {
+      const eventListeners = listeners.get(eventName) ?? new Set<() => void>();
+      eventListeners.add(listener);
+      listeners.set(eventName, eventListeners);
+    }),
+    off: vi.fn((eventName: string, listener: () => void) => {
+      listeners.get(eventName)?.delete(listener);
+    }),
+    reInit: vi.fn(() => emit("reInit")),
+    scrollTo: vi.fn((index: number) => {
+      selectedIndex = index;
+    }),
+    selectedScrollSnap: vi.fn(() => selectedIndex),
+  };
+  const useEmblaCarousel = vi.fn(() => [viewportRef, api]);
+
+  return {
+    api,
+    reset() {
+      selectedIndex = 0;
+      listeners.clear();
+      viewportRef.mockClear();
+      api.on.mockClear();
+      api.off.mockClear();
+      api.reInit.mockClear();
+      api.scrollTo.mockClear();
+      api.selectedScrollSnap.mockClear();
+      useEmblaCarousel.mockClear();
+    },
+    selectTo(index: number) {
+      selectedIndex = index;
+      emit("select");
+    },
+    useEmblaCarousel,
+  };
+});
+
+vi.mock("embla-carousel-react", () => ({
+  default: emblaCarouselMock.useEmblaCarousel,
+}));
+
 afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  emblaCarouselMock.reset();
   delete (Element.prototype as Partial<Element>).scrollIntoView;
   await resetShoppingItemsDatabase();
   window.localStorage.clear();
@@ -456,43 +508,14 @@ describe("App", () => {
     expect(farmaciaColumn).toHaveAttribute("aria-current", "true");
   });
 
-  it("updates the selected section when the board is scrolled on mobile", async () => {
+  it("updates the selected section when the carousel changes on mobile", async () => {
     render(<App />);
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
     );
 
-    const board = screen.getByLabelText("Lista por secciones");
-    const alcampoColumn = screen
-      .getByRole("heading", { name: "Alcampo" })
-      .closest("article");
-    const farmaciaColumn = screen
-      .getByRole("heading", { name: "Farmacia" })
-      .closest("article");
-
-    Object.defineProperty(board, "scrollWidth", {
-      configurable: true,
-      value: 1200,
-    });
-    Object.defineProperty(board, "clientWidth", {
-      configurable: true,
-      value: 320,
-    });
-    Object.defineProperty(board, "scrollLeft", {
-      configurable: true,
-      value: 900,
-    });
-    Object.defineProperty(alcampoColumn as HTMLElement, "offsetLeft", {
-      configurable: true,
-      value: 0,
-    });
-    Object.defineProperty(farmaciaColumn as HTMLElement, "offsetLeft", {
-      configurable: true,
-      value: 900,
-    });
-
-    fireEvent.scroll(board);
+    act(() => emblaCarouselMock.selectTo(3));
 
     expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
   });

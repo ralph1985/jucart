@@ -1101,6 +1101,7 @@ export function App() {
     const hasPurchasedItems = sectionItems.some((item) => item.purchased);
     const shouldShowPurchasedDivider = hasPendingItems && hasPurchasedItems;
     let hasRenderedUndoItem = false;
+    let hasRenderedHiddenPurchasedUndoItem = false;
     const listItems = visibleItems.flatMap((item, index) => {
       const itemCategoryId = getShoppingItemCategoryId(item);
       const previousItem = visibleItems[index - 1];
@@ -1206,6 +1207,10 @@ export function App() {
         !hasRenderedUndoItem &&
         sortedRemovedItems.length > 0 &&
         compareShoppingItemsForVisibleOrder(sortedRemovedItems[0], item) < 0;
+      const shouldRenderHiddenPurchasedUndoItem =
+        !hasRenderedHiddenPurchasedUndoItem &&
+        hiddenPurchasedItem &&
+        compareShoppingItemsForVisibleOrder(hiddenPurchasedItem, item) < 0;
 
       if (shouldRenderUndoItem) {
         hasRenderedUndoItem = true;
@@ -1225,6 +1230,17 @@ export function App() {
             ];
       }
 
+      if (shouldRenderHiddenPurchasedUndoItem) {
+        hasRenderedHiddenPurchasedUndoItem = true;
+
+        return [
+          renderHiddenPurchasedUndoItem(hiddenPurchasedItem),
+          purchasedDivider,
+          categoryDivider,
+          itemContent,
+        ];
+      }
+
       return [purchasedDivider, categoryDivider, itemContent];
     });
 
@@ -1232,7 +1248,7 @@ export function App() {
       listItems.push(renderUndoItem(sortedRemovedItems));
     }
 
-    if (hiddenPurchasedItem) {
+    if (hiddenPurchasedItem && !hasRenderedHiddenPurchasedUndoItem) {
       listItems.push(renderHiddenPurchasedUndoItem(hiddenPurchasedItem));
     }
 

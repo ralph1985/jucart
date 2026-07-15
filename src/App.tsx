@@ -22,7 +22,6 @@ import {
   getShoppingUserName,
   isShoppingSectionId,
   isShoppingUserId,
-  removePurchasedShoppingItems,
   removeShoppingSection,
   removeShoppingItem,
   renameShoppingSection,
@@ -349,14 +348,23 @@ export function App() {
   const editingItem = editingItemId
     ? items.find((item) => item.id === editingItemId)
     : null;
+  const selectedSectionName =
+    sections.find((section) => section.id === selectedSectionId)?.name ??
+    "esta lista";
+  const selectedPurchasedItems = sortShoppingItemsForShopping(
+    items.filter(
+      (item) => item.sectionId === selectedSectionId && item.purchased,
+    ),
+  );
+  const selectedPurchasedCount = selectedPurchasedItems.length;
   const removePurchasedButtonText =
-    purchasedCount === 1
+    selectedPurchasedCount === 1
       ? "Borrar 1 producto"
-      : `Borrar ${purchasedCount} productos`;
+      : `Borrar ${selectedPurchasedCount} productos`;
   const clearPurchasedDescription =
-    purchasedCount === 1
-      ? "Se borrará 1 producto comprado. Podrás deshacerlo después."
-      : `Se borrarán ${purchasedCount} productos comprados. Podrás deshacerlo después.`;
+    selectedPurchasedCount === 1
+      ? `Se borrará 1 producto comprado de ${selectedSectionName}. Podrás deshacerlo después.`
+      : `Se borrarán ${selectedPurchasedCount} productos comprados de ${selectedSectionName}. Podrás deshacerlo después.`;
 
   useEffect(() => {
     let isActive = true;
@@ -726,7 +734,7 @@ export function App() {
   }
 
   function handleRemovePurchasedItems() {
-    if (purchasedCount === 0) {
+    if (selectedPurchasedCount === 0) {
       return;
     }
 
@@ -735,21 +743,17 @@ export function App() {
   }
 
   function confirmRemovePurchasedItems() {
-    if (purchasedCount === 0) {
+    if (selectedPurchasedCount === 0) {
       setIsClearDialogOpen(false);
       return;
     }
 
-    const removedItems = items.filter((item) => item.purchased);
-
-    if (removedItems.length === 0) {
-      setIsClearDialogOpen(false);
-      return;
-    }
+    const removedItems = selectedPurchasedItems;
+    const removedItemIds = new Set(removedItems.map((item) => item.id));
 
     runHapticFeedback("warning");
     setLastRemovedItems(removedItems);
-    setItems(removePurchasedShoppingItems(items));
+    setItems(items.filter((item) => !removedItemIds.has(item.id)));
     setIsClearDialogOpen(false);
   }
 
@@ -1254,7 +1258,7 @@ export function App() {
                   title="Borrar comprados"
                   onPointerDown={handleButtonPointerDown}
                   onClick={handleRemovePurchasedItems}
-                  disabled={!isLoaded || purchasedCount === 0}
+                  disabled={!isLoaded || selectedPurchasedCount === 0}
                 >
                   <Icon name="trash" />
                 </button>
@@ -1544,6 +1548,17 @@ export function App() {
           >
             <h2 id="clear-purchased-title">Borrar comprados</h2>
             <p id="clear-purchased-description">{clearPurchasedDescription}</p>
+            <ul
+              className={styles.clearPurchasedList}
+              aria-label="Productos comprados que se borrarán"
+            >
+              {selectedPurchasedItems.map((item) => (
+                <li key={item.id}>
+                  <span>{item.name}</span>
+                  <span>{getShoppingUserName(item.addedBy)}</span>
+                </li>
+              ))}
+            </ul>
             <div className={styles.modalActions}>
               <button
                 className={styles.secondaryButton}

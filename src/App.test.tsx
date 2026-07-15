@@ -545,12 +545,22 @@ describe("App", () => {
         createdAt: 200,
         updatedAt: 200,
       },
+      {
+        id: "item-3",
+        name: "Tiritas",
+        sectionId: "farmacia",
+        addedBy: "rafa",
+        purchased: true,
+        createdAt: 300,
+        updatedAt: 300,
+      },
     ]);
 
     render(<App />);
 
     await screen.findByText("Leche");
     await screen.findByText("Pan");
+    await screen.findByText("Tiritas");
 
     fireEvent.click(screen.getByRole("button", { name: "Borrar comprados" }));
 
@@ -558,9 +568,15 @@ describe("App", () => {
 
     expect(
       within(dialog).getByText(
-        "Se borrará 1 producto comprado. Podrás deshacerlo después.",
+        "Se borrará 1 producto comprado de Mercadona. Podrás deshacerlo después.",
       ),
     ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("list", {
+        name: "Productos comprados que se borrarán",
+      }),
+    ).toHaveTextContent("Pan");
+    expect(dialog).not.toHaveTextContent("Tiritas");
 
     fireEvent.click(
       within(dialog).getByRole("button", { name: "Borrar 1 producto" }),
@@ -568,6 +584,7 @@ describe("App", () => {
 
     expect(screen.getByText("Leche")).toBeInTheDocument();
     expect(screen.queryByText("Pan")).not.toBeInTheDocument();
+    expect(screen.getByText("Tiritas")).toBeInTheDocument();
     expect(
       screen.queryByRole("dialog", { name: "Borrar comprados" }),
     ).not.toBeInTheDocument();

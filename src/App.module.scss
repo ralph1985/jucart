@@ -512,6 +512,42 @@ h2 {
   line-height: 1.45;
 }
 
+.clearPurchasedList {
+  display: grid;
+  gap: 0.35rem;
+  max-height: min(16rem, 38vh);
+  margin: 0.85rem 0 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  list-style: none;
+}
+
+.clearPurchasedList li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid rgb(148 163 184 / 26%);
+  border-radius: 0.45rem;
+  padding: 0.48rem 0.58rem;
+  background: #f8fafc;
+}
+
+.clearPurchasedList span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #102033;
+  font-weight: 800;
+}
+
+.clearPurchasedList span:last-child {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 .editModal {
   width: min(100%, 28rem);
 }

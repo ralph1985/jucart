@@ -149,3 +149,5 @@ El Hito 21 agrupa los productos por categoría dentro de cada lista. La categor�
 El Hito 22 añade un historial auditado de altas, compras, cambios de lista y borrados. El historial guarda snapshots de cada producto, se sincroniza con Supabase y avisa cuando otro dispositivo ha realizado cambios pendientes de revisar.
 
 El Hito 23 añade backup local de Supabase y una vista interna de desarrollador. La vista solo aparece cuando el selector de persona está en Rafa y muestra metadatos del último backup junto con información operativa de la app.
+
+El Hito 24 añade sugerencias rápidas bajo el campo de producto. Las sugerencias combinan catálogo, productos existentes e historial reciente, se filtran mientras se escribe y evitan sugerir productos ya presentes en el tablero.

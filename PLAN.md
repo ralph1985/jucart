@@ -236,3 +236,14 @@
 - [x] Mostrar estado de backup e información operativa útil.
 - [x] Documentar ejecución manual, cron, retención y ubicación local.
 - [x] Añadir tests razonables de adaptador e interfaz.
+
+## Hito 24 — Alta por sugerencias rápidas
+
+- [x] Mostrar sugerencias rápidas de productos habituales bajo el alta.
+- [x] Usar catálogo maestro, productos existentes e historial para priorizar sugerencias.
+- [x] Filtrar sugerencias al escribir en el campo de producto.
+- [x] Evitar sugerir productos ya existentes en el tablero.
+- [x] Permitir añadir una sugerencia con un toque usando la sección y persona seleccionadas.
+- [x] Registrar historial igual que en el alta manual.
+- [x] Mantener una sola pantalla y no añadir dependencias nuevas.
+- [x] Añadir tests razonables de lógica e interfaz.

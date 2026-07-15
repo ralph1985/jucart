@@ -4,6 +4,7 @@ import {
   createInitialShoppingHistoryEvents,
   createShoppingHistoryEvent,
   createShoppingItemId,
+  getQuickShoppingItemSuggestions,
   getRecentShoppingHistoryEvents,
   getUnseenRemoteShoppingHistoryEvents,
   hasItemWithName,
@@ -45,8 +46,21 @@ describe("shopping item logic", () => {
     expect(inferShoppingCategoryId("Repollo")).toBe("vegetables");
     expect(inferShoppingCategoryId("Sandía")).toBe("fruit");
     expect(inferShoppingCategoryId("Limpiador biberones")).toBe("cleaning");
-    expect(inferShoppingCategoryId("Pañales")).toBe("hygiene");
+    expect(inferShoppingCategoryId("Pañales")).toBe("baby");
+    expect(inferShoppingCategoryId("Compresas maternidad")).toBe("baby");
+    expect(inferShoppingCategoryId("Peine Irati")).toBe("hygiene");
     expect(inferShoppingCategoryId("Producto raro")).toBe("other");
+  });
+
+  it("infers categories for current remote products added after the initial catalog", () => {
+    expect(inferShoppingCategoryId("Kiwis")).toBe("fruit");
+    expect(inferShoppingCategoryId("Guacamole")).toBe("prepared");
+    expect(inferShoppingCategoryId("Salsa de soja")).toBe("pantry");
+    expect(inferShoppingCategoryId("Vasos de cristal")).toBe("household");
+    expect(
+      inferShoppingCategoryId("Compresas maternidad o bragas de incontinencia"),
+    ).toBe("baby");
+    expect(inferShoppingCategoryId("Peine Irati")).toBe("hygiene");
   });
 
   it("does not infer categories from partial words", () => {
@@ -54,6 +68,50 @@ describe("shopping item logic", () => {
     expect(inferShoppingCategoryId("Repollo")).toBe("vegetables");
     expect(inferShoppingCategoryId("Producto nasal")).toBe("other");
     expect(inferShoppingCategoryId("Repollo grande")).toBe("vegetables");
+  });
+
+  it("suggests quick products from defaults and excludes existing products in the board", () => {
+    expect(
+      getQuickShoppingItemSuggestions([baseItem], [], "mercadona", "", 4).map(
+        (suggestion) => suggestion.name,
+      ),
+    ).toEqual(["Pan", "Huevos", "Agua", "Pañales"]);
+  });
+
+  it("filters quick suggestions by the typed text", () => {
+    expect(
+      getQuickShoppingItemSuggestions([], [], "mercadona", "pa", 4).map(
+        (suggestion) => suggestion.name,
+      ),
+    ).toEqual(["Pan", "Pañales", "Papel higiénico", "Patata"]);
+  });
+
+  it("prioritizes recent shopping history in quick suggestions", () => {
+    const historyEvents = [
+      createShoppingHistoryEvent(
+        {
+          ...baseItem,
+          id: "item-2",
+          name: "Guacamole",
+          categoryId: "prepared",
+        },
+        "added",
+        "rafa",
+        "client-1",
+        "Mercadona",
+        undefined,
+        "",
+        () => "history-1",
+        () => 200,
+      ),
+    ];
+
+    expect(
+      getQuickShoppingItemSuggestions([], historyEvents, "mercadona", "", 2),
+    ).toEqual([
+      { name: "Guacamole", categoryId: "prepared" },
+      { name: "Leche", categoryId: "dairy" },
+    ]);
   });
 
   it("does not add empty products", () => {

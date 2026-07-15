@@ -45,8 +45,21 @@ describe("shopping item logic", () => {
     expect(inferShoppingCategoryId("Repollo")).toBe("vegetables");
     expect(inferShoppingCategoryId("Sandía")).toBe("fruit");
     expect(inferShoppingCategoryId("Limpiador biberones")).toBe("cleaning");
-    expect(inferShoppingCategoryId("Pañales")).toBe("hygiene");
+    expect(inferShoppingCategoryId("Pañales")).toBe("baby");
+    expect(inferShoppingCategoryId("Compresas maternidad")).toBe("baby");
+    expect(inferShoppingCategoryId("Peine Irati")).toBe("hygiene");
     expect(inferShoppingCategoryId("Producto raro")).toBe("other");
+  });
+
+  it("infers categories for current remote products added after the initial catalog", () => {
+    expect(inferShoppingCategoryId("Kiwis")).toBe("fruit");
+    expect(inferShoppingCategoryId("Guacamole")).toBe("prepared");
+    expect(inferShoppingCategoryId("Salsa de soja")).toBe("pantry");
+    expect(inferShoppingCategoryId("Vasos de cristal")).toBe("household");
+    expect(
+      inferShoppingCategoryId("Compresas maternidad o bragas de incontinencia"),
+    ).toBe("baby");
+    expect(inferShoppingCategoryId("Peine Irati")).toBe("hygiene");
   });
 
   it("does not infer categories from partial words", () => {

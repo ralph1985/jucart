@@ -26,7 +26,7 @@ erDiagram
     uuid list_id "lista compartida configurada por entorno"
     text name "producto"
     text section_id "apunta a shopping_sections.id"
-    text category_id "fruit|vegetables|meat|fish|dairy|bakery|pantry|drinks|frozen|cleaning|hygiene|pharmacy|pets|other"
+    text category_id "fruit|vegetables|meat|fish|dairy|bakery|pantry|drinks|frozen|prepared|cleaning|household|baby|hygiene|pharmacy|pets|other"
     text added_by "rafa|begona"
     boolean purchased
     timestamptz created_at
@@ -129,3 +129,5 @@ Al cargar, si Supabase está disponible, la aplicación lee datos remotos y actu
 - `supabase/migrations/20260715120000_create_shopping_history_events.sql`: crea `shopping_history_events`, añade índices de consulta por lista/fecha y activa RLS/Realtime.
 - `supabase/migrations/20260715133000_extend_shopping_history_event_types.sql`: amplía el historial con altas, movimientos y snapshot anterior.
 - `supabase/migrations/20260715160000_create_developer_backup_runs.sql`: crea `developer_backup_runs` para registrar metadatos del backup local de Supabase.
+- `supabase/migrations/20260715210000_extend_shopping_item_categories.sql`: amplía las categorías de productos con preparados, hogar y bebé, y recategoriza productos existentes.
+- `supabase/migrations/20260715211000_recategorize_baby_items.sql`: mueve productos de bebé que ya existían a la nueva categoría.

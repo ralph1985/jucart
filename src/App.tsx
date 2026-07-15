@@ -316,6 +316,8 @@ export function App() {
     isSupabaseConfigured() ? "syncing" : "local",
   );
   const [lastRemovedItems, setLastRemovedItems] = useState<ShoppingItem[]>([]);
+  const [lastHiddenPurchasedItem, setLastHiddenPurchasedItem] =
+    useState<ShoppingItem | null>(null);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const itemNameInputRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
@@ -329,7 +331,9 @@ export function App() {
   const hasAnimatedInitialColumnsRef = useRef(false);
   const previousItemIdsRef = useRef<Set<string>>(new Set());
   const previousUndoKeyRef = useRef<string | null>(null);
+  const previousHiddenUndoKeyRef = useRef<string | null>(null);
   const undoItemRef = useRef<HTMLLIElement>(null);
+  const hiddenUndoItemRef = useRef<HTMLLIElement>(null);
   const skipNextStoreRef = useRef(true);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
@@ -661,6 +665,41 @@ export function App() {
   }, [lastRemovedItems]);
 
   useEffect(() => {
+    if (!lastHiddenPurchasedItem) {
+      previousHiddenUndoKeyRef.current = null;
+      return;
+    }
+
+    if (
+      lastHiddenPurchasedItem.id === previousHiddenUndoKeyRef.current ||
+      !hiddenUndoItemRef.current
+    ) {
+      return;
+    }
+
+    previousHiddenUndoKeyRef.current = lastHiddenPurchasedItem.id;
+    runAnimation(hiddenUndoItemRef.current, {
+      opacity: [0, 1],
+      y: [-6, 0],
+      scale: [0.98, 1],
+      duration: 260,
+      ease: "outBack",
+    });
+  }, [lastHiddenPurchasedItem]);
+
+  useEffect(() => {
+    if (!lastHiddenPurchasedItem) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setLastHiddenPurchasedItem(null);
+    }, 5000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [lastHiddenPurchasedItem]);
+
+  useEffect(() => {
     if (!isClearDialogOpen) {
       return;
     }
@@ -758,6 +797,7 @@ export function App() {
 
     runHapticFeedback("warning");
     setLastRemovedItems(removedItems);
+    setLastHiddenPurchasedItem(null);
     setItems(items.filter((item) => !removedItemIds.has(item.id)));
     setIsClearDialogOpen(false);
   }
@@ -771,6 +811,7 @@ export function App() {
 
     runHapticFeedback("warning");
     setLastRemovedItems([removedItem]);
+    setLastHiddenPurchasedItem(null);
     setItems(removeShoppingItem(items, itemId));
   }
 
@@ -797,13 +838,46 @@ export function App() {
     runHapticFeedback("success");
   }
 
-  function handleToggleItem(itemId: string) {
-    if (!items.some((item) => item.id === itemId)) {
+  function handleUndoHiddenPurchasedItem() {
+    if (!lastHiddenPurchasedItem) {
       return;
+    }
+
+    setItems((currentItems) =>
+      currentItems.map((item) =>
+        item.id === lastHiddenPurchasedItem.id
+          ? { ...item, purchased: false, updatedAt: Date.now() }
+          : item,
+      ),
+    );
+    setLastHiddenPurchasedItem(null);
+    runHapticFeedback("success");
+  }
+
+  function handleToggleItem(itemId: string) {
+    const toggledItem = items.find((item) => item.id === itemId);
+
+    if (!toggledItem) {
+      return;
+    }
+
+    if (!toggledItem.purchased && !showPurchasedItems) {
+      setLastHiddenPurchasedItem(toggledItem);
+      setLastRemovedItems([]);
+    } else {
+      setLastHiddenPurchasedItem(null);
     }
 
     setItems(toggleShoppingItem(items, itemId));
     runHapticFeedback("medium");
+  }
+
+  function handleShowPurchasedItemsChange(isVisible: boolean) {
+    setShowPurchasedItems(isVisible);
+
+    if (isVisible) {
+      setLastHiddenPurchasedItem(null);
+    }
   }
 
   function selectSection(sectionId: ShoppingSectionId) {
@@ -967,16 +1041,41 @@ export function App() {
     );
   }
 
+  function renderHiddenPurchasedUndoItem(item: ShoppingItem) {
+    return (
+      <li
+        ref={hiddenUndoItemRef}
+        className={styles.undoItem}
+        key={`hidden-purchased-${item.id}`}
+      >
+        <span>Producto marcado como comprado.</span>
+        <button
+          className={styles.undoButton}
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={handleUndoHiddenPurchasedItem}
+        >
+          Deshacer
+        </button>
+      </li>
+    );
+  }
+
   function renderItems(
     sectionItems: ShoppingItem[],
     removedSectionItems: ShoppingItem[],
+    hiddenPurchasedItem: ShoppingItem | null,
     sectionColor: ShoppingSectionColor,
   ) {
     const renderedSectionItems = showPurchasedItems
       ? sectionItems
       : sectionItems.filter((item) => !item.purchased);
 
-    if (renderedSectionItems.length === 0 && removedSectionItems.length === 0) {
+    if (
+      renderedSectionItems.length === 0 &&
+      removedSectionItems.length === 0 &&
+      !hiddenPurchasedItem
+    ) {
       return (
         <div
           className={`${styles.empty} ${styles[`shoppingListColor${sectionColor}`]}`}
@@ -1133,6 +1232,10 @@ export function App() {
       listItems.push(renderUndoItem(sortedRemovedItems));
     }
 
+    if (hiddenPurchasedItem) {
+      listItems.push(renderHiddenPurchasedUndoItem(hiddenPurchasedItem));
+    }
+
     return (
       <ul
         className={`${styles.list} ${styles[`shoppingListColor${sectionColor}`]}`}
@@ -1274,7 +1377,7 @@ export function App() {
                   <input
                     checked={showPurchasedItems}
                     onChange={(event) =>
-                      setShowPurchasedItems(event.target.checked)
+                      handleShowPurchasedItemsChange(event.target.checked)
                     }
                     type="checkbox"
                     disabled={!isLoaded}
@@ -1313,6 +1416,10 @@ export function App() {
               const removedSectionItems = lastRemovedItems.filter(
                 (item) => item.sectionId === section.id,
               );
+              const hiddenPurchasedSectionItem =
+                lastHiddenPurchasedItem?.sectionId === section.id
+                  ? lastHiddenPurchasedItem
+                  : null;
               const pendingCount = sectionItems.filter(
                 (item) => !item.purchased,
               ).length;
@@ -1354,6 +1461,7 @@ export function App() {
                   {renderItems(
                     sectionItems,
                     removedSectionItems,
+                    hiddenPurchasedSectionItem,
                     section.color,
                   )}
                 </article>

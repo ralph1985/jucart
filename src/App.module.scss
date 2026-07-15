@@ -375,6 +375,7 @@ h2 {
 }
 
 .formField {
+  position: relative;
   min-width: 0;
 }
 
@@ -389,9 +390,18 @@ h2 {
 }
 
 .quickSuggestions {
+  position: absolute;
+  z-index: 9;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  left: 0;
   display: flex;
   gap: 0.35rem;
-  margin-top: 0.42rem;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 0.55rem;
+  padding: 0.35rem;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 0.45rem 1rem rgb(15 23 42 / 10%);
   overflow-x: auto;
   scrollbar-width: none;
 }

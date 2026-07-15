@@ -65,7 +65,7 @@ En el Hito 7, Jucart recuerda la última sección y la última persona seleccion
 
 Esta preferencia no forma parte de los productos ni requiere IndexedDB. Solo acelera el alta siguiente en el mismo navegador. Después de añadir un producto, el foco vuelve al campo de texto para poder seguir escribiendo sin tocar de nuevo la pantalla.
 
-En el Hito 24, el alta añade sugerencias rápidas bajo el campo de producto.
+En el Hito 24, el alta añade sugerencias rápidas bajo el campo de producto cuando se empieza a escribir.
 
 Las sugerencias se calculan desde el catálogo maestro, productos existentes e historial reciente. Si el campo tiene texto, se filtran por lo escrito. No se muestran productos que ya existan en el tablero para evitar ruido visual, y tocar una sugerencia usa el mismo flujo de alta que el botón `Añadir`, incluyendo historial y persistencia.
 

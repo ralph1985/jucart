@@ -543,14 +543,16 @@ export function App() {
   );
   const selectedPurchasedCount = selectedPurchasedItems.length;
   const recentHistoryEvents = getRecentShoppingHistoryEvents(historyEvents);
-  const quickItemSuggestions = isLoaded
-    ? getQuickShoppingItemSuggestions(
-        items,
-        historyEvents,
-        selectedSectionId,
-        itemName,
-      )
-    : [];
+  const shouldShowQuickItemSuggestions = itemName.trim().length > 0;
+  const quickItemSuggestions =
+    isLoaded && shouldShowQuickItemSuggestions
+      ? getQuickShoppingItemSuggestions(
+          items,
+          historyEvents,
+          selectedSectionId,
+          itemName,
+        )
+      : [];
   const unseenRemoteHistoryEvents = getUnseenRemoteShoppingHistoryEvents(
     historyEvents,
     historyClientId,

@@ -349,6 +349,14 @@ describe("App", () => {
     );
 
     expect(
+      screen.queryByRole("button", { name: "Añadir Leche" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "le" },
+    });
+
+    expect(
       screen.getByRole("button", { name: "Añadir Leche" }),
     ).toBeInTheDocument();
 

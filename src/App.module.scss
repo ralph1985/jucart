@@ -252,8 +252,8 @@ h2 {
   right: 0;
   bottom: 0;
   left: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
   gap: 0.25rem;
   border-top: 1px solid rgb(148 163 184 / 24%);
   padding: 0.5rem max(1rem, env(safe-area-inset-right, 0px))
@@ -267,8 +267,9 @@ h2 {
 .bottomNavItem,
 .bottomNavItemActive {
   display: grid;
+  flex: 1 1 0;
   min-width: 0;
-  min-height: 3.3rem;
+  min-height: 3.2rem;
   place-items: center;
   gap: 0.15rem;
   border: 0;
@@ -276,10 +277,18 @@ h2 {
   padding: 0.3rem;
   background: transparent;
   color: #536b7c;
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 850;
   text-decoration: none;
   cursor: pointer;
+}
+
+.bottomNavItem span,
+.bottomNavItemActive span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bottomNavItemActive {

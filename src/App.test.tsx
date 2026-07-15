@@ -69,6 +69,8 @@ afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   emblaCarouselMock.reset();
+  Reflect.deleteProperty(navigator, "setAppBadge");
+  Reflect.deleteProperty(navigator, "clearAppBadge");
   delete (Element.prototype as Partial<Element>).scrollIntoView;
   await resetShoppingItemsDatabase();
   window.localStorage.clear();
@@ -89,6 +91,61 @@ describe("App", () => {
     expect(
       screen.getByRole("navigation", { name: "Navegación principal" }),
     ).toBeInTheDocument();
+  });
+
+  it("updates the app badge with the visible pending product count", async () => {
+    const setAppBadge = vi.fn(() => Promise.resolve());
+    const clearAppBadge = vi.fn(() => Promise.resolve());
+
+    Object.defineProperty(navigator, "setAppBadge", {
+      configurable: true,
+      value: setAppBadge,
+    });
+    Object.defineProperty(navigator, "clearAppBadge", {
+      configurable: true,
+      value: clearAppBadge,
+    });
+
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Pan",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      {
+        id: "item-2",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "begona",
+        purchased: true,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+      {
+        id: "item-3",
+        name: "Yogur",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 300,
+        updatedAt: 300,
+      },
+    ]);
+
+    render(<App />);
+
+    const summary = await screen.findByLabelText("Resumen de la lista");
+
+    expect(within(summary).getByText("Pendientes")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(summary).getByText("2")).toBeInTheDocument(),
+    );
+
+    await waitFor(() => expect(setAppBadge).toHaveBeenCalledWith(2));
   });
 
   it("adds, toggles and removes products", async () => {

@@ -657,9 +657,28 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
     );
 
+    const sectionIndicators = screen.getAllByRole("button", {
+      name: /Ver lista/,
+    });
+
+    expect(sectionIndicators).toHaveLength(5);
+    expect(
+      screen.getByRole("button", { name: "Ver lista Mercadona" }),
+    ).toHaveAttribute("aria-current", "true");
+
     act(() => emblaCarouselMock.selectTo(3));
 
     expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
+    expect(
+      screen.getByRole("button", { name: "Ver lista Farmacia" }),
+    ).toHaveAttribute("aria-current", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver lista Día" }));
+
+    expect(screen.getByLabelText("Sección")).toHaveValue("dia");
+    expect(
+      screen.getByRole("button", { name: "Ver lista Día" }),
+    ).toHaveAttribute("aria-current", "true");
   });
 
   it("removes purchased products after confirmation", async () => {

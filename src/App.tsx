@@ -3,6 +3,7 @@ import {
   ChangeEvent,
   KeyboardEvent,
   MouseEvent,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -440,6 +441,12 @@ function getSyncStatusFromStorageMode() {
   return "local";
 }
 
+function getLoadingStatusText() {
+  return isSupabaseConfigured()
+    ? "Cargando lista de Supabase..."
+    : "Cargando lista...";
+}
+
 export function App() {
   const [activeView, setActiveView] = useState<AppView>("shopping");
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -480,6 +487,7 @@ export function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isSupabaseConfigured() ? "syncing" : "local",
   );
+  const [pendingRemoteRequests, setPendingRemoteRequests] = useState(0);
   const [developerBackupRun, setDeveloperBackupRun] =
     useState<DeveloperBackupRun | null>(null);
   const [developerBackupError, setDeveloperBackupError] = useState<
@@ -504,6 +512,7 @@ export function App() {
   const previousHiddenUndoKeyRef = useRef<string | null>(null);
   const undoItemRef = useRef<HTMLLIElement>(null);
   const hiddenUndoItemRef = useRef<HTMLLIElement>(null);
+  const isMountedRef = useRef(true);
   const skipNextStoreRef = useRef(true);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
@@ -541,6 +550,8 @@ export function App() {
   const displayedHistoryEvents = showUnseenHistoryOnly
     ? unseenHistoryEventsForView
     : recentHistoryEvents;
+  const isRemoteRequestPending =
+    isLoaded && isSupabaseConfigured() && pendingRemoteRequests > 0;
   const removePurchasedButtonText =
     selectedPurchasedCount === 1
       ? "Borrar 1 producto"
@@ -550,10 +561,37 @@ export function App() {
       ? `Se borrará 1 producto comprado de ${selectedSectionName}. Podrás deshacerlo después.`
       : `Se borrarán ${selectedPurchasedCount} productos comprados de ${selectedSectionName}. Podrás deshacerlo después.`;
 
+  const beginRemoteRequest = useCallback(() => {
+    if (!isSupabaseConfigured()) {
+      return () => undefined;
+    }
+
+    setPendingRemoteRequests((currentCount) => currentCount + 1);
+
+    let hasFinished = false;
+
+    return () => {
+      if (hasFinished || !isMountedRef.current) {
+        return;
+      }
+
+      hasFinished = true;
+      setPendingRemoteRequests((currentCount) => Math.max(0, currentCount - 1));
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     let isActive = true;
 
     async function loadItems() {
+      const finishRemoteRequest = beginRemoteRequest();
+
       try {
         const storedData = await getStoredShoppingData();
         const shouldCreateInitialHistory =
@@ -585,6 +623,8 @@ export function App() {
           setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
         }
       } finally {
+        finishRemoteRequest();
+
         if (isActive) {
           setIsLoaded(true);
         }
@@ -596,7 +636,7 @@ export function App() {
     return () => {
       isActive = false;
     };
-  }, [historyClientId]);
+  }, [beginRemoteRequest, historyClientId]);
 
   useEffect(() => {
     void updateBadge(pendingCount);
@@ -613,6 +653,8 @@ export function App() {
     }
 
     async function storeItems() {
+      const finishRemoteRequest = beginRemoteRequest();
+
       try {
         setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
         await replaceStoredShoppingData({ items, sections, historyEvents });
@@ -621,11 +663,13 @@ export function App() {
       } catch {
         setStorageError("No se pudieron guardar los últimos cambios.");
         setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
+      } finally {
+        finishRemoteRequest();
       }
     }
 
     void storeItems();
-  }, [isLoaded, items, sections, historyEvents]);
+  }, [beginRemoteRequest, isLoaded, items, sections, historyEvents]);
 
   useEffect(() => {
     if (!isLoaded) {
@@ -635,6 +679,8 @@ export function App() {
     let isActive = true;
 
     async function refreshItemsFromSupabase() {
+      const finishRemoteRequest = beginRemoteRequest();
+
       try {
         const storedData = await getStoredShoppingData();
 
@@ -658,6 +704,8 @@ export function App() {
           setStorageError("No se pudo sincronizar la lista.");
           setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
         }
+      } finally {
+        finishRemoteRequest();
       }
     }
 
@@ -678,7 +726,7 @@ export function App() {
       document.removeEventListener("visibilitychange", refreshItemsWhenVisible);
       unsubscribe();
     };
-  }, [isLoaded]);
+  }, [beginRemoteRequest, isLoaded]);
 
   useEffect(() => {
     try {
@@ -1899,11 +1947,18 @@ export function App() {
 
       {!isLoaded ? (
         <p className={styles.loadingStatus} role="status" aria-live="polite">
-          Cargando lista...
+          {getLoadingStatusText()}
         </p>
       ) : storageError ? (
         <p className={styles.error} role="alert">
           {storageError}
+        </p>
+      ) : null}
+
+      {isRemoteRequestPending ? (
+        <p className={styles.remoteSyncStatus} role="status" aria-live="polite">
+          <span className={styles.remoteSyncIndicator} aria-hidden="true" />
+          Sincronizando con Supabase...
         </p>
       ) : null}
 

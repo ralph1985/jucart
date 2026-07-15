@@ -17,6 +17,7 @@ import {
   replaceStoredShoppingItems,
   resetShoppingItemsDatabase,
 } from "./shoppingItemsDb";
+import * as shoppingItemsSupabase from "./shoppingItemsSupabase";
 import type { ShoppingData } from "./shoppingItemsDb";
 
 const emblaCarouselMock = vi.hoisted(() => {
@@ -140,6 +141,36 @@ describe("App", () => {
     expect(await screen.findByText("Leche")).toBeInTheDocument();
     expect(screen.queryByText("Cargando lista...")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled();
+  });
+
+  it("shows Supabase in the loading message when remote storage is configured", async () => {
+    let resolveStoredData: (data: ShoppingData) => void = () => {};
+    const storedDataPromise = new Promise<ShoppingData>((resolve) => {
+      resolveStoredData = resolve;
+    });
+
+    vi.spyOn(shoppingItemsSupabase, "isSupabaseConfigured").mockReturnValue(
+      true,
+    );
+    vi.spyOn(shoppingItemsDb, "getStoredShoppingData").mockReturnValue(
+      storedDataPromise,
+    );
+
+    render(<App />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Cargando lista de Supabase...",
+    );
+
+    await act(async () => {
+      resolveStoredData({
+        items: [],
+        sections: defaultShoppingSections,
+        historyEvents: [],
+      });
+
+      await storedDataPromise;
+    });
   });
 
   it("shows the developer view only when Rafa is selected", async () => {
@@ -308,6 +339,64 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
+  });
+
+  it("shows remote sync feedback while Supabase saves changes", async () => {
+    let resolveStoredData: (data: ShoppingData) => void = () => {};
+    let resolveStoreData: () => void = () => {};
+    const storedDataPromise = new Promise<ShoppingData>((resolve) => {
+      resolveStoredData = resolve;
+    });
+    const storeDataPromise = new Promise<void>((resolve) => {
+      resolveStoreData = resolve;
+    });
+
+    vi.spyOn(shoppingItemsSupabase, "isSupabaseConfigured").mockReturnValue(
+      true,
+    );
+    vi.spyOn(shoppingItemsDb, "getShoppingItemsStorageMode").mockReturnValue(
+      "remote",
+    );
+    vi.spyOn(shoppingItemsDb, "getStoredShoppingData").mockReturnValue(
+      storedDataPromise,
+    );
+
+    render(<App />);
+
+    await act(async () => {
+      resolveStoredData({
+        items: [],
+        sections: defaultShoppingSections,
+        historyEvents: [],
+      });
+
+      await storedDataPromise;
+    });
+
+    vi.spyOn(shoppingItemsDb, "replaceStoredShoppingData").mockReturnValue(
+      storeDataPromise,
+    );
+
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "Leche" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+
+    expect(
+      await screen.findByText("Sincronizando con Supabase..."),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      resolveStoreData();
+      await storeDataPromise;
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Sincronizando con Supabase..."),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText("Sincronizado")).toBeInTheDocument();
   });
 
   it("does not toggle a product when editing it", async () => {

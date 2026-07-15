@@ -36,7 +36,20 @@ describe("shopping item logic", () => {
   it("infers categories from the master product catalog", () => {
     expect(inferShoppingCategoryId("  Leche entera ")).toBe("dairy");
     expect(inferShoppingCategoryId("Pan integral")).toBe("bakery");
+    expect(inferShoppingCategoryId("Atún natural latilla")).toBe("fish");
+    expect(inferShoppingCategoryId("Guantes talla L")).toBe("pharmacy");
+    expect(inferShoppingCategoryId("Repollo")).toBe("vegetables");
+    expect(inferShoppingCategoryId("Sandía")).toBe("fruit");
+    expect(inferShoppingCategoryId("Limpiador biberones")).toBe("cleaning");
+    expect(inferShoppingCategoryId("Pañales")).toBe("hygiene");
     expect(inferShoppingCategoryId("Producto raro")).toBe("other");
+  });
+
+  it("does not infer categories from partial words", () => {
+    expect(inferShoppingCategoryId("Lavado nasal")).toBe("pharmacy");
+    expect(inferShoppingCategoryId("Repollo")).toBe("vegetables");
+    expect(inferShoppingCategoryId("Producto nasal")).toBe("other");
+    expect(inferShoppingCategoryId("Repollo grande")).toBe("vegetables");
   });
 
   it("does not add empty products", () => {

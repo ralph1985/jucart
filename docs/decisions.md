@@ -55,7 +55,7 @@ Esta preferencia no forma parte de los productos ni requiere IndexedDB. Solo ace
 
 En el Hito 8, Jucart permite borrar todos los productos comprados con una acción global.
 
-La limpieza pide confirmación antes de borrar y conserva los productos pendientes. No se añade papelera, historial ni deshacer porque la aplicación sigue siendo una lista local sencilla; si un producto se borra por error, se vuelve a añadir manualmente.
+La limpieza pide confirmación antes de borrar y conserva los productos pendientes. Desde el Hito 13 se puede deshacer la última limpieza, pero no se añade historial múltiple ni papelera permanente.
 
 ## Compra en tienda
 
@@ -85,7 +85,7 @@ Este orden prioriza preparar el contexto una vez y terminar escribiendo el produ
 
 En el Hito 13, Jucart permite deshacer el último borrado.
 
-La aplicación guarda en memoria los últimos productos borrados y muestra una acción `Deshacer` en la sección donde estaban. La restauración usa el flujo normal de estado y persistencia local. No se implementa historial múltiple ni papelera permanente para mantener la interfaz sencilla.
+La aplicación guarda en memoria los últimos productos borrados y muestra una acción `Deshacer` en la sección donde estaban. La restauración usa el flujo normal de estado y persistencia. No se implementa historial múltiple ni papelera permanente para mantener la interfaz sencilla.
 
 ## Animaciones de navegación
 
@@ -135,6 +135,8 @@ En el Hito 18, la UI muestra un estado discreto de sincronización. La app tambi
 
 La tabla usa `list_id` para identificar una lista compartida y la aplicación filtra por `VITE_SUPABASE_LIST_ID`. Esta decisión es pragmática para una app privada de uso personal; no se planifica una capa de autenticación o permisos más compleja mientras ese siga siendo el alcance.
 
+El esquema de Supabase y la copia local IndexedDB están documentados en [`docs/database-schema.md`](database-schema.md).
+
 ## PWA y offline
 
 En el Hito 3, Jucart usa `vite-plugin-pwa` con Service Worker generado por Workbox.
@@ -143,4 +145,4 @@ El Service Worker se registra con actualización automática y precachea el shel
 
 Los iconos son provisionales y locales: SVG, PNG 192x192 y PNG 512x512. No se añade una dependencia solo para generar iconos.
 
-La persistencia de datos sigue dependiendo de IndexedDB mediante Dexie. Al no haber backend, la modificación de datos locales no requiere red.
+La persistencia offline sigue dependiendo de IndexedDB mediante Dexie. Cuando no hay red o Supabase falla, la modificación de datos locales no requiere conexión.

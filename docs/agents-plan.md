@@ -14,7 +14,7 @@ Responsabilidades:
 
 - Identificar el hito activo en `PLAN.md`.
 - Leer solo los archivos probables y evitar recorridos amplios del repo.
-- Mantener el alcance del MVP.
+- Mantener el alcance actual de app privada de una sola pantalla.
 - Evitar carpetas, dependencias y abstracciones sin necesidad actual.
 - Ejecutar validaciones proporcionales al cambio.
 

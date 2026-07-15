@@ -1,8 +1,8 @@
 # Jucart
 
-Jucart es una aplicación web privada y sencilla para gestionar una lista de la compra de uso personal.
+Jucart es una aplicación web privada y sencilla para gestionar la compra de uso personal.
 
-El objetivo del MVP es que añadir un producto sea más rápido que escribirlo en la pizarra de la nevera: abrir la aplicación, escribir el producto, pulsar Enter y cerrar.
+El objetivo principal es que añadir un producto sea más rápido que escribirlo en la pizarra de la nevera: abrir la aplicación, escribir el producto, pulsar Enter y cerrar.
 
 ## Principios
 
@@ -12,17 +12,21 @@ El objetivo del MVP es que añadir un producto sea más rápido que escribirlo e
 - Listas configurables para organizar la compra por tienda o contexto.
 - Tablero por columnas, con desplazamiento lateral en móvil.
 - Código sencillo de entender y modificar.
-- Sin backend, login, usuarios ni sincronización entre dispositivos en el MVP.
+- Supabase remoto para sincronización personal entre dispositivos.
+- Sin login, usuarios, rutas públicas ni permisos complejos mientras siga siendo una app privada.
 - Sin Tailwind, Redux, React Router ni librerías de componentes mientras no exista una necesidad real.
 
-## Stack inicial
+## Stack
 
 - React.
 - TypeScript.
 - Vite.
 - SCSS Modules.
 - Dexie.
+- Supabase.
 - `vite-plugin-pwa`.
+- Anime.js.
+- Embla Carousel.
 - Vitest.
 - React Testing Library.
 - ESLint.
@@ -79,9 +83,13 @@ pnpm supabase:link --project-ref <project-ref>
 pnpm supabase:db:push
 ```
 
+El esquema remoto y la copia local IndexedDB están documentados en [`docs/database-schema.md`](docs/database-schema.md).
+
 ## Estado
 
-El MVP tiene completados los hitos 0, 1, 2, 3 y 4: inicialización, lista local, persistencia local, PWA/offline y revisión final.
+Jucart mantiene una sola aplicación sin rutas, con tablero de compra, gestión de listas, sincronización remota y fallback local.
+
+Los hitos 0 a 4 cubren inicialización, lista local, persistencia local, PWA/offline y revisión del MVP.
 
 El Hito 5 añade edición básica de productos: cambiar nombre y mover productos entre secciones sin salir de la pantalla principal.
 

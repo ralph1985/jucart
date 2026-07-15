@@ -814,33 +814,62 @@ describe("App", () => {
     await replaceStoredShoppingItems([
       {
         id: "item-1",
-        name: "Leche",
+        name: "Anterior",
         sectionId: "mercadona",
         addedBy: "rafa",
         purchased: false,
         createdAt: 100,
         updatedAt: 100,
       },
+      {
+        id: "item-2",
+        name: "Central",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+      {
+        id: "item-3",
+        name: "Posterior",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 300,
+        updatedAt: 300,
+      },
     ]);
 
     render(<App />);
 
-    await screen.findByText("Leche");
+    await screen.findByText("Central");
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+      screen.getByRole("button", { name: "Marcar Central como comprado" }),
     );
 
-    expect(screen.queryByText("Leche")).not.toBeInTheDocument();
+    expect(screen.queryByText("Central")).not.toBeInTheDocument();
     expect(
       screen.getByText("Producto marcado como comprado."),
     ).toBeInTheDocument();
 
+    const mercadonaColumn = screen
+      .getByRole("heading", { name: "Mercadona" })
+      .closest("article");
+
+    expect(mercadonaColumn).not.toBeNull();
+    expect(
+      within(mercadonaColumn as HTMLElement)
+        .getAllByText(/^(Anterior|Producto marcado como comprado\.|Posterior)$/)
+        .map((element) => element.textContent),
+    ).toEqual(["Anterior", "Producto marcado como comprado.", "Posterior"]);
+
     fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
 
-    expect(screen.getByText("Leche")).toBeInTheDocument();
+    expect(screen.getByText("Central")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+      screen.getByRole("button", { name: "Marcar Central como comprado" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByText("Producto marcado como comprado."),

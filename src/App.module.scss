@@ -29,10 +29,11 @@
 }
 
 .appShopping {
+  --section-indicator-height: 2.2rem;
   --shopping-board-height: calc(
     100dvh - var(--header-height) - var(--command-height) - var(
         --bottom-nav-height
-      ) -
+      ) - var(--section-indicator-height) -
       0.85rem
   );
 
@@ -408,6 +409,8 @@ h2 {
 .bottomNavItem:focus-visible,
 .bottomNavItemActive:focus-visible,
 .sectionColorButton:focus-visible,
+.sectionIndicator:focus-visible,
+.sectionIndicatorActive:focus-visible,
 .board:focus-visible {
   border-color: #2f80ed;
   outline: 3px solid rgb(47 128 237 / 22%);
@@ -770,6 +773,43 @@ h2 {
   align-items: stretch;
   gap: 0.75rem;
   height: 100%;
+}
+
+.sectionIndicators {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  height: var(--section-indicator-height);
+  padding: 0.22rem max(0.75rem, env(safe-area-inset-right, 0px)) 0
+    max(0.75rem, env(safe-area-inset-left, 0px));
+}
+
+.sectionIndicator,
+.sectionIndicatorActive {
+  width: 1.75rem;
+  height: 1.65rem;
+  border: 0;
+  border-radius: 999rem;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sectionIndicator::after,
+.sectionIndicatorActive::after {
+  display: block;
+  width: 0.42rem;
+  height: 0.42rem;
+  margin: 0 auto;
+  border-radius: 999rem;
+  background: rgb(100 116 139 / 42%);
+  content: "";
+}
+
+.sectionIndicatorActive::after {
+  width: 1.05rem;
+  background: #167c5a;
 }
 
 .sectionColormint {
@@ -1149,6 +1189,10 @@ h2 {
     width: min(100% - 2rem, 80rem);
     margin: 0 auto;
     padding-inline: 0;
+  }
+
+  .sectionIndicators {
+    display: none;
   }
 
   .column {

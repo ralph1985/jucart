@@ -1718,74 +1718,102 @@ export function App() {
       ) : null}
 
       {activeView === "shopping" ? (
-        <section
-          id="shopping-board"
-          ref={boardRef}
-          className={styles.board}
-          aria-label="Lista por secciones"
-          tabIndex={0}
-        >
-          <div className={styles.boardTrack}>
-            {sections.map((section) => {
-              const sectionItems = items.filter(
-                (item) => item.sectionId === section.id,
-              );
-              const removedSectionItems = lastRemovedItems.filter(
-                (item) => item.sectionId === section.id,
-              );
-              const hiddenPurchasedSectionItem =
-                lastHiddenPurchasedItem?.sectionId === section.id
-                  ? lastHiddenPurchasedItem
-                  : null;
-              const pendingCount = sectionItems.filter(
-                (item) => !item.purchased,
-              ).length;
+        <>
+          <section
+            id="shopping-board"
+            ref={boardRef}
+            className={styles.board}
+            aria-label="Lista por secciones"
+            tabIndex={0}
+          >
+            <div className={styles.boardTrack}>
+              {sections.map((section) => {
+                const sectionItems = items.filter(
+                  (item) => item.sectionId === section.id,
+                );
+                const removedSectionItems = lastRemovedItems.filter(
+                  (item) => item.sectionId === section.id,
+                );
+                const hiddenPurchasedSectionItem =
+                  lastHiddenPurchasedItem?.sectionId === section.id
+                    ? lastHiddenPurchasedItem
+                    : null;
+                const pendingCount = sectionItems.filter(
+                  (item) => !item.purchased,
+                ).length;
 
-              return (
-                <article
-                  ref={(column) => {
-                    if (column) {
-                      sectionColumnRefs.current[section.id] = column;
-                    } else {
-                      delete sectionColumnRefs.current[section.id];
+                return (
+                  <article
+                    ref={(column) => {
+                      if (column) {
+                        sectionColumnRefs.current[section.id] = column;
+                      } else {
+                        delete sectionColumnRefs.current[section.id];
+                      }
+                    }}
+                    className={
+                      selectedSectionId === section.id
+                        ? `${styles.column} ${styles[`sectionColor${section.color}`]} ${styles.columnSelected}`
+                        : `${styles.column} ${styles[`sectionColor${section.color}`]}`
                     }
-                  }}
+                    aria-current={
+                      selectedSectionId === section.id ? "true" : undefined
+                    }
+                    aria-labelledby={`section-${section.id}-title`}
+                    key={section.id}
+                    onClick={() => selectSection(section.id)}
+                    onKeyDown={(event) =>
+                      handleColumnKeyDown(event, section.id)
+                    }
+                    tabIndex={0}
+                  >
+                    <div className={styles.sectionHeader}>
+                      <h2 id={`section-${section.id}-title`}>
+                        <span>{section.name}</span>
+                        <span className={styles.count} aria-hidden="true">
+                          · {pendingCount}
+                        </span>
+                      </h2>
+                      <span className={styles.visuallyHidden}>
+                        {pendingCount} productos pendientes
+                      </span>
+                    </div>
+                    {renderItems(
+                      sectionItems,
+                      removedSectionItems,
+                      hiddenPurchasedSectionItem,
+                      section.color,
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+          {isLoaded ? (
+            <nav
+              className={styles.sectionIndicators}
+              aria-label="Listas disponibles"
+            >
+              {sections.map((section) => (
+                <button
                   className={
                     selectedSectionId === section.id
-                      ? `${styles.column} ${styles[`sectionColor${section.color}`]} ${styles.columnSelected}`
-                      : `${styles.column} ${styles[`sectionColor${section.color}`]}`
+                      ? styles.sectionIndicatorActive
+                      : styles.sectionIndicator
                   }
+                  type="button"
                   aria-current={
                     selectedSectionId === section.id ? "true" : undefined
                   }
-                  aria-labelledby={`section-${section.id}-title`}
+                  aria-label={`Ver lista ${section.name}`}
                   key={section.id}
+                  onPointerDown={handleButtonPointerDown}
                   onClick={() => selectSection(section.id)}
-                  onKeyDown={(event) => handleColumnKeyDown(event, section.id)}
-                  tabIndex={0}
-                >
-                  <div className={styles.sectionHeader}>
-                    <h2 id={`section-${section.id}-title`}>
-                      <span>{section.name}</span>
-                      <span className={styles.count} aria-hidden="true">
-                        · {pendingCount}
-                      </span>
-                    </h2>
-                    <span className={styles.visuallyHidden}>
-                      {pendingCount} productos pendientes
-                    </span>
-                  </div>
-                  {renderItems(
-                    sectionItems,
-                    removedSectionItems,
-                    hiddenPurchasedSectionItem,
-                    section.color,
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </section>
+                />
+              ))}
+            </nav>
+          ) : null}
+        </>
       ) : null}
 
       {activeView === "sections" ? (

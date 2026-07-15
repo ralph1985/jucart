@@ -29,7 +29,17 @@
 }
 
 .appShopping {
+  --shopping-board-height: calc(
+    100dvh - var(--header-height) - var(--command-height) - var(
+        --bottom-nav-height
+      ) -
+      0.85rem
+  );
+
+  height: 100dvh;
   padding-top: calc(var(--header-height) + var(--command-height) + 0.6rem);
+  padding-bottom: 0;
+  overflow: hidden;
 }
 
 .header {
@@ -744,12 +754,7 @@ h2 {
 
 .board {
   max-width: 100%;
-  height: calc(
-    100dvh - var(--header-height) - var(--command-height) - var(
-        --bottom-nav-height
-      ) -
-      0.75rem
-  );
+  height: var(--shopping-board-height);
   min-height: 16rem;
   overflow: hidden;
   overscroll-behavior-x: contain;
@@ -940,7 +945,7 @@ h2 {
   min-height: 0;
   margin: 0;
   border-radius: 0.5rem;
-  padding: 0.3rem;
+  padding: 0.3rem 0.3rem 0.9rem;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;

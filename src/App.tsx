@@ -50,6 +50,7 @@ import {
 
 const selectedSectionStorageKey = "jucart:selected-section-id";
 const selectedUserStorageKey = "jucart:selected-user-id";
+const showPurchasedItemsStorageKey = "jucart:show-purchased-items";
 
 type AppView = "shopping" | "sections";
 
@@ -211,6 +212,16 @@ function getInitialSelectedUserId(): ShoppingUserId {
   }
 }
 
+function getInitialShowPurchasedItems() {
+  try {
+    return (
+      window.localStorage.getItem(showPurchasedItemsStorageKey) !== "false"
+    );
+  } catch {
+    return true;
+  }
+}
+
 function compareShoppingItemsForVisibleOrder(
   firstItem: ShoppingItem,
   secondItem: ShoppingItem,
@@ -291,6 +302,9 @@ export function App() {
   );
   const [selectedUserId, setSelectedUserId] = useState<ShoppingUserId>(
     getInitialSelectedUserId,
+  );
+  const [showPurchasedItems, setShowPurchasedItems] = useState(
+    getInitialShowPurchasedItems,
   );
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
@@ -465,6 +479,17 @@ export function App() {
       return;
     }
   }, [selectedUserId]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        showPurchasedItemsStorageKey,
+        String(showPurchasedItems),
+      );
+    } catch {
+      return;
+    }
+  }, [showPurchasedItems]);
 
   useEffect(() => {
     sectionsRef.current = sections;
@@ -938,7 +963,11 @@ export function App() {
     removedSectionItems: ShoppingItem[],
     sectionColor: ShoppingSectionColor,
   ) {
-    if (sectionItems.length === 0 && removedSectionItems.length === 0) {
+    const renderedSectionItems = showPurchasedItems
+      ? sectionItems
+      : sectionItems.filter((item) => !item.purchased);
+
+    if (renderedSectionItems.length === 0 && removedSectionItems.length === 0) {
       return (
         <div
           className={`${styles.empty} ${styles[`shoppingListColor${sectionColor}`]}`}
@@ -948,13 +977,15 @@ export function App() {
           </span>
           <p className={styles.emptyTitle}>No hay productos</p>
           <p className={styles.emptyDescription}>
-            Añade el primero usando el formulario superior.
+            {sectionItems.length === 0
+              ? "Añade el primero usando el formulario superior."
+              : "Los productos comprados están ocultos."}
           </p>
         </div>
       );
     }
 
-    const visibleItems = sortShoppingItemsForShopping(sectionItems);
+    const visibleItems = sortShoppingItemsForShopping(renderedSectionItems);
     const sortedRemovedItems = [...removedSectionItems].sort(
       compareShoppingItemsForVisibleOrder,
     );
@@ -1216,6 +1247,28 @@ export function App() {
                 >
                   Añadir
                 </button>
+                <button
+                  className={styles.iconButton}
+                  type="button"
+                  aria-label="Borrar comprados"
+                  title="Borrar comprados"
+                  onPointerDown={handleButtonPointerDown}
+                  onClick={handleRemovePurchasedItems}
+                  disabled={!isLoaded || purchasedCount === 0}
+                >
+                  <Icon name="trash" />
+                </button>
+                <label className={styles.visibilityToggle}>
+                  <input
+                    checked={showPurchasedItems}
+                    onChange={(event) =>
+                      setShowPurchasedItems(event.target.checked)
+                    }
+                    type="checkbox"
+                    disabled={!isLoaded}
+                  />
+                  <span>Comprados</span>
+                </label>
               </div>
             </div>
           </form>
@@ -1447,17 +1500,6 @@ export function App() {
         >
           <Icon name="list" />
           <span>Lista</span>
-        </button>
-        <button
-          className={styles.bottomNavItem}
-          type="button"
-          aria-label="Borrar comprados"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handleRemovePurchasedItems}
-          disabled={!isLoaded || purchasedCount === 0}
-        >
-          <Icon name="trash" />
-          <span>Limpiar</span>
         </button>
         <button
           className={

@@ -267,6 +267,7 @@ describe("App", () => {
   it("restores the last selected section and user", async () => {
     window.localStorage.setItem("jucart:selected-section-id", "farmacia");
     window.localStorage.setItem("jucart:selected-user-id", "begona");
+    window.localStorage.setItem("jucart:show-purchased-items", "false");
 
     render(<App />);
 
@@ -276,6 +277,7 @@ describe("App", () => {
 
     expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
     expect(screen.getByLabelText("Añadido por")).toHaveValue("begona");
+    expect(screen.getByLabelText("Comprados")).not.toBeChecked();
   });
 
   it("shows product name as the last add form field", async () => {
@@ -299,7 +301,7 @@ describe("App", () => {
     ).toBeTruthy();
   });
 
-  it("keeps list settings as the rightmost bottom navigation action", async () => {
+  it("keeps only persistent view actions in the bottom navigation", async () => {
     render(<App />);
 
     await waitFor(() =>
@@ -314,7 +316,10 @@ describe("App", () => {
       within(navigation)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Lista", "Limpiar", "Listas"]);
+    ).toEqual(["Lista", "Listas"]);
+    expect(
+      screen.getByRole("button", { name: "Borrar comprados" }),
+    ).toBeInTheDocument();
   });
 
   it("manages shopping lists from the bottom navigation", async () => {
@@ -683,6 +688,50 @@ describe("App", () => {
       .map((productName) => productName.textContent);
 
     expect(shoppingOrder).toEqual(["Leche", "Pan", "Comprados", "Yogur"]);
+  });
+
+  it("toggles purchased products visibility in the shopping list", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Yogur",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: true,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      {
+        id: "item-2",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "begona",
+        purchased: false,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Leche");
+
+    const visibilityToggle = screen.getByLabelText("Comprados");
+
+    expect(visibilityToggle).toBeChecked();
+    expect(screen.getByText("Yogur")).toBeInTheDocument();
+
+    fireEvent.click(visibilityToggle);
+
+    expect(screen.queryByText("Yogur")).not.toBeInTheDocument();
+    expect(screen.getByText("Leche")).toBeInTheDocument();
+    expect(window.localStorage.getItem("jucart:show-purchased-items")).toBe(
+      "false",
+    );
+
+    fireEvent.click(visibilityToggle);
+
+    expect(screen.getByText("Yogur")).toBeInTheDocument();
   });
 
   it("edits a product name and section", async () => {

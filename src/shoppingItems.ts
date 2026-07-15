@@ -142,6 +142,33 @@ export type ShoppingItem = {
   updatedAt: number;
 };
 
+export type ShoppingHistoryEventType =
+  "initial" | "purchased" | "unpurchased" | "deleted";
+
+export type ShoppingHistoryItemSnapshot = Pick<
+  ShoppingItem,
+  | "id"
+  | "name"
+  | "sectionId"
+  | "categoryId"
+  | "addedBy"
+  | "purchased"
+  | "createdAt"
+  | "updatedAt"
+> & {
+  sectionName: string;
+};
+
+export type ShoppingHistoryEvent = {
+  id: string;
+  itemId: string;
+  type: ShoppingHistoryEventType;
+  actor: ShoppingUserId;
+  clientId: string;
+  item: ShoppingHistoryItemSnapshot;
+  createdAt: number;
+};
+
 export function normalizeItemName(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
@@ -161,6 +188,17 @@ export function isShoppingCategoryId(
   value: string,
 ): value is ShoppingCategoryId {
   return shoppingCategories.some((category) => category.id === value);
+}
+
+export function isShoppingHistoryEventType(
+  value: string,
+): value is ShoppingHistoryEventType {
+  return (
+    value === "initial" ||
+    value === "purchased" ||
+    value === "unpurchased" ||
+    value === "deleted"
+  );
 }
 
 export function isShoppingSectionColor(
@@ -230,6 +268,10 @@ export function createShoppingItemId() {
 
 export function createShoppingSectionId() {
   return `section-${createShoppingItemId()}`;
+}
+
+export function createShoppingHistoryEventId() {
+  return `history-${createShoppingItemId()}`;
 }
 
 export function addShoppingSection(
@@ -371,6 +413,80 @@ export function addShoppingItem(
   ];
 }
 
+export function createShoppingHistoryEvent(
+  item: ShoppingItem,
+  type: ShoppingHistoryEventType,
+  actor: ShoppingUserId,
+  clientId: string,
+  sectionName: string = item.sectionId,
+  createId: () => string = createShoppingHistoryEventId,
+  now: () => number = () => Date.now(),
+): ShoppingHistoryEvent {
+  return {
+    id: createId(),
+    itemId: item.id,
+    type,
+    actor,
+    clientId,
+    item: createShoppingHistoryItemSnapshot(item, sectionName),
+    createdAt: now(),
+  };
+}
+
+export function createInitialShoppingHistoryEvents(
+  items: ShoppingItem[],
+  clientId: string,
+  sections: ShoppingSection[] = defaultShoppingSections,
+  createId: () => string = createShoppingHistoryEventId,
+  now: () => number = () => Date.now(),
+) {
+  const createdAt = now();
+
+  return items.map((item, index) => ({
+    id: createId(),
+    itemId: item.id,
+    type: "initial" as const,
+    actor: item.addedBy,
+    clientId,
+    item: createShoppingHistoryItemSnapshot(
+      item,
+      getShoppingSectionName(item.sectionId, sections),
+    ),
+    createdAt: createdAt + index,
+  }));
+}
+
+export function getRecentShoppingHistoryEvents(
+  events: ShoppingHistoryEvent[],
+  now: () => number = () => Date.now(),
+) {
+  const cutoff = now() - 30 * 24 * 60 * 60 * 1000;
+
+  return sortShoppingHistoryEvents(
+    events.filter((event) => event.createdAt >= cutoff),
+  );
+}
+
+export function getUnseenRemoteShoppingHistoryEvents(
+  events: ShoppingHistoryEvent[],
+  clientId: string,
+  lastSeenHistoryEventAt: number,
+  now: () => number = () => Date.now(),
+) {
+  return getRecentShoppingHistoryEvents(events, now).filter(
+    (event) =>
+      event.type !== "initial" &&
+      event.clientId !== clientId &&
+      event.createdAt > lastSeenHistoryEventAt,
+  );
+}
+
+export function sortShoppingHistoryEvents(events: ShoppingHistoryEvent[]) {
+  return [...events].sort(
+    (firstEvent, secondEvent) => secondEvent.createdAt - firstEvent.createdAt,
+  );
+}
+
 export function toggleShoppingItem(
   items: ShoppingItem[],
   itemId: string,
@@ -380,6 +496,32 @@ export function toggleShoppingItem(
     item.id === itemId
       ? { ...item, purchased: !item.purchased, updatedAt: now() }
       : item,
+  );
+}
+
+function createShoppingHistoryItemSnapshot(
+  item: ShoppingItem,
+  sectionName: string,
+): ShoppingHistoryItemSnapshot {
+  return {
+    id: item.id,
+    name: item.name,
+    sectionId: item.sectionId,
+    sectionName,
+    categoryId: getShoppingItemCategoryId(item),
+    addedBy: item.addedBy,
+    purchased: item.purchased,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
+}
+
+function getShoppingSectionName(
+  sectionId: ShoppingSectionId,
+  sections: ShoppingSection[],
+) {
+  return (
+    sections.find((section) => section.id === sectionId)?.name ?? sectionId
   );
 }
 

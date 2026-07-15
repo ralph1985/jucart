@@ -31,6 +31,18 @@ La app usa un catálogo maestro inicial mantenido en código para inferir la cat
 
 La categoría inferida se guarda en el producto y se recalcula al renombrarlo. Los productos antiguos sin categoría se normalizan al cargar usando el mismo catálogo.
 
+## Historial de cambios
+
+En el Hito 22, Jucart añade un historial auditado para compras y borrados.
+
+El historial guarda eventos inmutables para productos marcados como comprados, devueltos a pendientes y borrados. Cada evento incluye la persona que ejecutó la acción, el dispositivo local que la originó, la fecha y un snapshot completo del producto en ese momento.
+
+Si al cargar existen productos pero no hay historial previo, la aplicación crea eventos `initial` para dejar constancia del estado inicial sin inventar compras o borrados anteriores. Esos eventos usan como actor la persona que añadió el producto.
+
+La vista de Historial muestra los eventos de los últimos 30 días. Ese límite es de visualización: los datos no se borran automáticamente.
+
+Para detectar cambios hechos en otro móvil, cada navegador genera un `clientId` local guardado en `localStorage`. Los eventos cuyo `clientId` es distinto se consideran remotos para ese dispositivo. El estado de lectura también es local por dispositivo; no se sincroniza globalmente ni se asocia a un login.
+
 ## Edición básica de productos
 
 En el Hito 5, editar un producto permite cambiar su nombre y moverlo a otra sección.

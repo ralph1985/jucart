@@ -9,6 +9,26 @@ import {
   resetShoppingItemsDatabase,
 } from "./shoppingItemsDb";
 
+const historyEvent = {
+  id: "history-1",
+  itemId: "item-1",
+  type: "purchased" as const,
+  actor: "rafa" as const,
+  clientId: "client-1",
+  item: {
+    id: "item-1",
+    name: "Leche",
+    sectionId: "mercadona",
+    sectionName: "Mercadona",
+    categoryId: "dairy" as const,
+    addedBy: "rafa" as const,
+    purchased: true,
+    createdAt: 100,
+    updatedAt: 200,
+  },
+  createdAt: 220,
+};
+
 afterEach(async () => {
   await resetShoppingItemsDatabase();
 });
@@ -92,6 +112,7 @@ describe("shopping items database", () => {
         { id: "mercadona", name: "Mercadona", color: "mint" },
         { id: "fruteria", name: "Frutería", color: "amber" },
       ],
+      historyEvents: [historyEvent],
     });
 
     await expect(getStoredShoppingData()).resolves.toEqual({
@@ -100,6 +121,7 @@ describe("shopping items database", () => {
         { id: "mercadona", name: "Mercadona", color: "mint" },
         { id: "fruteria", name: "Frutería", color: "amber" },
       ],
+      historyEvents: [historyEvent],
     });
   });
 });

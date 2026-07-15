@@ -87,7 +87,7 @@ El esquema remoto y la copia local IndexedDB están documentados en [`docs/datab
 
 ## Estado
 
-Jucart mantiene una sola aplicación sin rutas, con tablero de compra, gestión de listas, sincronización remota y fallback local.
+Jucart mantiene una sola aplicación sin rutas, con tablero de compra, gestión de listas, historial de cambios, sincronización remota y fallback local.
 
 Los hitos 0 a 4 cubren inicialización, lista local, persistencia local, PWA/offline y revisión del MVP.
 
@@ -125,3 +125,5 @@ El Hito 19 hace que Jucart se sienta más como una aplicación instalada: cabece
 El Hito 20 añade gestión de listas desde el menú inferior: crear, renombrar, elegir color, reordenar y borrar listas vacías. Las listas con productos no se pueden borrar. Las listas se guardan en IndexedDB y se sincronizan con Supabase junto con los productos.
 
 El Hito 21 agrupa los productos por categoría dentro de cada lista. La categoría se infiere automáticamente desde un catálogo maestro inicial de productos y se guarda junto con cada producto.
+
+El Hito 22 añade un historial auditado de compras y borrados. El historial guarda snapshots de cada producto, se sincroniza con Supabase y avisa cuando otro dispositivo ha realizado cambios pendientes de revisar.

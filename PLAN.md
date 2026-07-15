@@ -210,3 +210,17 @@
 - [x] Sincronizar categoría con Supabase remoto.
 - [x] Mantener compatibilidad con productos antiguos sin categoría.
 - [x] Añadir tests razonables de catálogo, persistencia y agrupación.
+
+## Hito 22 — Historial y cambios remotos
+
+- [x] Registrar eventos de productos comprados, devueltos a pendiente y borrados.
+- [x] Crear eventos iniciales para productos existentes cuando no haya historial previo.
+- [x] Guardar snapshots completos de los productos en cada evento de historial.
+- [x] Persistir el historial en IndexedDB.
+- [x] Sincronizar el historial con Supabase remoto.
+- [x] Añadir una vista interna de Historial desde el menú inferior.
+- [x] Mostrar solo eventos de los últimos 30 días en la vista.
+- [x] Generar un identificador local por dispositivo.
+- [x] Avisar con un banner cuando lleguen cambios de otro dispositivo.
+- [x] Permitir revisar los cambios remotos no vistos y marcarlos como vistos en ese dispositivo.
+- [x] Añadir tests razonables de lógica, persistencia, Supabase e interfaz.

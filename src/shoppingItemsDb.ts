@@ -6,6 +6,7 @@ import {
   isShoppingCategoryId,
   isShoppingSectionColor,
   isShoppingUserId,
+  ShoppingHistoryEvent,
   ShoppingItem,
   ShoppingSection,
   ShoppingSectionId,
@@ -26,10 +27,12 @@ type StoredShoppingSection = Omit<ShoppingSection, "color"> & {
   color?: string;
   position: number;
 };
+type StoredShoppingHistoryEvent = ShoppingHistoryEvent;
 export type ShoppingItemsStorageMode = "local" | "remote" | "fallback";
 export type ShoppingData = {
   items: ShoppingItem[];
   sections: ShoppingSection[];
+  historyEvents: ShoppingHistoryEvent[];
 };
 
 let lastStorageMode: ShoppingItemsStorageMode = "local";
@@ -37,6 +40,7 @@ let lastStorageMode: ShoppingItemsStorageMode = "local";
 class JucartDatabase extends Dexie {
   shoppingItems!: Table<StoredShoppingItem, string>;
   shoppingSections!: Table<StoredShoppingSection, string>;
+  shoppingHistoryEvents!: Table<StoredShoppingHistoryEvent, string>;
 
   constructor() {
     super("jucart");
@@ -67,6 +71,13 @@ class JucartDatabase extends Dexie {
       shoppingItems:
         "id, sectionId, categoryId, addedBy, createdAt, updatedAt, purchased",
       shoppingSections: "id, position",
+    });
+
+    this.version(7).stores({
+      shoppingItems:
+        "id, sectionId, categoryId, addedBy, createdAt, updatedAt, purchased",
+      shoppingSections: "id, position",
+      shoppingHistoryEvents: "id, itemId, type, actor, clientId, createdAt",
     });
   }
 }
@@ -125,6 +136,7 @@ export async function replaceStoredShoppingItems(items: ShoppingItem[]) {
   await replaceStoredShoppingData({
     items,
     sections: defaultShoppingSections,
+    historyEvents: [],
   });
 }
 
@@ -133,9 +145,11 @@ export async function resetShoppingItemsDatabase() {
     "rw",
     db.shoppingItems,
     db.shoppingSections,
+    db.shoppingHistoryEvents,
     async () => {
       await db.shoppingItems.clear();
       await db.shoppingSections.clear();
+      await db.shoppingHistoryEvents.clear();
     },
   );
 }
@@ -147,12 +161,13 @@ async function getLocalShoppingItems() {
 }
 
 async function getLocalShoppingData() {
-  const [items, sections] = await Promise.all([
+  const [items, sections, historyEvents] = await Promise.all([
     getLocalShoppingItems(),
     getLocalShoppingSections(),
+    getLocalShoppingHistoryEvents(),
   ]);
 
-  return { items, sections };
+  return { items, sections, historyEvents };
 }
 
 async function getLocalShoppingSections() {
@@ -168,15 +183,22 @@ async function replaceLocalShoppingData(data: ShoppingData) {
     "rw",
     db.shoppingItems,
     db.shoppingSections,
+    db.shoppingHistoryEvents,
     async () => {
       await db.shoppingItems.clear();
       await db.shoppingSections.clear();
+      await db.shoppingHistoryEvents.clear();
       await db.shoppingItems.bulkAdd(data.items);
       await db.shoppingSections.bulkAdd(
         data.sections.map((section, position) => ({ ...section, position })),
       );
+      await db.shoppingHistoryEvents.bulkAdd(data.historyEvents);
     },
   );
+}
+
+async function getLocalShoppingHistoryEvents() {
+  return db.shoppingHistoryEvents.orderBy("createdAt").toArray();
 }
 
 function normalizeStoredSection(

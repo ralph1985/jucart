@@ -15,9 +15,13 @@ import {
   addShoppingItem,
   addShoppingSection,
   compareShoppingItemsForShopping,
+  createInitialShoppingHistoryEvents,
+  createShoppingHistoryEvent,
   defaultShoppingSections,
   getShoppingCategoryName,
   getShoppingItemCategoryId,
+  getRecentShoppingHistoryEvents,
+  getUnseenRemoteShoppingHistoryEvents,
   moveShoppingSection,
   getShoppingUserName,
   isShoppingSectionId,
@@ -25,6 +29,7 @@ import {
   removeShoppingSection,
   removeShoppingItem,
   renameShoppingSection,
+  ShoppingHistoryEvent,
   ShoppingItem,
   shoppingSectionColors,
   ShoppingSectionColor,
@@ -51,8 +56,10 @@ import { updateBadge } from "./services/badgeService";
 const selectedSectionStorageKey = "jucart:selected-section-id";
 const selectedUserStorageKey = "jucart:selected-user-id";
 const showPurchasedItemsStorageKey = "jucart:show-purchased-items";
+const historyClientIdStorageKey = "jucart:history-client-id";
+const lastSeenHistoryEventAtStorageKey = "jucart:last-seen-history-event-at";
 
-type AppView = "shopping" | "sections";
+type AppView = "shopping" | "sections" | "history";
 
 type IconName =
   | "check"
@@ -66,6 +73,7 @@ type IconName =
   | "settings"
   | "arrowUp"
   | "arrowDown"
+  | "history"
   | "sync";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 type HapticFeedback = "light" | "medium" | "success" | "warning";
@@ -106,6 +114,7 @@ function Icon({ name }: { name: IconName }) {
     ],
     arrowUp: ["M12 19V5", "M5 12l7-7 7 7"],
     arrowDown: ["M12 5v14", "M19 12l-7 7-7-7"],
+    history: ["M12 8v5l3 2", "M21 12a9 9 0 1 1-3-6.7"],
     sync: [
       "M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4",
       "M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4",
@@ -222,6 +231,46 @@ function getInitialShowPurchasedItems() {
   }
 }
 
+function getInitialHistoryClientId() {
+  try {
+    const storedClientId = window.localStorage.getItem(
+      historyClientIdStorageKey,
+    );
+
+    if (storedClientId) {
+      return storedClientId;
+    }
+
+    const clientId = `client-${createLocalId()}`;
+    window.localStorage.setItem(historyClientIdStorageKey, clientId);
+
+    return clientId;
+  } catch {
+    return `client-${createLocalId()}`;
+  }
+}
+
+function getInitialLastSeenHistoryEventAt() {
+  try {
+    const rawValue = window.localStorage.getItem(
+      lastSeenHistoryEventAtStorageKey,
+    );
+    const parsedValue = rawValue ? Number(rawValue) : 0;
+
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function createLocalId() {
+  if (typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 function compareShoppingItemsForVisibleOrder(
   firstItem: ShoppingItem,
   secondItem: ShoppingItem,
@@ -272,6 +321,31 @@ function getSyncStatusText(status: SyncStatus) {
   return "Local";
 }
 
+function getHistoryEventText(event: ShoppingHistoryEvent) {
+  if (event.type === "purchased") {
+    return "Marcado como comprado";
+  }
+
+  if (event.type === "unpurchased") {
+    return "Devuelto a pendientes";
+  }
+
+  if (event.type === "deleted") {
+    return "Producto borrado";
+  }
+
+  return "Estado inicial";
+}
+
+function formatHistoryEventDate(createdAt: number) {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(createdAt));
+}
+
 function getSyncStatusFromStorageMode() {
   const storageMode = getShoppingItemsStorageMode();
 
@@ -292,6 +366,17 @@ export function App() {
   const [sections, setSections] = useState<ShoppingSection[]>(
     defaultShoppingSections,
   );
+  const [historyEvents, setHistoryEvents] = useState<ShoppingHistoryEvent[]>(
+    [],
+  );
+  const [historyClientId] = useState(getInitialHistoryClientId);
+  const [lastSeenHistoryEventAt, setLastSeenHistoryEventAt] = useState(
+    getInitialLastSeenHistoryEventAt,
+  );
+  const [showUnseenHistoryOnly, setShowUnseenHistoryOnly] = useState(false);
+  const [unseenHistoryEventsForView, setUnseenHistoryEventsForView] = useState<
+    ShoppingHistoryEvent[]
+  >([]);
   const [itemName, setItemName] = useState("");
   const [sectionName, setSectionName] = useState("");
   const [sectionActionMessage, setSectionActionMessage] = useState<
@@ -362,6 +447,15 @@ export function App() {
     ),
   );
   const selectedPurchasedCount = selectedPurchasedItems.length;
+  const recentHistoryEvents = getRecentShoppingHistoryEvents(historyEvents);
+  const unseenRemoteHistoryEvents = getUnseenRemoteShoppingHistoryEvents(
+    historyEvents,
+    historyClientId,
+    lastSeenHistoryEventAt,
+  );
+  const displayedHistoryEvents = showUnseenHistoryOnly
+    ? unseenHistoryEventsForView
+    : recentHistoryEvents;
   const removePurchasedButtonText =
     selectedPurchasedCount === 1
       ? "Borrar 1 producto"
@@ -377,11 +471,21 @@ export function App() {
     async function loadItems() {
       try {
         const storedData = await getStoredShoppingData();
+        const shouldCreateInitialHistory =
+          storedData.historyEvents.length === 0 && storedData.items.length > 0;
+        const nextHistoryEvents = shouldCreateInitialHistory
+          ? createInitialShoppingHistoryEvents(
+              storedData.items,
+              historyClientId,
+              storedData.sections,
+            )
+          : storedData.historyEvents;
 
         if (isActive) {
-          skipNextStoreRef.current = true;
+          skipNextStoreRef.current = !shouldCreateInitialHistory;
           setItems(storedData.items);
           setSections(storedData.sections);
+          setHistoryEvents(nextHistoryEvents);
           setSelectedSectionId((currentSectionId) =>
             isShoppingSectionId(currentSectionId, storedData.sections)
               ? currentSectionId
@@ -407,7 +511,7 @@ export function App() {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [historyClientId]);
 
   useEffect(() => {
     void updateBadge(pendingCount);
@@ -426,7 +530,7 @@ export function App() {
     async function storeItems() {
       try {
         setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
-        await replaceStoredShoppingData({ items, sections });
+        await replaceStoredShoppingData({ items, sections, historyEvents });
         setStorageError(null);
         setSyncStatus(getSyncStatusFromStorageMode());
       } catch {
@@ -436,7 +540,7 @@ export function App() {
     }
 
     void storeItems();
-  }, [isLoaded, items, sections]);
+  }, [isLoaded, items, sections, historyEvents]);
 
   useEffect(() => {
     if (!isLoaded) {
@@ -456,6 +560,7 @@ export function App() {
         skipNextStoreRef.current = true;
         setItems(storedData.items);
         setSections(storedData.sections);
+        setHistoryEvents(storedData.historyEvents);
         setSelectedSectionId((currentSectionId) =>
           isShoppingSectionId(currentSectionId, storedData.sections)
             ? currentSectionId
@@ -507,6 +612,17 @@ export function App() {
       return;
     }
   }, [showPurchasedItems]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        lastSeenHistoryEventAtStorageKey,
+        String(lastSeenHistoryEventAt),
+      );
+    } catch {
+      return;
+    }
+  }, [lastSeenHistoryEventAt]);
 
   useEffect(() => {
     sectionsRef.current = sections;
@@ -737,6 +853,48 @@ export function App() {
     itemNameInputRef.current?.focus();
   }
 
+  function addHistoryEvent(
+    item: ShoppingItem,
+    type: "purchased" | "unpurchased" | "deleted",
+  ) {
+    const sectionName =
+      sections.find((section) => section.id === item.sectionId)?.name ??
+      item.sectionId;
+
+    setHistoryEvents((currentHistoryEvents) => [
+      ...currentHistoryEvents,
+      createShoppingHistoryEvent(
+        item,
+        type,
+        selectedUserId,
+        historyClientId,
+        sectionName,
+      ),
+    ]);
+  }
+
+  function addHistoryEvents(
+    changedItems: ShoppingItem[],
+    type: "purchased" | "unpurchased" | "deleted",
+  ) {
+    setHistoryEvents((currentHistoryEvents) => [
+      ...currentHistoryEvents,
+      ...changedItems.map((item) => {
+        const sectionName =
+          sections.find((section) => section.id === item.sectionId)?.name ??
+          item.sectionId;
+
+        return createShoppingHistoryEvent(
+          item,
+          type,
+          selectedUserId,
+          historyClientId,
+          sectionName,
+        );
+      }),
+    ]);
+  }
+
   function startEditing(item: ShoppingItem) {
     runHapticFeedback("light");
     setEditingItemId(item.id);
@@ -798,6 +956,7 @@ export function App() {
     runHapticFeedback("warning");
     setLastRemovedItems(removedItems);
     setLastHiddenPurchasedItem(null);
+    addHistoryEvents(removedItems, "deleted");
     setItems(items.filter((item) => !removedItemIds.has(item.id)));
     setIsClearDialogOpen(false);
   }
@@ -812,6 +971,7 @@ export function App() {
     runHapticFeedback("warning");
     setLastRemovedItems([removedItem]);
     setLastHiddenPurchasedItem(null);
+    addHistoryEvent(removedItem, "deleted");
     setItems(removeShoppingItem(items, itemId));
   }
 
@@ -850,6 +1010,10 @@ export function App() {
           : item,
       ),
     );
+    addHistoryEvent(
+      { ...lastHiddenPurchasedItem, purchased: false, updatedAt: Date.now() },
+      "unpurchased",
+    );
     setLastHiddenPurchasedItem(null);
     runHapticFeedback("success");
   }
@@ -868,7 +1032,17 @@ export function App() {
       setLastHiddenPurchasedItem(null);
     }
 
-    setItems(toggleShoppingItem(items, itemId));
+    const nextItems = toggleShoppingItem(items, itemId);
+    const changedItem = nextItems.find((item) => item.id === itemId);
+
+    if (changedItem) {
+      addHistoryEvent(
+        changedItem,
+        changedItem.purchased ? "purchased" : "unpurchased",
+      );
+    }
+
+    setItems(nextItems);
     runHapticFeedback("medium");
   }
 
@@ -891,12 +1065,36 @@ export function App() {
 
   function showSectionsView() {
     setActiveView("sections");
+    setShowUnseenHistoryOnly(false);
+    setUnseenHistoryEventsForView([]);
     runHapticFeedback("light");
     window.setTimeout(() => sectionNameInputRef.current?.focus(), 0);
   }
 
   function showShoppingView() {
     setActiveView("shopping");
+    setShowUnseenHistoryOnly(false);
+    setUnseenHistoryEventsForView([]);
+    runHapticFeedback("light");
+  }
+
+  function showHistoryView() {
+    setActiveView("history");
+    setShowUnseenHistoryOnly(false);
+    setUnseenHistoryEventsForView([]);
+    runHapticFeedback("light");
+  }
+
+  function showUnseenHistoryView() {
+    const latestUnseenEventAt = Math.max(
+      ...unseenRemoteHistoryEvents.map((event) => event.createdAt),
+      lastSeenHistoryEventAt,
+    );
+
+    setLastSeenHistoryEventAt(latestUnseenEventAt);
+    setUnseenHistoryEventsForView(unseenRemoteHistoryEvents);
+    setShowUnseenHistoryOnly(true);
+    setActiveView("history");
     runHapticFeedback("light");
   }
 
@@ -1261,6 +1459,46 @@ export function App() {
     );
   }
 
+  function renderHistoryEvents() {
+    if (displayedHistoryEvents.length === 0) {
+      return (
+        <div className={styles.historyEmpty}>
+          <p className={styles.emptyTitle}>
+            {showUnseenHistoryOnly
+              ? "No hay cambios pendientes"
+              : "No hay historial reciente"}
+          </p>
+          <p className={styles.emptyDescription}>
+            {showUnseenHistoryOnly
+              ? "Los cambios de otros dispositivos ya están revisados."
+              : "Las compras y borrados aparecerán aquí durante 30 días."}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <ol className={styles.historyList}>
+        {displayedHistoryEvents.map((event) => (
+          <li className={styles.historyItem} key={event.id}>
+            <div className={styles.historyItemHeader}>
+              <span className={styles.historyAction}>
+                {getHistoryEventText(event)}
+              </span>
+              <time dateTime={new Date(event.createdAt).toISOString()}>
+                {formatHistoryEventDate(event.createdAt)}
+              </time>
+            </div>
+            <p className={styles.historyProduct}>{event.item.name}</p>
+            <p className={styles.historyMeta}>
+              {event.item.sectionName} · {getShoppingUserName(event.actor)}
+            </p>
+          </li>
+        ))}
+      </ol>
+    );
+  }
+
   return (
     <main
       className={
@@ -1416,6 +1654,24 @@ export function App() {
         </p>
       ) : null}
 
+      {unseenRemoteHistoryEvents.length > 0 && activeView !== "history" ? (
+        <section className={styles.remoteChangesBanner} role="status">
+          <span>
+            {unseenRemoteHistoryEvents.length === 1
+              ? "Hay 1 cambio de otro dispositivo."
+              : `Hay ${unseenRemoteHistoryEvents.length} cambios de otro dispositivo.`}
+          </span>
+          <button
+            className={styles.undoButton}
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={showUnseenHistoryView}
+          >
+            Ver cambios
+          </button>
+        </section>
+      ) : null}
+
       {activeView === "shopping" ? (
         <section
           id="shopping-board"
@@ -1485,7 +1741,9 @@ export function App() {
             })}
           </div>
         </section>
-      ) : (
+      ) : null}
+
+      {activeView === "sections" ? (
         <section
           className={styles.sectionsScreen}
           aria-labelledby="sections-title"
@@ -1620,7 +1878,34 @@ export function App() {
             })}
           </ol>
         </section>
-      )}
+      ) : null}
+
+      {activeView === "history" ? (
+        <section
+          className={styles.historyScreen}
+          aria-labelledby="history-title"
+        >
+          <div className={styles.sectionsHeader}>
+            <h2 id="history-title">
+              {showUnseenHistoryOnly ? "Cambios nuevos" : "Historial"}
+            </h2>
+            <span className={styles.count}>
+              {displayedHistoryEvents.length}
+            </span>
+          </div>
+          {showUnseenHistoryOnly ? (
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onPointerDown={handleButtonPointerDown}
+              onClick={showHistoryView}
+            >
+              Ver historial completo
+            </button>
+          ) : null}
+          {renderHistoryEvents()}
+        </section>
+      ) : null}
 
       <nav className={styles.bottomNav} aria-label="Navegación principal">
         <button
@@ -1651,6 +1936,20 @@ export function App() {
         >
           <Icon name="settings" />
           <span>Listas</span>
+        </button>
+        <button
+          className={
+            activeView === "history"
+              ? styles.bottomNavItemActive
+              : styles.bottomNavItem
+          }
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={showHistoryView}
+          disabled={!isLoaded}
+        >
+          <Icon name="history" />
+          <span>Historial</span>
         </button>
       </nav>
 

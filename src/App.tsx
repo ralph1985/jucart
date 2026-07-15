@@ -21,6 +21,7 @@ import {
   defaultShoppingSections,
   getShoppingCategoryName,
   getShoppingItemCategoryId,
+  getQuickShoppingItemSuggestions,
   getRecentShoppingHistoryEvents,
   getUnseenRemoteShoppingHistoryEvents,
   moveShoppingSection,
@@ -542,6 +543,14 @@ export function App() {
   );
   const selectedPurchasedCount = selectedPurchasedItems.length;
   const recentHistoryEvents = getRecentShoppingHistoryEvents(historyEvents);
+  const quickItemSuggestions = isLoaded
+    ? getQuickShoppingItemSuggestions(
+        items,
+        historyEvents,
+        selectedSectionId,
+        itemName,
+      )
+    : [];
   const unseenRemoteHistoryEvents = getUnseenRemoteShoppingHistoryEvents(
     historyEvents,
     historyClientId,
@@ -985,11 +994,10 @@ export function App() {
     animateButtonPress(event.currentTarget);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function addItemFromName(rawName: string) {
     const nextItems = addShoppingItem(
       items,
-      itemName,
+      rawName,
       selectedSectionId,
       selectedUserId,
     );
@@ -1009,6 +1017,15 @@ export function App() {
 
     setItemName("");
     itemNameInputRef.current?.focus();
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    addItemFromName(itemName);
+  }
+
+  function handleQuickSuggestionClick(suggestionName: string) {
+    addItemFromName(suggestionName);
   }
 
   function addHistoryEvent(
@@ -1940,6 +1957,29 @@ export function App() {
                   <span>Comprados</span>
                 </label>
               </div>
+              {quickItemSuggestions.length > 0 ? (
+                <div
+                  className={styles.quickSuggestions}
+                  aria-label="Sugerencias rápidas"
+                >
+                  {quickItemSuggestions.map((suggestion) => (
+                    <button
+                      className={styles.quickSuggestionButton}
+                      key={`${suggestion.categoryId}-${suggestion.name}`}
+                      type="button"
+                      aria-label={`Añadir ${suggestion.name}`}
+                      title={getShoppingCategoryName(suggestion.categoryId)}
+                      onPointerDown={handleButtonPointerDown}
+                      onClick={() =>
+                        handleQuickSuggestionClick(suggestion.name)
+                      }
+                      disabled={!isLoaded}
+                    >
+                      {suggestion.name}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </form>
         </section>

@@ -166,6 +166,17 @@ const shoppingProductCatalog: Record<ShoppingCategoryId, string[]> = {
   other: [],
 };
 
+const quickShoppingProductDefaults = [
+  "leche",
+  "pan",
+  "huevos",
+  "agua",
+  "pañales",
+  "toallitas",
+  "papel higiénico",
+  "detergente",
+] as const;
+
 export type ShoppingItem = {
   id: string;
   name: string;
@@ -203,6 +214,11 @@ export type ShoppingHistoryEvent = {
   item: ShoppingHistoryItemSnapshot;
   previousItem?: ShoppingHistoryItemSnapshot;
   createdAt: number;
+};
+
+export type QuickShoppingItemSuggestion = {
+  name: string;
+  categoryId: ShoppingCategoryId;
 };
 
 export function normalizeItemName(value: string) {
@@ -280,6 +296,114 @@ export function inferShoppingCategoryId(rawName: string): ShoppingCategoryId {
   }
 
   return "other";
+}
+
+export function getQuickShoppingItemSuggestions(
+  items: Pick<
+    ShoppingItem,
+    "name" | "sectionId" | "categoryId" | "createdAt" | "updatedAt"
+  >[],
+  historyEvents: (Pick<ShoppingHistoryEvent, "item" | "createdAt"> &
+    Partial<Pick<ShoppingHistoryEvent, "type">>)[],
+  _sectionId: ShoppingSectionId,
+  rawQuery: string = "",
+  limit: number = 8,
+): QuickShoppingItemSuggestion[] {
+  const normalizedQuery = normalizeCatalogText(rawQuery);
+  const existingNames = new Set(
+    items.map((item) => normalizeDuplicateName(item.name)),
+  );
+  const latestDeletedNames = new Set<string>();
+  const latestSeenNames = new Set<string>();
+
+  [...historyEvents]
+    .sort(
+      (firstEvent, secondEvent) => secondEvent.createdAt - firstEvent.createdAt,
+    )
+    .forEach((event) => {
+      const duplicateName = normalizeDuplicateName(event.item.name);
+
+      if (latestSeenNames.has(duplicateName)) {
+        return;
+      }
+
+      latestSeenNames.add(duplicateName);
+
+      if (event.type === "deleted") {
+        latestDeletedNames.add(duplicateName);
+      }
+    });
+
+  const sortedHistoryEvents = [...historyEvents].sort(
+    (firstEvent, secondEvent) => secondEvent.createdAt - firstEvent.createdAt,
+  );
+  const candidates = new Map<
+    string,
+    QuickShoppingItemSuggestion & { score: number }
+  >();
+
+  function addCandidate(
+    rawName: string,
+    categoryId: ShoppingCategoryId | undefined,
+    score: number,
+  ) {
+    const name = normalizeItemName(rawName);
+    const duplicateName = normalizeDuplicateName(name);
+    const normalizedName = normalizeCatalogText(name);
+
+    if (
+      !name ||
+      existingNames.has(duplicateName) ||
+      latestDeletedNames.has(duplicateName) ||
+      (normalizedQuery && !normalizedName.includes(normalizedQuery))
+    ) {
+      return;
+    }
+
+    const currentCandidate = candidates.get(duplicateName);
+
+    if (currentCandidate && currentCandidate.score >= score) {
+      return;
+    }
+
+    candidates.set(duplicateName, {
+      name: formatSuggestionName(name),
+      categoryId:
+        categoryId && isShoppingCategoryId(categoryId)
+          ? categoryId
+          : inferShoppingCategoryId(name),
+      score,
+    });
+  }
+
+  sortedHistoryEvents.forEach((event, index) => {
+    addCandidate(event.item.name, event.item.categoryId, 30_000 - index);
+  });
+
+  quickShoppingProductDefaults.forEach((productName, index) => {
+    addCandidate(productName, undefined, 10_000 - index);
+  });
+
+  shoppingCategories.forEach((category, categoryIndex) => {
+    shoppingProductCatalog[category.id].forEach((productName, productIndex) => {
+      addCandidate(
+        productName,
+        category.id,
+        1_000 - categoryIndex * 50 - productIndex,
+      );
+    });
+  });
+
+  return [...candidates.values()]
+    .sort((firstCandidate, secondCandidate) => {
+      if (firstCandidate.score !== secondCandidate.score) {
+        return secondCandidate.score - firstCandidate.score;
+      }
+
+      return firstCandidate.name.localeCompare(secondCandidate.name, "es-ES");
+    })
+    .slice(0, limit)
+    .map(({ name, categoryId }) => ({ name, categoryId }));
 }
 
 export function hasItemWithName(
@@ -668,6 +792,16 @@ function normalizeCatalogText(value: string) {
     .replace(/\p{Diacritic}/gu, "")
     .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
     .trim();
+}
+
+function normalizeDuplicateName(value: string) {
+  return normalizeItemName(value).toLocaleLowerCase("es-ES");
+}
+
+function formatSuggestionName(value: string) {
+  const name = normalizeItemName(value);
+
+  return name ? `${name[0].toLocaleUpperCase("es-ES")}${name.slice(1)}` : name;
 }
 
 function catalogNameMatches(

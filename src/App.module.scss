@@ -388,6 +388,40 @@ h2 {
   gap: 0.45rem;
 }
 
+.quickSuggestions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.42rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.quickSuggestions::-webkit-scrollbar {
+  display: none;
+}
+
+.quickSuggestionButton {
+  flex: 0 0 auto;
+  min-height: 2rem;
+  max-width: 9.5rem;
+  border: 1px solid rgb(22 124 90 / 24%);
+  border-radius: 999rem;
+  padding: 0 0.7rem;
+  background: #edf7ed;
+  color: #126548;
+  font-size: 0.78rem;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.quickSuggestionButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .input {
   min-width: 0;
   min-height: 2.35rem;
@@ -443,6 +477,7 @@ h2 {
 .iconButton:focus-visible,
 .iconButtonDanger:focus-visible,
 .undoButton:focus-visible,
+.quickSuggestionButton:focus-visible,
 .bottomNavItem:focus-visible,
 .bottomNavItemActive:focus-visible,
 .sectionColorButton:focus-visible,

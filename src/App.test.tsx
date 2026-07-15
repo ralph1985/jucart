@@ -341,6 +341,43 @@ describe("App", () => {
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
   });
 
+  it("adds products from quick suggestions and filters duplicate suggestions", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Añadir Leche" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Añadir Leche" }));
+
+    const mercadonaColumn = screen
+      .getByRole("heading", { name: "Mercadona" })
+      .closest("article");
+
+    expect(mercadonaColumn).not.toBeNull();
+    expect(
+      within(mercadonaColumn as HTMLElement).getByText("Leche"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Añadir Leche" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "pa" },
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Añadir Pan" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Añadir Pañales" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows remote sync feedback while Supabase saves changes", async () => {
     let resolveStoredData: (data: ShoppingData) => void = () => {};
     let resolveStoreData: () => void = () => {};
@@ -1377,7 +1414,16 @@ describe("App", () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
 
-    expect(await screen.findByText("Pan")).toBeInTheDocument();
-    expect(screen.queryByText("Leche")).not.toBeInTheDocument();
+    const mercadonaColumn = screen
+      .getByRole("heading", { name: "Mercadona" })
+      .closest("article");
+
+    expect(mercadonaColumn).not.toBeNull();
+    expect(
+      within(mercadonaColumn as HTMLElement).getByText("Pan"),
+    ).toBeInTheDocument();
+    expect(
+      within(mercadonaColumn as HTMLElement).queryByText("Leche"),
+    ).not.toBeInTheDocument();
   });
 });

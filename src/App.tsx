@@ -598,8 +598,17 @@ export function App() {
       void refreshItemsFromSupabase();
     });
 
+    function refreshItemsWhenVisible() {
+      if (document.visibilityState === "visible") {
+        void refreshItemsFromSupabase();
+      }
+    }
+
+    document.addEventListener("visibilitychange", refreshItemsWhenVisible);
+
     return () => {
       isActive = false;
+      document.removeEventListener("visibilitychange", refreshItemsWhenVisible);
       unsubscribe();
     };
   }, [isLoaded]);

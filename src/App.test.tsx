@@ -1147,4 +1147,46 @@ describe("App", () => {
       ).toBeInTheDocument(),
     );
   });
+
+  it("refreshes stored products when the app returns to the foreground", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        sectionId: "farmacia",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByText("Leche")).toBeInTheDocument();
+
+    await replaceStoredShoppingItems([
+      {
+        id: "item-2",
+        name: "Pan",
+        sectionId: "mercadona",
+        addedBy: "begona",
+        purchased: false,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+    ]);
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(await screen.findByText("Pan")).toBeInTheDocument();
+    expect(screen.queryByText("Leche")).not.toBeInTheDocument();
+  });
 });

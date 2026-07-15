@@ -50,6 +50,34 @@ type ShoppingHistoryEventRow = {
   created_at: string;
 };
 
+type DeveloperBackupRunRow = {
+  id: string;
+  started_at: string;
+  finished_at: string;
+  status: string;
+  file_name: string | null;
+  file_size_bytes: number | null;
+  sha256: string | null;
+  duration_ms: number;
+  retained_count: number;
+  error_message: string | null;
+  created_at: string;
+};
+
+export type DeveloperBackupRun = {
+  id: string;
+  startedAt: number;
+  finishedAt: number;
+  status: "success" | "failed";
+  fileName: string | null;
+  fileSizeBytes: number | null;
+  sha256: string | null;
+  durationMs: number;
+  retainedCount: number;
+  errorMessage: string | null;
+  createdAt: number;
+};
+
 type SupabaseConfig = {
   url: string;
   anonKey: string;
@@ -82,6 +110,27 @@ export function getSupabaseConfig(): SupabaseConfig | null {
 
 export function isSupabaseConfigured() {
   return getSupabaseConfig() !== null;
+}
+
+export async function getLatestDeveloperBackupRun(): Promise<DeveloperBackupRun | null> {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return null;
+  }
+
+  const { data, error } = await getSupabaseClient(config)
+    .from("developer_backup_runs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? mapRowToDeveloperBackupRun(data) : null;
 }
 
 export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
@@ -391,6 +440,24 @@ export function mapShoppingHistoryEventToRow(
     item_snapshot: event.item,
     previous_item_snapshot: event.previousItem,
     created_at: new Date(event.createdAt).toISOString(),
+  };
+}
+
+export function mapRowToDeveloperBackupRun(
+  row: DeveloperBackupRunRow,
+): DeveloperBackupRun {
+  return {
+    id: row.id,
+    startedAt: Date.parse(row.started_at),
+    finishedAt: Date.parse(row.finished_at),
+    status: row.status === "failed" ? "failed" : "success",
+    fileName: row.file_name,
+    fileSizeBytes: row.file_size_bytes,
+    sha256: row.sha256,
+    durationMs: row.duration_ms,
+    retainedCount: row.retained_count,
+    errorMessage: row.error_message,
+    createdAt: Date.parse(row.created_at),
   };
 }
 

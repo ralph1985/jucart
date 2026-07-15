@@ -49,6 +49,8 @@ import {
   replaceStoredShoppingData,
 } from "./shoppingItemsDb";
 import {
+  DeveloperBackupRun,
+  getLatestDeveloperBackupRun,
   isSupabaseConfigured,
   subscribeToSupabaseShoppingItems,
 } from "./shoppingItemsSupabase";
@@ -60,7 +62,7 @@ const showPurchasedItemsStorageKey = "jucart:show-purchased-items";
 const historyClientIdStorageKey = "jucart:history-client-id";
 const lastSeenHistoryEventAtStorageKey = "jucart:last-seen-history-event-at";
 
-type AppView = "shopping" | "sections" | "history";
+type AppView = "shopping" | "sections" | "history" | "developer";
 
 type IconName =
   | "check"
@@ -75,7 +77,8 @@ type IconName =
   | "arrowUp"
   | "arrowDown"
   | "history"
-  | "sync";
+  | "sync"
+  | "database";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 type HapticFeedback = "light" | "medium" | "success" | "warning";
 
@@ -119,6 +122,11 @@ function Icon({ name }: { name: IconName }) {
     sync: [
       "M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4",
       "M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4",
+    ],
+    database: [
+      "M4 6c0 1.7 3.6 3 8 3s8-1.3 8-3-3.6-3-8-3-8 1.3-8 3z",
+      "M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6",
+      "M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6",
     ],
   };
 
@@ -364,6 +372,60 @@ function formatHistoryEventDate(createdAt: number) {
   }).format(new Date(createdAt));
 }
 
+function formatDeveloperDate(value: number) {
+  if (!Number.isFinite(value)) {
+    return "Sin fecha";
+  }
+
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatFileSize(bytes: number | null) {
+  if (bytes === null || !Number.isFinite(bytes)) {
+    return "Sin dato";
+  }
+
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatDuration(durationMs: number) {
+  if (!Number.isFinite(durationMs)) {
+    return "Sin dato";
+  }
+
+  if (durationMs < 1000) {
+    return `${durationMs} ms`;
+  }
+
+  return `${(durationMs / 1000).toFixed(1)} s`;
+}
+
+function getDeveloperBackupStatusText(run: DeveloperBackupRun | null) {
+  if (!run) {
+    return "Sin copias registradas";
+  }
+
+  return run.status === "success" ? "Correcta" : "Fallida";
+}
+
+function formatShortHash(value: string | null) {
+  return value ? value.slice(0, 12) : "Sin hash";
+}
+
 function getSyncStatusFromStorageMode() {
   const storageMode = getShoppingItemsStorageMode();
 
@@ -418,6 +480,11 @@ export function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isSupabaseConfigured() ? "syncing" : "local",
   );
+  const [developerBackupRun, setDeveloperBackupRun] =
+    useState<DeveloperBackupRun | null>(null);
+  const [developerBackupError, setDeveloperBackupError] = useState<
+    string | null
+  >(null);
   const [lastRemovedItems, setLastRemovedItems] = useState<ShoppingItem[]>([]);
   const [lastHiddenPurchasedItem, setLastHiddenPurchasedItem] =
     useState<ShoppingItem | null>(null);
@@ -628,6 +695,14 @@ export function App() {
       return;
     }
   }, [selectedUserId]);
+
+  useEffect(() => {
+    if (!isLoaded || selectedUserId !== "rafa") {
+      return;
+    }
+
+    void refreshDeveloperBackupRun();
+  }, [isLoaded, selectedUserId]);
 
   useEffect(() => {
     try {
@@ -1110,6 +1185,14 @@ export function App() {
     }
   }
 
+  function handleSelectedUserChange(nextUserId: ShoppingUserId) {
+    setSelectedUserId(nextUserId);
+
+    if (nextUserId !== "rafa" && activeView === "developer") {
+      setActiveView("shopping");
+    }
+  }
+
   function selectSection(sectionId: ShoppingSectionId) {
     if (sectionId === selectedSectionId) {
       return;
@@ -1117,6 +1200,16 @@ export function App() {
 
     setSelectedSectionId(sectionId);
     runHapticFeedback("light");
+  }
+
+  async function refreshDeveloperBackupRun() {
+    try {
+      const latestBackupRun = await getLatestDeveloperBackupRun();
+      setDeveloperBackupRun(latestBackupRun);
+      setDeveloperBackupError(null);
+    } catch {
+      setDeveloperBackupError("No se pudo cargar el estado del backup.");
+    }
   }
 
   function showSectionsView() {
@@ -1138,6 +1231,14 @@ export function App() {
     setActiveView("history");
     setShowUnseenHistoryOnly(false);
     setUnseenHistoryEventsForView([]);
+    runHapticFeedback("light");
+  }
+
+  function showDeveloperView() {
+    setActiveView("developer");
+    setShowUnseenHistoryOnly(false);
+    setUnseenHistoryEventsForView([]);
+    void refreshDeveloperBackupRun();
     runHapticFeedback("light");
   }
 
@@ -1553,6 +1654,75 @@ export function App() {
     );
   }
 
+  function renderDeveloperBackupCard() {
+    const backupStatusText = getDeveloperBackupStatusText(developerBackupRun);
+
+    return (
+      <section className={styles.developerPanel} aria-label="Estado del backup">
+        <div className={styles.developerPanelHeader}>
+          <h3>Backup Supabase</h3>
+          <span
+            className={
+              developerBackupRun?.status === "failed"
+                ? styles.developerStatusFailed
+                : styles.developerStatusSuccess
+            }
+          >
+            {backupStatusText}
+          </span>
+        </div>
+        {developerBackupError ? (
+          <p className={styles.error} role="alert">
+            {developerBackupError}
+          </p>
+        ) : null}
+        <dl className={styles.developerMetrics}>
+          <div>
+            <dt>Última copia</dt>
+            <dd>
+              {developerBackupRun
+                ? formatDeveloperDate(developerBackupRun.finishedAt)
+                : "Sin registro"}
+            </dd>
+          </div>
+          <div>
+            <dt>Duración</dt>
+            <dd>
+              {developerBackupRun
+                ? formatDuration(developerBackupRun.durationMs)
+                : "Sin dato"}
+            </dd>
+          </div>
+          <div>
+            <dt>Tamaño</dt>
+            <dd>
+              {developerBackupRun
+                ? formatFileSize(developerBackupRun.fileSizeBytes)
+                : "Sin dato"}
+            </dd>
+          </div>
+          <div>
+            <dt>Copias</dt>
+            <dd>{developerBackupRun?.retainedCount ?? 0}</dd>
+          </div>
+          <div>
+            <dt>Archivo</dt>
+            <dd>{developerBackupRun?.fileName ?? "Sin archivo"}</dd>
+          </div>
+          <div>
+            <dt>SHA-256</dt>
+            <dd>{formatShortHash(developerBackupRun?.sha256 ?? null)}</dd>
+          </div>
+        </dl>
+        {developerBackupRun?.errorMessage ? (
+          <p className={styles.developerNote}>
+            {developerBackupRun.errorMessage}
+          </p>
+        ) : null}
+      </section>
+    );
+  }
+
   return (
     <main
       className={
@@ -1597,7 +1767,7 @@ export function App() {
               className={styles.headerUserSelect}
               value={selectedUserId}
               onChange={(event) =>
-                setSelectedUserId(event.target.value as ShoppingUserId)
+                handleSelectedUserChange(event.target.value as ShoppingUserId)
               }
               disabled={!isLoaded}
             >
@@ -1989,6 +2159,58 @@ export function App() {
         </section>
       ) : null}
 
+      {activeView === "developer" && selectedUserId === "rafa" ? (
+        <section
+          className={styles.developerScreen}
+          aria-labelledby="developer-title"
+        >
+          <div className={styles.sectionsHeader}>
+            <h2 id="developer-title">Dev</h2>
+            <span className={styles.count}>Rafa</span>
+          </div>
+          {renderDeveloperBackupCard()}
+          <section
+            className={styles.developerPanel}
+            aria-label="Información operativa"
+          >
+            <div className={styles.developerPanelHeader}>
+              <h3>App</h3>
+              <span className={styles.developerStatusSuccess}>
+                {getSyncStatusText(syncStatus)}
+              </span>
+            </div>
+            <dl className={styles.developerMetrics}>
+              <div>
+                <dt>Almacenamiento</dt>
+                <dd>{getShoppingItemsStorageMode()}</dd>
+              </div>
+              <div>
+                <dt>Supabase</dt>
+                <dd>
+                  {isSupabaseConfigured() ? "Configurado" : "No configurado"}
+                </dd>
+              </div>
+              <div>
+                <dt>Listas</dt>
+                <dd>{sections.length}</dd>
+              </div>
+              <div>
+                <dt>Pendientes</dt>
+                <dd>{pendingCount}</dd>
+              </div>
+              <div>
+                <dt>Comprados</dt>
+                <dd>{purchasedCount}</dd>
+              </div>
+              <div>
+                <dt>Historial 30 días</dt>
+                <dd>{recentHistoryEvents.length}</dd>
+              </div>
+            </dl>
+          </section>
+        </section>
+      ) : null}
+
       <nav className={styles.bottomNav} aria-label="Navegación principal">
         <button
           className={
@@ -2033,6 +2255,23 @@ export function App() {
           <Icon name="history" />
           <span>Historial</span>
         </button>
+        {selectedUserId === "rafa" ? (
+          <button
+            className={
+              activeView === "developer"
+                ? styles.bottomNavItemActive
+                : styles.bottomNavItem
+            }
+            type="button"
+            aria-label="Vista de desarrollador"
+            onPointerDown={handleButtonPointerDown}
+            onClick={showDeveloperView}
+            disabled={!isLoaded}
+          >
+            <Icon name="database" />
+            <span>Dev</span>
+          </button>
+        ) : null}
       </nav>
 
       {isClearDialogOpen ? (

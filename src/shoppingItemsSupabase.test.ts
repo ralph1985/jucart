@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  mapRowToDeveloperBackupRun,
   mapRowToShoppingHistoryEvent,
   mapRowToShoppingItem,
   mapRowToShoppingSection,
@@ -246,6 +247,38 @@ describe("shopping items Supabase adapter", () => {
         updatedAt: 150,
       },
       created_at: "2026-07-15T10:00:00.000Z",
+    });
+  });
+
+  it("maps Supabase developer backup run rows", () => {
+    expect(
+      mapRowToDeveloperBackupRun({
+        id: "00000000-0000-4000-8000-000000000001",
+        started_at: "2026-07-15T10:00:00.000Z",
+        finished_at: "2026-07-15T10:00:08.000Z",
+        status: "success",
+        file_name: "jucart-supabase-20260715T100000Z.sql.tar.gz",
+        file_size_bytes: 2048,
+        sha256:
+          "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        duration_ms: 8000,
+        retained_count: 12,
+        error_message: null,
+        created_at: "2026-07-15T10:00:09.000Z",
+      }),
+    ).toEqual({
+      id: "00000000-0000-4000-8000-000000000001",
+      startedAt: Date.parse("2026-07-15T10:00:00.000Z"),
+      finishedAt: Date.parse("2026-07-15T10:00:08.000Z"),
+      status: "success",
+      fileName: "jucart-supabase-20260715T100000Z.sql.tar.gz",
+      fileSizeBytes: 2048,
+      sha256:
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      durationMs: 8000,
+      retainedCount: 12,
+      errorMessage: null,
+      createdAt: Date.parse("2026-07-15T10:00:09.000Z"),
     });
   });
 

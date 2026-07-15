@@ -153,6 +153,14 @@ La tabla usa `list_id` para identificar una lista compartida y la aplicación fi
 
 El esquema de Supabase y la copia local IndexedDB están documentados en [`docs/database-schema.md`](database-schema.md).
 
+## Backup local de Supabase
+
+En el Hito 23, Jucart añade un backup local de la base remota de Supabase. La copia se ejecuta desde la máquina de Rafa contra el proyecto remoto, sin levantar Supabase local ni depender de Docker.
+
+El backup completo se guarda como un archivo comprimido local con `schema.sql`, `data.sql` y un manifiesto. Las copias viven en `var/backups/supabase/`, una ruta ignorada por Git. La app web no puede leer esos archivos locales desde producción, así que el script registra en Supabase solo metadatos no sensibles: estado, fecha, duración, tamaño, hash, copias retenidas y error si lo hay.
+
+La vista de desarrollador muestra esos metadatos y datos operativos de la app. Se oculta cuando el selector de persona está en Begoña. Esto no es seguridad real ni sustituye a autenticación; es una regla de interfaz suficiente para una app privada sin login.
+
 ## PWA y offline
 
 En el Hito 3, Jucart usa `vite-plugin-pwa` con Service Worker generado por Workbox.

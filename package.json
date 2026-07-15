@@ -8,6 +8,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "backup:supabase": "scripts/backup-supabase.sh",
+    "backup:supabase:cron:install": "scripts/install-supabase-backup-cron.sh",
     "supabase:db:push": "supabase db push",
     "supabase:link": "supabase link",
     "supabase:login": "supabase login",

@@ -7,3 +7,5 @@ coverage
 !.env.example
 *.local
 *.tsbuildinfo
+var/backups/
+var/log/

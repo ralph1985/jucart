@@ -96,6 +96,49 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the developer view only when Rafa is selected", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Vista de desarrollador" }),
+    );
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Dev" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Backup Supabase")).toBeInTheDocument();
+    expect(screen.getByText("Sin copias registradas")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Añadido por"), {
+      target: { value: "begona" },
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Vista de desarrollador" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Dev" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the developer view hidden when Begoña is restored", async () => {
+    window.localStorage.setItem("jucart:selected-user-id", "begona");
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Vista de desarrollador" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("updates the app badge with the visible pending product count", async () => {
     const setAppBadge = vi.fn(() => Promise.resolve());
     const clearAppBadge = vi.fn(() => Promise.resolve());
@@ -377,7 +420,7 @@ describe("App", () => {
       within(navigation)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Lista", "Listas", "Historial"]);
+    ).toEqual(["Lista", "Listas", "Historial", "Dev"]);
     expect(
       screen.getByRole("button", { name: "Borrar comprados" }),
     ).toBeInTheDocument();

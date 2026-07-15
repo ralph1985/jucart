@@ -224,3 +224,15 @@
 - [x] Avisar con un banner cuando lleguen cambios de otro dispositivo.
 - [x] Permitir revisar los cambios remotos no vistos y marcarlos como vistos en ese dispositivo.
 - [x] Añadir tests razonables de lógica, persistencia, Supabase e interfaz.
+
+## Hito 23 — Backup local de Supabase y vista dev
+
+- [x] Crear una migración para registrar metadatos de backups.
+- [x] Añadir un script de backup SQL completo de Supabase remoto.
+- [x] Añadir un script para instalar el cron local cada 6 horas.
+- [x] Conservar backups locales durante 14 días.
+- [x] Registrar en Supabase el último resultado del backup.
+- [x] Añadir una vista interna de desarrollador visible solo para Rafa.
+- [x] Mostrar estado de backup e información operativa útil.
+- [x] Documentar ejecución manual, cron, retención y ubicación local.
+- [x] Añadir tests razonables de adaptador e interfaz.

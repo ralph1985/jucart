@@ -85,6 +85,26 @@ pnpm supabase:db:push
 
 El esquema remoto y la copia local IndexedDB están documentados en [`docs/database-schema.md`](docs/database-schema.md).
 
+## Backup local de Supabase
+
+El backup se hace desde la máquina local de Rafa contra el proyecto Supabase remoto. No levanta Supabase local ni Docker.
+
+Ejecutar una copia manual:
+
+```bash
+pnpm backup:supabase
+```
+
+El script guarda un archivo comprimido local en `var/backups/supabase/` con `schema.sql`, `data.sql` y `manifest.txt`. Esa carpeta está ignorada por Git para que las copias no se suban al repositorio. También calcula tamaño y `sha256`, conserva las copias de los últimos 14 días y registra metadatos del resultado en Supabase para la vista interna de desarrollador.
+
+Instalar el cron local cada 6 horas:
+
+```bash
+pnpm backup:supabase:cron:install
+```
+
+El cron escribe su log en `var/log/supabase-backup.cron.log`. Los backups y logs locales están ignorados por Git.
+
 ## Estado
 
 Jucart mantiene una sola aplicación sin rutas, con tablero de compra, gestión de listas, historial de cambios, sincronización remota y fallback local.
@@ -127,3 +147,5 @@ El Hito 20 añade gestión de listas desde el menú inferior: crear, renombrar, 
 El Hito 21 agrupa los productos por categoría dentro de cada lista. La categoría se infiere automáticamente desde un catálogo maestro inicial de productos y se guarda junto con cada producto.
 
 El Hito 22 añade un historial auditado de altas, compras, cambios de lista y borrados. El historial guarda snapshots de cada producto, se sincroniza con Supabase y avisa cuando otro dispositivo ha realizado cambios pendientes de revisar.
+
+El Hito 23 añade backup local de Supabase y una vista interna de desarrollador. La vista solo aparece cuando el selector de persona está en Rafa y muestra metadatos del último backup junto con información operativa de la app.

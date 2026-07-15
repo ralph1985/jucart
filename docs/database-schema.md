@@ -44,6 +44,20 @@ erDiagram
     jsonb previous_item_snapshot "copia anterior para movimientos"
     timestamptz created_at
   }
+
+  DEVELOPER_BACKUP_RUNS {
+    uuid id PK
+    timestamptz started_at
+    timestamptz finished_at
+    text status "success|failed"
+    text file_name
+    bigint file_size_bytes
+    text sha256
+    integer duration_ms
+    integer retained_count
+    text error_message
+    timestamptz created_at
+  }
 ```
 
 Vista operativa:
@@ -67,13 +81,18 @@ VITE_SUPABASE_LIST_ID
         - item_snapshot conserva el producto aunque se borre después
         - previous_item_snapshot conserva la lista anterior cuando se mueve un producto
         - client_id permite distinguir cambios de otro dispositivo
+
+  +-- developer_backup_runs
+        - metadatos del backup local de Supabase
+        - no guarda el contenido del backup ni credenciales
+        - alimenta la vista interna de desarrollador
 ```
 
 `shopping_items.section_id` y `shopping_sections.id` se relacionan por `list_id`, pero las migraciones no declaran una foreign key. La coherencia se mantiene desde la aplicación: no se puede borrar una lista con productos y las escrituras reemplazan productos y listas de la misma `list_id`.
 
 ## IndexedDB
 
-La base local se llama `jucart` y tiene dos tablas Dexie:
+La base local se llama `jucart` y tiene tres tablas Dexie:
 
 ```txt
 jucart
@@ -109,3 +128,4 @@ Al cargar, si Supabase está disponible, la aplicación lee datos remotos y actu
 - `supabase/migrations/20260714055000_add_shopping_item_categories.sql`: añade `category_id` a los productos.
 - `supabase/migrations/20260715120000_create_shopping_history_events.sql`: crea `shopping_history_events`, añade índices de consulta por lista/fecha y activa RLS/Realtime.
 - `supabase/migrations/20260715133000_extend_shopping_history_event_types.sql`: amplía el historial con altas, movimientos y snapshot anterior.
+- `supabase/migrations/20260715160000_create_developer_backup_runs.sql`: crea `developer_backup_runs` para registrar metadatos del backup local de Supabase.

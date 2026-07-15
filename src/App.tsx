@@ -1240,7 +1240,6 @@ export function App() {
                   id="item-name"
                   ref={itemNameInputRef}
                   className={styles.input}
-                  autoComplete="off"
                   autoFocus
                   value={itemName}
                   onChange={(event) => setItemName(event.target.value)}

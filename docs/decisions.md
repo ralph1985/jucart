@@ -33,9 +33,11 @@ La categoría inferida se guarda en el producto y se recalcula al renombrarlo. L
 
 ## Historial de cambios
 
-En el Hito 22, Jucart añade un historial auditado para compras y borrados.
+En el Hito 22, Jucart añade un historial auditado para altas, compras, cambios de lista y borrados.
 
-El historial guarda eventos inmutables para productos marcados como comprados, devueltos a pendientes y borrados. Cada evento incluye la persona que ejecutó la acción, el dispositivo local que la originó, la fecha y un snapshot completo del producto en ese momento.
+El historial guarda eventos inmutables para productos añadidos, marcados como comprados, devueltos a pendientes, movidos a otra lista y borrados. Cada evento incluye la persona que ejecutó la acción, el dispositivo local que la originó, la fecha y un snapshot completo del producto en ese momento.
+
+Cuando un producto cambia de lista, el evento conserva también el snapshot anterior para poder mostrar de qué lista venía y a cuál se movió.
 
 Si al cargar existen productos pero no hay historial previo, la aplicación crea eventos `initial` para dejar constancia del estado inicial sin inventar compras o borrados anteriores. Esos eventos usan como actor la persona que añadió el producto.
 

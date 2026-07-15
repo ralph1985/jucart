@@ -213,7 +213,7 @@
 
 ## Hito 22 — Historial y cambios remotos
 
-- [x] Registrar eventos de productos comprados, devueltos a pendiente y borrados.
+- [x] Registrar eventos de productos añadidos, comprados, devueltos a pendiente, movidos de lista y borrados.
 - [x] Crear eventos iniciales para productos existentes cuando no haya historial previo.
 - [x] Guardar snapshots completos de los productos en cada evento de historial.
 - [x] Persistir el historial en IndexedDB.

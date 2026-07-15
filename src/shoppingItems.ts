@@ -143,7 +143,7 @@ export type ShoppingItem = {
 };
 
 export type ShoppingHistoryEventType =
-  "initial" | "purchased" | "unpurchased" | "deleted";
+  "initial" | "added" | "purchased" | "unpurchased" | "moved" | "deleted";
 
 export type ShoppingHistoryItemSnapshot = Pick<
   ShoppingItem,
@@ -166,6 +166,7 @@ export type ShoppingHistoryEvent = {
   actor: ShoppingUserId;
   clientId: string;
   item: ShoppingHistoryItemSnapshot;
+  previousItem?: ShoppingHistoryItemSnapshot;
   createdAt: number;
 };
 
@@ -195,8 +196,10 @@ export function isShoppingHistoryEventType(
 ): value is ShoppingHistoryEventType {
   return (
     value === "initial" ||
+    value === "added" ||
     value === "purchased" ||
     value === "unpurchased" ||
+    value === "moved" ||
     value === "deleted"
   );
 }
@@ -419,6 +422,8 @@ export function createShoppingHistoryEvent(
   actor: ShoppingUserId,
   clientId: string,
   sectionName: string = item.sectionId,
+  previousItem?: ShoppingItem,
+  previousSectionName: string = previousItem?.sectionId ?? "",
   createId: () => string = createShoppingHistoryEventId,
   now: () => number = () => Date.now(),
 ): ShoppingHistoryEvent {
@@ -429,6 +434,9 @@ export function createShoppingHistoryEvent(
     actor,
     clientId,
     item: createShoppingHistoryItemSnapshot(item, sectionName),
+    previousItem: previousItem
+      ? createShoppingHistoryItemSnapshot(previousItem, previousSectionName)
+      : undefined,
     createdAt: now(),
   };
 }
@@ -494,9 +502,17 @@ export function toggleShoppingItem(
 ) {
   return items.map((item) =>
     item.id === itemId
-      ? { ...item, purchased: !item.purchased, updatedAt: now() }
+      ? updateShoppingItemPurchasedState(item, !item.purchased, now)
       : item,
   );
+}
+
+export function updateShoppingItemPurchasedState(
+  item: ShoppingItem,
+  purchased: boolean,
+  now: () => number = () => Date.now(),
+) {
+  return { ...item, purchased, updatedAt: now() };
 }
 
 function createShoppingHistoryItemSnapshot(

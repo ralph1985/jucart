@@ -126,4 +126,4 @@ El Hito 20 añade gestión de listas desde el menú inferior: crear, renombrar, 
 
 El Hito 21 agrupa los productos por categoría dentro de cada lista. La categoría se infiere automáticamente desde un catálogo maestro inicial de productos y se guarda junto con cada producto.
 
-El Hito 22 añade un historial auditado de compras y borrados. El historial guarda snapshots de cada producto, se sincroniza con Supabase y avisa cuando otro dispositivo ha realizado cambios pendientes de revisar.
+El Hito 22 añade un historial auditado de altas, compras, cambios de lista y borrados. El historial guarda snapshots de cada producto, se sincroniza con Supabase y avisa cuando otro dispositivo ha realizado cambios pendientes de revisar.

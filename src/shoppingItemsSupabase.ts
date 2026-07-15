@@ -46,6 +46,7 @@ type ShoppingHistoryEventRow = {
   actor: string;
   client_id: string;
   item_snapshot: ShoppingHistoryItemSnapshot;
+  previous_item_snapshot?: ShoppingHistoryItemSnapshot;
   created_at: string;
 };
 
@@ -369,6 +370,9 @@ export function mapRowToShoppingHistoryEvent(
       createdAt: itemSnapshot.createdAt,
       updatedAt: itemSnapshot.updatedAt,
     },
+    previousItem: row.previous_item_snapshot
+      ? mapSnapshotToShoppingHistoryItemSnapshot(row.previous_item_snapshot)
+      : undefined,
     createdAt: Date.parse(row.created_at),
   };
 }
@@ -385,7 +389,24 @@ export function mapShoppingHistoryEventToRow(
     actor: event.actor,
     client_id: event.clientId,
     item_snapshot: event.item,
+    previous_item_snapshot: event.previousItem,
     created_at: new Date(event.createdAt).toISOString(),
+  };
+}
+
+function mapSnapshotToShoppingHistoryItemSnapshot(
+  itemSnapshot: ShoppingHistoryItemSnapshot,
+): ShoppingHistoryItemSnapshot {
+  return {
+    id: itemSnapshot.id,
+    name: itemSnapshot.name,
+    sectionId: normalizeSectionId(itemSnapshot.sectionId),
+    sectionName: itemSnapshot.sectionName ?? itemSnapshot.sectionId,
+    categoryId: normalizeCategoryId(itemSnapshot.categoryId, itemSnapshot.name),
+    addedBy: normalizeUserId(itemSnapshot.addedBy),
+    purchased: itemSnapshot.purchased,
+    createdAt: itemSnapshot.createdAt,
+    updatedAt: itemSnapshot.updatedAt,
   };
 }
 

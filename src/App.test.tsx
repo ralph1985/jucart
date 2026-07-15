@@ -403,8 +403,9 @@ describe("App", () => {
       screen.getByRole("heading", { name: "Historial" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Marcado como comprado")).toBeInTheDocument();
-    expect(screen.getByText("Leche")).toBeInTheDocument();
-    expect(screen.getByText("Mercadona · Rafa")).toBeInTheDocument();
+    expect(screen.getByText("Producto añadido")).toBeInTheDocument();
+    expect(screen.getAllByText("Leche")).toHaveLength(2);
+    expect(screen.getAllByText("Mercadona · Rafa")).toHaveLength(2);
   });
 
   it("notifies unseen history events from another device", async () => {
@@ -1093,6 +1094,11 @@ describe("App", () => {
     expect(
       within(mercadonaColumn as HTMLElement).queryByText("Leche"),
     ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Historial" }));
+
+    expect(screen.getByText("Cambiado de lista")).toBeInTheDocument();
+    expect(screen.getByText("Mercadona → Farmacia · Rafa")).toBeInTheDocument();
   });
 
   it("loads stored products when it starts", async () => {

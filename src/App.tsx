@@ -39,6 +39,7 @@ import {
   shoppingUsers,
   sortShoppingItemsForShopping,
   toggleShoppingItem,
+  updateShoppingItemPurchasedState,
   updateShoppingSectionColor,
   updateShoppingItem,
 } from "./shoppingItems";
@@ -322,6 +323,10 @@ function getSyncStatusText(status: SyncStatus) {
 }
 
 function getHistoryEventText(event: ShoppingHistoryEvent) {
+  if (event.type === "added") {
+    return "Producto añadido";
+  }
+
   if (event.type === "purchased") {
     return "Marcado como comprado";
   }
@@ -330,11 +335,24 @@ function getHistoryEventText(event: ShoppingHistoryEvent) {
     return "Devuelto a pendientes";
   }
 
+  if (event.type === "moved") {
+    return "Cambiado de lista";
+  }
+
   if (event.type === "deleted") {
     return "Producto borrado";
   }
 
   return "Estado inicial";
+}
+
+function getHistoryEventMeta(event: ShoppingHistoryEvent) {
+  const listText =
+    event.type === "moved" && event.previousItem
+      ? `${event.previousItem.sectionName} → ${event.item.sectionName}`
+      : event.item.sectionName;
+
+  return `${listText} · ${getShoppingUserName(event.actor)}`;
 }
 
 function formatHistoryEventDate(createdAt: number) {
@@ -845,7 +863,15 @@ export function App() {
     );
 
     if (nextItems !== items) {
+      const currentItemIds = new Set(items.map((item) => item.id));
+      const addedItem = nextItems.find((item) => !currentItemIds.has(item.id));
+
       runHapticFeedback("success");
+
+      if (addedItem) {
+        addHistoryEvent(addedItem, "added");
+      }
+
       setItems(nextItems);
     }
 
@@ -855,11 +881,16 @@ export function App() {
 
   function addHistoryEvent(
     item: ShoppingItem,
-    type: "purchased" | "unpurchased" | "deleted",
+    type: "added" | "purchased" | "unpurchased" | "moved" | "deleted",
+    previousItem?: ShoppingItem,
   ) {
     const sectionName =
       sections.find((section) => section.id === item.sectionId)?.name ??
       item.sectionId;
+    const previousSectionName = previousItem
+      ? (sections.find((section) => section.id === previousItem.sectionId)
+          ?.name ?? previousItem.sectionId)
+      : "";
 
     setHistoryEvents((currentHistoryEvents) => [
       ...currentHistoryEvents,
@@ -869,6 +900,8 @@ export function App() {
         selectedUserId,
         historyClientId,
         sectionName,
+        previousItem,
+        previousSectionName,
       ),
     ]);
   }
@@ -928,7 +961,19 @@ export function App() {
     );
 
     if (nextItems !== items) {
+      const previousItem = items.find((item) => item.id === editingItemId);
+      const movedItem = nextItems.find((item) => item.id === editingItemId);
+
       runHapticFeedback("success");
+
+      if (
+        previousItem &&
+        movedItem &&
+        previousItem.sectionId !== movedItem.sectionId
+      ) {
+        addHistoryEvent(movedItem, "moved", previousItem);
+      }
+
       setItems(nextItems);
     }
 
@@ -1003,17 +1048,19 @@ export function App() {
       return;
     }
 
+    const restoredHiddenPurchasedItem = updateShoppingItemPurchasedState(
+      lastHiddenPurchasedItem,
+      false,
+    );
+
     setItems((currentItems) =>
       currentItems.map((item) =>
         item.id === lastHiddenPurchasedItem.id
-          ? { ...item, purchased: false, updatedAt: Date.now() }
+          ? restoredHiddenPurchasedItem
           : item,
       ),
     );
-    addHistoryEvent(
-      { ...lastHiddenPurchasedItem, purchased: false, updatedAt: Date.now() },
-      "unpurchased",
-    );
+    addHistoryEvent(restoredHiddenPurchasedItem, "unpurchased");
     setLastHiddenPurchasedItem(null);
     runHapticFeedback("success");
   }
@@ -1490,9 +1537,7 @@ export function App() {
               </time>
             </div>
             <p className={styles.historyProduct}>{event.item.name}</p>
-            <p className={styles.historyMeta}>
-              {event.item.sectionName} · {getShoppingUserName(event.actor)}
-            </p>
+            <p className={styles.historyMeta}>{getHistoryEventMeta(event)}</p>
           </li>
         ))}
       </ol>

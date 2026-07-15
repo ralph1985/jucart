@@ -157,6 +157,8 @@ describe("shopping item logic", () => {
         "begona",
         "client-1",
         "Mercadona",
+        undefined,
+        "",
         () => "history-1",
         () => 220,
       ),
@@ -178,6 +180,34 @@ describe("shopping item logic", () => {
         updatedAt: 200,
       },
       createdAt: 220,
+    });
+  });
+
+  it("creates moved history events with the previous item snapshot", () => {
+    expect(
+      createShoppingHistoryEvent(
+        { ...baseItem, sectionId: "alcampo", updatedAt: 220 },
+        "moved",
+        "rafa",
+        "client-1",
+        "Alcampo",
+        baseItem,
+        "Mercadona",
+        () => "history-2",
+        () => 230,
+      ),
+    ).toMatchObject({
+      id: "history-2",
+      itemId: "item-1",
+      type: "moved",
+      item: {
+        sectionId: "alcampo",
+        sectionName: "Alcampo",
+      },
+      previousItem: {
+        sectionId: "mercadona",
+        sectionName: "Mercadona",
+      },
     });
   });
 
@@ -221,6 +251,8 @@ describe("shopping item logic", () => {
       "rafa",
       "client-2",
       "Mercadona",
+      undefined,
+      "",
       () => "history-old",
       () => now - 31 * 24 * 60 * 60 * 1000,
     );
@@ -230,6 +262,8 @@ describe("shopping item logic", () => {
       "begona",
       "client-2",
       "Mercadona",
+      undefined,
+      "",
       () => "history-remote",
       () => now - 1000,
     );
@@ -239,6 +273,8 @@ describe("shopping item logic", () => {
       "rafa",
       "client-1",
       "Mercadona",
+      undefined,
+      "",
       () => "history-local",
       () => now - 500,
     );

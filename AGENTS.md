@@ -19,7 +19,7 @@ Jucart es una aplicación web privada para gestionar una lista de la compra pers
 
 ## Estado Técnico Actual
 
-- Stack: React, TypeScript, Vite, SCSS Modules, Dexie, Supabase, `vite-plugin-pwa`, Anime.js, Vitest, React Testing Library, ESLint, Prettier y pnpm.
+- Stack: React, TypeScript, Vite, SCSS Modules, Dexie, Supabase, `vite-plugin-pwa`, Anime.js, Embla Carousel, Vitest, React Testing Library, ESLint, Prettier y pnpm.
 - Entrada de la app: `src/main.tsx`.
 - Pantalla principal: `src/App.tsx`.
 - Lógica local de productos: `src/shoppingItems.ts`.

@@ -275,6 +275,19 @@ describe("App", () => {
       within(alcampoColumn as HTMLElement).getByText("Begoña"),
     ).toBeInTheDocument();
 
+    const itemCard = within(alcampoColumn as HTMLElement)
+      .getByText("Leche")
+      .closest("li");
+
+    expect(itemCard).not.toBeNull();
+
+    fireEvent.click(itemCard as HTMLElement);
+    expect(
+      within(alcampoColumn as HTMLElement).getByRole("button", {
+        name: "Marcar Leche como comprado",
+      }),
+    ).toBeInTheDocument();
+
     fireEvent.click(
       screen.getByRole("button", { name: "Marcar Leche como comprado" }),
     );

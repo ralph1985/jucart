@@ -149,8 +149,8 @@
 
 ## Hito 16 — Modo compra rápido
 
-- [x] Permitir tocar una tarjeta para marcarla como comprada.
-- [x] Permitir tocar una tarjeta comprada para devolverla a pendiente.
+- [x] Permitir tocar el check de una tarjeta para marcarla como comprada.
+- [x] Permitir tocar el check de una tarjeta comprada para devolverla a pendiente.
 - [x] Mantener editar y borrar como acciones separadas.
 - [x] Evitar que editar o borrar cambien el estado comprado.
 - [x] Añadir tests razonables de la interacción.

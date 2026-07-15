@@ -1250,18 +1250,8 @@ h2 {
   border: 1px solid rgb(203 213 225 / 74%);
   border-radius: 0.5rem;
   background: #ffffff;
-  cursor: pointer;
   transform-origin: center top;
   will-change: transform, opacity;
-}
-
-.item:focus-visible {
-  outline: 3px solid rgb(47 128 237 / 22%);
-  outline-offset: 2px;
-}
-
-.item:hover {
-  border-color: rgb(22 124 90 / 42%);
 }
 
 .itemPurchased {
@@ -1298,10 +1288,30 @@ h2 {
   place-items: center;
   align-self: center;
   justify-self: center;
+  padding: 0;
   border: 2px solid rgb(22 124 90 / 34%);
   border-radius: 999rem;
+  appearance: none;
   color: rgb(22 124 90 / 42%);
+  font: inherit;
   background: #ffffff;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    color 0.18s ease,
+    background 0.18s ease,
+    transform 0.18s ease;
+}
+
+.itemCheck:hover {
+  border-color: rgb(22 124 90 / 62%);
+  color: rgb(22 124 90 / 72%);
+  transform: translateY(-1px);
+}
+
+.itemCheck:focus-visible {
+  outline: 3px solid rgb(47 128 237 / 22%);
+  outline-offset: 2px;
 }
 
 .itemCheckPurchased {

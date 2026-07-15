@@ -1360,18 +1360,6 @@ export function App() {
     selectSection(sectionId);
   }
 
-  function handleItemKeyDown(
-    event: KeyboardEvent<HTMLElement>,
-    itemId: string,
-  ) {
-    if (event.key !== "Enter" && event.key !== " ") {
-      return;
-    }
-
-    event.preventDefault();
-    handleToggleItem(itemId);
-  }
-
   function renderUndoItem(removedItems: ShoppingItem[]) {
     return (
       <li
@@ -1482,27 +1470,25 @@ export function App() {
               ? `${styles.item} ${styles.itemPurchased}`
               : styles.item
           }
-          aria-label={
-            item.purchased
-              ? `Devolver ${item.name} a pendientes`
-              : `Marcar ${item.name} como comprado`
-          }
-          role="button"
-          tabIndex={0}
           key={item.id}
-          onClick={() => handleToggleItem(item.id)}
-          onKeyDown={(event) => handleItemKeyDown(event, item.id)}
         >
-          <span
+          <button
             className={
               item.purchased
                 ? `${styles.itemCheck} ${styles.itemCheckPurchased}`
                 : styles.itemCheck
             }
-            aria-hidden="true"
+            type="button"
+            aria-label={
+              item.purchased
+                ? `Devolver ${item.name} a pendientes`
+                : `Marcar ${item.name} como comprado`
+            }
+            title={item.purchased ? "Devolver a pendientes" : "Marcar comprado"}
+            onClick={() => handleToggleItem(item.id)}
           >
             <Icon name="check" />
-          </span>
+          </button>
           <span
             className={
               item.purchased

@@ -239,7 +239,7 @@ h2 {
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.25rem;
   border-top: 1px solid rgb(148 163 184 / 24%);
   padding: 0.5rem max(1rem, env(safe-area-inset-right, 0px))
@@ -570,6 +570,83 @@ h2 {
   display: grid;
   gap: 0.85rem;
   padding: 0.15rem 1rem 1rem;
+}
+
+.historyScreen {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.15rem 1rem 1rem;
+}
+
+.remoteChangesBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 1rem 0.75rem;
+  border: 1px solid rgb(37 99 235 / 22%);
+  border-radius: 0.5rem;
+  padding: 0.62rem 0.75rem;
+  background: rgb(239 246 255 / 86%);
+  color: #1e3a8a;
+  font-size: 0.86rem;
+  font-weight: 800;
+  box-shadow: 0 0.4rem 0.95rem var(--surface-shadow);
+}
+
+.historyList {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.historyItem {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 0.5rem;
+  padding: 0.72rem 0.78rem;
+  background: rgb(255 255 255 / 82%);
+  box-shadow: 0 0.35rem 0.75rem var(--surface-shadow);
+}
+
+.historyItemHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.historyAction {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.historyProduct {
+  margin: 0;
+  color: #102033;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.historyMeta {
+  margin: 0;
+  color: #536b7c;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.historyEmpty {
+  border: 1px solid rgb(148 163 184 / 24%);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: rgb(255 255 255 / 72%);
 }
 
 .sectionsHeader {

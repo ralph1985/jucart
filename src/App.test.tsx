@@ -1,5 +1,6 @@
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -10,6 +11,7 @@ import { afterEach, vi } from "vitest";
 
 import { App } from "./App";
 import {
+  replaceStoredShoppingData,
   replaceStoredShoppingItems,
   resetShoppingItemsDatabase,
 } from "./shoppingItemsDb";
@@ -67,6 +69,7 @@ vi.mock("embla-carousel-react", () => ({
 
 afterEach(async () => {
   vi.useRealTimers();
+  cleanup();
   vi.restoreAllMocks();
   emblaCarouselMock.reset();
   Reflect.deleteProperty(navigator, "setAppBadge");
@@ -309,7 +312,7 @@ describe("App", () => {
 
     await screen.findByText("Leche");
 
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
 
     expect(screen.getByText("Producto borrado.")).toBeInTheDocument();
@@ -317,6 +320,7 @@ describe("App", () => {
     await act(async () => {
       vi.advanceTimersByTime(5000);
     });
+    vi.useRealTimers();
 
     expect(screen.queryByText("Producto borrado.")).not.toBeInTheDocument();
   });
@@ -373,10 +377,86 @@ describe("App", () => {
       within(navigation)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Lista", "Listas"]);
+    ).toEqual(["Lista", "Listas", "Historial"]);
     expect(
       screen.getByRole("button", { name: "Borrar comprados" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows recent shopping actions in the history view", async () => {
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "Leche" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Historial" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Historial" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Marcado como comprado")).toBeInTheDocument();
+    expect(screen.getByText("Producto añadido")).toBeInTheDocument();
+    expect(screen.getAllByText("Leche")).toHaveLength(2);
+    expect(screen.getAllByText("Mercadona · Rafa")).toHaveLength(2);
+  });
+
+  it("notifies unseen history events from another device", async () => {
+    window.localStorage.setItem("jucart:history-client-id", "client-local");
+
+    await replaceStoredShoppingData({
+      items: [],
+      sections: [{ id: "mercadona", name: "Mercadona", color: "mint" }],
+      historyEvents: [
+        {
+          id: "history-remote",
+          itemId: "item-1",
+          type: "deleted",
+          actor: "begona",
+          clientId: "client-remote",
+          item: {
+            id: "item-1",
+            name: "Pan",
+            sectionId: "mercadona",
+            sectionName: "Mercadona",
+            categoryId: "bakery",
+            addedBy: "rafa",
+            purchased: true,
+            createdAt: Date.now() - 2000,
+            updatedAt: Date.now() - 1000,
+          },
+          createdAt: Date.now(),
+        },
+      ],
+    });
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    expect(
+      screen.getByText("Hay 1 cambio de otro dispositivo."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver cambios" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Cambios nuevos" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Producto borrado")).toBeInTheDocument();
+    expect(screen.getByText("Pan")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Hay 1 cambio de otro dispositivo."),
+    ).not.toBeInTheDocument();
   });
 
   it("manages shopping lists from the bottom navigation", async () => {
@@ -922,7 +1002,7 @@ describe("App", () => {
 
     await screen.findByText("Leche");
 
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     fireEvent.click(
       screen.getByRole("button", { name: "Marcar Leche como comprado" }),
     );
@@ -934,6 +1014,7 @@ describe("App", () => {
     await act(async () => {
       vi.advanceTimersByTime(5000);
     });
+    vi.useRealTimers();
 
     expect(
       screen.queryByText("Producto marcado como comprado."),
@@ -1013,6 +1094,11 @@ describe("App", () => {
     expect(
       within(mercadonaColumn as HTMLElement).queryByText("Leche"),
     ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Historial" }));
+
+    expect(screen.getByText("Cambiado de lista")).toBeInTheDocument();
+    expect(screen.getByText("Mercadona → Farmacia · Rafa")).toBeInTheDocument();
   });
 
   it("loads stored products when it starts", async () => {

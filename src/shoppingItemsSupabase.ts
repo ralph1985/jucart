@@ -4,8 +4,11 @@ import {
   defaultShoppingSections,
   inferShoppingCategoryId,
   isShoppingCategoryId,
+  isShoppingHistoryEventType,
   isShoppingSectionColor,
   isShoppingUserId,
+  ShoppingHistoryEvent,
+  ShoppingHistoryItemSnapshot,
   ShoppingItem,
   ShoppingSection,
   ShoppingSectionId,
@@ -33,6 +36,18 @@ type ShoppingSectionRow = {
   position: number;
   created_at: string;
   updated_at: string;
+};
+
+type ShoppingHistoryEventRow = {
+  id: string;
+  list_id: string;
+  item_id: string;
+  event_type: string;
+  actor: string;
+  client_id: string;
+  item_snapshot: ShoppingHistoryItemSnapshot;
+  previous_item_snapshot?: ShoppingHistoryItemSnapshot;
+  created_at: string;
 };
 
 type SupabaseConfig = {
@@ -77,7 +92,7 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
   }
 
   const client = getSupabaseClient(config);
-  const [itemsResult, sectionsResult] = await Promise.all([
+  const [itemsResult, sectionsResult, historyResult] = await Promise.all([
     client
       .from("shopping_items")
       .select("*")
@@ -88,6 +103,11 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
       .select("*")
       .eq("list_id", config.listId)
       .order("position", { ascending: true }),
+    client
+      .from("shopping_history_events")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("created_at", { ascending: true }),
   ]);
 
   if (itemsResult.error) {
@@ -98,12 +118,17 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
     throw sectionsResult.error;
   }
 
+  if (historyResult.error) {
+    throw historyResult.error;
+  }
+
   return {
     items: (itemsResult.data ?? []).map(mapRowToShoppingItem),
     sections:
       sectionsResult.data && sectionsResult.data.length > 0
         ? sectionsResult.data.map(mapRowToShoppingSection)
         : defaultShoppingSections,
+    historyEvents: (historyResult.data ?? []).map(mapRowToShoppingHistoryEvent),
   };
 }
 
@@ -120,6 +145,9 @@ export async function replaceSupabaseShoppingData(data: ShoppingData) {
   );
   const sectionRows = data.sections.map((section, index) =>
     mapShoppingSectionToRow(section, index, config.listId),
+  );
+  const historyRows = data.historyEvents.map((event) =>
+    mapShoppingHistoryEventToRow(event, config.listId),
   );
 
   if (sectionRows.length > 0) {
@@ -178,6 +206,35 @@ export async function replaceSupabaseShoppingData(data: ShoppingData) {
     throw error;
   }
 
+  if (historyRows.length > 0) {
+    const { error } = await client
+      .from("shopping_history_events")
+      .upsert(historyRows);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  let deleteHistoryQuery = client
+    .from("shopping_history_events")
+    .delete()
+    .eq("list_id", config.listId);
+
+  if (data.historyEvents.length > 0) {
+    deleteHistoryQuery = deleteHistoryQuery.not(
+      "id",
+      "in",
+      encodePostgrestTextList(data.historyEvents.map((event) => event.id)),
+    );
+  }
+
+  const { error: deleteHistoryError } = await deleteHistoryQuery;
+
+  if (deleteHistoryError) {
+    throw deleteHistoryError;
+  }
+
   return true;
 }
 
@@ -206,6 +263,16 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_sections",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_history_events",
         filter: `list_id=eq.${config.listId}`,
       },
       onChange,
@@ -273,6 +340,73 @@ export function mapShoppingSectionToRow(
     position,
     created_at: now,
     updated_at: now,
+  };
+}
+
+export function mapRowToShoppingHistoryEvent(
+  row: ShoppingHistoryEventRow,
+): ShoppingHistoryEvent {
+  const itemSnapshot = row.item_snapshot;
+
+  return {
+    id: row.id,
+    itemId: row.item_id,
+    type: isShoppingHistoryEventType(row.event_type)
+      ? row.event_type
+      : "initial",
+    actor: normalizeUserId(row.actor),
+    clientId: row.client_id.trim() ? row.client_id : "unknown",
+    item: {
+      id: itemSnapshot.id,
+      name: itemSnapshot.name,
+      sectionId: normalizeSectionId(itemSnapshot.sectionId),
+      sectionName: itemSnapshot.sectionName ?? itemSnapshot.sectionId,
+      categoryId: normalizeCategoryId(
+        itemSnapshot.categoryId,
+        itemSnapshot.name,
+      ),
+      addedBy: normalizeUserId(itemSnapshot.addedBy),
+      purchased: itemSnapshot.purchased,
+      createdAt: itemSnapshot.createdAt,
+      updatedAt: itemSnapshot.updatedAt,
+    },
+    previousItem: row.previous_item_snapshot
+      ? mapSnapshotToShoppingHistoryItemSnapshot(row.previous_item_snapshot)
+      : undefined,
+    createdAt: Date.parse(row.created_at),
+  };
+}
+
+export function mapShoppingHistoryEventToRow(
+  event: ShoppingHistoryEvent,
+  listId: string,
+): ShoppingHistoryEventRow {
+  return {
+    id: event.id,
+    list_id: listId,
+    item_id: event.itemId,
+    event_type: event.type,
+    actor: event.actor,
+    client_id: event.clientId,
+    item_snapshot: event.item,
+    previous_item_snapshot: event.previousItem,
+    created_at: new Date(event.createdAt).toISOString(),
+  };
+}
+
+function mapSnapshotToShoppingHistoryItemSnapshot(
+  itemSnapshot: ShoppingHistoryItemSnapshot,
+): ShoppingHistoryItemSnapshot {
+  return {
+    id: itemSnapshot.id,
+    name: itemSnapshot.name,
+    sectionId: normalizeSectionId(itemSnapshot.sectionId),
+    sectionName: itemSnapshot.sectionName ?? itemSnapshot.sectionId,
+    categoryId: normalizeCategoryId(itemSnapshot.categoryId, itemSnapshot.name),
+    addedBy: normalizeUserId(itemSnapshot.addedBy),
+    purchased: itemSnapshot.purchased,
+    createdAt: itemSnapshot.createdAt,
+    updatedAt: itemSnapshot.updatedAt,
   };
 }
 

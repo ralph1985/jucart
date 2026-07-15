@@ -1,7 +1,11 @@
 import {
   addShoppingItem,
   addShoppingSection,
+  createInitialShoppingHistoryEvents,
+  createShoppingHistoryEvent,
   createShoppingItemId,
+  getRecentShoppingHistoryEvents,
+  getUnseenRemoteShoppingHistoryEvents,
   hasItemWithName,
   inferShoppingCategoryId,
   moveShoppingSection,
@@ -143,6 +147,152 @@ describe("shopping item logic", () => {
         updatedAt: 200,
       },
     ]);
+  });
+
+  it("creates shopping history events with a full item snapshot", () => {
+    expect(
+      createShoppingHistoryEvent(
+        { ...baseItem, purchased: true, updatedAt: 200 },
+        "purchased",
+        "begona",
+        "client-1",
+        "Mercadona",
+        undefined,
+        "",
+        () => "history-1",
+        () => 220,
+      ),
+    ).toEqual({
+      id: "history-1",
+      itemId: "item-1",
+      type: "purchased",
+      actor: "begona",
+      clientId: "client-1",
+      item: {
+        id: "item-1",
+        name: "Leche",
+        sectionId: "mercadona",
+        sectionName: "Mercadona",
+        categoryId: "dairy",
+        addedBy: "rafa",
+        purchased: true,
+        createdAt: 100,
+        updatedAt: 200,
+      },
+      createdAt: 220,
+    });
+  });
+
+  it("creates moved history events with the previous item snapshot", () => {
+    expect(
+      createShoppingHistoryEvent(
+        { ...baseItem, sectionId: "alcampo", updatedAt: 220 },
+        "moved",
+        "rafa",
+        "client-1",
+        "Alcampo",
+        baseItem,
+        "Mercadona",
+        () => "history-2",
+        () => 230,
+      ),
+    ).toMatchObject({
+      id: "history-2",
+      itemId: "item-1",
+      type: "moved",
+      item: {
+        sectionId: "alcampo",
+        sectionName: "Alcampo",
+      },
+      previousItem: {
+        sectionId: "mercadona",
+        sectionName: "Mercadona",
+      },
+    });
+  });
+
+  it("creates initial history events from existing products", () => {
+    expect(
+      createInitialShoppingHistoryEvents(
+        [baseItem],
+        "client-1",
+        [{ id: "mercadona", name: "Mercadona", color: "mint" }],
+        () => "history-1",
+        () => 300,
+      ),
+    ).toEqual([
+      {
+        id: "history-1",
+        itemId: "item-1",
+        type: "initial",
+        actor: "rafa",
+        clientId: "client-1",
+        item: {
+          id: "item-1",
+          name: "Leche",
+          sectionId: "mercadona",
+          sectionName: "Mercadona",
+          categoryId: "dairy",
+          addedBy: "rafa",
+          purchased: false,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+        createdAt: 300,
+      },
+    ]);
+  });
+
+  it("keeps recent history events and detects unseen remote events", () => {
+    const now = 31 * 24 * 60 * 60 * 1000;
+    const oldEvent = createShoppingHistoryEvent(
+      baseItem,
+      "deleted",
+      "rafa",
+      "client-2",
+      "Mercadona",
+      undefined,
+      "",
+      () => "history-old",
+      () => now - 31 * 24 * 60 * 60 * 1000,
+    );
+    const remoteEvent = createShoppingHistoryEvent(
+      baseItem,
+      "purchased",
+      "begona",
+      "client-2",
+      "Mercadona",
+      undefined,
+      "",
+      () => "history-remote",
+      () => now - 1000,
+    );
+    const localEvent = createShoppingHistoryEvent(
+      baseItem,
+      "unpurchased",
+      "rafa",
+      "client-1",
+      "Mercadona",
+      undefined,
+      "",
+      () => "history-local",
+      () => now - 500,
+    );
+
+    expect(
+      getRecentShoppingHistoryEvents(
+        [oldEvent, remoteEvent, localEvent],
+        () => now,
+      ),
+    ).toEqual([localEvent, remoteEvent]);
+    expect(
+      getUnseenRemoteShoppingHistoryEvents(
+        [oldEvent, remoteEvent, localEvent],
+        "client-1",
+        now - 2000,
+        () => now,
+      ),
+    ).toEqual([remoteEvent]);
   });
 
   it("updates product name and section", () => {

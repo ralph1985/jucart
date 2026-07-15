@@ -150,4 +150,4 @@ El Hito 22 añade un historial auditado de altas, compras, cambios de lista y bo
 
 El Hito 23 añade backup local de Supabase y una vista interna de desarrollador. La vista solo aparece cuando el selector de persona está en Rafa y muestra metadatos del último backup junto con información operativa de la app.
 
-El Hito 24 añade sugerencias rápidas bajo el campo de producto. Las sugerencias combinan catálogo, productos existentes e historial reciente, se filtran mientras se escribe y evitan sugerir productos ya presentes en el tablero.
+El Hito 24 añade sugerencias rápidas bajo el campo de producto cuando se empieza a escribir. Las sugerencias combinan catálogo, productos existentes e historial reciente, se filtran mientras se escribe y evitan sugerir productos ya presentes en el tablero.

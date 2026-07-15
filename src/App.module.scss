@@ -607,8 +607,9 @@ h2 {
 .board {
   display: flex;
   align-items: stretch;
-  gap: 0.75rem;
+  align-content: flex-start;
   max-width: 100%;
+  width: 100%;
   height: calc(
     100dvh - var(--header-height) - var(--command-height) - var(
         --bottom-nav-height
@@ -616,12 +617,14 @@ h2 {
       0.75rem
   );
   min-height: 16rem;
-  overflow-x: auto;
+  overflow: hidden;
   overscroll-behavior-x: contain;
   padding: 0.1rem 0.75rem 0.6rem;
-  scroll-padding-inline: 0.75rem;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
+  position: relative;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 
 .sectionColormint {
@@ -680,17 +683,20 @@ h2 {
 
 .column {
   display: flex;
-  flex: 0 0 calc(100vw - 1.5rem);
+  flex: 0 0 auto;
   flex-direction: column;
   height: 100%;
   min-height: 0;
   min-width: 0;
+  max-width: calc(100vw - 1.5rem);
+  width: calc(100vw - 1.5rem);
   border: 1px solid rgb(148 163 184 / 32%);
   border-radius: 0.5rem;
   padding: 0.72rem;
   box-shadow: 0 0.45rem 1.15rem var(--surface-shadow);
-  scroll-snap-align: start;
   cursor: pointer;
+  overflow: hidden;
+  position: relative;
   transform-origin: center top;
   will-change: transform, opacity;
 }
@@ -972,10 +978,6 @@ h2 {
     font-size: 0.74rem;
   }
 
-  .board {
-    scroll-snap-type: x proximity;
-  }
-
   .header {
     align-items: start;
     gap: 0.65rem;
@@ -1001,11 +1003,11 @@ h2 {
     width: min(100% - 2rem, 80rem);
     margin: 0 auto;
     padding-inline: 0;
-    scroll-padding-inline: 0;
   }
 
   .column {
-    flex-basis: min(28rem, 100%);
+    max-width: min(28rem, 100%);
+    width: min(28rem, 100%);
   }
 
   .header {

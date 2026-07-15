@@ -3,12 +3,12 @@ import {
   ChangeEvent,
   KeyboardEvent,
   MouseEvent,
-  UIEvent,
   useEffect,
   useRef,
   useState,
 } from "react";
 import { animate, stagger } from "animejs";
+import { useKeenSlider } from "keen-slider/react";
 
 import styles from "./App.module.scss";
 import {
@@ -222,6 +222,10 @@ function shouldAnimate() {
   return !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
+function easeOutCubic(time: number) {
+  return 1 - Math.pow(1 - time, 3);
+}
+
 function runAnimation(
   targets: HTMLElement | HTMLElement[],
   parameters: Parameters<typeof animate>[1],
@@ -305,14 +309,13 @@ export function App() {
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const itemNameInputRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
-  const boardRef = useRef<HTMLElement>(null);
   const clearDialogRef = useRef<HTMLDivElement>(null);
   const sectionNameInputRef = useRef<HTMLInputElement>(null);
   const sectionColumnRefs = useRef<
     Partial<Record<ShoppingSectionId, HTMLElement>>
   >({});
-  const programmaticScrollTimeoutRef = useRef<number | null>(null);
-  const skipSelectedSectionScrollRef = useRef(false);
+  const sectionsRef = useRef(sections);
+  const selectedSectionIdRef = useRef(selectedSectionId);
   const hasAnimatedInitialColumnsRef = useRef(false);
   const previousItemIdsRef = useRef<Set<string>>(new Set());
   const previousUndoKeyRef = useRef<string | null>(null);
@@ -320,6 +323,35 @@ export function App() {
   const skipNextStoreRef = useRef(true);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
+  const selectedSectionIndex = Math.max(
+    sections.findIndex((section) => section.id === selectedSectionId),
+    0,
+  );
+  const sliderAnimationDuration = shouldAnimate() ? 420 : 0;
+  const [boardSliderOptions] = useState(() => ({
+    defaultAnimation: {
+      duration: sliderAnimationDuration,
+      easing: easeOutCubic,
+    },
+    drag: true,
+    initial: selectedSectionIndex,
+    mode: "snap" as const,
+    slides: {
+      perView: "auto" as const,
+      spacing: 12,
+    },
+    slideChanged(slider: { track: { details: { rel: number } } }) {
+      const nextSection = sectionsRef.current[slider.track.details.rel];
+
+      if (!nextSection || nextSection.id === selectedSectionIdRef.current) {
+        return;
+      }
+
+      setSelectedSectionId(nextSection.id);
+    },
+  }));
+  const [boardSliderRef, boardSlider] =
+    useKeenSlider<HTMLElement>(boardSliderOptions);
   const editingItem = editingItemId
     ? items.find((item) => item.id === editingItemId)
     : null;
@@ -455,40 +487,52 @@ export function App() {
   }, [selectedUserId]);
 
   useEffect(() => {
-    const board = boardRef.current;
-    const selectedColumn = sectionColumnRefs.current[selectedSectionId];
+    sectionsRef.current = sections;
+  }, [sections]);
 
-    if (!board || !selectedColumn || board.scrollWidth <= board.clientWidth) {
-      return;
-    }
-
-    if (skipSelectedSectionScrollRef.current) {
-      skipSelectedSectionScrollRef.current = false;
-      return;
-    }
-
-    if (programmaticScrollTimeoutRef.current) {
-      window.clearTimeout(programmaticScrollTimeoutRef.current);
-    }
-
-    programmaticScrollTimeoutRef.current = window.setTimeout(() => {
-      programmaticScrollTimeoutRef.current = null;
-    }, 500);
-
-    runAnimation(board, {
-      scrollLeft: selectedColumn.offsetLeft,
-      duration: 420,
-      ease: "outCubic",
-    });
+  useEffect(() => {
+    selectedSectionIdRef.current = selectedSectionId;
   }, [selectedSectionId]);
 
   useEffect(() => {
-    return () => {
-      if (programmaticScrollTimeoutRef.current) {
-        window.clearTimeout(programmaticScrollTimeoutRef.current);
-      }
-    };
-  }, []);
+    const slider = boardSlider.current;
+
+    if (!slider || activeView !== "shopping") {
+      return;
+    }
+
+    const nextSectionIndex = Math.max(
+      sectionsRef.current.findIndex(
+        (section) => section.id === selectedSectionIdRef.current,
+      ),
+      0,
+    );
+
+    slider.update(undefined, nextSectionIndex);
+  }, [activeView, boardSlider, sections]);
+
+  useEffect(() => {
+    const slider = boardSlider.current;
+
+    if (!slider || activeView !== "shopping") {
+      return;
+    }
+
+    if (slider.track.details.rel === selectedSectionIndex) {
+      return;
+    }
+
+    slider.moveToIdx(selectedSectionIndex, true, {
+      duration: sliderAnimationDuration,
+      easing: easeOutCubic,
+    });
+  }, [
+    activeView,
+    boardSlider,
+    selectedSectionId,
+    selectedSectionIndex,
+    sliderAnimationDuration,
+  ]);
 
   useEffect(() => {
     if (!isLoaded || hasAnimatedInitialColumnsRef.current) {
@@ -735,41 +779,6 @@ export function App() {
     runHapticFeedback("medium");
   }
 
-  function handleBoardScroll(event: UIEvent<HTMLElement>) {
-    const board = event.currentTarget;
-
-    if (
-      programmaticScrollTimeoutRef.current ||
-      board.scrollWidth <= board.clientWidth
-    ) {
-      return;
-    }
-
-    const nextSection = sections.reduce<{
-      distance: number;
-      id: ShoppingSectionId;
-    } | null>((closestSection, section) => {
-      const column = sectionColumnRefs.current[section.id];
-
-      if (!column) {
-        return closestSection;
-      }
-
-      const distance = Math.abs(column.offsetLeft - board.scrollLeft);
-
-      if (!closestSection || distance < closestSection.distance) {
-        return { distance, id: section.id };
-      }
-
-      return closestSection;
-    }, null);
-
-    if (nextSection && nextSection.id !== selectedSectionId) {
-      skipSelectedSectionScrollRef.current = true;
-      setSelectedSectionId(nextSection.id);
-    }
-  }
-
   function selectSection(sectionId: ShoppingSectionId) {
     if (sectionId === selectedSectionId) {
       return;
@@ -922,6 +931,7 @@ export function App() {
         <button
           className={styles.undoButton}
           type="button"
+          data-keen-slider-clickable
           onPointerDown={handleButtonPointerDown}
           onClick={handleUndoRemoveItems}
         >
@@ -1022,6 +1032,7 @@ export function App() {
             <button
               className={styles.iconButton}
               type="button"
+              data-keen-slider-clickable
               aria-label={`Editar ${item.name}`}
               title="Editar"
               onPointerDown={handleButtonPointerDown}
@@ -1035,6 +1046,7 @@ export function App() {
             <button
               className={styles.iconButtonDanger}
               type="button"
+              data-keen-slider-clickable
               aria-label={`Eliminar ${item.name}`}
               title="Eliminar"
               onPointerDown={handleButtonPointerDown}
@@ -1233,10 +1245,9 @@ export function App() {
       {activeView === "shopping" ? (
         <section
           id="shopping-board"
-          ref={boardRef}
-          className={styles.board}
+          ref={boardSliderRef}
+          className={`${styles.board} keen-slider`}
           aria-label="Lista por secciones"
-          onScroll={handleBoardScroll}
           tabIndex={0}
         >
           {sections.map((section) => {
@@ -1255,12 +1266,14 @@ export function App() {
                 ref={(column) => {
                   if (column) {
                     sectionColumnRefs.current[section.id] = column;
+                  } else {
+                    delete sectionColumnRefs.current[section.id];
                   }
                 }}
                 className={
                   selectedSectionId === section.id
-                    ? `${styles.column} ${styles[`sectionColor${section.color}`]} ${styles.columnSelected}`
-                    : `${styles.column} ${styles[`sectionColor${section.color}`]}`
+                    ? `keen-slider__slide ${styles.column} ${styles[`sectionColor${section.color}`]} ${styles.columnSelected}`
+                    : `keen-slider__slide ${styles.column} ${styles[`sectionColor${section.color}`]}`
                 }
                 aria-current={
                   selectedSectionId === section.id ? "true" : undefined

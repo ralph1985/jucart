@@ -8,6 +8,61 @@ import {
 } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
+const keenSliderMock = vi.hoisted(() => {
+  const track = { details: { rel: 0 } };
+  let options:
+    | {
+        slideChanged?: (slider: { track: typeof track }) => void;
+      }
+    | undefined;
+  const callbackRef = vi.fn();
+  const instance = {
+    track,
+    moveToIdx: vi.fn((index: number) => {
+      track.details.rel = index;
+    }),
+    update: vi.fn((_options?: unknown, index?: number) => {
+      if (typeof index === "number") {
+        track.details.rel = index;
+      }
+    }),
+  };
+  const useKeenSlider = vi.fn(
+    (
+      nextOptions:
+        | {
+            slideChanged?: (slider: { track: typeof track }) => void;
+          }
+        | undefined,
+    ) => {
+      options = nextOptions;
+
+      return [callbackRef, { current: instance }];
+    },
+  );
+
+  return {
+    reset() {
+      track.details.rel = 0;
+      options = undefined;
+      callbackRef.mockClear();
+      instance.moveToIdx.mockClear();
+      instance.update.mockClear();
+      useKeenSlider.mockClear();
+    },
+    slideTo(index: number) {
+      track.details.rel = index;
+      options?.slideChanged?.(instance);
+    },
+    instance,
+    useKeenSlider,
+  };
+});
+
+vi.mock("keen-slider/react", () => ({
+  useKeenSlider: keenSliderMock.useKeenSlider,
+}));
+
 import { App } from "./App";
 import {
   replaceStoredShoppingItems,
@@ -17,6 +72,7 @@ import {
 afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  keenSliderMock.reset();
   delete (Element.prototype as Partial<Element>).scrollIntoView;
   await resetShoppingItemsDatabase();
   window.localStorage.clear();
@@ -456,43 +512,16 @@ describe("App", () => {
     expect(farmaciaColumn).toHaveAttribute("aria-current", "true");
   });
 
-  it("updates the selected section when the board is scrolled on mobile", async () => {
+  it("updates the selected section when the slider changes on mobile", async () => {
     render(<App />);
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
     );
 
-    const board = screen.getByLabelText("Lista por secciones");
-    const alcampoColumn = screen
-      .getByRole("heading", { name: "Alcampo" })
-      .closest("article");
-    const farmaciaColumn = screen
-      .getByRole("heading", { name: "Farmacia" })
-      .closest("article");
-
-    Object.defineProperty(board, "scrollWidth", {
-      configurable: true,
-      value: 1200,
+    act(() => {
+      keenSliderMock.slideTo(3);
     });
-    Object.defineProperty(board, "clientWidth", {
-      configurable: true,
-      value: 320,
-    });
-    Object.defineProperty(board, "scrollLeft", {
-      configurable: true,
-      value: 900,
-    });
-    Object.defineProperty(alcampoColumn as HTMLElement, "offsetLeft", {
-      configurable: true,
-      value: 0,
-    });
-    Object.defineProperty(farmaciaColumn as HTMLElement, "offsetLeft", {
-      configurable: true,
-      value: 900,
-    });
-
-    fireEvent.scroll(board);
 
     expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
   });

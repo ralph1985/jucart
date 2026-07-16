@@ -2802,14 +2802,7 @@ export function App() {
         </section>
       ) : null}
 
-      <nav
-        className={
-          activeView === "shopping"
-            ? `${styles.bottomNav} ${styles.bottomNavHidden}`
-            : styles.bottomNav
-        }
-        aria-label="Navegación principal"
-      >
+      <nav className={styles.bottomNav} aria-label="Navegación principal">
         <button
           className={
             activeView === "shopping"
@@ -2817,7 +2810,6 @@ export function App() {
               : styles.bottomNavItem
           }
           type="button"
-          tabIndex={activeView === "shopping" ? -1 : undefined}
           onPointerDown={handleButtonPointerDown}
           onClick={showShoppingView}
           disabled={!isLoaded}
@@ -2833,7 +2825,6 @@ export function App() {
           }
           type="button"
           aria-label="Gestionar listas"
-          tabIndex={activeView === "shopping" ? -1 : undefined}
           onPointerDown={handleButtonPointerDown}
           onClick={showSectionsView}
           disabled={!isLoaded}
@@ -2848,7 +2839,6 @@ export function App() {
               : styles.bottomNavItem
           }
           type="button"
-          tabIndex={activeView === "shopping" ? -1 : undefined}
           onPointerDown={handleButtonPointerDown}
           onClick={showHistoryView}
           disabled={!isLoaded}
@@ -2865,7 +2855,6 @@ export function App() {
             }
             type="button"
             aria-label="Vista de desarrollador"
-            tabIndex={activeView === "shopping" ? -1 : undefined}
             onPointerDown={handleButtonPointerDown}
             onClick={showDeveloperView}
             disabled={!isLoaded}

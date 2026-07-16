@@ -1046,6 +1046,37 @@ export function App() {
   }, [isClearDialogOpen]);
 
   useEffect(() => {
+    const rootElement = document.getElementById("root");
+
+    if (activeView !== "shopping") {
+      return;
+    }
+
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousRootHeight = rootElement?.style.height ?? "";
+    const previousRootOverflow = rootElement?.style.overflow ?? "";
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
+    if (rootElement) {
+      rootElement.style.height = "100dvh";
+      rootElement.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+
+      if (rootElement) {
+        rootElement.style.height = previousRootHeight;
+        rootElement.style.overflow = previousRootOverflow;
+      }
+    };
+  }, [activeView]);
+
+  useEffect(() => {
     addSheetOpenRef.current = isAddSheetOpen;
   }, [isAddSheetOpen]);
 

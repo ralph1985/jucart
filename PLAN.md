@@ -247,3 +247,13 @@
 - [x] Registrar historial igual que en el alta manual.
 - [x] Mantener una sola pantalla y no añadir dependencias nuevas.
 - [x] Añadir tests razonables de lógica e interfaz.
+
+## Hito 25 — Cantidades opcionales
+
+- [x] Permitir añadir cantidades inline sin añadir campos al alta rápida.
+- [x] Evitar interpretar números ambiguos como cantidades.
+- [x] Mostrar la cantidad en la tarjeta solo cuando exista.
+- [x] Permitir editar o borrar la cantidad desde el modal de edición.
+- [x] Persistir cantidad en IndexedDB y Supabase remoto.
+- [x] Mantener compatibilidad con productos e historial sin cantidad.
+- [x] Añadir tests razonables de lógica, persistencia, Supabase e interfaz.

@@ -281,7 +281,7 @@ describe("App", () => {
     const productInput = screen.getByLabelText("Producto");
 
     fireEvent.change(productInput, {
-      target: { value: "  Leche  " },
+      target: { value: "  Leche x2  " },
     });
     fireEvent.change(screen.getByLabelText("Sección"), {
       target: { value: "alcampo" },
@@ -301,6 +301,9 @@ describe("App", () => {
     expect(alcampoColumn).not.toBeNull();
     expect(
       within(alcampoColumn as HTMLElement).getByText("Leche"),
+    ).toBeInTheDocument();
+    expect(
+      within(alcampoColumn as HTMLElement).getByText("x2"),
     ).toBeInTheDocument();
     expect(
       within(alcampoColumn as HTMLElement).getByText("Begoña"),
@@ -1311,7 +1314,7 @@ describe("App", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("edits a product name and section", async () => {
+  it("edits a product name, quantity and section", async () => {
     render(<App />);
 
     await waitFor(() =>
@@ -1329,6 +1332,9 @@ describe("App", () => {
     fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "Pan integral" },
     });
+    fireEvent.change(within(dialog).getByLabelText("Cantidad"), {
+      target: { value: "1 kg" },
+    });
     fireEvent.change(within(dialog).getByLabelText("Sección"), {
       target: { value: "farmacia" },
     });
@@ -1345,6 +1351,9 @@ describe("App", () => {
     expect(mercadonaColumn).not.toBeNull();
     expect(
       within(farmaciaColumn as HTMLElement).getByText("Pan integral"),
+    ).toBeInTheDocument();
+    expect(
+      within(farmaciaColumn as HTMLElement).getByText("1 kg"),
     ).toBeInTheDocument();
     expect(
       within(mercadonaColumn as HTMLElement).queryByText("Leche"),

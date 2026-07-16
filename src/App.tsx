@@ -261,6 +261,10 @@ function getInitialHistoryClientId() {
   }
 }
 
+function formatShoppingItemQuantity(quantity: string) {
+  return /^\d+(?:[.,]\d+)?$/.test(quantity) ? `x${quantity}` : quantity;
+}
+
 function getInitialLastSeenHistoryEventAt() {
   try {
     const rawValue = window.localStorage.getItem(
@@ -481,6 +485,7 @@ export function App() {
   );
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
+  const [editingItemQuantity, setEditingItemQuantity] = useState("");
   const [editingSectionId, setEditingSectionId] =
     useState<ShoppingSectionId>("mercadona");
   const [isLoaded, setIsLoaded] = useState(false);
@@ -1083,12 +1088,14 @@ export function App() {
     runHapticFeedback("light");
     setEditingItemId(item.id);
     setEditingItemName(item.name);
+    setEditingItemQuantity(item.quantity ?? "");
     setEditingSectionId(item.sectionId);
   }
 
   function resetEditing() {
     setEditingItemId(null);
     setEditingItemName("");
+    setEditingItemQuantity("");
     setEditingSectionId("mercadona");
   }
 
@@ -1109,6 +1116,7 @@ export function App() {
       editingItemId,
       editingItemName,
       editingSectionId,
+      editingItemQuantity,
     );
 
     if (nextItems !== items) {
@@ -1564,6 +1572,11 @@ export function App() {
             }
           >
             {item.name}
+            {item.quantity ? (
+              <span className={styles.itemQuantity}>
+                {formatShoppingItemQuantity(item.quantity)}
+              </span>
+            ) : null}
           </span>
           <span className={styles.itemMeta}>
             {getShoppingUserName(item.addedBy)}
@@ -2505,6 +2518,26 @@ export function App() {
                   spellCheck
                   value={editingItemName}
                   onChange={(event) => setEditingItemName(event.target.value)}
+                  type="text"
+                />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="edit-item-quantity">
+                  Cantidad
+                </label>
+                <input
+                  id="edit-item-quantity"
+                  className={styles.input}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  enterKeyHint="done"
+                  inputMode="text"
+                  spellCheck={false}
+                  value={editingItemQuantity}
+                  onChange={(event) =>
+                    setEditingItemQuantity(event.target.value)
+                  }
+                  placeholder="x2, 1 kg, 2 packs..."
                   type="text"
                 />
               </div>

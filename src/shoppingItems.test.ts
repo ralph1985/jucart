@@ -144,6 +144,55 @@ describe("shopping item logic", () => {
     ]);
   });
 
+  it("adds products with explicit inline quantities", () => {
+    expect(
+      addShoppingItem(
+        [],
+        "  Leche   x2  ",
+        "mercadona",
+        "rafa",
+        () => "item-1",
+        () => 100,
+      ),
+    ).toEqual([
+      {
+        id: "item-1",
+        name: "Leche",
+        quantity: "2",
+        sectionId: "mercadona",
+        categoryId: "dairy",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+  });
+
+  it("does not parse ambiguous trailing numbers as quantities", () => {
+    expect(
+      addShoppingItem(
+        [],
+        "pañales talla 4",
+        "mercadona",
+        "rafa",
+        () => "item-1",
+        () => 100,
+      ),
+    ).toEqual([
+      {
+        id: "item-1",
+        name: "pañales talla 4",
+        sectionId: "mercadona",
+        categoryId: "baby",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+  });
+
   it("creates ids without crypto randomUUID support", () => {
     const originalRandomUUID = crypto.randomUUID;
 
@@ -368,6 +417,26 @@ describe("shopping item logic", () => {
         name: "Pan integral",
         sectionId: "alcampo",
         categoryId: "bakery",
+        updatedAt: 200,
+      },
+    ]);
+  });
+
+  it("updates product quantity", () => {
+    expect(
+      updateShoppingItem(
+        [baseItem],
+        "item-1",
+        "Leche",
+        "mercadona",
+        "x2",
+        () => 200,
+      ),
+    ).toEqual([
+      {
+        ...baseItem,
+        quantity: "x2",
+        categoryId: "dairy",
         updatedAt: 200,
       },
     ]);

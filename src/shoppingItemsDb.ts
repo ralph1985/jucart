@@ -79,6 +79,13 @@ class JucartDatabase extends Dexie {
       shoppingSections: "id, position",
       shoppingHistoryEvents: "id, itemId, type, actor, clientId, createdAt",
     });
+
+    this.version(8).stores({
+      shoppingItems:
+        "id, sectionId, categoryId, addedBy, createdAt, updatedAt, purchased",
+      shoppingSections: "id, position",
+      shoppingHistoryEvents: "id, itemId, type, actor, clientId, createdAt",
+    });
   }
 }
 
@@ -217,6 +224,7 @@ function normalizeStoredSection(
 function normalizeStoredShoppingItem(item: StoredShoppingItem): ShoppingItem {
   return {
     ...item,
+    quantity: item.quantity?.trim() ? item.quantity : undefined,
     sectionId: item.sectionId?.trim() ? item.sectionId : "general",
     categoryId:
       item.categoryId && isShoppingCategoryId(item.categoryId)

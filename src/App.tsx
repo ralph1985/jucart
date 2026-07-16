@@ -524,7 +524,7 @@ export function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isSupabaseConfigured() ? "syncing" : "local",
   );
-  const [pendingRemoteRequests, setPendingRemoteRequests] = useState(0);
+  const [, setPendingRemoteRequests] = useState(0);
   const [developerBackupRun, setDeveloperBackupRun] =
     useState<DeveloperBackupRun | null>(null);
   const [developerBackupError, setDeveloperBackupError] = useState<
@@ -610,8 +610,6 @@ export function App() {
   const displayedHistoryEvents = showUnseenHistoryOnly
     ? unseenHistoryEventsForView
     : recentHistoryEvents;
-  const isRemoteRequestPending =
-    isLoaded && isSupabaseConfigured() && pendingRemoteRequests > 0;
   const removePurchasedButtonText =
     selectedPurchasedCount === 1
       ? "Borrar 1 producto"
@@ -2197,6 +2195,9 @@ export function App() {
             className={`${styles.syncStatus} ${styles[`syncStatus${syncStatus}`]}`}
             aria-live="polite"
           >
+            {syncStatus === "syncing" ? (
+              <span className={styles.syncStatusIndicator} aria-hidden="true" />
+            ) : null}
             {getSyncStatusText(syncStatus)}
           </p>
           <div className={styles.headerUserField}>
@@ -2264,13 +2265,6 @@ export function App() {
       ) : storageError ? (
         <p className={styles.error} role="alert">
           {storageError}
-        </p>
-      ) : null}
-
-      {isRemoteRequestPending ? (
-        <p className={styles.remoteSyncStatus} role="status" aria-live="polite">
-          <span className={styles.remoteSyncIndicator} aria-hidden="true" />
-          Sincronizando con Supabase...
         </p>
       ) : null}
 

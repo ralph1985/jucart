@@ -239,6 +239,10 @@ h2 {
 }
 
 .syncStatus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
   min-width: 5.2rem;
   margin: 0;
   border: 0;
@@ -250,6 +254,14 @@ h2 {
   font-weight: 850;
   text-align: center;
   text-transform: uppercase;
+}
+
+.syncStatusIndicator {
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 999rem;
+  background: currentColor;
+  animation: syncStatusPulse 1s ease-in-out infinite;
 }
 
 .headerUserField {
@@ -1374,47 +1386,6 @@ h2 {
   font-weight: 850;
 }
 
-.remoteSyncStatus {
-  position: sticky;
-  z-index: 6;
-  top: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.48rem;
-  width: fit-content;
-  max-width: 100%;
-  margin: -0.25rem auto 1rem;
-  border: 1px solid rgb(29 79 145 / 18%);
-  border-radius: 999rem;
-  padding: 0.42rem 0.7rem;
-  background: rgb(255 255 255 / 92%);
-  color: #1d4f91;
-  box-shadow: 0 0.45rem 1rem var(--surface-shadow);
-  font-size: 0.76rem;
-  font-weight: 850;
-}
-
-.remoteSyncIndicator {
-  position: relative;
-  display: block;
-  flex: 0 0 auto;
-  width: 2.4rem;
-  height: 0.28rem;
-  overflow: hidden;
-  border-radius: 999rem;
-  background: rgb(29 79 145 / 14%);
-}
-
-.remoteSyncIndicator::after {
-  position: absolute;
-  inset: 0;
-  width: 55%;
-  border-radius: inherit;
-  background: #1d4f91;
-  animation: remoteSyncProgress 1s ease-in-out infinite;
-  content: "";
-}
-
 .error {
   background: #fee2e2;
   color: #991b1b;
@@ -1767,7 +1738,7 @@ h2 {
   .loadingCheck,
   .loadingAction,
   .loadingIndicator,
-  .remoteSyncIndicator::after {
+  .syncStatusIndicator {
     animation: none;
   }
 
@@ -1801,13 +1772,16 @@ h2 {
   }
 }
 
-@keyframes remoteSyncProgress {
-  0% {
-    transform: translateX(-110%);
+@keyframes syncStatusPulse {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scale(0.82);
   }
 
-  100% {
-    transform: translateX(190%);
+  50% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

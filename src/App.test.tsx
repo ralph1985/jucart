@@ -719,9 +719,11 @@ describe("App", () => {
 
     render(<App />);
 
-    await waitForAddFab();
+    const dialog = await openAddSheet();
 
-    expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
+    expect(within(dialog).getByLabelText("Supermercado")).toHaveValue(
+      "farmacia",
+    );
     expect(screen.getByLabelText("Añadido por")).toHaveValue("begona");
     expect(screen.getByLabelText("Comprados")).not.toBeChecked();
   });
@@ -958,7 +960,7 @@ describe("App", () => {
     expect(vibrate).toHaveBeenLastCalledWith([14, 32, 18]);
   });
 
-  it("marks the selected section and updates the selector when a column is clicked", async () => {
+  it("marks the selected section and updates the add sheet selector when a column is clicked", async () => {
     render(<App />);
 
     await waitForAddFab();
@@ -975,8 +977,13 @@ describe("App", () => {
 
     fireEvent.click(farmaciaColumn as HTMLElement);
 
-    expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
     expect(farmaciaColumn).toHaveAttribute("aria-current", "true");
+
+    const dialog = await openAddSheet();
+
+    expect(within(dialog).getByLabelText("Supermercado")).toHaveValue(
+      "farmacia",
+    );
   });
 
   it("groups products by inferred category inside each list", async () => {
@@ -1005,12 +1012,12 @@ describe("App", () => {
     ).toEqual(["Lácteos", "Lechex1", "Panadería", "Panx1"]);
   });
 
-  it("marks the selected column when the section selector changes", async () => {
+  it("marks the selected column when the add sheet supermarket selector changes", async () => {
     render(<App />);
 
-    await waitForAddFab();
+    const dialog = await openAddSheet();
 
-    fireEvent.change(screen.getByLabelText("Sección"), {
+    fireEvent.change(within(dialog).getByLabelText("Supermercado"), {
       target: { value: "farmacia" },
     });
 
@@ -1037,17 +1044,19 @@ describe("App", () => {
 
     act(() => emblaCarouselMock.selectTo(3));
 
-    expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
     expect(
       screen.getByRole("button", { name: "Ver lista Farmacia" }),
     ).toHaveAttribute("aria-current", "true");
 
     fireEvent.click(screen.getByRole("button", { name: "Ver lista Día" }));
 
-    expect(screen.getByLabelText("Sección")).toHaveValue("dia");
     expect(
       screen.getByRole("button", { name: "Ver lista Día" }),
     ).toHaveAttribute("aria-current", "true");
+
+    const dialog = await openAddSheet();
+
+    expect(within(dialog).getByLabelText("Supermercado")).toHaveValue("dia");
   });
 
   it("removes purchased products after confirmation", async () => {

@@ -2229,30 +2229,6 @@ export function App() {
           aria-label="Controles de lista"
         >
           <div className={styles.form}>
-            <div className={styles.formOptions}>
-              <div
-                className={`${styles.formField} ${styles.sectionSelectField}`}
-              >
-                <label className={styles.label} htmlFor="section-id">
-                  Sección
-                </label>
-                <select
-                  id="section-id"
-                  className={styles.select}
-                  value={selectedSectionId}
-                  onChange={(event) =>
-                    selectSection(event.target.value as ShoppingSectionId)
-                  }
-                  disabled={!isLoaded}
-                >
-                  {sections.map((section) => (
-                    <option key={section.id} value={section.id}>
-                      {section.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
             <div className={styles.addRow}>
               <button
                 className={styles.iconButton}

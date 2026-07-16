@@ -31,6 +31,7 @@
 .appShopping {
   --section-indicator-height: 2.2rem;
   --section-indicator-bottom-gap: 1.65rem;
+  --floating-add-clearance: 4.9rem;
   --shopping-board-height: calc(
     100dvh - var(--header-height) - var(--command-height) - var(
         --bottom-nav-height
@@ -40,7 +41,10 @@
       0.85rem
   );
 
+  position: fixed;
+  inset: 0;
   height: 100dvh;
+  max-height: 100dvh;
   padding-top: calc(var(--header-height) + var(--command-height) + 0.6rem);
   padding-bottom: 0;
   overflow: hidden;
@@ -1408,7 +1412,7 @@ h2 {
   min-height: 0;
   margin: 0;
   border-radius: 0.5rem;
-  padding: 0.3rem 0.3rem 0.9rem;
+  padding: 0.3rem 0.3rem calc(0.9rem + var(--floating-add-clearance, 0rem));
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;

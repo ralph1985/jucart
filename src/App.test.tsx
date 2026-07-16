@@ -580,9 +580,10 @@ describe("App", () => {
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
 
+    expect(await screen.findByText("Sincronizando")).toBeInTheDocument();
     expect(
-      await screen.findByText("Sincronizando con Supabase..."),
-    ).toBeInTheDocument();
+      screen.queryByText("Sincronizando con Supabase..."),
+    ).not.toBeInTheDocument();
 
     await act(async () => {
       resolveStoreData();
@@ -590,9 +591,7 @@ describe("App", () => {
     });
 
     await waitFor(() =>
-      expect(
-        screen.queryByText("Sincronizando con Supabase..."),
-      ).not.toBeInTheDocument(),
+      expect(screen.queryByText("Sincronizando")).not.toBeInTheDocument(),
     );
     expect(screen.getByText("Sincronizado")).toBeInTheDocument();
   });

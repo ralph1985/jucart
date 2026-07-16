@@ -335,7 +335,7 @@ describe("App", () => {
       target: { value: "alcampo" },
     });
     fireEvent.change(within(dialog).getByLabelText("Cantidad"), {
-      target: { value: "2" },
+      target: { value: "12" },
     });
     fireEvent.change(screen.getByLabelText("Añadido por"), {
       target: { value: "begona" },
@@ -354,7 +354,7 @@ describe("App", () => {
       within(alcampoColumn as HTMLElement).getByText("Leche"),
     ).toBeInTheDocument();
     expect(
-      within(alcampoColumn as HTMLElement).getByText("x2"),
+      within(alcampoColumn as HTMLElement).getByText("x12"),
     ).toBeInTheDocument();
     expect(
       within(alcampoColumn as HTMLElement).getByText("Begoña"),
@@ -480,7 +480,7 @@ describe("App", () => {
       target: { value: "alcampo" },
     });
     fireEvent.change(within(dialog).getByLabelText("Cantidad"), {
-      target: { value: "3" },
+      target: { value: "3 uds" },
     });
 
     fireEvent.change(productInput, { target: { value: "Leche" } });

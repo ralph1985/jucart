@@ -427,7 +427,10 @@ h2 {
   display: grid;
   align-items: end;
   padding: 0 max(0.55rem, env(safe-area-inset-right, 0px))
-    calc(var(--sheet-keyboard-inset, 0px) + env(safe-area-inset-bottom, 0px))
+    calc(
+      var(--sheet-keyboard-inset, 0px) +
+        max(0.85rem, env(safe-area-inset-bottom, 0px))
+    )
     max(0.55rem, env(safe-area-inset-left, 0px));
   background: rgb(15 23 42 / 28%);
 }
@@ -437,12 +440,20 @@ h2 {
   grid-template-rows: auto auto minmax(5.5rem, 1fr) auto;
   gap: 0.65rem;
   width: min(100%, 42rem);
-  max-height: min(38dvh, 24rem);
+  max-height: min(
+    calc(
+      100dvh - var(--sheet-keyboard-inset, 0px) - max(
+          1.25rem,
+          env(safe-area-inset-bottom, 0px)
+        )
+    ),
+    24rem
+  );
   min-height: 17rem;
-  margin: 0 auto 0.55rem;
+  margin: 0 auto;
   border: 1px solid rgb(148 163 184 / 28%);
   border-radius: 0.85rem 0.85rem 0 0;
-  padding: 0.48rem 0.78rem 0.78rem;
+  padding: 0.48rem 0.78rem 1rem;
   background: #ffffff;
   box-shadow: 0 -0.9rem 2.2rem rgb(15 23 42 / 16%);
   transform: translateY(var(--sheet-drag-offset, 0px));
@@ -538,6 +549,7 @@ h2 {
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0.48rem;
+  padding-bottom: 0.15rem;
 }
 
 .addSheetNotice {

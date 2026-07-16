@@ -1230,7 +1230,7 @@ export function App() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    addItemFromName(itemName, addItemQuantity);
+    addItemFromName(itemName, addItemQuantity || "1");
   }
 
   function handleQuickSuggestionClick(suggestionName: string) {
@@ -1260,13 +1260,19 @@ export function App() {
     }
   }
 
+  function handleAddItemQuantityChange(value: string) {
+    const numericQuantity = value.replace(/\D+/g, "");
+
+    setAddItemQuantity(numericQuantity);
+  }
+
   function handleAddInputKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey) {
       return;
     }
 
     event.preventDefault();
-    addItemFromName(itemName, addItemQuantity);
+    addItemFromName(itemName, addItemQuantity || "1");
   }
 
   function handleAddSheetKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -2374,19 +2380,21 @@ export function App() {
                   <label className={styles.label} htmlFor="item-quantity">
                     Cantidad
                   </label>
-                  <select
+                  <input
                     id="item-quantity"
                     className={styles.select}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    enterKeyHint="done"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={addItemQuantity}
-                    onChange={(event) => setAddItemQuantity(event.target.value)}
+                    onChange={(event) =>
+                      handleAddItemQuantityChange(event.target.value)
+                    }
                     disabled={!isLoaded}
-                  >
-                    {["1", "2", "3", "4", "5", "6"].map((quantity) => (
-                      <option key={quantity} value={quantity}>
-                        {quantity}
-                      </option>
-                    ))}
-                  </select>
+                    type="text"
+                  />
                 </div>
               </div>
             </div>

@@ -452,6 +452,21 @@ export function hasItemWithName(
   );
 }
 
+export function findPendingShoppingItemByName(
+  items: ShoppingItem[],
+  name: string,
+  sectionId: ShoppingSectionId,
+) {
+  const normalizedName = normalizeDuplicateName(name);
+
+  return items.find(
+    (item) =>
+      !item.purchased &&
+      item.sectionId === sectionId &&
+      normalizeDuplicateName(item.name) === normalizedName,
+  );
+}
+
 export function createShoppingItemId() {
   if (typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -583,10 +598,16 @@ export function addShoppingItem(
   addedBy: ShoppingUserId,
   createId: () => string = createShoppingItemId,
   now: () => number = () => Date.now(),
+  rawQuantity?: string,
 ) {
-  const { name, quantity } = parseShoppingItemNameAndQuantity(rawName);
+  const parsedItem = parseShoppingItemNameAndQuantity(rawName);
+  const name = parsedItem.name;
+  const quantity =
+    rawQuantity === undefined
+      ? parsedItem.quantity
+      : normalizeItemQuantity(rawQuantity);
 
-  if (!name || hasItemWithName(items, name, sectionId)) {
+  if (!name || findPendingShoppingItemByName(items, name, sectionId)) {
     return items;
   }
 

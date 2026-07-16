@@ -84,12 +84,25 @@ afterEach(async () => {
 });
 
 describe("App", () => {
+  async function waitForAddFab() {
+    const addFab = screen.getByRole("button", { name: "Añadir producto" });
+
+    await waitFor(() => expect(addFab).toBeEnabled());
+
+    return addFab;
+  }
+
+  async function openAddSheet() {
+    const addFab = await waitForAddFab();
+    fireEvent.click(addFab);
+
+    return screen.getByRole("dialog", { name: "Añadir producto" });
+  }
+
   it("renders the app name", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await waitForAddFab();
 
     expect(
       screen.getByRole("heading", { level: 1, name: "Jucart" }),
@@ -113,8 +126,9 @@ describe("App", () => {
     render(<App />);
 
     expect(screen.getByRole("status")).toHaveTextContent("Cargando lista...");
-    expect(screen.getByRole("button", { name: "Añadir" })).toBeDisabled();
-    expect(screen.getByLabelText("Producto")).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Añadir producto" }),
+    ).toBeDisabled();
     expect(screen.getByLabelText("Añadido por")).toBeDisabled();
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
 
@@ -140,7 +154,7 @@ describe("App", () => {
 
     expect(await screen.findByText("Leche")).toBeInTheDocument();
     expect(screen.queryByText("Cargando lista...")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled();
+    await waitForAddFab();
   });
 
   it("shows Supabase in the loading message when remote storage is configured", async () => {
@@ -176,9 +190,7 @@ describe("App", () => {
   it("shows the developer view only when Rafa is selected", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await waitForAddFab();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Vista de desarrollador" }),
@@ -226,9 +238,7 @@ describe("App", () => {
 
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await waitForAddFab();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Vista de desarrollador" }),
@@ -249,9 +259,7 @@ describe("App", () => {
 
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await waitForAddFab();
 
     expect(
       screen.queryByRole("button", { name: "Vista de desarrollador" }),
@@ -316,24 +324,25 @@ describe("App", () => {
   it("adds, toggles and removes products", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    const dialog = await openAddSheet();
 
-    const productInput = screen.getByLabelText("Producto");
+    const productInput = within(dialog).getByLabelText("Producto");
 
     fireEvent.change(productInput, {
-      target: { value: "  Leche x2  " },
+      target: { value: "  Leche  " },
     });
-    fireEvent.change(screen.getByLabelText("Sección"), {
+    fireEvent.change(within(dialog).getByLabelText("Supermercado"), {
       target: { value: "alcampo" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Cantidad"), {
+      target: { value: "2" },
     });
     fireEvent.change(screen.getByLabelText("Añadido por"), {
       target: { value: "begona" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
 
-    expect(productInput).toHaveFocus();
+    await waitFor(() => expect(productInput).toHaveFocus());
     expect(productInput).toHaveValue("");
 
     const alcampoColumn = screen
@@ -386,26 +395,24 @@ describe("App", () => {
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
   });
 
-  it("adds products from quick suggestions and filters duplicate suggestions", async () => {
+  it("fills products from quick suggestions and filters duplicate suggestions", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    const dialog = await openAddSheet();
 
     expect(
-      screen.queryByRole("button", { name: "Añadir Leche" }),
-    ).not.toBeInTheDocument();
+      within(dialog).getByRole("option", { name: "Leche" }),
+    ).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "le" },
     });
 
     expect(
-      screen.getByRole("button", { name: "Añadir Leche" }),
+      within(dialog).getByRole("option", { name: "Leche" }),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Añadir Leche" }));
+    fireEvent.click(within(dialog).getByRole("option", { name: "Leche" }));
 
     const mercadonaColumn = screen
       .getByRole("heading", { name: "Mercadona" })
@@ -413,22 +420,121 @@ describe("App", () => {
 
     expect(mercadonaColumn).not.toBeNull();
     expect(
+      within(mercadonaColumn as HTMLElement).queryByText("Leche"),
+    ).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Producto")).toHaveValue("Leche");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
+
+    expect(
       within(mercadonaColumn as HTMLElement).getByText("Leche"),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Añadir Leche" }),
+      within(dialog).queryByRole("option", { name: "Leche" }),
     ).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "pa" },
     });
 
     expect(
-      screen.getByRole("button", { name: "Añadir Pan" }),
+      within(dialog).getByRole("option", { name: "Pan" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Añadir Pañales" }),
+      within(dialog).getByRole("option", { name: "Pañales" }),
     ).toBeInTheDocument();
+  });
+
+  it("opens and closes the add sheet without losing the draft", async () => {
+    render(<App />);
+
+    const dialog = await openAddSheet();
+    const productInput = within(dialog).getByLabelText("Producto");
+
+    await waitFor(() => expect(productInput).toHaveFocus());
+
+    fireEvent.change(productInput, { target: { value: "Manzanas" } });
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    expect(
+      screen.queryByRole("dialog", { name: "Añadir producto" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Añadir producto" }),
+    ).toBeInTheDocument();
+
+    const reopenedDialog = await openAddSheet();
+
+    expect(within(reopenedDialog).getByLabelText("Producto")).toHaveValue(
+      "Manzanas",
+    );
+  });
+
+  it("adds several products with Enter while keeping section and quantity", async () => {
+    render(<App />);
+
+    const dialog = await openAddSheet();
+    const productInput = within(dialog).getByLabelText("Producto");
+
+    fireEvent.change(within(dialog).getByLabelText("Supermercado"), {
+      target: { value: "alcampo" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Cantidad"), {
+      target: { value: "3" },
+    });
+
+    fireEvent.change(productInput, { target: { value: "Leche" } });
+    fireEvent.keyDown(productInput, { key: "Enter" });
+    fireEvent.change(productInput, { target: { value: "Pan" } });
+    fireEvent.keyDown(productInput, { key: "Enter" });
+
+    expect(productInput).toHaveValue("");
+    expect(within(dialog).getByLabelText("Supermercado")).toHaveValue(
+      "alcampo",
+    );
+    expect(within(dialog).getByLabelText("Cantidad")).toHaveValue("3");
+    expect(screen.getAllByText("Producto añadido")).toHaveLength(1);
+
+    const alcampoColumn = screen
+      .getByRole("heading", { name: "Alcampo" })
+      .closest("article");
+
+    expect(alcampoColumn).not.toBeNull();
+    expect(
+      within(alcampoColumn as HTMLElement).getByText("Leche"),
+    ).toBeInTheDocument();
+    expect(
+      within(alcampoColumn as HTMLElement).getByText("Pan"),
+    ).toBeInTheDocument();
+    expect(
+      within(alcampoColumn as HTMLElement).getAllByText("x3"),
+    ).toHaveLength(2);
+  });
+
+  it("keeps duplicate pending products out and can jump to the existing item", async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    render(<App />);
+
+    const dialog = await openAddSheet();
+    const productInput = within(dialog).getByLabelText("Producto");
+
+    fireEvent.change(productInput, { target: { value: "Leche" } });
+    fireEvent.keyDown(productInput, { key: "Enter" });
+    fireEvent.change(productInput, { target: { value: " leche  " } });
+    fireEvent.keyDown(productInput, { key: "Enter" });
+
+    expect(productInput).toHaveValue(" leche  ");
+    expect(screen.getByText('"Leche" ya está en la lista')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver producto" }));
+
+    expect(
+      screen.queryByRole("dialog", { name: "Añadir producto" }),
+    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalled(),
+    );
+    expect(screen.getAllByText("Leche")).toHaveLength(1);
   });
 
   it("shows remote sync feedback while Supabase saves changes", async () => {
@@ -467,10 +573,12 @@ describe("App", () => {
       storeDataPromise,
     );
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    const dialog = await openAddSheet();
+
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "Leche" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
 
     expect(
       await screen.findByText("Sincronizando con Supabase..."),
@@ -492,14 +600,12 @@ describe("App", () => {
   it("does not toggle a product when editing it", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    const dialog = await openAddSheet();
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "Leche" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
     fireEvent.click(screen.getByRole("button", { name: "Editar Leche" }));
 
     expect(
@@ -613,42 +719,38 @@ describe("App", () => {
 
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await waitForAddFab();
 
     expect(screen.getByLabelText("Sección")).toHaveValue("farmacia");
     expect(screen.getByLabelText("Añadido por")).toHaveValue("begona");
     expect(screen.getByLabelText("Comprados")).not.toBeChecked();
   });
 
-  it("shows product name as the last add form field", async () => {
+  it("shows sheet fields without user selector", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    const dialog = await openAddSheet();
 
-    const sectionSelect = screen.getByLabelText("Sección");
+    const sectionSelect = within(dialog).getByLabelText("Supermercado");
+    const quantitySelect = within(dialog).getByLabelText("Cantidad");
     const userSelect = screen.getByLabelText("Añadido por");
-    const productInput = screen.getByLabelText("Producto");
+    const productInput = within(dialog).getByLabelText("Producto");
 
     expect(
       sectionSelect.compareDocumentPosition(productInput) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+        Node.DOCUMENT_POSITION_PRECEDING,
     ).toBeTruthy();
     expect(
-      userSelect.compareDocumentPosition(productInput) &
+      productInput.compareDocumentPosition(quantitySelect) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    expect(dialog).not.toContainElement(userSelect);
   });
 
   it("keeps only persistent view actions in the bottom navigation", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await waitForAddFab();
 
     const navigation = screen.getByRole("navigation", {
       name: "Navegación principal",
@@ -667,14 +769,12 @@ describe("App", () => {
   it("shows recent shopping actions in the history view", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    const dialog = await openAddSheet();
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "Leche" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Marcar Leche como comprado" }),
     );
@@ -720,9 +820,7 @@ describe("App", () => {
 
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await waitForAddFab();
 
     expect(
       screen.getByText("Hay 1 cambio de otro dispositivo."),
@@ -743,9 +841,7 @@ describe("App", () => {
   it("manages shopping lists from the bottom navigation", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await waitForAddFab();
 
     fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
 
@@ -808,14 +904,12 @@ describe("App", () => {
   it("does not allow removing shopping lists with products", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    const dialog = await openAddSheet();
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "Leche" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
     fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Borrar Mercadona" }));
@@ -836,14 +930,12 @@ describe("App", () => {
 
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    const dialog = await openAddSheet();
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "Leche" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
 
     expect(vibrate).toHaveBeenLastCalledWith([14, 32, 18]);
 
@@ -865,9 +957,7 @@ describe("App", () => {
   it("marks the selected section and updates the selector when a column is clicked", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await waitForAddFab();
 
     const mercadonaColumn = screen
       .getByRole("heading", { name: "Mercadona" })
@@ -888,18 +978,16 @@ describe("App", () => {
   it("groups products by inferred category inside each list", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    const dialog = await openAddSheet();
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "Leche" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "Pan" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
 
     const mercadonaColumn = screen
       .getByRole("heading", { name: "Mercadona" })
@@ -910,15 +998,13 @@ describe("App", () => {
       within(mercadonaColumn as HTMLElement)
         .getAllByText(/^(Lácteos|Leche|Panadería|Pan)$/)
         .map((element) => element.textContent),
-    ).toEqual(["Lácteos", "Leche", "Panadería", "Pan"]);
+    ).toEqual(["Lácteos", "Lechex1", "Panadería", "Panx1"]);
   });
 
   it("marks the selected column when the section selector changes", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await waitForAddFab();
 
     fireEvent.change(screen.getByLabelText("Sección"), {
       target: { value: "farmacia" },
@@ -934,9 +1020,7 @@ describe("App", () => {
   it("updates the selected section when the carousel changes on mobile", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    await waitForAddFab();
 
     const sectionIndicators = screen.getAllByRole("button", {
       name: /Ver lista/,
@@ -1359,14 +1443,12 @@ describe("App", () => {
   it("edits a product name, quantity and section", async () => {
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
-    );
+    const addDialog = await openAddSheet();
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    fireEvent.change(within(addDialog).getByLabelText("Producto"), {
       target: { value: "Leche" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(within(addDialog).getByRole("button", { name: "Añadir" }));
     fireEvent.click(screen.getByRole("button", { name: "Editar Leche" }));
 
     const dialog = screen.getByRole("dialog", { name: "Editar Leche" });
@@ -1478,9 +1560,11 @@ describe("App", () => {
       .closest("article");
 
     expect(mercadonaColumn).not.toBeNull();
-    expect(
-      within(mercadonaColumn as HTMLElement).getByText("Pan"),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        within(mercadonaColumn as HTMLElement).getByText("Pan"),
+      ).toBeInTheDocument(),
+    );
     expect(
       within(mercadonaColumn as HTMLElement).queryByText("Leche"),
     ).not.toBeInTheDocument();

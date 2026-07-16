@@ -1,8 +1,10 @@
 import {
   FormEvent,
   ChangeEvent,
+  CSSProperties,
   KeyboardEvent,
   MouseEvent,
+  PointerEvent,
   useCallback,
   useEffect,
   useRef,
@@ -19,6 +21,7 @@ import {
   createInitialShoppingHistoryEvents,
   createShoppingHistoryEvent,
   defaultShoppingSections,
+  findPendingShoppingItemByName,
   getShoppingCategoryName,
   getShoppingItemCategoryId,
   getQuickShoppingItemSuggestions,
@@ -85,6 +88,10 @@ type IconName =
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 type HapticFeedback = "light" | "medium" | "success" | "warning";
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
+type AddProductNotice =
+  | { type: "success"; message: string }
+  | { type: "error"; message: string }
+  | { type: "duplicate"; message: string; itemId: string };
 
 const hapticFeedbackPatterns: Record<HapticFeedback, VibratePattern> = {
   light: 10,
@@ -527,7 +534,17 @@ export function App() {
   const [lastHiddenPurchasedItem, setLastHiddenPurchasedItem] =
     useState<ShoppingItem | null>(null);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
-  const itemNameInputRef = useRef<HTMLInputElement>(null);
+  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [addItemQuantity, setAddItemQuantity] = useState("1");
+  const [addProductNotice, setAddProductNotice] =
+    useState<AddProductNotice | null>(null);
+  const [sheetKeyboardInset, setSheetKeyboardInset] = useState(0);
+  const [sheetDragOffset, setSheetDragOffset] = useState(0);
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(
+    null,
+  );
+  const itemNameInputRef = useRef<HTMLTextAreaElement>(null);
+  const addFabRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
   const clearDialogRef = useRef<HTMLDivElement>(null);
   const sectionNameInputRef = useRef<HTMLInputElement>(null);
@@ -542,6 +559,9 @@ export function App() {
   const previousHiddenUndoKeyRef = useRef<string | null>(null);
   const undoItemRef = useRef<HTMLLIElement>(null);
   const hiddenUndoItemRef = useRef<HTMLLIElement>(null);
+  const addSheetOpenRef = useRef(false);
+  const addSheetDragStartYRef = useRef<number | null>(null);
+  const pendingAddDraftRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
   const skipNextStoreRef = useRef(true);
   const pendingCount = items.filter((item) => !item.purchased).length;
@@ -572,14 +592,14 @@ export function App() {
   );
   const selectedPurchasedCount = selectedPurchasedItems.length;
   const recentHistoryEvents = getRecentShoppingHistoryEvents(historyEvents);
-  const shouldShowQuickItemSuggestions = itemName.trim().length > 0;
   const quickItemSuggestions =
-    isLoaded && shouldShowQuickItemSuggestions
+    isLoaded && isAddSheetOpen
       ? getQuickShoppingItemSuggestions(
           items,
           historyEvents,
           selectedSectionId,
           itemName,
+          12,
         )
       : [];
   const unseenRemoteHistoryEvents = getUnseenRemoteShoppingHistoryEvents(
@@ -698,9 +718,21 @@ export function App() {
       try {
         setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
         await replaceStoredShoppingData({ items, sections, historyEvents });
+        pendingAddDraftRef.current = null;
         setStorageError(null);
         setSyncStatus(getSyncStatusFromStorageMode());
       } catch {
+        const pendingAddDraft = pendingAddDraftRef.current;
+
+        if (pendingAddDraft && addSheetOpenRef.current) {
+          setItemName(pendingAddDraft);
+          setAddProductNotice({
+            type: "error",
+            message: "No se pudo guardar el producto. Revisa la conexión.",
+          });
+          window.requestAnimationFrame(() => itemNameInputRef.current?.focus());
+        }
+
         setStorageError("No se pudieron guardar los últimos cambios.");
         setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
       } finally {
@@ -1013,6 +1045,82 @@ export function App() {
     clearDialogRef.current?.focus();
   }, [isClearDialogOpen]);
 
+  useEffect(() => {
+    addSheetOpenRef.current = isAddSheetOpen;
+  }, [isAddSheetOpen]);
+
+  useEffect(() => {
+    if (!isAddSheetOpen) {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function updateViewportInset() {
+      const visualViewport = window.visualViewport;
+
+      if (!visualViewport) {
+        setSheetKeyboardInset(0);
+        return;
+      }
+
+      setSheetKeyboardInset(
+        Math.max(
+          0,
+          window.innerHeight - visualViewport.height - visualViewport.offsetTop,
+        ),
+      );
+    }
+
+    updateViewportInset();
+    window.visualViewport?.addEventListener("resize", updateViewportInset);
+    window.visualViewport?.addEventListener("scroll", updateViewportInset);
+    const focusFrame = window.requestAnimationFrame(() => {
+      itemNameInputRef.current?.focus({ preventScroll: true });
+      const textLength = itemNameInputRef.current?.value.length ?? 0;
+      itemNameInputRef.current?.setSelectionRange(textLength, textLength);
+      resizeAddInput();
+    });
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      window.cancelAnimationFrame(focusFrame);
+      window.visualViewport?.removeEventListener("resize", updateViewportInset);
+      window.visualViewport?.removeEventListener("scroll", updateViewportInset);
+    };
+  }, [isAddSheetOpen]);
+
+  useEffect(() => {
+    if (!isAddSheetOpen || !addProductNotice) {
+      return;
+    }
+
+    if (addProductNotice.type !== "success") {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setAddProductNotice((currentNotice) =>
+        currentNotice?.type === "success" ? null : currentNotice,
+      );
+    }, 1600);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [addProductNotice, isAddSheetOpen]);
+
+  useEffect(() => {
+    if (!highlightedItemId) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setHighlightedItemId(null);
+    }, 1800);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [highlightedItemId]);
+
   function animateButtonPress(element: HTMLElement) {
     runAnimation(element, {
       scale: [0.92, 1],
@@ -1025,12 +1133,72 @@ export function App() {
     animateButtonPress(event.currentTarget);
   }
 
-  function addItemFromName(rawName: string) {
+  function focusAddInputAtEnd() {
+    window.requestAnimationFrame(() => {
+      const input = itemNameInputRef.current;
+
+      if (!input) {
+        return;
+      }
+
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
+  }
+
+  function resizeAddInput() {
+    const input = itemNameInputRef.current;
+
+    if (!input) {
+      return;
+    }
+
+    input.style.height = "auto";
+    input.style.height = `${input.scrollHeight}px`;
+  }
+
+  function closeAddSheet(restoreFabFocus = true) {
+    setIsAddSheetOpen(false);
+    setAddProductNotice(null);
+    setSheetDragOffset(0);
+    addSheetDragStartYRef.current = null;
+
+    if (restoreFabFocus) {
+      window.requestAnimationFrame(() => addFabRef.current?.focus());
+    }
+  }
+
+  function openAddSheet() {
+    setIsAddSheetOpen(true);
+    setAddProductNotice(null);
+    runHapticFeedback("light");
+  }
+
+  function addItemFromName(rawName: string, rawQuantity?: string) {
+    const duplicateItem = findPendingShoppingItemByName(
+      items,
+      rawName,
+      selectedSectionId,
+    );
+
+    if (duplicateItem) {
+      setAddProductNotice({
+        type: "duplicate",
+        message: `"${duplicateItem.name}" ya está en la lista`,
+        itemId: duplicateItem.id,
+      });
+      focusAddInputAtEnd();
+      return false;
+    }
+
     const nextItems = addShoppingItem(
       items,
       rawName,
       selectedSectionId,
       selectedUserId,
+      undefined,
+      undefined,
+      rawQuantity,
     );
 
     if (nextItems !== items) {
@@ -1041,22 +1209,112 @@ export function App() {
 
       if (addedItem) {
         addHistoryEvent(addedItem, "added");
+        pendingAddDraftRef.current = rawName;
       }
 
       setItems(nextItems);
+      setItemName("");
+      setAddProductNotice({ type: "success", message: "Producto añadido" });
+      focusAddInputAtEnd();
+      window.requestAnimationFrame(resizeAddInput);
+      return true;
     }
 
-    setItemName("");
-    itemNameInputRef.current?.focus();
+    setAddProductNotice({
+      type: "error",
+      message: "Escribe un producto antes de añadirlo.",
+    });
+    focusAddInputAtEnd();
+    return false;
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    addItemFromName(itemName);
+    addItemFromName(itemName, addItemQuantity);
   }
 
   function handleQuickSuggestionClick(suggestionName: string) {
-    addItemFromName(suggestionName);
+    setItemName(suggestionName);
+    setAddProductNotice(null);
+    window.requestAnimationFrame(() => {
+      const input = itemNameInputRef.current;
+
+      if (!input) {
+        return;
+      }
+
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(suggestionName.length, suggestionName.length);
+      resizeAddInput();
+    });
+  }
+
+  function handleItemNameChange(value: string) {
+    setItemName(value);
+    window.requestAnimationFrame(resizeAddInput);
+
+    if (!value) {
+      setAddProductNotice(null);
+    } else if (addProductNotice?.type === "duplicate") {
+      setAddProductNotice(null);
+    }
+  }
+
+  function handleAddInputKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    addItemFromName(itemName, addItemQuantity);
+  }
+
+  function handleAddSheetKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeAddSheet();
+    }
+  }
+
+  function handleAddSheetDragStart(event: PointerEvent<HTMLDivElement>) {
+    addSheetDragStartYRef.current = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handleAddSheetDragMove(event: PointerEvent<HTMLDivElement>) {
+    if (addSheetDragStartYRef.current === null) {
+      return;
+    }
+
+    setSheetDragOffset(
+      Math.max(0, event.clientY - addSheetDragStartYRef.current),
+    );
+  }
+
+  function handleAddSheetDragEnd() {
+    if (sheetDragOffset > 70) {
+      closeAddSheet();
+      return;
+    }
+
+    setSheetDragOffset(0);
+    addSheetDragStartYRef.current = null;
+  }
+
+  function handleViewDuplicateItem(itemId: string) {
+    closeAddSheet(false);
+    setHighlightedItemId(itemId);
+    window.setTimeout(
+      () => {
+        itemRefs.current[itemId]?.scrollIntoView({
+          block: "center",
+          inline: "nearest",
+          behavior: shouldAnimate() ? "smooth" : "auto",
+        });
+        itemRefs.current[itemId]?.focus({ preventScroll: true });
+      },
+      shouldAnimate() ? 220 : 0,
+    );
   }
 
   function addHistoryEvent(
@@ -1566,10 +1824,15 @@ export function App() {
           }}
           className={
             item.purchased
-              ? `${styles.item} ${styles.itemPurchased}`
-              : styles.item
+              ? `${styles.item} ${styles.itemPurchased} ${
+                  highlightedItemId === item.id ? styles.itemHighlighted : ""
+                }`
+              : `${styles.item} ${
+                  highlightedItemId === item.id ? styles.itemHighlighted : ""
+                }`
           }
           key={item.id}
+          tabIndex={highlightedItemId === item.id ? -1 : undefined}
         >
           <button
             className={
@@ -1924,11 +2187,11 @@ export function App() {
 
       {activeView === "shopping" ? (
         <section
-          id="add-product"
+          id="shopping-controls"
           className={styles.commandPanel}
-          aria-label="Añadir producto"
+          aria-label="Controles de lista"
         >
-          <form className={styles.form} onSubmit={handleSubmit}>
+          <div className={styles.form}>
             <div className={styles.formOptions}>
               <div
                 className={`${styles.formField} ${styles.sectionSelectField}`}
@@ -1953,82 +2216,31 @@ export function App() {
                 </select>
               </div>
             </div>
-            <div className={styles.formField}>
-              <label className={styles.label} htmlFor="item-name">
-                Producto
-              </label>
-              <div className={styles.addRow}>
+            <div className={styles.addRow}>
+              <button
+                className={styles.iconButton}
+                type="button"
+                aria-label="Borrar comprados"
+                title="Borrar comprados"
+                onPointerDown={handleButtonPointerDown}
+                onClick={handleRemovePurchasedItems}
+                disabled={!isLoaded || selectedPurchasedCount === 0}
+              >
+                <Icon name="trash" />
+              </button>
+              <label className={styles.visibilityToggle}>
                 <input
-                  id="item-name"
-                  ref={itemNameInputRef}
-                  className={styles.input}
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  enterKeyHint="done"
-                  inputMode="text"
-                  spellCheck
-                  value={itemName}
-                  onChange={(event) => setItemName(event.target.value)}
-                  placeholder="Leche, pan, fruta..."
-                  type="text"
+                  checked={showPurchasedItems}
+                  onChange={(event) =>
+                    handleShowPurchasedItemsChange(event.target.checked)
+                  }
+                  type="checkbox"
                   disabled={!isLoaded}
                 />
-                <button
-                  className={styles.primaryButton}
-                  type="submit"
-                  onPointerDown={handleButtonPointerDown}
-                  disabled={!isLoaded}
-                >
-                  Añadir
-                </button>
-                <button
-                  className={styles.iconButton}
-                  type="button"
-                  aria-label="Borrar comprados"
-                  title="Borrar comprados"
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={handleRemovePurchasedItems}
-                  disabled={!isLoaded || selectedPurchasedCount === 0}
-                >
-                  <Icon name="trash" />
-                </button>
-                <label className={styles.visibilityToggle}>
-                  <input
-                    checked={showPurchasedItems}
-                    onChange={(event) =>
-                      handleShowPurchasedItemsChange(event.target.checked)
-                    }
-                    type="checkbox"
-                    disabled={!isLoaded}
-                  />
-                  <span>Comprados</span>
-                </label>
-              </div>
-              {quickItemSuggestions.length > 0 ? (
-                <div
-                  className={styles.quickSuggestions}
-                  aria-label="Sugerencias rápidas"
-                >
-                  {quickItemSuggestions.map((suggestion) => (
-                    <button
-                      className={styles.quickSuggestionButton}
-                      key={`${suggestion.categoryId}-${suggestion.name}`}
-                      type="button"
-                      aria-label={`Añadir ${suggestion.name}`}
-                      title={getShoppingCategoryName(suggestion.categoryId)}
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={() =>
-                        handleQuickSuggestionClick(suggestion.name)
-                      }
-                      disabled={!isLoaded}
-                    >
-                      {suggestion.name}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+                <span>Comprados</span>
+              </label>
             </div>
-          </form>
+          </div>
         </section>
       ) : null}
 
@@ -2047,6 +2259,188 @@ export function App() {
           <span className={styles.remoteSyncIndicator} aria-hidden="true" />
           Sincronizando con Supabase...
         </p>
+      ) : null}
+
+      {activeView === "shopping" && !isAddSheetOpen ? (
+        <button
+          ref={addFabRef}
+          className={styles.floatingAddButton}
+          type="button"
+          aria-label="Añadir producto"
+          title="Añadir producto"
+          onPointerDown={handleButtonPointerDown}
+          onClick={openAddSheet}
+          disabled={!isLoaded}
+        >
+          <Icon name="plus" />
+        </button>
+      ) : null}
+
+      {activeView === "shopping" && isAddSheetOpen ? (
+        <div
+          className={styles.addSheetBackdrop}
+          style={
+            {
+              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
+            } as CSSProperties
+          }
+          onClick={() => closeAddSheet()}
+        >
+          <form
+            className={styles.addSheet}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="add-sheet-title"
+            style={
+              {
+                "--sheet-drag-offset": `${sheetDragOffset}px`,
+              } as CSSProperties
+            }
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={handleAddSheetKeyDown}
+            onSubmit={handleSubmit}
+          >
+            <div
+              className={styles.addSheetHandle}
+              aria-label="Cerrar panel de alta"
+              role="button"
+              tabIndex={0}
+              onPointerDown={handleAddSheetDragStart}
+              onPointerMove={handleAddSheetDragMove}
+              onPointerUp={handleAddSheetDragEnd}
+              onPointerCancel={handleAddSheetDragEnd}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  closeAddSheet();
+                }
+              }}
+            >
+              <span />
+            </div>
+            <h2 id="add-sheet-title" className={styles.visuallyHidden}>
+              Añadir producto
+            </h2>
+            <div className={styles.addSheetFields}>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="item-name">
+                  Producto
+                </label>
+                <textarea
+                  id="item-name"
+                  ref={itemNameInputRef}
+                  className={styles.addSheetInput}
+                  autoCapitalize="sentences"
+                  autoCorrect="on"
+                  enterKeyHint="done"
+                  inputMode="text"
+                  rows={1}
+                  spellCheck
+                  value={itemName}
+                  onChange={(event) => handleItemNameChange(event.target.value)}
+                  onInput={(event) =>
+                    handleItemNameChange(event.currentTarget.value)
+                  }
+                  onKeyDown={handleAddInputKeyDown}
+                  onKeyUp={(event) =>
+                    handleItemNameChange(event.currentTarget.value)
+                  }
+                  placeholder="¿Qué necesitas comprar?"
+                  disabled={!isLoaded}
+                />
+              </div>
+              <div className={styles.addSheetSelectors}>
+                <div className={styles.formField}>
+                  <label className={styles.label} htmlFor="sheet-section-id">
+                    Supermercado
+                  </label>
+                  <select
+                    id="sheet-section-id"
+                    className={styles.select}
+                    value={selectedSectionId}
+                    onChange={(event) =>
+                      selectSection(event.target.value as ShoppingSectionId)
+                    }
+                    disabled={!isLoaded}
+                  >
+                    {sections.map((section) => (
+                      <option key={section.id} value={section.id}>
+                        {section.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className={styles.formField}>
+                  <label className={styles.label} htmlFor="item-quantity">
+                    Cantidad
+                  </label>
+                  <select
+                    id="item-quantity"
+                    className={styles.select}
+                    value={addItemQuantity}
+                    onChange={(event) => setAddItemQuantity(event.target.value)}
+                    disabled={!isLoaded}
+                  >
+                    {["1", "2", "3", "4", "5", "6"].map((quantity) => (
+                      <option key={quantity} value={quantity}>
+                        {quantity}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div
+              className={styles.addSheetSuggestions}
+              role="listbox"
+              aria-label="Sugerencias de productos"
+            >
+              {quickItemSuggestions.map((suggestion) => (
+                <button
+                  className={styles.addSheetSuggestion}
+                  key={`${suggestion.categoryId}-${suggestion.name}`}
+                  type="button"
+                  role="option"
+                  aria-selected="false"
+                  title={getShoppingCategoryName(suggestion.categoryId)}
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    handleButtonPointerDown(event);
+                  }}
+                  onClick={() => handleQuickSuggestionClick(suggestion.name)}
+                  disabled={!isLoaded}
+                >
+                  {suggestion.name}
+                </button>
+              ))}
+            </div>
+            <div className={styles.addSheetFooter}>
+              <p className={styles.addSheetNotice} aria-live="polite">
+                {addProductNotice ? addProductNotice.message : ""}
+              </p>
+              {addProductNotice?.type === "duplicate" ? (
+                <button
+                  className={styles.secondaryButton}
+                  type="button"
+                  onPointerDown={handleButtonPointerDown}
+                  onClick={() =>
+                    handleViewDuplicateItem(addProductNotice.itemId)
+                  }
+                >
+                  Ver producto
+                </button>
+              ) : null}
+              <button
+                className={styles.primaryButton}
+                type="submit"
+                onPointerDown={handleButtonPointerDown}
+                disabled={!isLoaded}
+              >
+                Añadir
+              </button>
+            </div>
+          </form>
+        </div>
       ) : null}
 
       {unseenRemoteHistoryEvents.length > 0 && activeView !== "history" ? (

@@ -86,6 +86,12 @@ describe("shopping item logic", () => {
     ).toEqual(["Pan", "Pañales", "Papel higiénico", "Patata"]);
   });
 
+  it("returns no quick suggestions when the typed text has no matches", () => {
+    expect(
+      getQuickShoppingItemSuggestions([], [], "mercadona", "zzzzzz", 4),
+    ).toEqual([]);
+  });
+
   it("prioritizes recent shopping history in quick suggestions", () => {
     const historyEvents = [
       createShoppingHistoryEvent(
@@ -169,6 +175,32 @@ describe("shopping item logic", () => {
     ]);
   });
 
+  it("adds products with explicit selected quantities", () => {
+    expect(
+      addShoppingItem(
+        [],
+        "  Leche x2  ",
+        "mercadona",
+        "rafa",
+        () => "item-1",
+        () => 100,
+        "1",
+      ),
+    ).toEqual([
+      {
+        id: "item-1",
+        name: "Leche",
+        quantity: "1",
+        sectionId: "mercadona",
+        categoryId: "dairy",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+  });
+
   it("does not parse ambiguous trailing numbers as quantities", () => {
     expect(
       addShoppingItem(
@@ -219,6 +251,31 @@ describe("shopping item logic", () => {
     expect(
       addShoppingItem([baseItem], "leche", "mercadona", "rafa", () => "item-2"),
     ).toEqual([baseItem]);
+  });
+
+  it("allows adding a product when the previous match is already purchased", () => {
+    expect(
+      addShoppingItem(
+        [{ ...baseItem, purchased: true }],
+        "leche",
+        "mercadona",
+        "rafa",
+        () => "item-2",
+        () => 200,
+      ),
+    ).toEqual([
+      { ...baseItem, purchased: true },
+      {
+        id: "item-2",
+        name: "leche",
+        sectionId: "mercadona",
+        categoryId: "dairy",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+    ]);
   });
 
   it("allows the same product name in different sections", () => {

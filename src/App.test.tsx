@@ -749,7 +749,7 @@ describe("App", () => {
     expect(dialog).not.toContainElement(userSelect);
   });
 
-  it("hides the view selector in the main shopping view", async () => {
+  it("shows the view selector in the main shopping view", async () => {
     render(<App />);
 
     await waitForAddFab();
@@ -763,10 +763,10 @@ describe("App", () => {
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual(["Lista", "Listas", "Historial", "Dev"]);
-    expect(navigation.className).toContain("bottomNavHidden");
+    expect(navigation.className).not.toContain("bottomNavHidden");
     expect(
       within(navigation).getByRole("button", { name: "Lista" }),
-    ).toHaveAttribute("tabindex", "-1");
+    ).not.toHaveAttribute("tabindex", "-1");
     expect(
       screen.getByRole("button", { name: "Borrar comprados" }),
     ).toBeInTheDocument();

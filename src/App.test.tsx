@@ -202,6 +202,48 @@ describe("App", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("warns when the latest successful backup is older than six hours", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(
+      Date.parse("2026-07-16T09:00:00.000Z"),
+    );
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getLatestDeveloperBackupRun",
+    ).mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000001",
+      startedAt: Date.parse("2026-07-16T02:30:00.000Z"),
+      finishedAt: Date.parse("2026-07-16T02:30:08.000Z"),
+      status: "success",
+      fileName: "jucart-supabase-20260716T023000Z.sql.tar.gz",
+      fileSizeBytes: 2048,
+      sha256:
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      durationMs: 8000,
+      retainedCount: 12,
+      errorMessage: null,
+      createdAt: Date.parse("2026-07-16T02:30:09.000Z"),
+    });
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Añadir" })).toBeEnabled(),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Vista de desarrollador" }),
+    );
+
+    expect(await screen.findByText("Sin copia reciente")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Hace más de 6 horas que no se completa una copia de seguridad.",
+      ),
+    ).toHaveTextContent(
+      "Hace más de 6 horas que no se completa una copia de seguridad.",
+    );
+  });
+
   it("keeps the developer view hidden when Begoña is restored", async () => {
     window.localStorage.setItem("jucart:selected-user-id", "begona");
 

@@ -20,6 +20,7 @@ type ShoppingItemRow = {
   id: string;
   list_id: string;
   name: string;
+  quantity?: string | null;
   section_id: string;
   category_id?: string;
   added_by: string;
@@ -337,6 +338,7 @@ export function mapRowToShoppingItem(row: ShoppingItemRow): ShoppingItem {
   return {
     id: row.id,
     name: row.name,
+    quantity: row.quantity?.trim() ? row.quantity : undefined,
     sectionId: normalizeSectionId(row.section_id),
     categoryId: normalizeCategoryId(row.category_id, row.name),
     addedBy: normalizeUserId(row.added_by),
@@ -365,6 +367,7 @@ export function mapShoppingItemToRow(
     id: item.id,
     list_id: listId,
     name: item.name,
+    quantity: item.quantity ?? null,
     section_id: item.sectionId,
     category_id: item.categoryId ?? inferShoppingCategoryId(item.name),
     added_by: item.addedBy,
@@ -408,6 +411,9 @@ export function mapRowToShoppingHistoryEvent(
     item: {
       id: itemSnapshot.id,
       name: itemSnapshot.name,
+      quantity: itemSnapshot.quantity?.trim()
+        ? itemSnapshot.quantity
+        : undefined,
       sectionId: normalizeSectionId(itemSnapshot.sectionId),
       sectionName: itemSnapshot.sectionName ?? itemSnapshot.sectionId,
       categoryId: normalizeCategoryId(
@@ -467,6 +473,7 @@ function mapSnapshotToShoppingHistoryItemSnapshot(
   return {
     id: itemSnapshot.id,
     name: itemSnapshot.name,
+    quantity: itemSnapshot.quantity?.trim() ? itemSnapshot.quantity : undefined,
     sectionId: normalizeSectionId(itemSnapshot.sectionId),
     sectionName: itemSnapshot.sectionName ?? itemSnapshot.sectionId,
     categoryId: normalizeCategoryId(itemSnapshot.categoryId, itemSnapshot.name),

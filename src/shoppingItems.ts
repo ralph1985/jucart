@@ -180,6 +180,7 @@ const quickShoppingProductDefaults = [
 export type ShoppingItem = {
   id: string;
   name: string;
+  quantity?: string;
   sectionId: ShoppingSectionId;
   categoryId?: ShoppingCategoryId;
   addedBy: ShoppingUserId;
@@ -195,6 +196,7 @@ export type ShoppingHistoryItemSnapshot = Pick<
   ShoppingItem,
   | "id"
   | "name"
+  | "quantity"
   | "sectionId"
   | "categoryId"
   | "addedBy"
@@ -223,6 +225,36 @@ export type QuickShoppingItemSuggestion = {
 
 export function normalizeItemName(value: string) {
   return value.trim().replace(/\s+/g, " ");
+}
+
+export function normalizeItemQuantity(value: string | undefined) {
+  const quantity = normalizeItemName(value ?? "");
+
+  return quantity || undefined;
+}
+
+export function parseShoppingItemNameAndQuantity(rawName: string) {
+  const normalizedName = normalizeItemName(rawName);
+  const quantityMatch = normalizedName.match(
+    /\s+(?:x\s*(\d+(?:[.,]\d+)?)|(\d+(?:[.,]\d+)?)\s*x|(\d+(?:[.,]\d+)?)\s*(ud|uds|unidad|unidades|kg|g|gr|l|ml|pack|packs|paquete|paquetes|bote|botes|caja|cajas|bolsa|bolsas))$/i,
+  );
+
+  if (!quantityMatch) {
+    return { name: normalizedName, quantity: undefined };
+  }
+
+  const quantityStart = quantityMatch.index ?? normalizedName.length;
+  const name = normalizeItemName(normalizedName.slice(0, quantityStart));
+  const numericQuantity =
+    quantityMatch[1] ?? quantityMatch[2] ?? quantityMatch[3] ?? "";
+  const unit = quantityMatch[4]?.toLocaleLowerCase("es-ES");
+  const quantity = normalizeItemQuantity(
+    unit ? `${numericQuantity} ${unit}` : numericQuantity,
+  );
+
+  return name
+    ? { name, quantity }
+    : { name: normalizedName, quantity: undefined };
 }
 
 export function isShoppingSectionId(
@@ -552,7 +584,7 @@ export function addShoppingItem(
   createId: () => string = createShoppingItemId,
   now: () => number = () => Date.now(),
 ) {
-  const name = normalizeItemName(rawName);
+  const { name, quantity } = parseShoppingItemNameAndQuantity(rawName);
 
   if (!name || hasItemWithName(items, name, sectionId)) {
     return items;
@@ -565,6 +597,7 @@ export function addShoppingItem(
     {
       id: createId(),
       name,
+      quantity,
       sectionId,
       categoryId: inferShoppingCategoryId(name),
       addedBy,
@@ -681,6 +714,7 @@ function createShoppingHistoryItemSnapshot(
   return {
     id: item.id,
     name: item.name,
+    quantity: item.quantity,
     sectionId: item.sectionId,
     sectionName,
     categoryId: getShoppingItemCategoryId(item),
@@ -705,9 +739,16 @@ export function updateShoppingItem(
   itemId: string,
   rawName: string,
   sectionId: ShoppingSectionId,
+  rawQuantityOrNow: string | undefined | (() => number) = undefined,
   now: () => number = () => Date.now(),
 ) {
   const name = normalizeItemName(rawName);
+  const quantity =
+    typeof rawQuantityOrNow === "function"
+      ? undefined
+      : normalizeItemQuantity(rawQuantityOrNow);
+  const getNow =
+    typeof rawQuantityOrNow === "function" ? rawQuantityOrNow : now;
 
   if (!name) {
     return items;
@@ -730,7 +771,11 @@ export function updateShoppingItem(
     return items;
   }
 
-  if (itemToUpdate.name === name && itemToUpdate.sectionId === sectionId) {
+  if (
+    itemToUpdate.name === name &&
+    itemToUpdate.sectionId === sectionId &&
+    itemToUpdate.quantity === quantity
+  ) {
     return items;
   }
 
@@ -739,9 +784,10 @@ export function updateShoppingItem(
       ? {
           ...item,
           name,
+          quantity,
           sectionId,
           categoryId: inferShoppingCategoryId(name),
-          updatedAt: now(),
+          updatedAt: getNow(),
         }
       : item,
   );

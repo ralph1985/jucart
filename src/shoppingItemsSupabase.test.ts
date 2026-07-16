@@ -18,6 +18,7 @@ describe("shopping items Supabase adapter", () => {
         id: "item-1",
         list_id: "00000000-0000-4000-8000-000000000001",
         name: "Leche",
+        quantity: "2",
         section_id: "mercadona",
         category_id: "dairy",
         added_by: "begona",
@@ -28,6 +29,7 @@ describe("shopping items Supabase adapter", () => {
     ).toEqual({
       id: "item-1",
       name: "Leche",
+      quantity: "2",
       sectionId: "mercadona",
       categoryId: "dairy",
       addedBy: "begona",
@@ -43,6 +45,7 @@ describe("shopping items Supabase adapter", () => {
         {
           id: "item-1",
           name: "Pan",
+          quantity: "1 kg",
           sectionId: "alcampo",
           categoryId: "bakery",
           addedBy: "rafa",
@@ -56,6 +59,7 @@ describe("shopping items Supabase adapter", () => {
       id: "item-1",
       list_id: "00000000-0000-4000-8000-000000000001",
       name: "Pan",
+      quantity: "1 kg",
       section_id: "alcampo",
       category_id: "bakery",
       added_by: "rafa",
@@ -194,6 +198,7 @@ describe("shopping items Supabase adapter", () => {
           item: {
             id: "item-1",
             name: "Pan",
+            quantity: "2",
             sectionId: "alcampo",
             sectionName: "Alcampo",
             categoryId: "bakery",
@@ -227,6 +232,7 @@ describe("shopping items Supabase adapter", () => {
       item_snapshot: {
         id: "item-1",
         name: "Pan",
+        quantity: "2",
         sectionId: "alcampo",
         sectionName: "Alcampo",
         categoryId: "bakery",

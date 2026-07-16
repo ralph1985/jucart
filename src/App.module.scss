@@ -1424,6 +1424,23 @@ h2 {
   text-decoration: line-through;
 }
 
+.itemQuantity {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.28rem;
+  margin-left: 0.45rem;
+  border: 1px solid rgb(22 124 90 / 22%);
+  border-radius: 999rem;
+  padding: 0 0.42rem;
+  background: #eef8f1;
+  color: #126548;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  vertical-align: 0.12rem;
+  white-space: nowrap;
+}
+
 .itemMeta {
   grid-column: 2;
   grid-row: 2;

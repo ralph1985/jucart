@@ -48,6 +48,7 @@ describe("shopping items database", () => {
       {
         id: "item-1",
         name: "Leche",
+        quantity: "2",
         sectionId: "mercadona",
         categoryId: "dairy",
         addedBy: "rafa",
@@ -61,6 +62,7 @@ describe("shopping items database", () => {
       {
         id: "item-1",
         name: "Leche",
+        quantity: "2",
         sectionId: "mercadona",
         categoryId: "dairy",
         addedBy: "rafa",

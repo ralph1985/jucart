@@ -63,6 +63,7 @@ const selectedUserStorageKey = "jucart:selected-user-id";
 const showPurchasedItemsStorageKey = "jucart:show-purchased-items";
 const historyClientIdStorageKey = "jucart:history-client-id";
 const lastSeenHistoryEventAtStorageKey = "jucart:last-seen-history-event-at";
+const backupStaleThresholdMs = 6 * 60 * 60 * 1000;
 
 type AppView = "shopping" | "sections" | "history" | "developer";
 
@@ -83,6 +84,7 @@ type IconName =
   | "database";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 type HapticFeedback = "light" | "medium" | "success" | "warning";
+type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
 
 const hapticFeedbackPatterns: Record<HapticFeedback, VibratePattern> = {
   light: 10,
@@ -420,12 +422,34 @@ function formatDuration(durationMs: number) {
   return `${(durationMs / 1000).toFixed(1)} s`;
 }
 
-function getDeveloperBackupStatusText(run: DeveloperBackupRun | null) {
+function getDeveloperBackupStatus(run: DeveloperBackupRun | null) {
   if (!run) {
+    return "empty";
+  }
+
+  if (run.status === "failed") {
+    return "failed";
+  }
+
+  return Date.now() - run.finishedAt > backupStaleThresholdMs
+    ? "stale"
+    : "success";
+}
+
+function getDeveloperBackupStatusText(status: DeveloperBackupStatus) {
+  if (status === "empty") {
     return "Sin copias registradas";
   }
 
-  return run.status === "success" ? "Correcta" : "Fallida";
+  if (status === "failed") {
+    return "Fallida";
+  }
+
+  if (status === "stale") {
+    return "Sin copia reciente";
+  }
+
+  return "Correcta";
 }
 
 function formatShortHash(value: string | null) {
@@ -1752,7 +1776,10 @@ export function App() {
   }
 
   function renderDeveloperBackupCard() {
-    const backupStatusText = getDeveloperBackupStatusText(developerBackupRun);
+    const backupStatus = getDeveloperBackupStatus(developerBackupRun);
+    const backupStatusText = getDeveloperBackupStatusText(backupStatus);
+    const hasBackupProblem =
+      backupStatus === "failed" || backupStatus === "stale";
 
     return (
       <section className={styles.developerPanel} aria-label="Estado del backup">
@@ -1760,7 +1787,7 @@ export function App() {
           <h3>Backup Supabase</h3>
           <span
             className={
-              developerBackupRun?.status === "failed"
+              hasBackupProblem
                 ? styles.developerStatusFailed
                 : styles.developerStatusSuccess
             }
@@ -1814,6 +1841,11 @@ export function App() {
         {developerBackupRun?.errorMessage ? (
           <p className={styles.developerNote}>
             {developerBackupRun.errorMessage}
+          </p>
+        ) : null}
+        {backupStatus === "stale" ? (
+          <p className={styles.developerNote} role="alert">
+            Hace más de 6 horas que no se completa una copia de seguridad.
           </p>
         ) : null}
       </section>

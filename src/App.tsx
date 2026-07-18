@@ -88,6 +88,7 @@ type IconName =
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 type HapticFeedback = "light" | "medium" | "success" | "warning";
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
+type AppOverlay = "add-sheet" | "clear-dialog" | "edit-dialog";
 type AddProductNotice =
   | { type: "success"; message: string }
   | { type: "error"; message: string }
@@ -99,6 +100,7 @@ const hapticFeedbackPatterns: Record<HapticFeedback, VibratePattern> = {
   success: [14, 32, 18],
   warning: [28, 42, 36],
 };
+const overlayHistoryStateKey = "jucartOverlay";
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, string[]> = {
@@ -560,6 +562,8 @@ export function App() {
   const undoItemRef = useRef<HTMLLIElement>(null);
   const hiddenUndoItemRef = useRef<HTMLLIElement>(null);
   const addSheetOpenRef = useRef(false);
+  const overlayHistoryStackRef = useRef<AppOverlay[]>([]);
+  const ignoreNextOverlayPopRef = useRef(false);
   const addSheetDragStartYRef = useRef<number | null>(null);
   const pendingAddDraftRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
@@ -1079,6 +1083,45 @@ export function App() {
   }, [isAddSheetOpen]);
 
   useEffect(() => {
+    function handleOverlayPopState() {
+      if (ignoreNextOverlayPopRef.current) {
+        ignoreNextOverlayPopRef.current = false;
+        return;
+      }
+
+      const overlay = overlayHistoryStackRef.current.pop();
+
+      if (!overlay) {
+        return;
+      }
+
+      if (overlay === "edit-dialog") {
+        setEditingItemId(null);
+        setEditingItemName("");
+        setEditingItemQuantity("");
+        setEditingSectionId("mercadona");
+        return;
+      }
+
+      if (overlay === "clear-dialog") {
+        setIsClearDialogOpen(false);
+        return;
+      }
+
+      setIsAddSheetOpen(false);
+      setAddProductNotice(null);
+      setSheetDragOffset(0);
+      addSheetDragStartYRef.current = null;
+    }
+
+    window.addEventListener("popstate", handleOverlayPopState);
+
+    return () => {
+      window.removeEventListener("popstate", handleOverlayPopState);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isAddSheetOpen) {
       return;
     }
@@ -1186,7 +1229,43 @@ export function App() {
     input.style.height = `${input.scrollHeight}px`;
   }
 
-  function closeAddSheet(restoreFabFocus = true) {
+  function pushOverlayHistory(overlay: AppOverlay) {
+    const stack = overlayHistoryStackRef.current;
+
+    if (stack.at(-1) === overlay) {
+      return;
+    }
+
+    const currentState =
+      typeof window.history.state === "object" && window.history.state !== null
+        ? window.history.state
+        : {};
+
+    stack.push(overlay);
+    window.history.pushState(
+      { ...currentState, [overlayHistoryStateKey]: overlay },
+      "",
+      window.location.href,
+    );
+  }
+
+  function consumeOverlayHistory(overlay: AppOverlay) {
+    const stack = overlayHistoryStackRef.current;
+
+    if (stack.at(-1) !== overlay) {
+      return;
+    }
+
+    stack.pop();
+    ignoreNextOverlayPopRef.current = true;
+    window.history.back();
+  }
+
+  function closeAddSheet(restoreFabFocus = true, syncHistory = true) {
+    if (syncHistory) {
+      consumeOverlayHistory("add-sheet");
+    }
+
     setIsAddSheetOpen(false);
     setAddProductNotice(null);
     setSheetDragOffset(0);
@@ -1198,6 +1277,7 @@ export function App() {
   }
 
   function openAddSheet() {
+    pushOverlayHistory("add-sheet");
     setIsAddSheetOpen(true);
     setAddProductNotice(null);
     runHapticFeedback("light");
@@ -1402,6 +1482,7 @@ export function App() {
   }
 
   function startEditing(item: ShoppingItem) {
+    pushOverlayHistory("edit-dialog");
     runHapticFeedback("light");
     setEditingItemId(item.id);
     setEditingItemName(item.name);
@@ -1418,6 +1499,7 @@ export function App() {
 
   function cancelEditing() {
     runHapticFeedback("light");
+    consumeOverlayHistory("edit-dialog");
     resetEditing();
   }
 
@@ -1453,6 +1535,7 @@ export function App() {
       setItems(nextItems);
     }
 
+    consumeOverlayHistory("edit-dialog");
     resetEditing();
   }
 
@@ -1461,12 +1544,14 @@ export function App() {
       return;
     }
 
+    pushOverlayHistory("clear-dialog");
     runHapticFeedback("light");
     setIsClearDialogOpen(true);
   }
 
   function confirmRemovePurchasedItems() {
     if (selectedPurchasedCount === 0) {
+      consumeOverlayHistory("clear-dialog");
       setIsClearDialogOpen(false);
       return;
     }
@@ -1479,6 +1564,7 @@ export function App() {
     setLastHiddenPurchasedItem(null);
     addHistoryEvents(removedItems, "deleted");
     setItems(items.filter((item) => !removedItemIds.has(item.id)));
+    consumeOverlayHistory("clear-dialog");
     setIsClearDialogOpen(false);
   }
 
@@ -2864,6 +2950,7 @@ export function App() {
           className={styles.modalBackdrop}
           onClick={() => {
             runHapticFeedback("light");
+            consumeOverlayHistory("clear-dialog");
             setIsClearDialogOpen(false);
           }}
         >
@@ -2879,6 +2966,7 @@ export function App() {
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 runHapticFeedback("light");
+                consumeOverlayHistory("clear-dialog");
                 setIsClearDialogOpen(false);
               }
             }}
@@ -2903,6 +2991,7 @@ export function App() {
                 onPointerDown={handleButtonPointerDown}
                 onClick={() => {
                   runHapticFeedback("light");
+                  consumeOverlayHistory("clear-dialog");
                   setIsClearDialogOpen(false);
                 }}
               >

@@ -470,6 +470,49 @@ describe("App", () => {
     );
   });
 
+  it("closes the add sheet from browser back without losing the draft", async () => {
+    render(<App />);
+
+    const dialog = await openAddSheet();
+    const productInput = within(dialog).getByLabelText("Producto");
+
+    fireEvent.change(productInput, { target: { value: "Manzanas" } });
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(
+      screen.queryByRole("dialog", { name: "Añadir producto" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Añadir producto" }),
+    ).toBeInTheDocument();
+
+    const reopenedDialog = await openAddSheet();
+
+    expect(within(reopenedDialog).getByLabelText("Producto")).toHaveValue(
+      "Manzanas",
+    );
+  });
+
+  it("consumes the add sheet history entry when the sheet is closed from the UI", async () => {
+    const historyBackSpy = vi
+      .spyOn(window.history, "back")
+      .mockImplementation(() => undefined);
+
+    render(<App />);
+
+    const dialog = await openAddSheet();
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    expect(historyBackSpy).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("dialog", { name: "Añadir producto" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("adds several products with Enter while keeping section and quantity", async () => {
     render(<App />);
 
@@ -1149,6 +1192,39 @@ describe("App", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("closes the clear purchased dialog from browser back without deleting products", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Pan",
+        sectionId: "mercadona",
+        addedBy: "begona",
+        purchased: true,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Pan");
+
+    fireEvent.click(screen.getByRole("button", { name: "Borrar comprados" }));
+
+    expect(
+      screen.getByRole("dialog", { name: "Borrar comprados" }),
+    ).toBeInTheDocument();
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(screen.getByText("Pan")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: "Borrar comprados" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("undoes removing purchased products", async () => {
     await replaceStoredShoppingItems([
       {
@@ -1450,6 +1526,42 @@ describe("App", () => {
     expect(
       screen.queryByText("Producto marcado como comprado."),
     ).not.toBeInTheDocument();
+  });
+
+  it("closes the edit dialog from browser back without saving changes", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Leche");
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar Leche" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Editar Leche" });
+
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
+      target: { value: "Pan integral" },
+    });
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(
+      screen.queryByRole("dialog", { name: "Editar Leche" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Leche")).toBeInTheDocument();
+    expect(screen.queryByText("Pan integral")).not.toBeInTheDocument();
   });
 
   it("edits a product name, quantity and section", async () => {

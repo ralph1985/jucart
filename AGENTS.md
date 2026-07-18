@@ -12,6 +12,8 @@ Jucart es una aplicación web privada para gestionar una lista de la compra pers
 ## Modo Rápido Por Defecto
 
 - Leer primero archivos probables y búsquedas concretas; no revisar todo el repo si no hace falta.
+- Usar `rg` y rangos concretos antes de abrir archivos completos; no pegar salidas largas si basta un resumen.
+- No leer `README.md`, memoria, lockfile, `dist`, configuración o docs amplias salvo relación directa con la tarea.
 - No activar revisiones transversales por defecto.
 - Mantener la app en una sola pantalla mientras `PLAN.md` no indique lo contrario.
 - No crear carpetas vacías ni capas como `services`, `hooks`, `utils`, `features`, `models` o `db` sin una responsabilidad actual.
@@ -45,7 +47,8 @@ Jucart es una aplicación web privada para gestionar una lista de la compra pers
 - Coordinación normal: `coordinator`.
 - Revisión final completa o bloqueante: `qa_final_reviewer`.
 - Configuración de agentes o instrucciones: revisar `AGENTS.md`, `.codex/config.toml` y `.codex/agents/*.toml`.
-- QA de hito antes de commit o cierre: aplicar las reglas de validación de este documento.
+- Invocar `qa_final_reviewer` solo en cierre de hito, revisión bloqueante, cambios grandes, persistencia/Supabase/PWA, exposición pública o petición explícita.
+- En cambios pequeños, aplicar las reglas de validación de este documento sin lanzar agentes extra por defecto.
 
 No crear agentes especializados de SEO, contenido, seguridad CSP, enlaces o rendimiento hasta que exista una necesidad real. Jucart es una app privada sin SEO ni contenido público.
 

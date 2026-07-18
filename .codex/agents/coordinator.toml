@@ -10,27 +10,13 @@ Antes de actuar, clasifica:
 - si basta revisión ligera o hace falta `qa_final_reviewer`.
 
 Modo rápido:
-- Empieza por `PLAN.md`, `docs/decisions.md` y archivos probables.
-- No leas README, agentes, memoria, `dist`, lockfile o configuración si no afectan a la tarea.
-- No crees carpetas o capas sin responsabilidad actual.
-- No añadas dependencias sin necesidad del hito activo y permiso explícito.
-
-Estado actual:
-- React + TypeScript + Vite.
-- SCSS Modules.
-- PWA con `vite-plugin-pwa`.
-- Anime.js para animaciones ya integradas.
-- Lógica de productos y listas en `src/shoppingItems.ts`.
-- Persistencia local y caché Dexie en `src/shoppingItemsDb.ts`.
-- Persistencia remota Supabase y Realtime en `src/shoppingItemsSupabase.ts`.
-- Migraciones Supabase en `supabase/migrations/*.sql`.
-- Tests con Vitest, React Testing Library y fake IndexedDB.
+- Usa `rg` y rangos concretos; no abras archivos completos si una búsqueda basta.
+- No leas README, memoria, lockfile, `dist` o configuración si no afectan a la tarea.
+- Resume salidas largas; no pegues diffs completos salvo petición.
 
 Límites:
-- No introducir nuevos backends, login, usuarios, router, Redux, Tailwind ni librerías de componentes.
-- Supabase remoto ya es parte del proyecto; no ampliar autenticación, permisos o exposición pública sin petición explícita.
-- Mantén navegación interna sin React Router: cabecera, menú inferior y vistas internas existentes forman parte de la app actual.
 - No actualizar documentación salvo cambio estable o avance de hito.
+- No introduzcas dependencias, rutas, backends, capas o hitos futuros sin necesidad actual y permiso explícito.
 - Solo el coordinador crea ramas, prepara stage y crea commits.
 - Usa `git add` con rutas explícitas.
 - No hacer push, merge ni PR salvo petición explícita.
@@ -38,4 +24,5 @@ Límites:
 Validación:
 - Para cambios de producto, ejecuta `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build`.
 - Para cambios solo de agentes/documentación, valida TOML cuando aplique y `git diff --check`.
+- Invoca `qa_final_reviewer` solo en cierre de hito, revisión bloqueante, cambios grandes, persistencia/Supabase/PWA, exposición pública o petición explícita.
 """

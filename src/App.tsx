@@ -61,6 +61,7 @@ import {
   updateShoppingItem,
 } from "./shoppingItems";
 import {
+  ShoppingData,
   getShoppingItemsStorageMode,
   getStoredShoppingData,
   replaceStoredShoppingData,
@@ -99,6 +100,11 @@ type IconName =
   | "database"
   | "freezer";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
+
+type TimestampedItem = {
+  id: string;
+  updatedAt: number;
+};
 type HapticFeedback = "light" | "medium" | "success" | "warning";
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
 type AppOverlay =
@@ -550,6 +556,36 @@ function getSyncStatusFromStorageMode() {
   return "local";
 }
 
+function keepNewerLocalItems<Item extends TimestampedItem>(
+  remoteItems: Item[],
+  localItems: Item[],
+) {
+  const localItemsById = new Map(localItems.map((item) => [item.id, item]));
+
+  return remoteItems.map((remoteItem) => {
+    const localItem = localItemsById.get(remoteItem.id);
+
+    return localItem && localItem.updatedAt > remoteItem.updatedAt
+      ? localItem
+      : remoteItem;
+  });
+}
+
+function mergeRemoteShoppingDataWithNewerLocalData(
+  remoteData: ShoppingData,
+  localItems: ShoppingItem[],
+  localFreezerItems: FreezerItem[],
+): ShoppingData {
+  return {
+    ...remoteData,
+    items: keepNewerLocalItems(remoteData.items, localItems),
+    freezerItems: keepNewerLocalItems(
+      remoteData.freezerItems ?? [],
+      localFreezerItems,
+    ),
+  };
+}
+
 function getLoadingStatusText() {
   return isSupabaseConfigured()
     ? "Cargando lista de Supabase..."
@@ -647,6 +683,8 @@ export function App() {
   const sectionColumnRefs = useRef<
     Partial<Record<ShoppingSectionId, HTMLElement>>
   >({});
+  const itemsRef = useRef(items);
+  const freezerItemsRef = useRef(freezerItems);
   const sectionsRef = useRef(sections);
   const selectedSectionIdRef = useRef(selectedSectionId);
   const hasAnimatedInitialColumnsRef = useRef(false);
@@ -662,6 +700,10 @@ export function App() {
   const pendingAddDraftRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
   const skipNextStoreRef = useRef(true);
+  const localDataRevisionRef = useRef(0);
+  const pendingLocalStoresRef = useRef(0);
+  const queuedRemoteRefreshRef = useRef(false);
+  const refreshRemoteDataRef = useRef<(() => void) | null>(null);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
   const useFirstFreezerItems = sortFreezerItemsByUseFirst(freezerItems).slice(
@@ -726,6 +768,9 @@ export function App() {
       ? `Se borrará 1 producto comprado de ${selectedSectionName}. Podrás deshacerlo después.`
       : `Se borrarán ${selectedPurchasedCount} productos comprados de ${selectedSectionName}. Podrás deshacerlo después.`;
 
+  itemsRef.current = items;
+  freezerItemsRef.current = freezerItems;
+
   const beginRemoteRequest = useCallback(() => {
     if (!isSupabaseConfigured()) {
       return () => undefined;
@@ -743,6 +788,10 @@ export function App() {
       hasFinished = true;
       setPendingRemoteRequests((currentCount) => Math.max(0, currentCount - 1));
     };
+  }, []);
+
+  const markLocalDataChange = useCallback(() => {
+    localDataRevisionRef.current += 1;
   }, []);
 
   useEffect(() => {
@@ -820,6 +869,7 @@ export function App() {
 
     async function storeItems() {
       const finishRemoteRequest = beginRemoteRequest();
+      pendingLocalStoresRef.current += 1;
 
       try {
         setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
@@ -847,7 +897,19 @@ export function App() {
         setStorageError("No se pudieron guardar los últimos cambios.");
         setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
       } finally {
+        pendingLocalStoresRef.current = Math.max(
+          0,
+          pendingLocalStoresRef.current - 1,
+        );
         finishRemoteRequest();
+
+        if (
+          pendingLocalStoresRef.current === 0 &&
+          queuedRemoteRefreshRef.current
+        ) {
+          queuedRemoteRefreshRef.current = false;
+          refreshRemoteDataRef.current?.();
+        }
       }
     }
 
@@ -869,6 +931,7 @@ export function App() {
     let isActive = true;
 
     async function refreshItemsFromSupabase() {
+      const refreshStartedAtRevision = localDataRevisionRef.current;
       const finishRemoteRequest = beginRemoteRequest();
 
       try {
@@ -878,15 +941,30 @@ export function App() {
           return;
         }
 
+        if (pendingLocalStoresRef.current > 0) {
+          queuedRemoteRefreshRef.current = true;
+          return;
+        }
+
+        if (localDataRevisionRef.current !== refreshStartedAtRevision) {
+          return;
+        }
+
+        const nextStoredData = mergeRemoteShoppingDataWithNewerLocalData(
+          storedData,
+          itemsRef.current,
+          freezerItemsRef.current,
+        );
+
         skipNextStoreRef.current = true;
-        setItems(storedData.items);
-        setFreezerItems(storedData.freezerItems ?? []);
-        setSections(storedData.sections);
-        setHistoryEvents(storedData.historyEvents);
+        setItems(nextStoredData.items);
+        setFreezerItems(nextStoredData.freezerItems ?? []);
+        setSections(nextStoredData.sections);
+        setHistoryEvents(nextStoredData.historyEvents);
         setSelectedSectionId((currentSectionId) =>
-          isShoppingSectionId(currentSectionId, storedData.sections)
+          isShoppingSectionId(currentSectionId, nextStoredData.sections)
             ? currentSectionId
-            : storedData.sections[0]?.id || "general",
+            : nextStoredData.sections[0]?.id || "general",
         );
         setStorageError(null);
         setSyncStatus(getSyncStatusFromStorageMode());
@@ -900,7 +978,16 @@ export function App() {
       }
     }
 
+    refreshRemoteDataRef.current = () => {
+      void refreshItemsFromSupabase();
+    };
+
     const unsubscribe = subscribeToSupabaseShoppingItems(() => {
+      if (pendingLocalStoresRef.current > 0) {
+        queuedRemoteRefreshRef.current = true;
+        return;
+      }
+
       void refreshItemsFromSupabase();
     });
 
@@ -914,6 +1001,7 @@ export function App() {
 
     return () => {
       isActive = false;
+      refreshRemoteDataRef.current = null;
       document.removeEventListener("visibilitychange", refreshItemsWhenVisible);
       unsubscribe();
     };
@@ -1638,6 +1726,7 @@ export function App() {
           ?.name ?? previousItem.sectionId)
       : "";
 
+    markLocalDataChange();
     setHistoryEvents((currentHistoryEvents) => [
       ...currentHistoryEvents,
       createShoppingHistoryEvent(
@@ -1656,6 +1745,7 @@ export function App() {
     changedItems: ShoppingItem[],
     type: "purchased" | "unpurchased" | "deleted",
   ) {
+    markLocalDataChange();
     setHistoryEvents((currentHistoryEvents) => [
       ...currentHistoryEvents,
       ...changedItems.map((item) => {
@@ -1725,6 +1815,7 @@ export function App() {
         addHistoryEvent(movedItem, "moved", previousItem);
       }
 
+      markLocalDataChange();
       setItems(nextItems);
     }
 
@@ -1780,17 +1871,26 @@ export function App() {
       return;
     }
 
+    const currentItemIds = new Set(items.map((item) => item.id));
+    const restorableItems = lastRemovedItems.filter(
+      (item) => !currentItemIds.has(item.id),
+    );
+
+    if (restorableItems.length > 0) {
+      markLocalDataChange();
+    }
+
     setItems((currentItems) => {
-      const currentItemIds = new Set(currentItems.map((item) => item.id));
-      const restorableItems = lastRemovedItems.filter(
-        (item) => !currentItemIds.has(item.id),
+      const latestItemIds = new Set(currentItems.map((item) => item.id));
+      const latestRestorableItems = lastRemovedItems.filter(
+        (item) => !latestItemIds.has(item.id),
       );
 
-      if (restorableItems.length === 0) {
+      if (latestRestorableItems.length === 0) {
         return currentItems;
       }
 
-      return [...currentItems, ...restorableItems].sort(
+      return [...currentItems, ...latestRestorableItems].sort(
         (firstItem, secondItem) => firstItem.createdAt - secondItem.createdAt,
       );
     });
@@ -1844,6 +1944,7 @@ export function App() {
       );
     }
 
+    markLocalDataChange();
     setItems(nextItems);
     runHapticFeedback("medium");
   }
@@ -1864,6 +1965,7 @@ export function App() {
       return;
     }
 
+    markLocalDataChange();
     setFreezerItems(nextItems);
     setLastUsedFreezerItem(null);
     setFreezerItemName("");
@@ -1910,6 +2012,7 @@ export function App() {
     );
 
     if (nextItems !== freezerItems) {
+      markLocalDataChange();
       setFreezerItems(nextItems);
       runHapticFeedback("success");
     }
@@ -1924,16 +2027,19 @@ export function App() {
       return;
     }
 
-    setFreezerItems(
-      updateFreezerItem(
-        freezerItems,
-        itemId,
-        item.name,
-        drawerId,
-        item.frozenAt,
-        item.quantity,
-      ),
+    const nextItems = updateFreezerItem(
+      freezerItems,
+      itemId,
+      item.name,
+      drawerId,
+      item.frozenAt,
+      item.quantity,
     );
+
+    if (nextItems !== freezerItems) {
+      markLocalDataChange();
+      setFreezerItems(nextItems);
+    }
     runHapticFeedback("medium");
   }
 
@@ -1945,6 +2051,7 @@ export function App() {
     }
 
     setLastUsedFreezerItem(item);
+    markLocalDataChange();
     setFreezerItems(removeFreezerItem(freezerItems, itemId));
     runHapticFeedback("warning");
   }
@@ -1952,6 +2059,10 @@ export function App() {
   function handleUndoUseFreezerItem() {
     if (!lastUsedFreezerItem) {
       return;
+    }
+
+    if (!freezerItems.some((item) => item.id === lastUsedFreezerItem.id)) {
+      markLocalDataChange();
     }
 
     setFreezerItems((currentItems) => {
@@ -2061,6 +2172,7 @@ export function App() {
     );
 
     if (nextSections !== sections) {
+      markLocalDataChange();
       setSections(nextSections);
     }
   }
@@ -2075,6 +2187,7 @@ export function App() {
     }
 
     runHapticFeedback("success");
+    markLocalDataChange();
     setSections(nextSections);
     setSelectedSectionId(nextSections[nextSections.length - 1].id);
     setSectionActionMessage(null);
@@ -2091,6 +2204,7 @@ export function App() {
 
     runHapticFeedback("medium");
     setSectionActionMessage(null);
+    markLocalDataChange();
     setSections(nextSections);
   }
 
@@ -2106,6 +2220,7 @@ export function App() {
 
     runHapticFeedback("light");
     setSectionActionMessage(null);
+    markLocalDataChange();
     setSections(nextSections);
   }
 
@@ -2133,6 +2248,7 @@ export function App() {
     }
 
     runHapticFeedback("warning");
+    markLocalDataChange();
     setSections(nextSections);
     setSectionActionMessage(
       sectionToRemove ? `${sectionToRemove.name} borrada.` : null,

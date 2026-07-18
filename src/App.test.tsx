@@ -705,6 +705,256 @@ describe("App", () => {
     expect(screen.getByText("Sincronizado")).toBeInTheDocument();
   });
 
+  it("keeps a purchased item stable while its Supabase echo arrives during save", async () => {
+    let onSupabaseChange: (() => void) | undefined;
+    let resolveStoreData: () => void = () => {};
+    const storeDataPromise = new Promise<void>((resolve) => {
+      resolveStoreData = resolve;
+    });
+    const initialData: ShoppingData = {
+      items: [
+        {
+          id: "item-1",
+          name: "Leche",
+          sectionId: "mercadona",
+          addedBy: "rafa",
+          purchased: false,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+    };
+    const syncedData: ShoppingData = {
+      ...initialData,
+      items: [
+        {
+          ...initialData.items[0],
+          purchased: true,
+          updatedAt: 200,
+        },
+      ],
+    };
+
+    vi.spyOn(shoppingItemsSupabase, "isSupabaseConfigured").mockReturnValue(
+      true,
+    );
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockImplementation((callback) => {
+      onSupabaseChange = callback;
+
+      return () => undefined;
+    });
+    vi.spyOn(shoppingItemsDb, "getShoppingItemsStorageMode").mockReturnValue(
+      "remote",
+    );
+    const getStoredShoppingData = vi
+      .spyOn(shoppingItemsDb, "getStoredShoppingData")
+      .mockResolvedValueOnce(initialData)
+      .mockResolvedValueOnce(syncedData);
+    vi.spyOn(shoppingItemsDb, "replaceStoredShoppingData").mockReturnValue(
+      storeDataPromise,
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Leche")).toBeInTheDocument();
+    await waitFor(() => expect(onSupabaseChange).toBeDefined());
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Marcar Leche como comprado" }),
+    );
+
+    await waitFor(() =>
+      expect(shoppingItemsDb.replaceStoredShoppingData).toHaveBeenCalled(),
+    );
+    expect(
+      screen.getByRole("button", { name: "Devolver Leche a pendientes" }),
+    ).toBeInTheDocument();
+
+    act(() => {
+      onSupabaseChange?.();
+    });
+
+    expect(getStoredShoppingData).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Devolver Leche a pendientes" }),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      resolveStoreData();
+      await storeDataPromise;
+    });
+
+    await waitFor(() => expect(getStoredShoppingData).toHaveBeenCalledTimes(2));
+    expect(
+      screen.getByRole("button", { name: "Devolver Leche a pendientes" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not apply a stale Supabase refresh over a freezer move", async () => {
+    let resolveStaleRefresh: (data: ShoppingData) => void = () => {};
+    const staleRefreshPromise = new Promise<ShoppingData>((resolve) => {
+      resolveStaleRefresh = resolve;
+    });
+    const initialData: ShoppingData = {
+      items: [],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [
+        {
+          id: "freezer-1",
+          name: "Caldo",
+          drawerId: "top",
+          frozenAt: Date.parse("2026-07-01T00:00:00.000Z"),
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+    };
+
+    vi.spyOn(shoppingItemsSupabase, "isSupabaseConfigured").mockReturnValue(
+      true,
+    );
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(shoppingItemsDb, "getShoppingItemsStorageMode").mockReturnValue(
+      "remote",
+    );
+    vi.spyOn(shoppingItemsDb, "getStoredShoppingData")
+      .mockResolvedValueOnce(initialData)
+      .mockReturnValueOnce(staleRefreshPromise);
+    vi.spyOn(shoppingItemsDb, "replaceStoredShoppingData").mockResolvedValue();
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Congelador" }));
+    const caldoItem = (await screen.findAllByText("Caldo"))[0].closest("li");
+
+    expect(caldoItem).not.toBeNull();
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    fireEvent.click(
+      within(caldoItem as HTMLElement).getByRole("button", { name: "Medio" }),
+    );
+    expect(
+      within(caldoItem as HTMLElement).getByText("Medio", { selector: "span" }),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      resolveStaleRefresh(initialData);
+      await staleRefreshPromise;
+    });
+
+    expect(
+      within(caldoItem as HTMLElement).getByText("Medio", { selector: "span" }),
+    ).toBeInTheDocument();
+    expect(
+      within(caldoItem as HTMLElement).queryByText("Arriba", {
+        selector: "span",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a moved freezer item stable when the post-save Supabase echo is stale", async () => {
+    let onSupabaseChange: (() => void) | undefined;
+    let resolveStoreData: () => void = () => {};
+    const storeDataPromise = new Promise<void>((resolve) => {
+      resolveStoreData = resolve;
+    });
+    const initialData: ShoppingData = {
+      items: [],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [
+        {
+          id: "freezer-1",
+          name: "Caldo",
+          drawerId: "top",
+          frozenAt: Date.parse("2026-07-01T00:00:00.000Z"),
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+    };
+
+    vi.spyOn(shoppingItemsSupabase, "isSupabaseConfigured").mockReturnValue(
+      true,
+    );
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockImplementation((callback) => {
+      onSupabaseChange = callback;
+
+      return () => undefined;
+    });
+    vi.spyOn(shoppingItemsDb, "getShoppingItemsStorageMode").mockReturnValue(
+      "remote",
+    );
+    const getStoredShoppingData = vi
+      .spyOn(shoppingItemsDb, "getStoredShoppingData")
+      .mockResolvedValueOnce(initialData)
+      .mockResolvedValueOnce(initialData);
+    vi.spyOn(shoppingItemsDb, "replaceStoredShoppingData").mockReturnValue(
+      storeDataPromise,
+    );
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Congelador" }));
+    const caldoItem = (await screen.findAllByText("Caldo"))[0].closest("li");
+
+    expect(caldoItem).not.toBeNull();
+    await waitFor(() => expect(onSupabaseChange).toBeDefined());
+
+    fireEvent.click(
+      within(caldoItem as HTMLElement).getByRole("button", { name: "Abajo" }),
+    );
+
+    await waitFor(() =>
+      expect(shoppingItemsDb.replaceStoredShoppingData).toHaveBeenCalled(),
+    );
+    expect(
+      within(caldoItem as HTMLElement).getByText("Abajo", { selector: "span" }),
+    ).toBeInTheDocument();
+
+    act(() => {
+      onSupabaseChange?.();
+    });
+
+    expect(getStoredShoppingData).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveStoreData();
+      await storeDataPromise;
+    });
+
+    await waitFor(() => expect(getStoredShoppingData).toHaveBeenCalledTimes(2));
+    expect(
+      within(caldoItem as HTMLElement).getByText("Abajo", { selector: "span" }),
+    ).toBeInTheDocument();
+    expect(
+      within(caldoItem as HTMLElement).queryByText("Arriba", {
+        selector: "span",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("does not toggle a product when editing it", async () => {
     render(<App />);
 

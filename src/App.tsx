@@ -101,7 +101,12 @@ type IconName =
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 type HapticFeedback = "light" | "medium" | "success" | "warning";
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
-type AppOverlay = "add-sheet" | "clear-dialog" | "edit-dialog";
+type AppOverlay =
+  | "add-sheet"
+  | "freezer-add-sheet"
+  | "freezer-edit-sheet"
+  | "clear-dialog"
+  | "edit-dialog";
 type AddProductNotice =
   | { type: "success"; message: string }
   | { type: "error"; message: string }
@@ -622,6 +627,7 @@ export function App() {
     useState<ShoppingItem | null>(null);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [isFreezerAddSheetOpen, setIsFreezerAddSheetOpen] = useState(false);
   const [addItemQuantity, setAddItemQuantity] = useState("1");
   const [addProductNotice, setAddProductNotice] =
     useState<AddProductNotice | null>(null);
@@ -632,6 +638,9 @@ export function App() {
   );
   const itemNameInputRef = useRef<HTMLTextAreaElement>(null);
   const addFabRef = useRef<HTMLButtonElement>(null);
+  const freezerAddFabRef = useRef<HTMLButtonElement>(null);
+  const freezerItemNameInputRef = useRef<HTMLInputElement>(null);
+  const editingFreezerItemNameInputRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
   const clearDialogRef = useRef<HTMLDivElement>(null);
   const sectionNameInputRef = useRef<HTMLInputElement>(null);
@@ -678,6 +687,8 @@ export function App() {
   const editingFreezerItem = editingFreezerItemId
     ? freezerItems.find((item) => item.id === editingFreezerItemId)
     : null;
+  const isBottomSheetOpen =
+    isAddSheetOpen || isFreezerAddSheetOpen || editingFreezerItem !== null;
   const selectedSectionName =
     sections.find((section) => section.id === selectedSectionId)?.name ??
     "esta lista";
@@ -1209,8 +1220,26 @@ export function App() {
         return;
       }
 
+      if (overlay === "freezer-edit-sheet") {
+        setEditingFreezerItemId(null);
+        setEditingFreezerItemName("");
+        setEditingFreezerItemQuantity("");
+        setEditingFreezerDrawerId("top");
+        setEditingFreezerFrozenAt("");
+        setSheetDragOffset(0);
+        addSheetDragStartYRef.current = null;
+        return;
+      }
+
       if (overlay === "clear-dialog") {
         setIsClearDialogOpen(false);
+        return;
+      }
+
+      if (overlay === "freezer-add-sheet") {
+        setIsFreezerAddSheetOpen(false);
+        setSheetDragOffset(0);
+        addSheetDragStartYRef.current = null;
         return;
       }
 
@@ -1228,7 +1257,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!isAddSheetOpen) {
+    if (!isBottomSheetOpen) {
       return;
     }
 
@@ -1255,10 +1284,22 @@ export function App() {
     window.visualViewport?.addEventListener("resize", updateViewportInset);
     window.visualViewport?.addEventListener("scroll", updateViewportInset);
     const focusFrame = window.requestAnimationFrame(() => {
-      itemNameInputRef.current?.focus({ preventScroll: true });
-      const textLength = itemNameInputRef.current?.value.length ?? 0;
-      itemNameInputRef.current?.setSelectionRange(textLength, textLength);
-      resizeAddInput();
+      if (isAddSheetOpen) {
+        itemNameInputRef.current?.focus({ preventScroll: true });
+        const textLength = itemNameInputRef.current?.value.length ?? 0;
+        itemNameInputRef.current?.setSelectionRange(textLength, textLength);
+        resizeAddInput();
+        return;
+      }
+
+      if (editingFreezerItem) {
+        editingFreezerItemNameInputRef.current?.focus({
+          preventScroll: true,
+        });
+        return;
+      }
+
+      freezerItemNameInputRef.current?.focus({ preventScroll: true });
     });
 
     return () => {
@@ -1267,7 +1308,7 @@ export function App() {
       window.visualViewport?.removeEventListener("resize", updateViewportInset);
       window.visualViewport?.removeEventListener("scroll", updateViewportInset);
     };
-  }, [isAddSheetOpen]);
+  }, [editingFreezerItem, isAddSheetOpen, isBottomSheetOpen]);
 
   useEffect(() => {
     if (!isAddSheetOpen || !addProductNotice) {
@@ -1389,6 +1430,52 @@ export function App() {
     runHapticFeedback("light");
   }
 
+  function closeFreezerAddSheet(restoreFabFocus = true, syncHistory = true) {
+    if (syncHistory) {
+      consumeOverlayHistory("freezer-add-sheet");
+    }
+
+    setIsFreezerAddSheetOpen(false);
+    setSheetDragOffset(0);
+    addSheetDragStartYRef.current = null;
+
+    if (restoreFabFocus) {
+      window.requestAnimationFrame(() => freezerAddFabRef.current?.focus());
+    }
+  }
+
+  function openFreezerAddSheet() {
+    pushOverlayHistory("freezer-add-sheet");
+    setIsFreezerAddSheetOpen(true);
+    runHapticFeedback("light");
+  }
+
+  function closeFreezerEditSheet(syncHistory = true) {
+    if (syncHistory) {
+      consumeOverlayHistory("freezer-edit-sheet");
+    }
+
+    resetEditingFreezerItem();
+    setSheetDragOffset(0);
+    addSheetDragStartYRef.current = null;
+  }
+
+  function closeActiveBottomSheet() {
+    if (isAddSheetOpen) {
+      closeAddSheet();
+      return;
+    }
+
+    if (isFreezerAddSheetOpen) {
+      closeFreezerAddSheet();
+      return;
+    }
+
+    if (editingFreezerItem) {
+      closeFreezerEditSheet();
+    }
+  }
+
   function addItemFromName(rawName: string, rawQuantity?: string) {
     const duplicateItem = findPendingShoppingItemByName(
       items,
@@ -1493,7 +1580,7 @@ export function App() {
   function handleAddSheetKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === "Escape") {
       event.preventDefault();
-      closeAddSheet();
+      closeActiveBottomSheet();
     }
   }
 
@@ -1514,7 +1601,7 @@ export function App() {
 
   function handleAddSheetDragEnd() {
     if (sheetDragOffset > 70) {
-      closeAddSheet();
+      closeActiveBottomSheet();
       return;
     }
 
@@ -1782,10 +1869,14 @@ export function App() {
     setFreezerItemName("");
     setFreezerItemQuantity("");
     setFreezerItemFrozenAt(formatDateInputValue(Date.now()));
+    window.requestAnimationFrame(() =>
+      freezerItemNameInputRef.current?.focus(),
+    );
     runHapticFeedback("success");
   }
 
   function startEditingFreezerItem(item: FreezerItem) {
+    pushOverlayHistory("freezer-edit-sheet");
     runHapticFeedback("light");
     setEditingFreezerItemId(item.id);
     setEditingFreezerItemName(item.name);
@@ -1823,7 +1914,7 @@ export function App() {
       runHapticFeedback("success");
     }
 
-    resetEditingFreezerItem();
+    closeFreezerEditSheet();
   }
 
   function handleMoveFreezerItem(itemId: string, drawerId: FreezerDrawerId) {
@@ -2688,6 +2779,23 @@ export function App() {
         </button>
       ) : null}
 
+      {activeView === "freezer" &&
+      !isFreezerAddSheetOpen &&
+      !editingFreezerItem ? (
+        <button
+          ref={freezerAddFabRef}
+          className={styles.floatingAddButton}
+          type="button"
+          aria-label="Añadir producto congelado"
+          title="Añadir producto congelado"
+          onPointerDown={handleButtonPointerDown}
+          onClick={openFreezerAddSheet}
+          disabled={!isLoaded}
+        >
+          <Icon name="plus" />
+        </button>
+      ) : null}
+
       {activeView === "shopping" && isAddSheetOpen ? (
         <div
           className={styles.addSheetBackdrop}
@@ -2857,6 +2965,152 @@ export function App() {
         </div>
       ) : null}
 
+      {activeView === "freezer" && isFreezerAddSheetOpen ? (
+        <div
+          className={styles.addSheetBackdrop}
+          style={
+            {
+              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
+            } as CSSProperties
+          }
+          onClick={() => closeFreezerAddSheet()}
+        >
+          <form
+            className={`${styles.addSheet} ${styles.addSheetCompact}`}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="freezer-add-sheet-title"
+            style={
+              {
+                "--sheet-drag-offset": `${sheetDragOffset}px`,
+              } as CSSProperties
+            }
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={handleAddSheetKeyDown}
+            onSubmit={handleFreezerSubmit}
+          >
+            <div
+              className={styles.addSheetHandle}
+              aria-label="Cerrar panel de alta"
+              role="button"
+              tabIndex={0}
+              onPointerDown={handleAddSheetDragStart}
+              onPointerMove={handleAddSheetDragMove}
+              onPointerUp={handleAddSheetDragEnd}
+              onPointerCancel={handleAddSheetDragEnd}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  closeFreezerAddSheet();
+                }
+              }}
+            >
+              <span />
+            </div>
+            <h2 id="freezer-add-sheet-title" className={styles.visuallyHidden}>
+              Añadir producto congelado
+            </h2>
+            <div className={styles.addSheetFields}>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="freezer-item-name">
+                  Producto
+                </label>
+                <input
+                  id="freezer-item-name"
+                  ref={freezerItemNameInputRef}
+                  className={styles.addSheetInput}
+                  autoComplete="off"
+                  autoCapitalize="sentences"
+                  autoCorrect="on"
+                  value={freezerItemName}
+                  onChange={(event) => setFreezerItemName(event.target.value)}
+                  placeholder="Lentejas, caldo, croquetas..."
+                  type="text"
+                  disabled={!isLoaded}
+                />
+              </div>
+              <div className={styles.addSheetSelectors}>
+                <div className={styles.formField}>
+                  <label className={styles.label} htmlFor="freezer-quantity">
+                    Cantidad
+                  </label>
+                  <input
+                    id="freezer-quantity"
+                    className={styles.select}
+                    autoComplete="off"
+                    value={freezerItemQuantity}
+                    onChange={(event) =>
+                      setFreezerItemQuantity(event.target.value)
+                    }
+                    placeholder="2 raciones"
+                    type="text"
+                    disabled={!isLoaded}
+                  />
+                </div>
+                <div className={styles.formField}>
+                  <label className={styles.label} htmlFor="freezer-drawer-id">
+                    Cajón
+                  </label>
+                  <select
+                    id="freezer-drawer-id"
+                    className={styles.select}
+                    value={selectedFreezerDrawerId}
+                    onChange={(event) => {
+                      const drawerId = event.target.value;
+
+                      if (isFreezerDrawerId(drawerId)) {
+                        setSelectedFreezerDrawerId(drawerId);
+                      }
+                    }}
+                    disabled={!isLoaded}
+                  >
+                    {freezerDrawers.map((drawer) => (
+                      <option key={drawer.id} value={drawer.id}>
+                        {drawer.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="freezer-frozen-at">
+                  Congelado
+                </label>
+                <input
+                  id="freezer-frozen-at"
+                  className={styles.select}
+                  value={freezerItemFrozenAt}
+                  onChange={(event) =>
+                    setFreezerItemFrozenAt(event.target.value)
+                  }
+                  type="date"
+                  disabled={!isLoaded}
+                />
+              </div>
+            </div>
+            <div className={styles.addSheetFooter}>
+              <p className={styles.addSheetNotice} aria-live="polite" />
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onPointerDown={handleButtonPointerDown}
+                onClick={() => closeFreezerAddSheet()}
+              >
+                Cerrar
+              </button>
+              <button
+                className={styles.primaryButton}
+                type="submit"
+                onPointerDown={handleButtonPointerDown}
+                disabled={!isLoaded}
+              >
+                Añadir
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
       {unseenRemoteHistoryEvents.length > 0 && activeView !== "history" ? (
         <section className={styles.remoteChangesBanner} role="status">
           <span>
@@ -2994,91 +3248,6 @@ export function App() {
             <h2 id="freezer-title">Congelador</h2>
             <span className={styles.count}>{freezerItems.length}</span>
           </div>
-          <form className={styles.freezerForm} onSubmit={handleFreezerSubmit}>
-            <div className={styles.formField}>
-              <label className={styles.label} htmlFor="freezer-item-name">
-                Producto
-              </label>
-              <input
-                id="freezer-item-name"
-                className={styles.input}
-                autoComplete="off"
-                autoCapitalize="sentences"
-                autoCorrect="on"
-                value={freezerItemName}
-                onChange={(event) => setFreezerItemName(event.target.value)}
-                placeholder="Lentejas, caldo, croquetas..."
-                type="text"
-                disabled={!isLoaded}
-              />
-            </div>
-            <div className={styles.freezerFormGrid}>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="freezer-quantity">
-                  Cantidad
-                </label>
-                <input
-                  id="freezer-quantity"
-                  className={styles.input}
-                  autoComplete="off"
-                  value={freezerItemQuantity}
-                  onChange={(event) =>
-                    setFreezerItemQuantity(event.target.value)
-                  }
-                  placeholder="2 raciones"
-                  type="text"
-                  disabled={!isLoaded}
-                />
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="freezer-drawer-id">
-                  Cajón
-                </label>
-                <select
-                  id="freezer-drawer-id"
-                  className={styles.select}
-                  value={selectedFreezerDrawerId}
-                  onChange={(event) => {
-                    const drawerId = event.target.value;
-
-                    if (isFreezerDrawerId(drawerId)) {
-                      setSelectedFreezerDrawerId(drawerId);
-                    }
-                  }}
-                  disabled={!isLoaded}
-                >
-                  {freezerDrawers.map((drawer) => (
-                    <option key={drawer.id} value={drawer.id}>
-                      {drawer.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="freezer-frozen-at">
-                  Congelado
-                </label>
-                <input
-                  id="freezer-frozen-at"
-                  className={styles.input}
-                  value={freezerItemFrozenAt}
-                  onChange={(event) =>
-                    setFreezerItemFrozenAt(event.target.value)
-                  }
-                  type="date"
-                  disabled={!isLoaded}
-                />
-              </div>
-            </div>
-            <button
-              className={styles.primaryButton}
-              type="submit"
-              onPointerDown={handleButtonPointerDown}
-              disabled={!isLoaded}
-            >
-              Añadir
-            </button>
-          </form>
           {renderFreezerUseUndoItem()}
           <section
             className={styles.freezerPanel}
@@ -3572,27 +3741,61 @@ export function App() {
       ) : null}
 
       {editingFreezerItem ? (
-        <div className={styles.modalBackdrop} onClick={resetEditingFreezerItem}>
+        <div
+          className={styles.addSheetBackdrop}
+          style={
+            {
+              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
+            } as CSSProperties
+          }
+          onClick={() => closeFreezerEditSheet()}
+        >
           <form
-            className={`${styles.modal} ${styles.editModal}`}
+            className={`${styles.addSheet} ${styles.addSheetCompact}`}
             role="dialog"
-            aria-modal="true"
+            aria-modal="false"
             aria-labelledby="edit-freezer-title"
+            style={
+              {
+                "--sheet-drag-offset": `${sheetDragOffset}px`,
+              } as CSSProperties
+            }
             onClick={(event) => event.stopPropagation()}
+            onKeyDown={handleAddSheetKeyDown}
             onSubmit={handleFreezerEditSubmit}
           >
-            <h2 id="edit-freezer-title">Editar {editingFreezerItem.name}</h2>
-            <div className={styles.modalForm}>
+            <div
+              className={styles.addSheetHandle}
+              aria-label="Cerrar panel de edición"
+              role="button"
+              tabIndex={0}
+              onPointerDown={handleAddSheetDragStart}
+              onPointerMove={handleAddSheetDragMove}
+              onPointerUp={handleAddSheetDragEnd}
+              onPointerCancel={handleAddSheetDragEnd}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  closeFreezerEditSheet();
+                }
+              }}
+            >
+              <span />
+            </div>
+            <h2 id="edit-freezer-title" className={styles.visuallyHidden}>
+              Editar {editingFreezerItem.name}
+            </h2>
+            <div className={styles.addSheetFields}>
               <div className={styles.formField}>
                 <label className={styles.label} htmlFor="edit-freezer-name">
                   Producto
                 </label>
                 <input
                   id="edit-freezer-name"
-                  className={styles.input}
+                  ref={editingFreezerItemNameInputRef}
+                  className={styles.addSheetInput}
                   autoCapitalize="sentences"
                   autoCorrect="on"
-                  autoFocus
                   value={editingFreezerItemName}
                   onChange={(event) =>
                     setEditingFreezerItemName(event.target.value)
@@ -3600,44 +3803,49 @@ export function App() {
                   type="text"
                 />
               </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-freezer-quantity">
-                  Cantidad
-                </label>
-                <input
-                  id="edit-freezer-quantity"
-                  className={styles.input}
-                  autoComplete="off"
-                  value={editingFreezerItemQuantity}
-                  onChange={(event) =>
-                    setEditingFreezerItemQuantity(event.target.value)
-                  }
-                  placeholder="2 raciones"
-                  type="text"
-                />
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-freezer-drawer">
-                  Cajón
-                </label>
-                <select
-                  id="edit-freezer-drawer"
-                  className={styles.select}
-                  value={editingFreezerDrawerId}
-                  onChange={(event) => {
-                    const drawerId = event.target.value;
-
-                    if (isFreezerDrawerId(drawerId)) {
-                      setEditingFreezerDrawerId(drawerId);
+              <div className={styles.addSheetSelectors}>
+                <div className={styles.formField}>
+                  <label
+                    className={styles.label}
+                    htmlFor="edit-freezer-quantity"
+                  >
+                    Cantidad
+                  </label>
+                  <input
+                    id="edit-freezer-quantity"
+                    className={styles.select}
+                    autoComplete="off"
+                    value={editingFreezerItemQuantity}
+                    onChange={(event) =>
+                      setEditingFreezerItemQuantity(event.target.value)
                     }
-                  }}
-                >
-                  {freezerDrawers.map((drawer) => (
-                    <option key={drawer.id} value={drawer.id}>
-                      {drawer.name}
-                    </option>
-                  ))}
-                </select>
+                    placeholder="2 raciones"
+                    type="text"
+                  />
+                </div>
+                <div className={styles.formField}>
+                  <label className={styles.label} htmlFor="edit-freezer-drawer">
+                    Cajón
+                  </label>
+                  <select
+                    id="edit-freezer-drawer"
+                    className={styles.select}
+                    value={editingFreezerDrawerId}
+                    onChange={(event) => {
+                      const drawerId = event.target.value;
+
+                      if (isFreezerDrawerId(drawerId)) {
+                        setEditingFreezerDrawerId(drawerId);
+                      }
+                    }}
+                  >
+                    {freezerDrawers.map((drawer) => (
+                      <option key={drawer.id} value={drawer.id}>
+                        {drawer.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className={styles.formField}>
                 <label className={styles.label} htmlFor="edit-freezer-date">
@@ -3645,7 +3853,7 @@ export function App() {
                 </label>
                 <input
                   id="edit-freezer-date"
-                  className={styles.input}
+                  className={styles.select}
                   value={editingFreezerFrozenAt}
                   onChange={(event) =>
                     setEditingFreezerFrozenAt(event.target.value)
@@ -3654,12 +3862,13 @@ export function App() {
                 />
               </div>
             </div>
-            <div className={styles.modalActions}>
+            <div className={styles.addSheetFooter}>
+              <p className={styles.addSheetNotice} aria-live="polite" />
               <button
                 className={styles.secondaryButton}
                 type="button"
                 onPointerDown={handleButtonPointerDown}
-                onClick={resetEditingFreezerItem}
+                onClick={() => closeFreezerEditSheet()}
               >
                 Cancelar
               </button>

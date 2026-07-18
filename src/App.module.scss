@@ -492,6 +492,11 @@ h2 {
   animation: sheetIn 0.24s ease-out;
 }
 
+.addSheetCompact {
+  grid-template-rows: auto auto auto;
+  min-height: 0;
+}
+
 .addSheetHandle {
   display: grid;
   min-height: 2rem;
@@ -887,22 +892,6 @@ h2 {
   display: grid;
   gap: 0.85rem;
   padding: 0.15rem 1rem 1rem;
-}
-
-.freezerForm {
-  display: grid;
-  gap: 0.7rem;
-  border: 1px solid rgb(148 163 184 / 28%);
-  border-radius: 0.5rem;
-  padding: 0.85rem;
-  background: rgb(255 255 255 / 82%);
-  box-shadow: 0 0.5rem 1.1rem var(--surface-shadow);
-}
-
-.freezerFormGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.55rem;
 }
 
 .freezerUndo {

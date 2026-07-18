@@ -118,24 +118,53 @@ describe("App", () => {
 
     await waitForAddFab();
     fireEvent.click(screen.getByRole("button", { name: "Congelador" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Añadir producto congelado" }),
+    );
 
-    fireEvent.change(screen.getByLabelText("Producto"), {
+    const addFreezerDialog = screen.getByRole("dialog", {
+      name: "Añadir producto congelado",
+    });
+
+    fireEvent.change(within(addFreezerDialog).getByLabelText("Producto"), {
       target: { value: "Lentejas" },
     });
-    fireEvent.change(screen.getByLabelText("Cantidad"), {
+    fireEvent.change(within(addFreezerDialog).getByLabelText("Cantidad"), {
       target: { value: "2 raciones" },
     });
-    fireEvent.change(screen.getByLabelText("Cajón"), {
+    fireEvent.change(within(addFreezerDialog).getByLabelText("Cajón"), {
       target: { value: "middle" },
     });
-    fireEvent.change(screen.getByLabelText("Congelado"), {
+    fireEvent.change(within(addFreezerDialog).getByLabelText("Congelado"), {
       target: { value: "2026-07-01" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(
+      within(addFreezerDialog).getByRole("button", { name: "Añadir" }),
+    );
 
     expect(screen.getByRole("heading", { name: "Usar primero" }));
     expect(screen.getAllByText("Lentejas").length).toBeGreaterThan(0);
     expect(screen.getAllByText("2 raciones").length).toBeGreaterThan(0);
+
+    fireEvent.click(
+      within(addFreezerDialog).getByRole("button", { name: "Cerrar" }),
+    );
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Editar Lentejas" })[0],
+    );
+
+    const editFreezerDialog = screen.getByRole("dialog", {
+      name: "Editar Lentejas",
+    });
+
+    fireEvent.change(within(editFreezerDialog).getByLabelText("Cantidad"), {
+      target: { value: "3 raciones" },
+    });
+    fireEvent.click(
+      within(editFreezerDialog).getByRole("button", { name: "Guardar" }),
+    );
+
+    expect(screen.getAllByText("3 raciones").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Usado" })[0]);
 

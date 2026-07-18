@@ -15,6 +15,18 @@ import useEmblaCarousel from "embla-carousel-react";
 
 import styles from "./App.module.scss";
 import {
+  addFreezerItem,
+  freezerDrawers,
+  FreezerDrawerId,
+  FreezerItem,
+  getFreezerDrawerName,
+  getFreezerItemsByDrawer,
+  isFreezerDrawerId,
+  removeFreezerItem,
+  sortFreezerItemsByUseFirst,
+  updateFreezerItem,
+} from "./freezerItems";
+import {
   addShoppingItem,
   addShoppingSection,
   compareShoppingItemsForShopping,
@@ -68,7 +80,7 @@ const historyClientIdStorageKey = "jucart:history-client-id";
 const lastSeenHistoryEventAtStorageKey = "jucart:last-seen-history-event-at";
 const backupStaleThresholdMs = 6 * 60 * 60 * 1000;
 
-type AppView = "shopping" | "sections" | "history" | "developer";
+type AppView = "shopping" | "freezer" | "sections" | "history" | "developer";
 
 type IconName =
   | "check"
@@ -84,7 +96,8 @@ type IconName =
   | "arrowDown"
   | "history"
   | "sync"
-  | "database";
+  | "database"
+  | "freezer";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 type HapticFeedback = "light" | "medium" | "success" | "warning";
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
@@ -140,6 +153,13 @@ function Icon({ name }: { name: IconName }) {
       "M4 6c0 1.7 3.6 3 8 3s8-1.3 8-3-3.6-3-8-3-8 1.3-8 3z",
       "M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6",
       "M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6",
+    ],
+    freezer: [
+      "M12 3v18",
+      "M5 6l14 12",
+      "M19 6L5 18",
+      "M7 4l5 3 5-3",
+      "M7 20l5-3 5 3",
     ],
   };
 
@@ -274,6 +294,52 @@ function getInitialHistoryClientId() {
 
 function formatShoppingItemQuantity(quantity: string) {
   return /^\d+(?:[.,]\d+)?$/.test(quantity) ? `x${quantity}` : quantity;
+}
+
+function formatDateInputValue(value: number) {
+  const date = new Date(value);
+  const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000;
+
+  return new Date(value - timezoneOffsetMs).toISOString().slice(0, 10);
+}
+
+function parseDateInputValue(value: string, fallback: number = Date.now()) {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsedValue = Date.parse(`${value}T00:00:00`);
+
+  return Number.isFinite(parsedValue) ? parsedValue : fallback;
+}
+
+function formatFreezerDate(value: number) {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function getFreezerAgeText(frozenAt: number, now: number = Date.now()) {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const ageDays = Math.max(0, Math.floor((now - frozenAt) / dayMs));
+
+  if (ageDays === 0) {
+    return "Hoy";
+  }
+
+  if (ageDays === 1) {
+    return "1 día";
+  }
+
+  if (ageDays < 31) {
+    return `${ageDays} días`;
+  }
+
+  const ageMonths = Math.floor(ageDays / 30);
+
+  return ageMonths === 1 ? "1 mes" : `${ageMonths} meses`;
 }
 
 function getInitialLastSeenHistoryEventAt() {
@@ -488,6 +554,7 @@ function getLoadingStatusText() {
 export function App() {
   const [activeView, setActiveView] = useState<AppView>("shopping");
   const [items, setItems] = useState<ShoppingItem[]>([]);
+  const [freezerItems, setFreezerItems] = useState<FreezerItem[]>([]);
   const [sections, setSections] = useState<ShoppingSection[]>(
     defaultShoppingSections,
   );
@@ -503,6 +570,13 @@ export function App() {
     ShoppingHistoryEvent[]
   >([]);
   const [itemName, setItemName] = useState("");
+  const [freezerItemName, setFreezerItemName] = useState("");
+  const [freezerItemQuantity, setFreezerItemQuantity] = useState("");
+  const [selectedFreezerDrawerId, setSelectedFreezerDrawerId] =
+    useState<FreezerDrawerId>("top");
+  const [freezerItemFrozenAt, setFreezerItemFrozenAt] = useState(() =>
+    formatDateInputValue(Date.now()),
+  );
   const [sectionName, setSectionName] = useState("");
   const [sectionActionMessage, setSectionActionMessage] = useState<
     string | null
@@ -521,6 +595,15 @@ export function App() {
   const [editingItemQuantity, setEditingItemQuantity] = useState("");
   const [editingSectionId, setEditingSectionId] =
     useState<ShoppingSectionId>("mercadona");
+  const [editingFreezerItemId, setEditingFreezerItemId] = useState<
+    string | null
+  >(null);
+  const [editingFreezerItemName, setEditingFreezerItemName] = useState("");
+  const [editingFreezerItemQuantity, setEditingFreezerItemQuantity] =
+    useState("");
+  const [editingFreezerDrawerId, setEditingFreezerDrawerId] =
+    useState<FreezerDrawerId>("top");
+  const [editingFreezerFrozenAt, setEditingFreezerFrozenAt] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
@@ -533,6 +616,8 @@ export function App() {
     string | null
   >(null);
   const [lastRemovedItems, setLastRemovedItems] = useState<ShoppingItem[]>([]);
+  const [lastUsedFreezerItem, setLastUsedFreezerItem] =
+    useState<FreezerItem | null>(null);
   const [lastHiddenPurchasedItem, setLastHiddenPurchasedItem] =
     useState<ShoppingItem | null>(null);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
@@ -570,6 +655,10 @@ export function App() {
   const skipNextStoreRef = useRef(true);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
+  const useFirstFreezerItems = sortFreezerItemsByUseFirst(freezerItems).slice(
+    0,
+    4,
+  );
   const selectedSectionIndex = Math.max(
     sections.findIndex((section) => section.id === selectedSectionId),
     0,
@@ -585,6 +674,9 @@ export function App() {
   });
   const editingItem = editingItemId
     ? items.find((item) => item.id === editingItemId)
+    : null;
+  const editingFreezerItem = editingFreezerItemId
+    ? freezerItems.find((item) => item.id === editingFreezerItemId)
     : null;
   const selectedSectionName =
     sections.find((section) => section.id === selectedSectionId)?.name ??
@@ -669,6 +761,7 @@ export function App() {
         if (isActive) {
           skipNextStoreRef.current = !shouldCreateInitialHistory;
           setItems(storedData.items);
+          setFreezerItems(storedData.freezerItems ?? []);
           setSections(storedData.sections);
           setHistoryEvents(nextHistoryEvents);
           setSelectedSectionId((currentSectionId) =>
@@ -719,7 +812,12 @@ export function App() {
 
       try {
         setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
-        await replaceStoredShoppingData({ items, sections, historyEvents });
+        await replaceStoredShoppingData({
+          items,
+          sections,
+          historyEvents,
+          freezerItems,
+        });
         pendingAddDraftRef.current = null;
         setStorageError(null);
         setSyncStatus(getSyncStatusFromStorageMode());
@@ -743,7 +841,14 @@ export function App() {
     }
 
     void storeItems();
-  }, [beginRemoteRequest, isLoaded, items, sections, historyEvents]);
+  }, [
+    beginRemoteRequest,
+    freezerItems,
+    isLoaded,
+    items,
+    sections,
+    historyEvents,
+  ]);
 
   useEffect(() => {
     if (!isLoaded) {
@@ -764,6 +869,7 @@ export function App() {
 
         skipNextStoreRef.current = true;
         setItems(storedData.items);
+        setFreezerItems(storedData.freezerItems ?? []);
         setSections(storedData.sections);
         setHistoryEvents(storedData.historyEvents);
         setSelectedSectionId((currentSectionId) =>
@@ -1655,6 +1761,119 @@ export function App() {
     runHapticFeedback("medium");
   }
 
+  function handleFreezerSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const nextItems = addFreezerItem(
+      freezerItems,
+      freezerItemName,
+      selectedFreezerDrawerId,
+      parseDateInputValue(freezerItemFrozenAt),
+      freezerItemQuantity,
+    );
+
+    if (nextItems === freezerItems) {
+      runHapticFeedback("warning");
+      return;
+    }
+
+    setFreezerItems(nextItems);
+    setLastUsedFreezerItem(null);
+    setFreezerItemName("");
+    setFreezerItemQuantity("");
+    setFreezerItemFrozenAt(formatDateInputValue(Date.now()));
+    runHapticFeedback("success");
+  }
+
+  function startEditingFreezerItem(item: FreezerItem) {
+    runHapticFeedback("light");
+    setEditingFreezerItemId(item.id);
+    setEditingFreezerItemName(item.name);
+    setEditingFreezerItemQuantity(item.quantity ?? "");
+    setEditingFreezerDrawerId(item.drawerId);
+    setEditingFreezerFrozenAt(formatDateInputValue(item.frozenAt));
+  }
+
+  function resetEditingFreezerItem() {
+    setEditingFreezerItemId(null);
+    setEditingFreezerItemName("");
+    setEditingFreezerItemQuantity("");
+    setEditingFreezerDrawerId("top");
+    setEditingFreezerFrozenAt("");
+  }
+
+  function handleFreezerEditSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingFreezerItemId) {
+      return;
+    }
+
+    const nextItems = updateFreezerItem(
+      freezerItems,
+      editingFreezerItemId,
+      editingFreezerItemName,
+      editingFreezerDrawerId,
+      parseDateInputValue(editingFreezerFrozenAt),
+      editingFreezerItemQuantity,
+    );
+
+    if (nextItems !== freezerItems) {
+      setFreezerItems(nextItems);
+      runHapticFeedback("success");
+    }
+
+    resetEditingFreezerItem();
+  }
+
+  function handleMoveFreezerItem(itemId: string, drawerId: FreezerDrawerId) {
+    const item = freezerItems.find((currentItem) => currentItem.id === itemId);
+
+    if (!item || item.drawerId === drawerId) {
+      return;
+    }
+
+    setFreezerItems(
+      updateFreezerItem(
+        freezerItems,
+        itemId,
+        item.name,
+        drawerId,
+        item.frozenAt,
+        item.quantity,
+      ),
+    );
+    runHapticFeedback("medium");
+  }
+
+  function handleUseFreezerItem(itemId: string) {
+    const item = freezerItems.find((currentItem) => currentItem.id === itemId);
+
+    if (!item) {
+      return;
+    }
+
+    setLastUsedFreezerItem(item);
+    setFreezerItems(removeFreezerItem(freezerItems, itemId));
+    runHapticFeedback("warning");
+  }
+
+  function handleUndoUseFreezerItem() {
+    if (!lastUsedFreezerItem) {
+      return;
+    }
+
+    setFreezerItems((currentItems) => {
+      if (currentItems.some((item) => item.id === lastUsedFreezerItem.id)) {
+        return currentItems;
+      }
+
+      return sortFreezerItemsByUseFirst([...currentItems, lastUsedFreezerItem]);
+    });
+    setLastUsedFreezerItem(null);
+    runHapticFeedback("success");
+  }
+
   function handleShowPurchasedItemsChange(isVisible: boolean) {
     setShowPurchasedItems(isVisible);
 
@@ -1700,6 +1919,13 @@ export function App() {
 
   function showShoppingView() {
     setActiveView("shopping");
+    setShowUnseenHistoryOnly(false);
+    setUnseenHistoryEventsForView([]);
+    runHapticFeedback("light");
+  }
+
+  function showFreezerView() {
+    setActiveView("freezer");
     setShowUnseenHistoryOnly(false);
     setUnseenHistoryEventsForView([]);
     runHapticFeedback("light");
@@ -1879,6 +2105,99 @@ export function App() {
           Deshacer
         </button>
       </li>
+    );
+  }
+
+  function renderFreezerUseUndoItem() {
+    if (!lastUsedFreezerItem) {
+      return null;
+    }
+
+    return (
+      <div className={styles.freezerUndo} role="status">
+        <span>{lastUsedFreezerItem.name} usado.</span>
+        <button
+          className={styles.undoButton}
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={handleUndoUseFreezerItem}
+        >
+          Deshacer
+        </button>
+      </div>
+    );
+  }
+
+  function renderFreezerItemCard(item: FreezerItem) {
+    const availableDrawers = freezerDrawers.filter(
+      (drawer) => drawer.id !== item.drawerId,
+    );
+
+    return (
+      <li className={styles.freezerItem} key={item.id}>
+        <div className={styles.freezerItemBody}>
+          <p className={styles.freezerItemName}>{item.name}</p>
+          <p className={styles.freezerItemMeta}>
+            <span>{getFreezerDrawerName(item.drawerId)}</span>
+            <span>{formatFreezerDate(item.frozenAt)}</span>
+            <span>{getFreezerAgeText(item.frozenAt)}</span>
+            {item.quantity ? <span>{item.quantity}</span> : null}
+          </p>
+        </div>
+        <div className={styles.freezerItemActions}>
+          <button
+            className={styles.iconButton}
+            type="button"
+            aria-label={`Editar ${item.name}`}
+            title="Editar"
+            onPointerDown={handleButtonPointerDown}
+            onClick={() => startEditingFreezerItem(item)}
+          >
+            <Icon name="edit" />
+          </button>
+          {availableDrawers.map((drawer) => (
+            <button
+              className={styles.freezerMoveButton}
+              type="button"
+              key={drawer.id}
+              onPointerDown={handleButtonPointerDown}
+              onClick={() => handleMoveFreezerItem(item.id, drawer.id)}
+            >
+              {drawer.name}
+            </button>
+          ))}
+          <button
+            className={styles.dangerButton}
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={() => handleUseFreezerItem(item.id)}
+          >
+            Usado
+          </button>
+        </div>
+      </li>
+    );
+  }
+
+  function renderFreezerItemList(itemsToRender: FreezerItem[]) {
+    if (itemsToRender.length === 0) {
+      return (
+        <div className={styles.freezerEmpty}>
+          <span className={styles.emptyIcon} aria-hidden="true">
+            <Icon name="freezer" />
+          </span>
+          <p className={styles.emptyTitle}>Sin productos</p>
+          <p className={styles.emptyDescription}>
+            Añade algo cuando guardes comida en el congelador.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <ol className={styles.freezerList}>
+        {itemsToRender.map((item) => renderFreezerItemCard(item))}
+      </ol>
     );
   }
 
@@ -2666,6 +2985,138 @@ export function App() {
         </>
       ) : null}
 
+      {activeView === "freezer" ? (
+        <section
+          className={styles.freezerScreen}
+          aria-labelledby="freezer-title"
+        >
+          <div className={styles.sectionsHeader}>
+            <h2 id="freezer-title">Congelador</h2>
+            <span className={styles.count}>{freezerItems.length}</span>
+          </div>
+          <form className={styles.freezerForm} onSubmit={handleFreezerSubmit}>
+            <div className={styles.formField}>
+              <label className={styles.label} htmlFor="freezer-item-name">
+                Producto
+              </label>
+              <input
+                id="freezer-item-name"
+                className={styles.input}
+                autoComplete="off"
+                autoCapitalize="sentences"
+                autoCorrect="on"
+                value={freezerItemName}
+                onChange={(event) => setFreezerItemName(event.target.value)}
+                placeholder="Lentejas, caldo, croquetas..."
+                type="text"
+                disabled={!isLoaded}
+              />
+            </div>
+            <div className={styles.freezerFormGrid}>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="freezer-quantity">
+                  Cantidad
+                </label>
+                <input
+                  id="freezer-quantity"
+                  className={styles.input}
+                  autoComplete="off"
+                  value={freezerItemQuantity}
+                  onChange={(event) =>
+                    setFreezerItemQuantity(event.target.value)
+                  }
+                  placeholder="2 raciones"
+                  type="text"
+                  disabled={!isLoaded}
+                />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="freezer-drawer-id">
+                  Cajón
+                </label>
+                <select
+                  id="freezer-drawer-id"
+                  className={styles.select}
+                  value={selectedFreezerDrawerId}
+                  onChange={(event) => {
+                    const drawerId = event.target.value;
+
+                    if (isFreezerDrawerId(drawerId)) {
+                      setSelectedFreezerDrawerId(drawerId);
+                    }
+                  }}
+                  disabled={!isLoaded}
+                >
+                  {freezerDrawers.map((drawer) => (
+                    <option key={drawer.id} value={drawer.id}>
+                      {drawer.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="freezer-frozen-at">
+                  Congelado
+                </label>
+                <input
+                  id="freezer-frozen-at"
+                  className={styles.input}
+                  value={freezerItemFrozenAt}
+                  onChange={(event) =>
+                    setFreezerItemFrozenAt(event.target.value)
+                  }
+                  type="date"
+                  disabled={!isLoaded}
+                />
+              </div>
+            </div>
+            <button
+              className={styles.primaryButton}
+              type="submit"
+              onPointerDown={handleButtonPointerDown}
+              disabled={!isLoaded}
+            >
+              Añadir
+            </button>
+          </form>
+          {renderFreezerUseUndoItem()}
+          <section
+            className={styles.freezerPanel}
+            aria-labelledby="freezer-use-first-title"
+          >
+            <div className={styles.freezerPanelHeader}>
+              <h3 id="freezer-use-first-title">Usar primero</h3>
+              <span>{useFirstFreezerItems.length}</span>
+            </div>
+            {renderFreezerItemList(useFirstFreezerItems)}
+          </section>
+          <div className={styles.freezerDrawers}>
+            {freezerDrawers.map((drawer) => {
+              const drawerItems = getFreezerItemsByDrawer(
+                freezerItems,
+                drawer.id,
+              );
+
+              return (
+                <section
+                  className={styles.freezerPanel}
+                  aria-labelledby={`freezer-drawer-${drawer.id}-title`}
+                  key={drawer.id}
+                >
+                  <div className={styles.freezerPanelHeader}>
+                    <h3 id={`freezer-drawer-${drawer.id}-title`}>
+                      {drawer.name}
+                    </h3>
+                    <span>{drawerItems.length}</span>
+                  </div>
+                  {renderFreezerItemList(drawerItems)}
+                </section>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
       {activeView === "sections" ? (
         <section
           className={styles.sectionsScreen}
@@ -2899,6 +3350,20 @@ export function App() {
         </button>
         <button
           className={
+            activeView === "freezer"
+              ? styles.bottomNavItemActive
+              : styles.bottomNavItem
+          }
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={showFreezerView}
+          disabled={!isLoaded}
+        >
+          <Icon name="freezer" />
+          <span>Congelador</span>
+        </button>
+        <button
+          className={
             activeView === "sections"
               ? styles.bottomNavItemActive
               : styles.bottomNavItem
@@ -3091,6 +3556,110 @@ export function App() {
                 type="button"
                 onPointerDown={handleButtonPointerDown}
                 onClick={cancelEditing}
+              >
+                Cancelar
+              </button>
+              <button
+                className={styles.primaryButton}
+                type="submit"
+                onPointerDown={handleButtonPointerDown}
+              >
+                Guardar
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {editingFreezerItem ? (
+        <div className={styles.modalBackdrop} onClick={resetEditingFreezerItem}>
+          <form
+            className={`${styles.modal} ${styles.editModal}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-freezer-title"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={handleFreezerEditSubmit}
+          >
+            <h2 id="edit-freezer-title">Editar {editingFreezerItem.name}</h2>
+            <div className={styles.modalForm}>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="edit-freezer-name">
+                  Producto
+                </label>
+                <input
+                  id="edit-freezer-name"
+                  className={styles.input}
+                  autoCapitalize="sentences"
+                  autoCorrect="on"
+                  autoFocus
+                  value={editingFreezerItemName}
+                  onChange={(event) =>
+                    setEditingFreezerItemName(event.target.value)
+                  }
+                  type="text"
+                />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="edit-freezer-quantity">
+                  Cantidad
+                </label>
+                <input
+                  id="edit-freezer-quantity"
+                  className={styles.input}
+                  autoComplete="off"
+                  value={editingFreezerItemQuantity}
+                  onChange={(event) =>
+                    setEditingFreezerItemQuantity(event.target.value)
+                  }
+                  placeholder="2 raciones"
+                  type="text"
+                />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="edit-freezer-drawer">
+                  Cajón
+                </label>
+                <select
+                  id="edit-freezer-drawer"
+                  className={styles.select}
+                  value={editingFreezerDrawerId}
+                  onChange={(event) => {
+                    const drawerId = event.target.value;
+
+                    if (isFreezerDrawerId(drawerId)) {
+                      setEditingFreezerDrawerId(drawerId);
+                    }
+                  }}
+                >
+                  {freezerDrawers.map((drawer) => (
+                    <option key={drawer.id} value={drawer.id}>
+                      {drawer.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="edit-freezer-date">
+                  Congelado
+                </label>
+                <input
+                  id="edit-freezer-date"
+                  className={styles.input}
+                  value={editingFreezerFrozenAt}
+                  onChange={(event) =>
+                    setEditingFreezerFrozenAt(event.target.value)
+                  }
+                  type="date"
+                />
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onPointerDown={handleButtonPointerDown}
+                onClick={resetEditingFreezerItem}
               >
                 Cancelar
               </button>

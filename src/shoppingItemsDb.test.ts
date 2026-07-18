@@ -115,6 +115,17 @@ describe("shopping items database", () => {
         { id: "fruteria", name: "Frutería", color: "amber" },
       ],
       historyEvents: [historyEvent],
+      freezerItems: [
+        {
+          id: "freezer-1",
+          name: "Lentejas",
+          quantity: "2 raciones",
+          drawerId: "top",
+          frozenAt: 100,
+          createdAt: 90,
+          updatedAt: 100,
+        },
+      ],
     });
 
     await expect(getStoredShoppingData()).resolves.toEqual({
@@ -124,6 +135,17 @@ describe("shopping items database", () => {
         { id: "fruteria", name: "Frutería", color: "amber" },
       ],
       historyEvents: [historyEvent],
+      freezerItems: [
+        {
+          id: "freezer-1",
+          name: "Lentejas",
+          quantity: "2 raciones",
+          drawerId: "top",
+          frozenAt: 100,
+          createdAt: 90,
+          updatedAt: 100,
+        },
+      ],
     });
   });
 });

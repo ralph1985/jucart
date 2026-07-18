@@ -257,3 +257,14 @@
 - [x] Persistir cantidad en IndexedDB y Supabase remoto.
 - [x] Mantener compatibilidad con productos e historial sin cantidad.
 - [x] Añadir tests razonables de lógica, persistencia, Supabase e interfaz.
+
+## Hito 26 — Congelador
+
+- [x] Añadir una vista nueva de congelador en la navegación principal.
+- [x] Gestionar tres cajones fijos: Arriba, Medio y Abajo.
+- [x] Añadir productos congelados con cantidad opcional y fecha de congelación.
+- [x] Mostrar primero los productos más antiguos para planificar comidas.
+- [x] Permitir editar productos y moverlos entre cajones.
+- [x] Permitir marcar productos como usados con deshacer inmediato.
+- [x] Persistir el congelador en IndexedDB y Supabase remoto.
+- [x] Añadir tests razonables de lógica, persistencia, Supabase e interfaz.

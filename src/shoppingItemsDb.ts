@@ -1,6 +1,11 @@
 import Dexie, { Table } from "dexie";
 
 import {
+  FreezerItem,
+  FreezerDrawerId,
+  isFreezerDrawerId,
+} from "./freezerItems";
+import {
   defaultShoppingSections,
   inferShoppingCategoryId,
   isShoppingCategoryId,
@@ -28,11 +33,15 @@ type StoredShoppingSection = Omit<ShoppingSection, "color"> & {
   position: number;
 };
 type StoredShoppingHistoryEvent = ShoppingHistoryEvent;
+type StoredFreezerItem = Omit<FreezerItem, "drawerId"> & {
+  drawerId?: FreezerDrawerId;
+};
 export type ShoppingItemsStorageMode = "local" | "remote" | "fallback";
 export type ShoppingData = {
   items: ShoppingItem[];
   sections: ShoppingSection[];
   historyEvents: ShoppingHistoryEvent[];
+  freezerItems: FreezerItem[];
 };
 
 let lastStorageMode: ShoppingItemsStorageMode = "local";
@@ -41,6 +50,7 @@ class JucartDatabase extends Dexie {
   shoppingItems!: Table<StoredShoppingItem, string>;
   shoppingSections!: Table<StoredShoppingSection, string>;
   shoppingHistoryEvents!: Table<StoredShoppingHistoryEvent, string>;
+  freezerItems!: Table<StoredFreezerItem, string>;
 
   constructor() {
     super("jucart");
@@ -85,6 +95,14 @@ class JucartDatabase extends Dexie {
         "id, sectionId, categoryId, addedBy, createdAt, updatedAt, purchased",
       shoppingSections: "id, position",
       shoppingHistoryEvents: "id, itemId, type, actor, clientId, createdAt",
+    });
+
+    this.version(9).stores({
+      shoppingItems:
+        "id, sectionId, categoryId, addedBy, createdAt, updatedAt, purchased",
+      shoppingSections: "id, position",
+      shoppingHistoryEvents: "id, itemId, type, actor, clientId, createdAt",
+      freezerItems: "id, drawerId, frozenAt, createdAt, updatedAt",
     });
   }
 }
@@ -144,6 +162,7 @@ export async function replaceStoredShoppingItems(items: ShoppingItem[]) {
     items,
     sections: defaultShoppingSections,
     historyEvents: [],
+    freezerItems: [],
   });
 }
 
@@ -153,10 +172,12 @@ export async function resetShoppingItemsDatabase() {
     db.shoppingItems,
     db.shoppingSections,
     db.shoppingHistoryEvents,
+    db.freezerItems,
     async () => {
       await db.shoppingItems.clear();
       await db.shoppingSections.clear();
       await db.shoppingHistoryEvents.clear();
+      await db.freezerItems.clear();
     },
   );
 }
@@ -168,13 +189,14 @@ async function getLocalShoppingItems() {
 }
 
 async function getLocalShoppingData() {
-  const [items, sections, historyEvents] = await Promise.all([
+  const [items, sections, historyEvents, freezerItems] = await Promise.all([
     getLocalShoppingItems(),
     getLocalShoppingSections(),
     getLocalShoppingHistoryEvents(),
+    getLocalFreezerItems(),
   ]);
 
-  return { items, sections, historyEvents };
+  return { items, sections, historyEvents, freezerItems };
 }
 
 async function getLocalShoppingSections() {
@@ -191,21 +213,30 @@ async function replaceLocalShoppingData(data: ShoppingData) {
     db.shoppingItems,
     db.shoppingSections,
     db.shoppingHistoryEvents,
+    db.freezerItems,
     async () => {
       await db.shoppingItems.clear();
       await db.shoppingSections.clear();
       await db.shoppingHistoryEvents.clear();
+      await db.freezerItems.clear();
       await db.shoppingItems.bulkAdd(data.items);
       await db.shoppingSections.bulkAdd(
         data.sections.map((section, position) => ({ ...section, position })),
       );
       await db.shoppingHistoryEvents.bulkAdd(data.historyEvents);
+      await db.freezerItems.bulkAdd(data.freezerItems);
     },
   );
 }
 
 async function getLocalShoppingHistoryEvents() {
   return db.shoppingHistoryEvents.orderBy("createdAt").toArray();
+}
+
+async function getLocalFreezerItems() {
+  const items = await db.freezerItems.orderBy("frozenAt").toArray();
+
+  return items.map(normalizeStoredFreezerItem);
 }
 
 function normalizeStoredSection(
@@ -232,5 +263,20 @@ function normalizeStoredShoppingItem(item: StoredShoppingItem): ShoppingItem {
         : inferShoppingCategoryId(item.name),
     addedBy:
       item.addedBy && isShoppingUserId(item.addedBy) ? item.addedBy : "rafa",
+  };
+}
+
+function normalizeStoredFreezerItem(item: StoredFreezerItem): FreezerItem {
+  const createdAt = item.createdAt || item.frozenAt || Date.now();
+  const updatedAt = item.updatedAt || createdAt;
+
+  return {
+    ...item,
+    quantity: item.quantity?.trim() ? item.quantity : undefined,
+    drawerId:
+      item.drawerId && isFreezerDrawerId(item.drawerId) ? item.drawerId : "top",
+    frozenAt: item.frozenAt || createdAt,
+    createdAt,
+    updatedAt,
   };
 }

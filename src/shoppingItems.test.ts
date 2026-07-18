@@ -22,6 +22,13 @@ import {
   updateShoppingSectionColor,
   updateShoppingItem,
 } from "./shoppingItems";
+import {
+  addFreezerItem,
+  getFreezerItemsByDrawer,
+  removeFreezerItem,
+  sortFreezerItemsByUseFirst,
+  updateFreezerItem,
+} from "./freezerItems";
 
 const baseItem: ShoppingItem = {
   id: "item-1",
@@ -623,5 +630,127 @@ describe("shopping item logic", () => {
     expect(removeShoppingSection([sections[0]], [], "mercadona")).toEqual([
       sections[0],
     ]);
+  });
+});
+
+describe("freezer item logic", () => {
+  it("adds freezer items with normalized optional quantity", () => {
+    expect(
+      addFreezerItem(
+        [],
+        "  Lentejas   caseras  ",
+        "middle",
+        100,
+        "  2 raciones ",
+        () => "freezer-1",
+        () => 200,
+      ),
+    ).toEqual([
+      {
+        id: "freezer-1",
+        name: "Lentejas caseras",
+        quantity: "2 raciones",
+        drawerId: "middle",
+        frozenAt: 100,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+    ]);
+  });
+
+  it("does not add empty freezer items", () => {
+    expect(addFreezerItem([], "   ", "top", 100)).toEqual([]);
+  });
+
+  it("sorts freezer items by oldest frozen date first", () => {
+    expect(
+      sortFreezerItemsByUseFirst([
+        {
+          id: "new",
+          name: "Nuevo",
+          drawerId: "top",
+          frozenAt: 300,
+          createdAt: 300,
+          updatedAt: 300,
+        },
+        {
+          id: "old",
+          name: "Viejo",
+          drawerId: "bottom",
+          frozenAt: 100,
+          createdAt: 200,
+          updatedAt: 200,
+        },
+      ]).map((item) => item.id),
+    ).toEqual(["old", "new"]);
+  });
+
+  it("groups drawer items ordered by use priority", () => {
+    expect(
+      getFreezerItemsByDrawer(
+        [
+          {
+            id: "middle",
+            name: "Medio",
+            drawerId: "middle",
+            frozenAt: 100,
+            createdAt: 100,
+            updatedAt: 100,
+          },
+          {
+            id: "top-new",
+            name: "Arriba nuevo",
+            drawerId: "top",
+            frozenAt: 300,
+            createdAt: 300,
+            updatedAt: 300,
+          },
+          {
+            id: "top-old",
+            name: "Arriba viejo",
+            drawerId: "top",
+            frozenAt: 200,
+            createdAt: 200,
+            updatedAt: 200,
+          },
+        ],
+        "top",
+      ).map((item) => item.id),
+    ).toEqual(["top-old", "top-new"]);
+  });
+
+  it("updates and removes freezer items", () => {
+    const freezerItems = addFreezerItem(
+      [],
+      "Caldo",
+      "top",
+      100,
+      undefined,
+      () => "freezer-1",
+      () => 100,
+    );
+
+    const updatedItems = updateFreezerItem(
+      freezerItems,
+      "freezer-1",
+      "Caldo de pollo",
+      "bottom",
+      50,
+      "1 litro",
+      () => 300,
+    );
+
+    expect(updatedItems).toEqual([
+      {
+        id: "freezer-1",
+        name: "Caldo de pollo",
+        quantity: "1 litro",
+        drawerId: "bottom",
+        frozenAt: 50,
+        createdAt: 100,
+        updatedAt: 300,
+      },
+    ]);
+    expect(removeFreezerItem(updatedItems, "freezer-1")).toEqual([]);
   });
 });

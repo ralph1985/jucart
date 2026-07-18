@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  mapFreezerItemToRow,
+  mapRowToFreezerItem,
   mapRowToDeveloperBackupRun,
   mapRowToShoppingHistoryEvent,
   mapRowToShoppingItem,
@@ -12,6 +14,55 @@ import {
 } from "./shoppingItemsSupabase";
 
 describe("shopping items Supabase adapter", () => {
+  it("maps a Supabase row to a freezer item", () => {
+    expect(
+      mapRowToFreezerItem({
+        id: "freezer-1",
+        list_id: "00000000-0000-4000-8000-000000000001",
+        name: "Lentejas",
+        quantity: "2 raciones",
+        drawer_id: "middle",
+        frozen_at: "2026-07-01T00:00:00.000Z",
+        created_at: "2026-07-02T10:00:00.000Z",
+        updated_at: "2026-07-02T10:05:00.000Z",
+      }),
+    ).toEqual({
+      id: "freezer-1",
+      name: "Lentejas",
+      quantity: "2 raciones",
+      drawerId: "middle",
+      frozenAt: Date.parse("2026-07-01T00:00:00.000Z"),
+      createdAt: Date.parse("2026-07-02T10:00:00.000Z"),
+      updatedAt: Date.parse("2026-07-02T10:05:00.000Z"),
+    });
+  });
+
+  it("maps a freezer item to a Supabase row", () => {
+    expect(
+      mapFreezerItemToRow(
+        {
+          id: "freezer-1",
+          name: "Caldo",
+          quantity: "1 litro",
+          drawerId: "bottom",
+          frozenAt: Date.parse("2026-07-01T00:00:00.000Z"),
+          createdAt: Date.parse("2026-07-02T10:00:00.000Z"),
+          updatedAt: Date.parse("2026-07-02T10:05:00.000Z"),
+        },
+        "00000000-0000-4000-8000-000000000001",
+      ),
+    ).toEqual({
+      id: "freezer-1",
+      list_id: "00000000-0000-4000-8000-000000000001",
+      name: "Caldo",
+      quantity: "1 litro",
+      drawer_id: "bottom",
+      frozen_at: "2026-07-01T00:00:00.000Z",
+      created_at: "2026-07-02T10:00:00.000Z",
+      updated_at: "2026-07-02T10:05:00.000Z",
+    });
+  });
+
   it("maps a Supabase row to a shopping item", () => {
     expect(
       mapRowToShoppingItem({

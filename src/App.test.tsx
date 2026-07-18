@@ -113,6 +113,40 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("adds, uses and restores freezer items", async () => {
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Congelador" }));
+
+    fireEvent.change(screen.getByLabelText("Producto"), {
+      target: { value: "Lentejas" },
+    });
+    fireEvent.change(screen.getByLabelText("Cantidad"), {
+      target: { value: "2 raciones" },
+    });
+    fireEvent.change(screen.getByLabelText("Cajón"), {
+      target: { value: "middle" },
+    });
+    fireEvent.change(screen.getByLabelText("Congelado"), {
+      target: { value: "2026-07-01" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+
+    expect(screen.getByRole("heading", { name: "Usar primero" }));
+    expect(screen.getAllByText("Lentejas").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("2 raciones").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Usado" })[0]);
+
+    expect(screen.getByText("Lentejas usado.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(screen.queryByText("Lentejas usado.")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Lentejas").length).toBeGreaterThan(0);
+  });
+
   it("shows the integrated loading skeleton while stored products are loading", async () => {
     let resolveStoredData: (data: ShoppingData) => void = () => {};
     const storedDataPromise = new Promise<ShoppingData>((resolve) => {
@@ -147,6 +181,7 @@ describe("App", () => {
         ],
         sections: defaultShoppingSections,
         historyEvents: [],
+        freezerItems: [],
       });
 
       await storedDataPromise;
@@ -181,6 +216,7 @@ describe("App", () => {
         items: [],
         sections: defaultShoppingSections,
         historyEvents: [],
+        freezerItems: [],
       });
 
       await storedDataPromise;
@@ -607,6 +643,7 @@ describe("App", () => {
         items: [],
         sections: defaultShoppingSections,
         historyEvents: [],
+        freezerItems: [],
       });
 
       await storedDataPromise;
@@ -804,7 +841,7 @@ describe("App", () => {
       within(navigation)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Lista", "Listas", "Historial", "Dev"]);
+    ).toEqual(["Lista", "Congelador", "Listas", "Historial", "Dev"]);
     expect(navigation.className).not.toContain("bottomNavHidden");
     expect(
       within(navigation).getByRole("button", { name: "Lista" }),
@@ -864,6 +901,7 @@ describe("App", () => {
           createdAt: Date.now(),
         },
       ],
+      freezerItems: [],
     });
 
     render(<App />);

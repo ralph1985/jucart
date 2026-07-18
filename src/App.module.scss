@@ -691,6 +691,7 @@ h2 {
 .iconButtonDanger:focus-visible,
 .undoButton:focus-visible,
 .quickSuggestionButton:focus-visible,
+.freezerMoveButton:focus-visible,
 .bottomNavItem:focus-visible,
 .bottomNavItemActive:focus-visible,
 .sectionColorButton:focus-visible,
@@ -880,6 +881,154 @@ h2 {
   display: grid;
   gap: 0.75rem;
   padding: 0.15rem 1rem 1rem;
+}
+
+.freezerScreen {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.15rem 1rem 1rem;
+}
+
+.freezerForm {
+  display: grid;
+  gap: 0.7rem;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 0.5rem;
+  padding: 0.85rem;
+  background: rgb(255 255 255 / 82%);
+  box-shadow: 0 0.5rem 1.1rem var(--surface-shadow);
+}
+
+.freezerFormGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.55rem;
+}
+
+.freezerUndo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid #b7e4c7;
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  background: #edf7ed;
+  color: #1f4d36;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.freezerPanel {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  background: rgb(255 255 255 / 78%);
+  box-shadow: 0 0.35rem 0.75rem var(--surface-shadow);
+}
+
+.freezerPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.freezerPanelHeader h3 {
+  margin: 0;
+  color: #102033;
+  font-size: 0.98rem;
+  font-weight: 900;
+}
+
+.freezerPanelHeader span {
+  color: #126548;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.freezerDrawers {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.freezerList {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.freezerItem {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 0.5rem;
+  padding: 0.65rem;
+  background: #f8fafc;
+}
+
+.freezerItemBody {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.freezerItemName {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #102033;
+  font-size: 0.96rem;
+  font-weight: 900;
+}
+
+.freezerItemMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+  margin: 0;
+  color: #536b7c;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.freezerItemMeta span {
+  border-radius: 999rem;
+  padding: 0.18rem 0.42rem;
+  background: #e2e8f0;
+}
+
+.freezerItemActions {
+  display: grid;
+  grid-template-columns: 2.75rem repeat(2, minmax(0, 1fr)) auto;
+  gap: 0.38rem;
+}
+
+.freezerMoveButton {
+  min-width: 0;
+  min-height: 2.35rem;
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0 0.5rem;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 0.72rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.freezerEmpty {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  border: 1px dashed rgb(148 163 184 / 34%);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: rgb(248 250 252 / 76%);
+  text-align: center;
 }
 
 .remoteChangesBanner {

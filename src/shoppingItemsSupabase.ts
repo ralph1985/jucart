@@ -1,6 +1,11 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 import {
+  FreezerItem,
+  FreezerDrawerId,
+  isFreezerDrawerId,
+} from "./freezerItems";
+import {
   defaultShoppingSections,
   inferShoppingCategoryId,
   isShoppingCategoryId,
@@ -49,6 +54,17 @@ type ShoppingHistoryEventRow = {
   item_snapshot: ShoppingHistoryItemSnapshot;
   previous_item_snapshot?: ShoppingHistoryItemSnapshot;
   created_at: string;
+};
+
+type FreezerItemRow = {
+  id: string;
+  list_id: string;
+  name: string;
+  quantity?: string | null;
+  drawer_id: string;
+  frozen_at: string;
+  created_at: string;
+  updated_at: string;
 };
 
 type DeveloperBackupRunRow = {
@@ -142,23 +158,29 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
   }
 
   const client = getSupabaseClient(config);
-  const [itemsResult, sectionsResult, historyResult] = await Promise.all([
-    client
-      .from("shopping_items")
-      .select("*")
-      .eq("list_id", config.listId)
-      .order("created_at", { ascending: true }),
-    client
-      .from("shopping_sections")
-      .select("*")
-      .eq("list_id", config.listId)
-      .order("position", { ascending: true }),
-    client
-      .from("shopping_history_events")
-      .select("*")
-      .eq("list_id", config.listId)
-      .order("created_at", { ascending: true }),
-  ]);
+  const [itemsResult, sectionsResult, historyResult, freezerResult] =
+    await Promise.all([
+      client
+        .from("shopping_items")
+        .select("*")
+        .eq("list_id", config.listId)
+        .order("created_at", { ascending: true }),
+      client
+        .from("shopping_sections")
+        .select("*")
+        .eq("list_id", config.listId)
+        .order("position", { ascending: true }),
+      client
+        .from("shopping_history_events")
+        .select("*")
+        .eq("list_id", config.listId)
+        .order("created_at", { ascending: true }),
+      client
+        .from("freezer_items")
+        .select("*")
+        .eq("list_id", config.listId)
+        .order("frozen_at", { ascending: true }),
+    ]);
 
   if (itemsResult.error) {
     throw itemsResult.error;
@@ -172,6 +194,10 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
     throw historyResult.error;
   }
 
+  if (freezerResult.error) {
+    throw freezerResult.error;
+  }
+
   return {
     items: (itemsResult.data ?? []).map(mapRowToShoppingItem),
     sections:
@@ -179,6 +205,7 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
         ? sectionsResult.data.map(mapRowToShoppingSection)
         : defaultShoppingSections,
     historyEvents: (historyResult.data ?? []).map(mapRowToShoppingHistoryEvent),
+    freezerItems: (freezerResult.data ?? []).map(mapRowToFreezerItem),
   };
 }
 
@@ -198,6 +225,9 @@ export async function replaceSupabaseShoppingData(data: ShoppingData) {
   );
   const historyRows = data.historyEvents.map((event) =>
     mapShoppingHistoryEventToRow(event, config.listId),
+  );
+  const freezerRows = data.freezerItems.map((item) =>
+    mapFreezerItemToRow(item, config.listId),
   );
 
   if (sectionRows.length > 0) {
@@ -285,6 +315,33 @@ export async function replaceSupabaseShoppingData(data: ShoppingData) {
     throw deleteHistoryError;
   }
 
+  if (freezerRows.length > 0) {
+    const { error } = await client.from("freezer_items").upsert(freezerRows);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  let deleteFreezerQuery = client
+    .from("freezer_items")
+    .delete()
+    .eq("list_id", config.listId);
+
+  if (data.freezerItems.length > 0) {
+    deleteFreezerQuery = deleteFreezerQuery.not(
+      "id",
+      "in",
+      encodePostgrestTextList(data.freezerItems.map((item) => item.id)),
+    );
+  }
+
+  const { error: deleteFreezerError } = await deleteFreezerQuery;
+
+  if (deleteFreezerError) {
+    throw deleteFreezerError;
+  }
+
   return true;
 }
 
@@ -323,6 +380,16 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_history_events",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "freezer_items",
         filter: `list_id=eq.${config.listId}`,
       },
       onChange,
@@ -449,6 +516,34 @@ export function mapShoppingHistoryEventToRow(
   };
 }
 
+export function mapRowToFreezerItem(row: FreezerItemRow): FreezerItem {
+  return {
+    id: row.id,
+    name: row.name,
+    quantity: row.quantity?.trim() ? row.quantity : undefined,
+    drawerId: normalizeFreezerDrawerId(row.drawer_id),
+    frozenAt: Date.parse(row.frozen_at),
+    createdAt: Date.parse(row.created_at),
+    updatedAt: Date.parse(row.updated_at),
+  };
+}
+
+export function mapFreezerItemToRow(
+  item: FreezerItem,
+  listId: string,
+): FreezerItemRow {
+  return {
+    id: item.id,
+    list_id: listId,
+    name: item.name,
+    quantity: item.quantity ?? null,
+    drawer_id: item.drawerId,
+    frozen_at: new Date(item.frozenAt).toISOString(),
+    created_at: new Date(item.createdAt).toISOString(),
+    updated_at: new Date(item.updatedAt).toISOString(),
+  };
+}
+
 export function mapRowToDeveloperBackupRun(
   row: DeveloperBackupRunRow,
 ): DeveloperBackupRun {
@@ -502,6 +597,10 @@ function normalizeCategoryId(value: string | undefined, itemName: string) {
   return value && isShoppingCategoryId(value)
     ? value
     : inferShoppingCategoryId(itemName);
+}
+
+function normalizeFreezerDrawerId(value: string): FreezerDrawerId {
+  return isFreezerDrawerId(value) ? value : "top";
 }
 
 function encodePostgrestTextList(values: string[]) {

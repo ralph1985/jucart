@@ -50,6 +50,8 @@ describe("shopping item logic", () => {
     expect(inferShoppingCategoryId("Pan integral")).toBe("bakery");
     expect(inferShoppingCategoryId("Atún natural latilla")).toBe("fish");
     expect(inferShoppingCategoryId("Guantes talla L")).toBe("pharmacy");
+    expect(inferShoppingCategoryId("Aguacates")).toBe("fruit");
+    expect(inferShoppingCategoryId("Cebollas")).toBe("vegetables");
     expect(inferShoppingCategoryId("Repollo")).toBe("vegetables");
     expect(inferShoppingCategoryId("Sandía")).toBe("fruit");
     expect(inferShoppingCategoryId("Limpiador biberones")).toBe("cleaning");

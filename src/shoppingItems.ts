@@ -57,6 +57,7 @@ export type ShoppingCategoryId = (typeof shoppingCategories)[number]["id"];
 const shoppingProductCatalog: Record<ShoppingCategoryId, string[]> = {
   fruit: [
     "aguacate",
+    "aguacates",
     "fresa",
     "fruta",
     "kiwi",
@@ -78,6 +79,7 @@ const shoppingProductCatalog: Record<ShoppingCategoryId, string[]> = {
     "berenjena",
     "calabacín",
     "cebolla",
+    "cebollas",
     "lechuga",
     "patata",
     "pepino",

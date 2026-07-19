@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { animate, stagger } from "animejs";
 import useEmblaCarousel from "embla-carousel-react";
 
@@ -1440,16 +1441,20 @@ export function App() {
     animateButtonPress(event.currentTarget);
   }
 
+  function focusAddInputAtEndNow() {
+    const input = itemNameInputRef.current;
+
+    if (!input) {
+      return;
+    }
+
+    input.focus({ preventScroll: true });
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+
   function focusAddInputAtEnd() {
     window.requestAnimationFrame(() => {
-      const input = itemNameInputRef.current;
-
-      if (!input) {
-        return;
-      }
-
-      input.focus({ preventScroll: true });
-      input.setSelectionRange(input.value.length, input.value.length);
+      focusAddInputAtEndNow();
     });
   }
 
@@ -1513,8 +1518,11 @@ export function App() {
 
   function openAddSheet() {
     pushOverlayHistory("add-sheet");
-    setIsAddSheetOpen(true);
-    setAddProductNotice(null);
+    flushSync(() => {
+      setIsAddSheetOpen(true);
+      setAddProductNotice(null);
+    });
+    focusAddInputAtEndNow();
     runHapticFeedback("light");
   }
 

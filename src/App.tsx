@@ -64,6 +64,7 @@ import {
 } from "./shoppingItems";
 import {
   ShoppingData,
+  getCachedShoppingData,
   getShoppingItemsStorageMode,
   getStoredShoppingData,
   replaceStoredShoppingData,
@@ -819,10 +820,8 @@ export function App() {
     let isActive = true;
 
     async function loadItems() {
-      const finishRemoteRequest = beginRemoteRequest();
-
       try {
-        const storedData = await getStoredShoppingData();
+        const storedData = await getCachedShoppingData();
         const shouldCreateInitialHistory =
           storedData.historyEvents.length === 0 && storedData.items.length > 0;
         const nextHistoryEvents = shouldCreateInitialHistory
@@ -845,7 +844,7 @@ export function App() {
               : storedData.sections[0]?.id || "general",
           );
           setStorageError(null);
-          setSyncStatus(getSyncStatusFromStorageMode());
+          setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
         }
       } catch {
         if (isActive) {
@@ -853,8 +852,6 @@ export function App() {
           setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
         }
       } finally {
-        finishRemoteRequest();
-
         if (isActive) {
           setIsLoaded(true);
         }
@@ -1005,6 +1002,8 @@ export function App() {
 
       void refreshItemsFromSupabase();
     });
+
+    void refreshItemsFromSupabase();
 
     function refreshItemsWhenVisible() {
       if (document.visibilityState === "visible") {

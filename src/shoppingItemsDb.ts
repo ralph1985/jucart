@@ -113,6 +113,10 @@ export function getShoppingItemsStorageMode() {
   return lastStorageMode;
 }
 
+export async function getCachedShoppingData(): Promise<ShoppingData> {
+  return getLocalShoppingData();
+}
+
 export async function getStoredShoppingData(): Promise<ShoppingData> {
   if (isSupabaseConfigured()) {
     try {

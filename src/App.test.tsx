@@ -182,7 +182,7 @@ describe("App", () => {
       resolveStoredData = resolve;
     });
 
-    vi.spyOn(shoppingItemsDb, "getStoredShoppingData").mockReturnValue(
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockReturnValue(
       storedDataPromise,
     );
 
@@ -230,7 +230,7 @@ describe("App", () => {
     vi.spyOn(shoppingItemsSupabase, "isSupabaseConfigured").mockReturnValue(
       true,
     );
-    vi.spyOn(shoppingItemsDb, "getStoredShoppingData").mockReturnValue(
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockReturnValue(
       storedDataPromise,
     );
 
@@ -805,6 +805,9 @@ describe("App", () => {
     vi.spyOn(shoppingItemsDb, "getShoppingItemsStorageMode").mockReturnValue(
       "remote",
     );
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockResolvedValue(
+      initialData,
+    );
     const getStoredShoppingData = vi
       .spyOn(shoppingItemsDb, "getStoredShoppingData")
       .mockResolvedValueOnce(initialData)
@@ -879,6 +882,9 @@ describe("App", () => {
     ).mockReturnValue(() => undefined);
     vi.spyOn(shoppingItemsDb, "getShoppingItemsStorageMode").mockReturnValue(
       "remote",
+    );
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockResolvedValue(
+      initialData,
     );
     vi.spyOn(shoppingItemsDb, "getStoredShoppingData")
       .mockResolvedValueOnce(initialData)
@@ -958,6 +964,9 @@ describe("App", () => {
     });
     vi.spyOn(shoppingItemsDb, "getShoppingItemsStorageMode").mockReturnValue(
       "remote",
+    );
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockResolvedValue(
+      initialData,
     );
     const getStoredShoppingData = vi
       .spyOn(shoppingItemsDb, "getStoredShoppingData")

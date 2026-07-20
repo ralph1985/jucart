@@ -18,6 +18,7 @@ import {
   resetShoppingItemsDatabase,
 } from "./shoppingItemsDb";
 import * as shoppingItemsSupabase from "./shoppingItemsSupabase";
+import * as supabaseConfig from "./supabaseConfig";
 import type { ShoppingData } from "./shoppingItemsDb";
 
 const emblaCarouselMock = vi.hoisted(() => {
@@ -227,9 +228,7 @@ describe("App", () => {
       resolveStoredData = resolve;
     });
 
-    vi.spyOn(shoppingItemsSupabase, "isSupabaseConfigured").mockReturnValue(
-      true,
-    );
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
     vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockReturnValue(
       storedDataPromise,
     );
@@ -708,9 +707,7 @@ describe("App", () => {
       resolveStoreData = resolve;
     });
 
-    vi.spyOn(shoppingItemsSupabase, "isSupabaseConfigured").mockReturnValue(
-      true,
-    );
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
     vi.spyOn(shoppingItemsDb, "getShoppingItemsStorageMode").mockReturnValue(
       "remote",
     );
@@ -791,9 +788,7 @@ describe("App", () => {
       ],
     };
 
-    vi.spyOn(shoppingItemsSupabase, "isSupabaseConfigured").mockReturnValue(
-      true,
-    );
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
     vi.spyOn(
       shoppingItemsSupabase,
       "subscribeToSupabaseShoppingItems",
@@ -873,9 +868,7 @@ describe("App", () => {
       ],
     };
 
-    vi.spyOn(shoppingItemsSupabase, "isSupabaseConfigured").mockReturnValue(
-      true,
-    );
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
     vi.spyOn(
       shoppingItemsSupabase,
       "subscribeToSupabaseShoppingItems",
@@ -951,9 +944,7 @@ describe("App", () => {
       ],
     };
 
-    vi.spyOn(shoppingItemsSupabase, "isSupabaseConfigured").mockReturnValue(
-      true,
-    );
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
     vi.spyOn(
       shoppingItemsSupabase,
       "subscribeToSupabaseShoppingItems",
@@ -2115,6 +2106,8 @@ describe("App", () => {
         updatedAt: 100,
       },
     ]);
+
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
 
     render(<App />);
 

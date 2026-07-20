@@ -20,6 +20,8 @@ import {
   ShoppingUserId,
 } from "./shoppingItems";
 import type { ShoppingData } from "./shoppingItemsDb";
+import { getSupabaseConfig } from "./supabaseConfig";
+import type { SupabaseConfig } from "./supabaseConfig";
 
 type ShoppingItemRow = {
   id: string;
@@ -95,39 +97,7 @@ export type DeveloperBackupRun = {
   createdAt: number;
 };
 
-type SupabaseConfig = {
-  url: string;
-  anonKey: string;
-  listId: string;
-};
-
 let supabaseClient: SupabaseClient | null = null;
-
-export function getSupabaseConfig(): SupabaseConfig | null {
-  if (import.meta.env.MODE === "test") {
-    return null;
-  }
-
-  const url = import.meta.env.VITE_SUPABASE_URL?.trim();
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
-  const listId = import.meta.env.VITE_SUPABASE_LIST_ID?.trim();
-
-  if (
-    !url ||
-    !anonKey ||
-    !listId ||
-    url.includes("your-project-ref") ||
-    anonKey.includes("replace-with")
-  ) {
-    return null;
-  }
-
-  return { url, anonKey, listId };
-}
-
-export function isSupabaseConfigured() {
-  return getSupabaseConfig() !== null;
-}
 
 export async function getLatestDeveloperBackupRun(): Promise<DeveloperBackupRun | null> {
   const config = getSupabaseConfig();

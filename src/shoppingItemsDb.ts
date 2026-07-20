@@ -17,11 +17,7 @@ import {
   ShoppingSectionId,
   ShoppingUserId,
 } from "./shoppingItems";
-import {
-  getSupabaseShoppingData,
-  isSupabaseConfigured,
-  replaceSupabaseShoppingData,
-} from "./shoppingItemsSupabase";
+import { isSupabaseConfigured } from "./supabaseConfig";
 
 type StoredShoppingItem = Omit<ShoppingItem, "sectionId" | "addedBy"> & {
   sectionId?: ShoppingSectionId;
@@ -120,6 +116,8 @@ export async function getCachedShoppingData(): Promise<ShoppingData> {
 export async function getStoredShoppingData(): Promise<ShoppingData> {
   if (isSupabaseConfigured()) {
     try {
+      const { getSupabaseShoppingData } =
+        await import("./shoppingItemsSupabase");
       const remoteData = await getSupabaseShoppingData();
 
       if (remoteData) {
@@ -145,6 +143,8 @@ export async function getStoredShoppingItems() {
 export async function replaceStoredShoppingData(data: ShoppingData) {
   if (isSupabaseConfigured()) {
     try {
+      const { replaceSupabaseShoppingData } =
+        await import("./shoppingItemsSupabase");
       await replaceSupabaseShoppingData(data);
       lastStorageMode = "remote";
     } catch {

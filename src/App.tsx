@@ -69,12 +69,8 @@ import {
   getStoredShoppingData,
   replaceStoredShoppingData,
 } from "./shoppingItemsDb";
-import {
-  DeveloperBackupRun,
-  getLatestDeveloperBackupRun,
-  isSupabaseConfigured,
-  subscribeToSupabaseShoppingItems,
-} from "./shoppingItemsSupabase";
+import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
+import { isSupabaseConfigured } from "./supabaseConfig";
 import { updateBadge } from "./services/badgeService";
 
 const selectedSectionStorageKey = "jucart:selected-section-id";
@@ -936,7 +932,7 @@ export function App() {
   ]);
 
   useEffect(() => {
-    if (!isLoaded) {
+    if (!isLoaded || !isSupabaseConfigured()) {
       return;
     }
 
@@ -994,15 +990,32 @@ export function App() {
       void refreshItemsFromSupabase();
     };
 
-    const unsubscribe = subscribeToSupabaseShoppingItems(() => {
-      if (pendingLocalStoresRef.current > 0) {
-        queuedRemoteRefreshRef.current = true;
+    let unsubscribe: () => void = () => undefined;
+
+    async function startSupabaseSubscription() {
+      const { subscribeToSupabaseShoppingItems } =
+        await import("./shoppingItemsSupabase");
+
+      if (!isActive) {
         return;
       }
 
-      void refreshItemsFromSupabase();
-    });
+      unsubscribe = subscribeToSupabaseShoppingItems(() => {
+        if (pendingLocalStoresRef.current > 0) {
+          queuedRemoteRefreshRef.current = true;
+          return;
+        }
 
+        void refreshItemsFromSupabase();
+      });
+    }
+
+    void startSupabaseSubscription();
+
+    /*
+     * The initial render uses IndexedDB. Refresh once after the Supabase chunk
+     * loads so cached data is reconciled with the remote list.
+     */
     void refreshItemsFromSupabase();
 
     function refreshItemsWhenVisible() {
@@ -1016,8 +1029,8 @@ export function App() {
     return () => {
       isActive = false;
       refreshRemoteDataRef.current = null;
-      document.removeEventListener("visibilitychange", refreshItemsWhenVisible);
       unsubscribe();
+      document.removeEventListener("visibilitychange", refreshItemsWhenVisible);
     };
   }, [beginRemoteRequest, isLoaded]);
 
@@ -2157,6 +2170,8 @@ export function App() {
 
   async function refreshDeveloperBackupRun() {
     try {
+      const { getLatestDeveloperBackupRun } =
+        await import("./shoppingItemsSupabase");
       const latestBackupRun = await getLatestDeveloperBackupRun();
       setDeveloperBackupRun(latestBackupRun);
       setDeveloperBackupError(null);

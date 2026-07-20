@@ -1730,6 +1730,89 @@ describe("App", () => {
     expect(screen.getByText("Yogur")).toBeInTheDocument();
   });
 
+  it("filters shopping products by search text and clears the search", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      {
+        id: "item-2",
+        name: "Pan",
+        sectionId: "mercadona",
+        addedBy: "begona",
+        purchased: false,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Leche");
+
+    const searchInput = screen.getByLabelText("Buscar productos");
+
+    fireEvent.change(searchInput, { target: { value: "  LE  " } });
+
+    expect(screen.getByText("Leche")).toBeInTheDocument();
+    expect(screen.queryByText("Pan")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Limpiar búsqueda" }));
+
+    expect(screen.getByText("Leche")).toBeInTheDocument();
+    expect(screen.getByText("Pan")).toBeInTheDocument();
+  });
+
+  it("keeps purchased products hidden while searching when purchased visibility is off", async () => {
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Yogur",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: true,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      {
+        id: "item-2",
+        name: "Leche",
+        sectionId: "mercadona",
+        addedBy: "begona",
+        purchased: false,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+    ]);
+
+    render(<App />);
+
+    await screen.findByText("Leche");
+
+    fireEvent.change(screen.getByLabelText("Buscar productos"), {
+      target: { value: "yog" },
+    });
+
+    expect(screen.getByText("Yogur")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Comprados"));
+
+    expect(screen.queryByText("Yogur")).not.toBeInTheDocument();
+    expect(screen.getAllByText("No hay coincidencias").length).toBeGreaterThan(
+      0,
+    );
+
+    fireEvent.click(screen.getByLabelText("Comprados"));
+
+    expect(screen.getByText("Yogur")).toBeInTheDocument();
+  });
+
   it("shows undo when a product is marked as purchased while purchased products are hidden", async () => {
     window.localStorage.setItem("jucart:show-purchased-items", "false");
 

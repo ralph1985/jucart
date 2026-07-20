@@ -100,7 +100,8 @@ type IconName =
   | "history"
   | "sync"
   | "database"
-  | "freezer";
+  | "freezer"
+  | "search";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 
 type TimestampedItem = {
@@ -173,6 +174,10 @@ function Icon({ name }: { name: IconName }) {
       "M19 6L5 18",
       "M7 4l5 3 5-3",
       "M7 20l5-3 5 3",
+    ],
+    search: [
+      "M21 21l-4.35-4.35",
+      "M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z",
     ],
   };
 
@@ -594,6 +599,10 @@ function getLoadingStatusText() {
     : "Cargando lista...";
 }
 
+function normalizeShoppingSearchQuery(value: string) {
+  return value.trim().toLocaleLowerCase("es");
+}
+
 export function App() {
   const [activeView, setActiveView] = useState<AppView>("shopping");
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -633,6 +642,7 @@ export function App() {
   const [showPurchasedItems, setShowPurchasedItems] = useState(
     getInitialShowPurchasedItems,
   );
+  const [shoppingSearchQuery, setShoppingSearchQuery] = useState("");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
   const [editingItemQuantity, setEditingItemQuantity] = useState("");
@@ -742,6 +752,9 @@ export function App() {
     ),
   );
   const selectedPurchasedCount = selectedPurchasedItems.length;
+  const normalizedShoppingSearchQuery =
+    normalizeShoppingSearchQuery(shoppingSearchQuery);
+  const isShoppingSearchActive = normalizedShoppingSearchQuery.length > 0;
   const recentHistoryEvents = getRecentShoppingHistoryEvents(historyEvents);
   const quickItemSuggestions =
     isLoaded && isAddSheetOpen
@@ -2456,9 +2469,17 @@ export function App() {
     hiddenPurchasedItem: ShoppingItem | null,
     sectionColor: ShoppingSectionColor,
   ) {
-    const renderedSectionItems = showPurchasedItems
-      ? sectionItems
-      : sectionItems.filter((item) => !item.purchased);
+    const renderedSectionItems = (
+      showPurchasedItems
+        ? sectionItems
+        : sectionItems.filter((item) => !item.purchased)
+    ).filter((item) =>
+      isShoppingSearchActive
+        ? normalizeShoppingSearchQuery(item.name).includes(
+            normalizedShoppingSearchQuery,
+          )
+        : true,
+    );
 
     if (
       renderedSectionItems.length === 0 &&
@@ -2472,11 +2493,17 @@ export function App() {
           <span className={styles.emptyIcon} aria-hidden="true">
             <Icon name="list" />
           </span>
-          <p className={styles.emptyTitle}>No hay productos</p>
+          <p className={styles.emptyTitle}>
+            {isShoppingSearchActive
+              ? "No hay coincidencias"
+              : "No hay productos"}
+          </p>
           <p className={styles.emptyDescription}>
-            {sectionItems.length === 0
-              ? "Añade el primero usando el formulario superior."
-              : "Los productos comprados están ocultos."}
+            {isShoppingSearchActive
+              ? "No hay coincidencias con la búsqueda."
+              : sectionItems.length === 0
+                ? "Añade el primero usando el formulario superior."
+                : "Los productos comprados están ocultos."}
           </p>
         </div>
       );
@@ -2884,6 +2911,31 @@ export function App() {
           aria-label="Controles de lista"
         >
           <div className={styles.form}>
+            <label className={styles.searchField}>
+              <span className={styles.visuallyHidden}>Buscar productos</span>
+              <span className={styles.searchIcon} aria-hidden="true">
+                <Icon name="search" />
+              </span>
+              <input
+                value={shoppingSearchQuery}
+                onChange={(event) => setShoppingSearchQuery(event.target.value)}
+                type="search"
+                placeholder="Buscar productos"
+                disabled={!isLoaded}
+              />
+              {shoppingSearchQuery ? (
+                <button
+                  className={styles.searchClearButton}
+                  type="button"
+                  aria-label="Limpiar búsqueda"
+                  title="Limpiar búsqueda"
+                  onPointerDown={handleButtonPointerDown}
+                  onClick={() => setShoppingSearchQuery("")}
+                >
+                  <Icon name="close" />
+                </button>
+              ) : null}
+            </label>
             <div className={styles.addRow}>
               <button
                 className={styles.iconButton}

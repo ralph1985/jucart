@@ -631,6 +631,43 @@ export function addShoppingItem(
   ];
 }
 
+export function reactivatePurchasedShoppingItem(
+  items: ShoppingItem[],
+  rawName: string,
+  sectionId: ShoppingSectionId,
+  rawQuantity?: string,
+  now: () => number = () => Date.now(),
+) {
+  const parsedItem = parseShoppingItemNameAndQuantity(rawName);
+  const name = parsedItem.name;
+  const quantity =
+    rawQuantity === undefined
+      ? parsedItem.quantity
+      : normalizeItemQuantity(rawQuantity);
+
+  if (!name) {
+    return items;
+  }
+
+  const normalizedName = normalizeDuplicateName(name);
+  const purchasedItem = items.find(
+    (item) =>
+      item.purchased &&
+      item.sectionId === sectionId &&
+      normalizeDuplicateName(item.name) === normalizedName,
+  );
+
+  if (!purchasedItem) {
+    return items;
+  }
+
+  return items.map((item) =>
+    item.id === purchasedItem.id
+      ? { ...item, quantity, purchased: false, updatedAt: now() }
+      : item,
+  );
+}
+
 export function createShoppingHistoryEvent(
   item: ShoppingItem,
   type: ShoppingHistoryEventType,

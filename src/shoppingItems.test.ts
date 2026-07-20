@@ -12,6 +12,7 @@ import {
   moveShoppingSection,
   normalizeItemName,
   renameShoppingSection,
+  reactivatePurchasedShoppingItem,
   removePurchasedShoppingItems,
   removeShoppingSection,
   removeShoppingItem,
@@ -282,6 +283,25 @@ describe("shopping item logic", () => {
         addedBy: "rafa",
         purchased: false,
         createdAt: 200,
+        updatedAt: 200,
+      },
+    ]);
+  });
+
+  it("reactivates a purchased product with the new quantity", () => {
+    expect(
+      reactivatePurchasedShoppingItem(
+        [{ ...baseItem, quantity: "1", purchased: true }],
+        "leche",
+        "mercadona",
+        "3",
+        () => 200,
+      ),
+    ).toEqual([
+      {
+        ...baseItem,
+        quantity: "3",
+        purchased: false,
         updatedAt: 200,
       },
     ]);

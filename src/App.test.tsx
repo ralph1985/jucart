@@ -645,6 +645,59 @@ describe("App", () => {
     expect(screen.getAllByText("Leche")).toHaveLength(1);
   });
 
+  it("reactivates a hidden purchased product with the selected quantity", async () => {
+    window.localStorage.setItem("jucart:show-purchased-items", "false");
+
+    await replaceStoredShoppingItems([
+      {
+        id: "item-1",
+        name: "Leche",
+        quantity: "1",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: true,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ]);
+
+    render(<App />);
+
+    expect(screen.queryByText("Leche")).not.toBeInTheDocument();
+
+    const dialog = await openAddSheet();
+
+    fireEvent.change(within(dialog).getByLabelText("Cantidad"), {
+      target: { value: "3" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
+      target: { value: "leche" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
+
+    expect(
+      screen.getByText("Producto devuelto a pendientes"),
+    ).toBeInTheDocument();
+
+    const mercadonaColumn = screen
+      .getByRole("heading", { name: "Mercadona" })
+      .closest("article");
+
+    expect(mercadonaColumn).not.toBeNull();
+    expect(
+      within(mercadonaColumn as HTMLElement).getByText("Leche"),
+    ).toBeInTheDocument();
+    expect(
+      within(mercadonaColumn as HTMLElement).getByText("x3"),
+    ).toBeInTheDocument();
+    expect(
+      within(mercadonaColumn as HTMLElement).getByRole("button", {
+        name: "Marcar Leche como comprado",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Leche")).toHaveLength(1);
+  });
+
   it("shows remote sync feedback while Supabase saves changes", async () => {
     let resolveStoredData: (data: ShoppingData) => void = () => {};
     let resolveStoreData: () => void = () => {};

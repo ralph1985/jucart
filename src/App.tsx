@@ -47,6 +47,7 @@ import {
   removeShoppingSection,
   removeShoppingItem,
   renameShoppingSection,
+  reactivatePurchasedShoppingItem,
   ShoppingHistoryEvent,
   ShoppingItem,
   shoppingSectionColors,
@@ -1587,6 +1588,39 @@ export function App() {
       });
       focusAddInputAtEnd();
       return false;
+    }
+
+    const reactivatedItems = reactivatePurchasedShoppingItem(
+      items,
+      rawName,
+      selectedSectionId,
+      rawQuantity,
+    );
+
+    if (reactivatedItems !== items) {
+      const reactivatedItem = reactivatedItems.find((item) => {
+        const previousItem = items.find(
+          (currentItem) => currentItem.id === item.id,
+        );
+
+        return previousItem?.purchased && !item.purchased;
+      });
+
+      runHapticFeedback("success");
+
+      if (reactivatedItem) {
+        addHistoryEvent(reactivatedItem, "unpurchased");
+      }
+
+      setItems(reactivatedItems);
+      setItemName("");
+      setAddProductNotice({
+        type: "success",
+        message: "Producto devuelto a pendientes",
+      });
+      focusAddInputAtEnd();
+      window.requestAnimationFrame(resizeAddInput);
+      return true;
     }
 
     const nextItems = addShoppingItem(

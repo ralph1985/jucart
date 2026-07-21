@@ -278,3 +278,12 @@
 - [x] Añadir automatización diaria con Codex para recategorizar productos.
 - [x] Añadir script instalador de cron a las 03:00.
 - [x] Actualizar backup y documentación del esquema.
+
+## Hito 28 — Historial de recategorizaciones
+
+- [x] Registrar ejecuciones de recategorización en Supabase.
+- [x] Registrar cambios de categoría producto a producto.
+- [x] Cachear el historial de recategorizaciones en IndexedDB.
+- [x] Mostrar pestañas de cambios y categorías en la vista Historial.
+- [x] Incluir el historial de recategorización en backups.
+- [x] Añadir tests razonables de Supabase e interfaz.

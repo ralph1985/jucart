@@ -32,6 +32,30 @@ const catalogEntryColumns = [
   "created_at",
   "updated_at",
 ];
+const recategorizationRunColumns = [
+  "id",
+  "list_id",
+  "source",
+  "status",
+  "summary",
+  "catalog_entries_added",
+  "items_recategorized",
+  "started_at",
+  "finished_at",
+  "created_at",
+];
+const recategorizationChangeColumns = [
+  "id",
+  "run_id",
+  "list_id",
+  "item_id",
+  "item_name",
+  "previous_category_id",
+  "next_category_id",
+  "reason",
+  "catalog_entry_id",
+  "created_at",
+];
 const itemColumns = [
   "id",
   "list_id",
@@ -69,25 +93,45 @@ const backupRunColumns = [
 ];
 
 const config = await readSupabaseConfig();
-const [sections, categories, catalogEntries, items, historyEvents, backupRuns] =
-  await Promise.all([
-    fetchRows("shopping_sections", "list_id", config.listId, "position.asc"),
-    fetchRows("shopping_categories", null, null, "position.asc"),
-    fetchRows(
-      "shopping_product_catalog_entries",
-      null,
-      null,
-      "normalized_name.asc",
-    ),
-    fetchRows("shopping_items", "list_id", config.listId, "created_at.asc"),
-    fetchRows(
-      "shopping_history_events",
-      "list_id",
-      config.listId,
-      "created_at.asc",
-    ),
-    fetchRows("developer_backup_runs", null, null, "created_at.asc"),
-  ]);
+const [
+  sections,
+  categories,
+  catalogEntries,
+  items,
+  historyEvents,
+  recategorizationRuns,
+  recategorizationChanges,
+  backupRuns,
+] = await Promise.all([
+  fetchRows("shopping_sections", "list_id", config.listId, "position.asc"),
+  fetchRows("shopping_categories", null, null, "position.asc"),
+  fetchRows(
+    "shopping_product_catalog_entries",
+    null,
+    null,
+    "normalized_name.asc",
+  ),
+  fetchRows("shopping_items", "list_id", config.listId, "created_at.asc"),
+  fetchRows(
+    "shopping_history_events",
+    "list_id",
+    config.listId,
+    "created_at.asc",
+  ),
+  fetchRows(
+    "shopping_recategorization_runs",
+    "list_id",
+    config.listId,
+    "created_at.asc",
+  ),
+  fetchRows(
+    "shopping_recategorization_changes",
+    "list_id",
+    config.listId,
+    "created_at.asc",
+  ),
+  fetchRows("developer_backup_runs", null, null, "created_at.asc"),
+]);
 
 await writeFile(schemaOutputPath, await buildSchemaSql(), "utf8");
 await writeFile(
@@ -99,6 +143,8 @@ await writeFile(
     config,
     historyEvents,
     items,
+    recategorizationChanges,
+    recategorizationRuns,
     sections,
   }),
   "utf8",
@@ -217,6 +263,8 @@ function buildDataSql({
   config,
   historyEvents,
   items,
+  recategorizationChanges,
+  recategorizationRuns,
   sections,
 }) {
   const statements = [
@@ -226,6 +274,8 @@ function buildDataSql({
     "begin;",
     "",
     `delete from public.shopping_history_events where list_id = ${sqlString(config.listId)}::uuid;`,
+    `delete from public.shopping_recategorization_changes where list_id = ${sqlString(config.listId)}::uuid;`,
+    `delete from public.shopping_recategorization_runs where list_id = ${sqlString(config.listId)}::uuid;`,
     `delete from public.shopping_items where list_id = ${sqlString(config.listId)}::uuid;`,
     `delete from public.shopping_sections where list_id = ${sqlString(config.listId)}::uuid;`,
     "",
@@ -247,6 +297,18 @@ function buildDataSql({
       "shopping_history_events",
       historyColumns,
       historyEvents,
+      ["id"],
+    ),
+    buildInsertStatement(
+      "shopping_recategorization_runs",
+      recategorizationRunColumns,
+      recategorizationRuns,
+      ["id"],
+    ),
+    buildInsertStatement(
+      "shopping_recategorization_changes",
+      recategorizationChangeColumns,
+      recategorizationChanges,
       ["id"],
     ),
     buildInsertStatement(

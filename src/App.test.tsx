@@ -1206,6 +1206,57 @@ describe("App", () => {
     expect(screen.getAllByText("Mercadona · Rafa")).toHaveLength(2);
   });
 
+  it("shows recategorization changes in the history categories tab", async () => {
+    await replaceStoredShoppingData({
+      items: [],
+      sections: [{ id: "mercadona", name: "Mercadona", color: "mint" }],
+      historyEvents: [],
+      freezerItems: [],
+      recategorizationRuns: [
+        {
+          id: "run-1",
+          source: "codex",
+          status: "success",
+          summary: "Recategorizado 1 producto.",
+          catalogEntriesAdded: 1,
+          itemsRecategorized: 1,
+          startedAt: Date.parse("2026-07-21T01:00:00.000Z"),
+          finishedAt: Date.parse("2026-07-21T01:00:05.000Z"),
+          createdAt: Date.parse("2026-07-21T01:00:05.000Z"),
+        },
+      ],
+      recategorizationChanges: [
+        {
+          id: "change-1",
+          runId: "run-1",
+          itemId: "item-1",
+          itemName: "Cebollas",
+          previousCategoryId: "other",
+          nextCategoryId: "vegetables",
+          reason: "Cebollas pertenece a verdura.",
+          catalogEntryId: "vegetables-cebollas",
+          createdAt: Date.parse("2026-07-21T01:00:05.000Z"),
+        },
+      ],
+    });
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Historial" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Categorías" }));
+
+    expect(screen.getByText("Categoría actualizada")).toBeInTheDocument();
+    expect(screen.getByText("Cebollas")).toBeInTheDocument();
+    expect(screen.getByText("Otros → Verdura")).toBeInTheDocument();
+    expect(
+      screen.getByText("Cebollas pertenece a verdura."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Catálogo: vegetables-cebollas"),
+    ).toBeInTheDocument();
+  });
+
   it("notifies unseen history events from another device", async () => {
     window.localStorage.setItem("jucart:history-client-id", "client-local");
 

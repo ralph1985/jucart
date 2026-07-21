@@ -11,7 +11,10 @@ erDiagram
   SHOPPING_SECTIONS ||--o{ SHOPPING_ITEMS : contains
   SHOPPING_CATEGORIES ||--o{ SHOPPING_ITEMS : classifies
   SHOPPING_CATEGORIES ||--o{ SHOPPING_PRODUCT_CATALOG_ENTRIES : contains
+  SHOPPING_CATEGORIES ||--o{ SHOPPING_RECAT_CHANGE : previous
+  SHOPPING_CATEGORIES ||--o{ SHOPPING_RECAT_CHANGE : next
   SHOPPING_ITEMS ||--o{ SHOPPING_HISTORY_EVENTS : records
+  SHOPPING_RECAT_RUN ||--o{ SHOPPING_RECAT_CHANGE : records
 
   SHOPPING_SECTIONS {
     text id PK "id de lista, ej: mercadona"
@@ -50,6 +53,32 @@ erDiagram
     text normalized_name "texto normalizado para inferencia"
     timestamptz created_at
     timestamptz updated_at
+  }
+
+  SHOPPING_RECAT_RUN {
+    uuid id PK
+    uuid list_id
+    text source "codex"
+    text status "success|failed"
+    text summary
+    integer catalog_entries_added
+    integer items_recategorized
+    timestamptz started_at
+    timestamptz finished_at
+    timestamptz created_at
+  }
+
+  SHOPPING_RECAT_CHANGE {
+    uuid id PK
+    uuid run_id FK
+    uuid list_id
+    text item_id
+    text item_name
+    text previous_category_id FK
+    text next_category_id FK
+    text reason
+    text catalog_entry_id
+    timestamptz created_at
   }
 
   SHOPPING_HISTORY_EVENTS {
@@ -102,6 +131,12 @@ VITE_SUPABASE_LIST_ID
   |     - catálogo global usado para inferir categorías de productos nuevos
   |     - la automatización diaria puede añadir variantes de nombres
   |
+  +-- shopping_recategorization_runs
+  |     - ejecuciones de la automatización de recategorización
+  |
+  +-- shopping_recategorization_changes
+  |     - cambios producto a producto visibles en la pestaña Categorías del Historial
+  |
   +-- shopping_history_events
         - eventos auditados de altas, compras, devoluciones a pendiente, movimientos y borrados
         - item_snapshot conserva el producto aunque se borre después
@@ -151,6 +186,16 @@ jucart
     id
     categoryId
     normalizedName
+
+  shoppingRecategorizationRuns
+    id
+    createdAt
+
+  shoppingRecategorizationChanges
+    id
+    runId
+    itemId
+    createdAt
 ```
 
 Al cargar, si Supabase está disponible, la aplicación lee datos remotos, categorías y catálogo, y actualiza IndexedDB. Si Supabase no está configurado o falla, usa IndexedDB como almacenamiento local con fallback de categorías en código.
@@ -167,3 +212,4 @@ Al cargar, si Supabase está disponible, la aplicación lee datos remotos, categ
 - `supabase/migrations/20260715210000_extend_shopping_item_categories.sql`: amplía las categorías de productos con preparados, hogar y bebé, y recategoriza productos existentes.
 - `supabase/migrations/20260715211000_recategorize_baby_items.sql`: mueve productos de bebé que ya existían a la nueva categoría.
 - `supabase/migrations/20260721090000_create_shopping_category_catalog.sql`: crea categorías y catálogo maestro globales en Supabase, migra el catálogo inicial y convierte `shopping_items.category_id` en referencia a categorías.
+- `supabase/migrations/20260721103000_create_recategorization_history.sql`: crea el historial de ejecuciones y cambios de recategorización para consultarlo desde la app.

@@ -1101,6 +1101,35 @@ h2 {
   box-shadow: 0 0.4rem 0.95rem var(--surface-shadow);
 }
 
+.historyTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  border: 1px solid rgb(148 163 184 / 24%);
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+  background: rgb(255 255 255 / 72%);
+}
+
+.historyTab,
+.historyTabActive {
+  min-height: 2.3rem;
+  border: 0;
+  border-radius: 0.38rem;
+  padding: 0.4rem 0.65rem;
+  color: #536b7c;
+  background: transparent;
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 850;
+}
+
+.historyTabActive {
+  color: #102033;
+  background: #ffffff;
+  box-shadow: 0 0.28rem 0.7rem var(--surface-shadow);
+}
+
 .historyList {
   display: grid;
   gap: 0.55rem;

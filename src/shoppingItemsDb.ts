@@ -17,6 +17,8 @@ import {
   ShoppingHistoryEvent,
   ShoppingItem,
   ShoppingProductCatalogEntry,
+  ShoppingRecategorizationChange,
+  ShoppingRecategorizationRun,
   ShoppingSection,
   ShoppingSectionId,
   ShoppingUserId,
@@ -38,6 +40,8 @@ type StoredFreezerItem = Omit<FreezerItem, "drawerId"> & {
 };
 type StoredShoppingCategory = ShoppingCategory;
 type StoredShoppingProductCatalogEntry = ShoppingProductCatalogEntry;
+type StoredShoppingRecategorizationRun = ShoppingRecategorizationRun;
+type StoredShoppingRecategorizationChange = ShoppingRecategorizationChange;
 export type ShoppingItemsStorageMode = "local" | "remote" | "fallback";
 export type ShoppingData = {
   items: ShoppingItem[];
@@ -46,6 +50,8 @@ export type ShoppingData = {
   freezerItems: FreezerItem[];
   categories?: ShoppingCategory[];
   productCatalogEntries?: ShoppingProductCatalogEntry[];
+  recategorizationRuns?: ShoppingRecategorizationRun[];
+  recategorizationChanges?: ShoppingRecategorizationChange[];
 };
 
 let lastStorageMode: ShoppingItemsStorageMode = "local";
@@ -58,6 +64,14 @@ class JucartDatabase extends Dexie {
   shoppingCategories!: Table<StoredShoppingCategory, string>;
   shoppingProductCatalogEntries!: Table<
     StoredShoppingProductCatalogEntry,
+    string
+  >;
+  shoppingRecategorizationRuns!: Table<
+    StoredShoppingRecategorizationRun,
+    string
+  >;
+  shoppingRecategorizationChanges!: Table<
+    StoredShoppingRecategorizationChange,
     string
   >;
 
@@ -122,6 +136,18 @@ class JucartDatabase extends Dexie {
       freezerItems: "id, drawerId, frozenAt, createdAt, updatedAt",
       shoppingCategories: "id, position",
       shoppingProductCatalogEntries: "id, categoryId, normalizedName",
+    });
+
+    this.version(11).stores({
+      shoppingItems:
+        "id, sectionId, categoryId, addedBy, createdAt, updatedAt, purchased",
+      shoppingSections: "id, position",
+      shoppingHistoryEvents: "id, itemId, type, actor, clientId, createdAt",
+      freezerItems: "id, drawerId, frozenAt, createdAt, updatedAt",
+      shoppingCategories: "id, position",
+      shoppingProductCatalogEntries: "id, categoryId, normalizedName",
+      shoppingRecategorizationRuns: "id, createdAt",
+      shoppingRecategorizationChanges: "id, runId, itemId, createdAt",
     });
   }
 }
@@ -203,6 +229,8 @@ export async function resetShoppingItemsDatabase() {
       db.freezerItems,
       db.shoppingCategories,
       db.shoppingProductCatalogEntries,
+      db.shoppingRecategorizationRuns,
+      db.shoppingRecategorizationChanges,
     ],
     async () => {
       await db.shoppingItems.clear();
@@ -211,6 +239,8 @@ export async function resetShoppingItemsDatabase() {
       await db.freezerItems.clear();
       await db.shoppingCategories.clear();
       await db.shoppingProductCatalogEntries.clear();
+      await db.shoppingRecategorizationRuns.clear();
+      await db.shoppingRecategorizationChanges.clear();
     },
   );
 }
@@ -228,9 +258,16 @@ async function getLocalShoppingData() {
     getLocalShoppingHistoryEvents(),
     getLocalFreezerItems(),
   ]);
-  const [categories, productCatalogEntries] = await Promise.all([
+  const [
+    categories,
+    productCatalogEntries,
+    recategorizationRuns,
+    recategorizationChanges,
+  ] = await Promise.all([
     getLocalShoppingCategories(),
     getLocalShoppingProductCatalogEntries(),
+    getLocalShoppingRecategorizationRuns(),
+    getLocalShoppingRecategorizationChanges(),
   ]);
 
   return {
@@ -240,6 +277,8 @@ async function getLocalShoppingData() {
     freezerItems,
     categories,
     productCatalogEntries,
+    recategorizationRuns,
+    recategorizationChanges,
   };
 }
 
@@ -261,6 +300,8 @@ async function replaceLocalShoppingData(data: ShoppingData) {
       db.freezerItems,
       db.shoppingCategories,
       db.shoppingProductCatalogEntries,
+      db.shoppingRecategorizationRuns,
+      db.shoppingRecategorizationChanges,
     ],
     async () => {
       await db.shoppingItems.clear();
@@ -269,6 +310,8 @@ async function replaceLocalShoppingData(data: ShoppingData) {
       await db.freezerItems.clear();
       await db.shoppingCategories.clear();
       await db.shoppingProductCatalogEntries.clear();
+      await db.shoppingRecategorizationRuns.clear();
+      await db.shoppingRecategorizationChanges.clear();
       await db.shoppingItems.bulkAdd(data.items);
       await db.shoppingSections.bulkAdd(
         data.sections.map((section, position) => ({ ...section, position })),
@@ -280,6 +323,12 @@ async function replaceLocalShoppingData(data: ShoppingData) {
       );
       await db.shoppingProductCatalogEntries.bulkAdd(
         data.productCatalogEntries ?? defaultShoppingProductCatalogEntries,
+      );
+      await db.shoppingRecategorizationRuns.bulkAdd(
+        data.recategorizationRuns ?? [],
+      );
+      await db.shoppingRecategorizationChanges.bulkAdd(
+        data.recategorizationChanges ?? [],
       );
     },
   );
@@ -307,6 +356,20 @@ async function getLocalShoppingProductCatalogEntries() {
     .toArray();
 
   return entries.length > 0 ? entries : defaultShoppingProductCatalogEntries;
+}
+
+async function getLocalShoppingRecategorizationRuns() {
+  return db.shoppingRecategorizationRuns
+    .orderBy("createdAt")
+    .reverse()
+    .toArray();
+}
+
+async function getLocalShoppingRecategorizationChanges() {
+  return db.shoppingRecategorizationChanges
+    .orderBy("createdAt")
+    .reverse()
+    .toArray();
 }
 
 function normalizeStoredSection(

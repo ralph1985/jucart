@@ -55,6 +55,8 @@ import {
   ShoppingHistoryEvent,
   ShoppingItem,
   ShoppingProductCatalogEntry,
+  ShoppingRecategorizationChange,
+  ShoppingRecategorizationRun,
   shoppingSectionColors,
   ShoppingSectionColor,
   ShoppingSection,
@@ -86,6 +88,7 @@ const lastSeenHistoryEventAtStorageKey = "jucart:last-seen-history-event-at";
 const backupStaleThresholdMs = 6 * 60 * 60 * 1000;
 
 type AppView = "shopping" | "freezer" | "sections" | "history" | "developer";
+type HistoryTab = "changes" | "categories";
 
 type IconName =
   | "check"
@@ -509,6 +512,26 @@ function getHistoryEventMeta(event: ShoppingHistoryEvent) {
   return `${listText} · ${getShoppingUserName(event.actor)}`;
 }
 
+function getRecategorizationChangeMeta(
+  change: ShoppingRecategorizationChange,
+  categories: ShoppingCategory[],
+) {
+  return `${getShoppingCategoryName(
+    change.previousCategoryId,
+    categories,
+  )} → ${getShoppingCategoryName(change.nextCategoryId, categories)}`;
+}
+
+function getRecategorizationRunSummary(
+  run: ShoppingRecategorizationRun | undefined,
+) {
+  if (!run) {
+    return "";
+  }
+
+  return `${run.itemsRecategorized} productos · ${run.catalogEntriesAdded} entradas catálogo`;
+}
+
 function formatHistoryEventDate(createdAt: number) {
   return new Intl.DateTimeFormat("es-ES", {
     day: "2-digit",
@@ -664,11 +687,18 @@ export function App() {
   const [historyEvents, setHistoryEvents] = useState<ShoppingHistoryEvent[]>(
     [],
   );
+  const [recategorizationRuns, setRecategorizationRuns] = useState<
+    ShoppingRecategorizationRun[]
+  >([]);
+  const [recategorizationChanges, setRecategorizationChanges] = useState<
+    ShoppingRecategorizationChange[]
+  >([]);
   const [historyClientId] = useState(getInitialHistoryClientId);
   const [lastSeenHistoryEventAt, setLastSeenHistoryEventAt] = useState(
     getInitialLastSeenHistoryEventAt,
   );
   const [showUnseenHistoryOnly, setShowUnseenHistoryOnly] = useState(false);
+  const [historyTab, setHistoryTab] = useState<HistoryTab>("changes");
   const [unseenHistoryEventsForView, setUnseenHistoryEventsForView] = useState<
     ShoppingHistoryEvent[]
   >([]);
@@ -851,6 +881,13 @@ export function App() {
   const displayedHistoryEvents = showUnseenHistoryOnly
     ? unseenHistoryEventsForView
     : recentHistoryEvents;
+  const recategorizationRunsById = new Map(
+    recategorizationRuns.map((run) => [run.id, run]),
+  );
+  const displayedHistoryCount =
+    historyTab === "categories" && !showUnseenHistoryOnly
+      ? recategorizationChanges.length
+      : displayedHistoryEvents.length;
   const removePurchasedButtonText =
     selectedPurchasedCount === 1
       ? "Borrar 1 producto"
@@ -919,6 +956,8 @@ export function App() {
               defaultShoppingProductCatalogEntries,
           );
           setHistoryEvents(nextHistoryEvents);
+          setRecategorizationRuns(storedData.recategorizationRuns ?? []);
+          setRecategorizationChanges(storedData.recategorizationChanges ?? []);
           setSelectedSectionId((currentSectionId) =>
             isShoppingSectionId(currentSectionId, storedData.sections)
               ? currentSectionId
@@ -973,6 +1012,8 @@ export function App() {
           freezerItems,
           categories,
           productCatalogEntries,
+          recategorizationRuns,
+          recategorizationChanges,
         });
         pendingAddDraftRef.current = null;
         setStorageError(null);
@@ -1016,6 +1057,8 @@ export function App() {
     isLoaded,
     items,
     productCatalogEntries,
+    recategorizationChanges,
+    recategorizationRuns,
     sections,
     historyEvents,
   ]);
@@ -1063,6 +1106,10 @@ export function App() {
             defaultShoppingProductCatalogEntries,
         );
         setHistoryEvents(nextStoredData.historyEvents);
+        setRecategorizationRuns(nextStoredData.recategorizationRuns ?? []);
+        setRecategorizationChanges(
+          nextStoredData.recategorizationChanges ?? [],
+        );
         setSelectedSectionId((currentSectionId) =>
           isShoppingSectionId(currentSectionId, nextStoredData.sections)
             ? currentSectionId
@@ -2508,6 +2555,7 @@ export function App() {
   function showSectionsView() {
     setActiveView("sections");
     setShowUnseenHistoryOnly(false);
+    setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
     runHapticFeedback("light");
     window.setTimeout(() => sectionNameInputRef.current?.focus(), 0);
@@ -2516,6 +2564,7 @@ export function App() {
   function showShoppingView() {
     setActiveView("shopping");
     setShowUnseenHistoryOnly(false);
+    setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
     runHapticFeedback("light");
   }
@@ -2523,6 +2572,7 @@ export function App() {
   function showFreezerView() {
     setActiveView("freezer");
     setShowUnseenHistoryOnly(false);
+    setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
     runHapticFeedback("light");
   }
@@ -2530,6 +2580,7 @@ export function App() {
   function showHistoryView() {
     setActiveView("history");
     setShowUnseenHistoryOnly(false);
+    setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
     runHapticFeedback("light");
   }
@@ -2537,6 +2588,7 @@ export function App() {
   function showDeveloperView() {
     setActiveView("developer");
     setShowUnseenHistoryOnly(false);
+    setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
     void refreshDeveloperBackupRun();
     runHapticFeedback("light");
@@ -2551,6 +2603,7 @@ export function App() {
     setLastSeenHistoryEventAt(latestUnseenEventAt);
     setUnseenHistoryEventsForView(unseenRemoteHistoryEvents);
     setShowUnseenHistoryOnly(true);
+    setHistoryTab("changes");
     setActiveView("history");
     runHapticFeedback("light");
   }
@@ -3123,6 +3176,56 @@ export function App() {
             <p className={styles.historyMeta}>{getHistoryEventMeta(event)}</p>
           </li>
         ))}
+      </ol>
+    );
+  }
+
+  function renderRecategorizationChanges() {
+    if (recategorizationChanges.length === 0) {
+      return (
+        <div className={styles.historyEmpty}>
+          <p className={styles.emptyTitle}>No hay recategorizaciones</p>
+          <p className={styles.emptyDescription}>
+            Los cambios automáticos de categoría aparecerán aquí.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <ol className={styles.historyList}>
+        {recategorizationChanges.map((change) => {
+          const run = recategorizationRunsById.get(change.runId);
+          const runSummary = getRecategorizationRunSummary(run);
+
+          return (
+            <li className={styles.historyItem} key={change.id}>
+              <div className={styles.historyItemHeader}>
+                <span className={styles.historyAction}>
+                  Categoría actualizada
+                </span>
+                <time dateTime={new Date(change.createdAt).toISOString()}>
+                  {formatHistoryEventDate(change.createdAt)}
+                </time>
+              </div>
+              <p className={styles.historyProduct}>{change.itemName}</p>
+              <p className={styles.historyMeta}>
+                {getRecategorizationChangeMeta(change, categories)}
+              </p>
+              {change.reason ? (
+                <p className={styles.historyMeta}>{change.reason}</p>
+              ) : null}
+              {runSummary ? (
+                <p className={styles.historyMeta}>{runSummary}</p>
+              ) : null}
+              {change.catalogEntryId ? (
+                <p className={styles.historyMeta}>
+                  Catálogo: {change.catalogEntryId}
+                </p>
+              ) : null}
+            </li>
+          );
+        })}
       </ol>
     );
   }
@@ -4030,9 +4133,7 @@ export function App() {
             <h2 id="history-title">
               {showUnseenHistoryOnly ? "Cambios nuevos" : "Historial"}
             </h2>
-            <span className={styles.count}>
-              {displayedHistoryEvents.length}
-            </span>
+            <span className={styles.count}>{displayedHistoryCount}</span>
           </div>
           {showUnseenHistoryOnly ? (
             <button
@@ -4043,8 +4144,41 @@ export function App() {
             >
               Ver historial completo
             </button>
-          ) : null}
-          {renderHistoryEvents()}
+          ) : (
+            <div className={styles.historyTabs} role="tablist">
+              <button
+                className={
+                  historyTab === "changes"
+                    ? styles.historyTabActive
+                    : styles.historyTab
+                }
+                type="button"
+                role="tab"
+                aria-selected={historyTab === "changes"}
+                onPointerDown={handleButtonPointerDown}
+                onClick={() => setHistoryTab("changes")}
+              >
+                Cambios
+              </button>
+              <button
+                className={
+                  historyTab === "categories"
+                    ? styles.historyTabActive
+                    : styles.historyTab
+                }
+                type="button"
+                role="tab"
+                aria-selected={historyTab === "categories"}
+                onPointerDown={handleButtonPointerDown}
+                onClick={() => setHistoryTab("categories")}
+              >
+                Categorías
+              </button>
+            </div>
+          )}
+          {historyTab === "categories" && !showUnseenHistoryOnly
+            ? renderRecategorizationChanges()
+            : renderHistoryEvents()}
         </section>
       ) : null}
 

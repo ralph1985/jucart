@@ -67,6 +67,30 @@ export type ShoppingProductCatalogEntry = {
   normalizedName: string;
 };
 
+export type ShoppingRecategorizationRun = {
+  id: string;
+  source: "codex";
+  status: "success" | "failed";
+  summary: string | null;
+  catalogEntriesAdded: number;
+  itemsRecategorized: number;
+  startedAt: number;
+  finishedAt: number;
+  createdAt: number;
+};
+
+export type ShoppingRecategorizationChange = {
+  id: string;
+  runId: string;
+  itemId: string;
+  itemName: string;
+  previousCategoryId: ShoppingCategoryId;
+  nextCategoryId: ShoppingCategoryId;
+  reason: string | null;
+  catalogEntryId: string | null;
+  createdAt: number;
+};
+
 export const defaultShoppingCategories: ShoppingCategory[] =
   shoppingCategories.map((category, position) => ({ ...category, position }));
 

@@ -8,6 +8,8 @@ import {
   mapRowToShoppingHistoryEvent,
   mapRowToShoppingItem,
   mapRowToShoppingProductCatalogEntry,
+  mapRowToShoppingRecategorizationChange,
+  mapRowToShoppingRecategorizationRun,
   mapRowToShoppingSection,
   mapShoppingHistoryEventToRow,
   mapShoppingItemToRow,
@@ -181,6 +183,60 @@ describe("shopping items Supabase adapter", () => {
       categoryId: "pantry",
       name: "nueces",
       normalizedName: "nueces",
+    });
+  });
+
+  it("maps Supabase recategorization run rows", () => {
+    expect(
+      mapRowToShoppingRecategorizationRun({
+        id: "00000000-0000-4000-8000-000000000001",
+        list_id: "00000000-0000-4000-8000-000000000002",
+        source: "codex",
+        status: "success",
+        summary: "Recategorizados 2 productos.",
+        catalog_entries_added: 1,
+        items_recategorized: 2,
+        started_at: "2026-07-21T01:00:00.000Z",
+        finished_at: "2026-07-21T01:00:05.000Z",
+        created_at: "2026-07-21T01:00:05.000Z",
+      }),
+    ).toEqual({
+      id: "00000000-0000-4000-8000-000000000001",
+      source: "codex",
+      status: "success",
+      summary: "Recategorizados 2 productos.",
+      catalogEntriesAdded: 1,
+      itemsRecategorized: 2,
+      startedAt: Date.parse("2026-07-21T01:00:00.000Z"),
+      finishedAt: Date.parse("2026-07-21T01:00:05.000Z"),
+      createdAt: Date.parse("2026-07-21T01:00:05.000Z"),
+    });
+  });
+
+  it("maps Supabase recategorization change rows", () => {
+    expect(
+      mapRowToShoppingRecategorizationChange({
+        id: "00000000-0000-4000-8000-000000000001",
+        run_id: "00000000-0000-4000-8000-000000000002",
+        list_id: "00000000-0000-4000-8000-000000000003",
+        item_id: "item-1",
+        item_name: "Cebollas",
+        previous_category_id: "other",
+        next_category_id: "vegetables",
+        reason: "Cebollas pertenece a verdura.",
+        catalog_entry_id: "vegetables-cebollas",
+        created_at: "2026-07-21T01:00:05.000Z",
+      }),
+    ).toEqual({
+      id: "00000000-0000-4000-8000-000000000001",
+      runId: "00000000-0000-4000-8000-000000000002",
+      itemId: "item-1",
+      itemName: "Cebollas",
+      previousCategoryId: "other",
+      nextCategoryId: "vegetables",
+      reason: "Cebollas pertenece a verdura.",
+      catalogEntryId: "vegetables-cebollas",
+      createdAt: Date.parse("2026-07-21T01:00:05.000Z"),
     });
   });
 

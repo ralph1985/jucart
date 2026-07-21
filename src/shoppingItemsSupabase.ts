@@ -21,6 +21,8 @@ import {
   ShoppingItem,
   ShoppingSection,
   ShoppingSectionId,
+  ShoppingRecategorizationChange,
+  ShoppingRecategorizationRun,
   ShoppingUserId,
 } from "./shoppingItems";
 import type { ShoppingData } from "./shoppingItemsDb";
@@ -77,6 +79,32 @@ type ShoppingProductCatalogEntryRow = {
   normalized_name: string;
   created_at?: string;
   updated_at?: string;
+};
+
+type ShoppingRecategorizationRunRow = {
+  id: string;
+  list_id: string;
+  source: string;
+  status: string;
+  summary: string | null;
+  catalog_entries_added: number;
+  items_recategorized: number;
+  started_at: string;
+  finished_at: string;
+  created_at: string;
+};
+
+type ShoppingRecategorizationChangeRow = {
+  id: string;
+  run_id: string;
+  list_id: string;
+  item_id: string;
+  item_name: string;
+  previous_category_id: string;
+  next_category_id: string;
+  reason: string | null;
+  catalog_entry_id: string | null;
+  created_at: string;
 };
 
 type FreezerItemRow = {
@@ -156,6 +184,8 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
     freezerResult,
     categoriesResult,
     catalogResult,
+    recategorizationRunsResult,
+    recategorizationChangesResult,
   ] = await Promise.all([
     client
       .from("shopping_items")
@@ -185,6 +215,18 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
       .from("shopping_product_catalog_entries")
       .select("*")
       .order("normalized_name", { ascending: true }),
+    client
+      .from("shopping_recategorization_runs")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    client
+      .from("shopping_recategorization_changes")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   if (itemsResult.error) {
@@ -214,6 +256,20 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
     throw catalogResult.error;
   }
 
+  if (
+    recategorizationRunsResult.error &&
+    !isMissingRelationError(recategorizationRunsResult.error)
+  ) {
+    throw recategorizationRunsResult.error;
+  }
+
+  if (
+    recategorizationChangesResult.error &&
+    !isMissingRelationError(recategorizationChangesResult.error)
+  ) {
+    throw recategorizationChangesResult.error;
+  }
+
   const productCatalogEntries =
     !catalogResult.error && catalogResult.data && catalogResult.data.length > 0
       ? catalogResult.data.map(mapRowToShoppingProductCatalogEntry)
@@ -236,6 +292,18 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
         ? categoriesResult.data.map(mapRowToShoppingCategory)
         : defaultShoppingCategories,
     productCatalogEntries,
+    recategorizationRuns:
+      !recategorizationRunsResult.error && recategorizationRunsResult.data
+        ? recategorizationRunsResult.data.map(
+            mapRowToShoppingRecategorizationRun,
+          )
+        : [],
+    recategorizationChanges:
+      !recategorizationChangesResult.error && recategorizationChangesResult.data
+        ? recategorizationChangesResult.data.map(
+            mapRowToShoppingRecategorizationChange,
+          )
+        : [],
   };
 }
 
@@ -442,6 +510,26 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
       },
       onChange,
     )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_recategorization_runs",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_recategorization_changes",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
     .subscribe();
 
   return () => {
@@ -488,6 +576,38 @@ export function mapRowToShoppingProductCatalogEntry(
     categoryId: row.category_id,
     name: row.name,
     normalizedName: row.normalized_name,
+  };
+}
+
+export function mapRowToShoppingRecategorizationRun(
+  row: ShoppingRecategorizationRunRow,
+): ShoppingRecategorizationRun {
+  return {
+    id: row.id,
+    source: "codex",
+    status: row.status === "failed" ? "failed" : "success",
+    summary: row.summary,
+    catalogEntriesAdded: row.catalog_entries_added,
+    itemsRecategorized: row.items_recategorized,
+    startedAt: Date.parse(row.started_at),
+    finishedAt: Date.parse(row.finished_at),
+    createdAt: Date.parse(row.created_at),
+  };
+}
+
+export function mapRowToShoppingRecategorizationChange(
+  row: ShoppingRecategorizationChangeRow,
+): ShoppingRecategorizationChange {
+  return {
+    id: row.id,
+    runId: row.run_id,
+    itemId: row.item_id,
+    itemName: row.item_name,
+    previousCategoryId: row.previous_category_id,
+    nextCategoryId: row.next_category_id,
+    reason: row.reason,
+    catalogEntryId: row.catalog_entry_id,
+    createdAt: Date.parse(row.created_at),
   };
 }
 

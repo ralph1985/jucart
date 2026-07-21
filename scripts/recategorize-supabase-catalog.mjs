@@ -57,13 +57,14 @@ async function exportContext() {
 }
 
 async function applyChanges(rawChanges) {
+  const startedAt = new Date().toISOString();
   const changes = normalizeChanges(rawChanges);
   const [categories, items] = await Promise.all([
     fetchRows("shopping_categories", null, null, "position.asc"),
     fetchRows("shopping_items", "list_id", config.listId, "created_at.asc"),
   ]);
   const categoryIds = new Set(categories.map((category) => category.id));
-  const itemIds = new Set(items.map((item) => item.id));
+  const itemsById = new Map(items.map((item) => [item.id, item]));
 
   for (const entry of changes.catalogEntries) {
     if (!categoryIds.has(entry.category_id)) {
@@ -72,7 +73,7 @@ async function applyChanges(rawChanges) {
   }
 
   for (const update of changes.itemUpdates) {
-    if (!itemIds.has(update.id)) {
+    if (!itemsById.has(update.id)) {
       fail(`Unknown shopping item id for this list: ${update.id}`);
     }
 
@@ -81,20 +82,26 @@ async function applyChanges(rawChanges) {
     }
   }
 
+  const catalogRows = changes.catalogEntries.map((entry) => ({
+    id: entry.id || buildCatalogEntryId(entry.category_id, entry.name),
+    category_id: entry.category_id,
+    name: entry.name,
+    normalized_name: normalizeCatalogText(entry.normalized_name || entry.name),
+  }));
+
   if (changes.catalogEntries.length > 0) {
     await upsertRows(
       "shopping_product_catalog_entries",
-      changes.catalogEntries.map((entry) => ({
-        id: entry.id || buildCatalogEntryId(entry.category_id, entry.name),
-        category_id: entry.category_id,
-        name: entry.name,
-        normalized_name: normalizeCatalogText(
-          entry.normalized_name || entry.name,
-        ),
-      })),
+      catalogRows,
       "category_id,normalized_name",
     );
   }
+
+  const effectiveItemUpdates = changes.itemUpdates.filter((update) => {
+    const currentItem = itemsById.get(update.id);
+
+    return currentItem && currentItem.category_id !== update.category_id;
+  });
 
   for (const update of changes.itemUpdates) {
     await patchRows(
@@ -104,8 +111,44 @@ async function applyChanges(rawChanges) {
     );
   }
 
+  const finishedAt = new Date().toISOString();
+  const [run] = await insertRowsReturning("shopping_recategorization_runs", [
+    {
+      list_id: config.listId,
+      source: "codex",
+      status: "success",
+      summary:
+        rawChanges?.summary ||
+        `Recategorizados ${effectiveItemUpdates.length} productos y añadidas ${catalogRows.length} entradas de catálogo.`,
+      catalog_entries_added: catalogRows.length,
+      items_recategorized: effectiveItemUpdates.length,
+      started_at: startedAt,
+      finished_at: finishedAt,
+    },
+  ]);
+
+  if (run && effectiveItemUpdates.length > 0) {
+    await insertRowsReturning(
+      "shopping_recategorization_changes",
+      effectiveItemUpdates.map((update) => {
+        const currentItem = itemsById.get(update.id);
+
+        return {
+          run_id: run.id,
+          list_id: config.listId,
+          item_id: update.id,
+          item_name: currentItem.name,
+          previous_category_id: currentItem.category_id,
+          next_category_id: update.category_id,
+          reason: update.reason || null,
+          catalog_entry_id: update.catalog_entry_id || null,
+        };
+      }),
+    );
+  }
+
   console.log(
-    `Applied ${changes.catalogEntries.length} catalog entries and ${changes.itemUpdates.length} item updates.`,
+    `Applied ${changes.catalogEntries.length} catalog entries and ${effectiveItemUpdates.length} item updates.`,
   );
 }
 
@@ -134,6 +177,12 @@ function normalizeChanges(rawChanges) {
             category_id:
               typeof update.category_id === "string"
                 ? update.category_id.trim()
+                : "",
+            reason:
+              typeof update.reason === "string" ? update.reason.trim() : "",
+            catalog_entry_id:
+              typeof update.catalog_entry_id === "string"
+                ? update.catalog_entry_id.trim()
                 : "",
           }))
           .filter((update) => update.id && update.category_id)
@@ -235,6 +284,28 @@ async function upsertRows(tableName, rows, onConflict) {
   if (!response.ok) {
     throw new Error(`Could not upsert ${tableName}: ${response.status}`);
   }
+}
+
+async function insertRowsReturning(tableName, rows) {
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const response = await fetch(`${config.url}/rest/v1/${tableName}`, {
+    method: "POST",
+    headers: {
+      ...supabaseHeaders(),
+      "content-type": "application/json",
+      prefer: "return=representation",
+    },
+    body: JSON.stringify(rows),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not insert ${tableName}: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 async function patchRows(tableName, query, body) {

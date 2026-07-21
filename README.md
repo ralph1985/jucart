@@ -117,7 +117,7 @@ Las categorías y el catálogo maestro viven en Supabase. Ejecutar una revisión
 pnpm recategorize:codex
 ```
 
-El script exporta productos, categorías y catálogo remoto, lanza `codex exec` con instrucciones acotadas y permite aplicar cambios directos solo mediante el helper de recategorización. Los informes y logs se guardan en `var/log/`.
+El script exporta productos, categorías y catálogo remoto, lanza `codex exec` con instrucciones acotadas y permite aplicar cambios directos solo mediante el helper de recategorización. Cada ejecución y cada cambio de categoría quedan registrados en Supabase para verse en la pestaña `Categorías` de Historial. Los informes y logs se guardan en `var/log/`.
 
 Instalar el cron diario a las 03:00:
 
@@ -173,3 +173,5 @@ El Hito 23 añade backup local de Supabase y una vista interna de desarrollador.
 El Hito 24 añade sugerencias rápidas bajo el campo de producto cuando se empieza a escribir. Las sugerencias combinan catálogo, productos existentes e historial reciente, se filtran mientras se escribe y evitan sugerir productos ya presentes en el tablero.
 
 El Hito 27 mueve categorías y catálogo maestro a Supabase, mantiene fallback local y añade la recategorización diaria con Codex desde cron.
+
+El Hito 28 añade auditoría de recategorizaciones y una pestaña `Categorías` dentro de Historial para ver qué productos se han movido de categoría.

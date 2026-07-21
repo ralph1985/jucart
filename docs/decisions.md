@@ -31,6 +31,8 @@ Desde el Hito 27, las categorías y el catálogo maestro viven en Supabase como 
 
 La categoría inferida se guarda en el producto y se recalcula al renombrarlo. Los productos antiguos sin categoría se normalizan al cargar usando el catálogo disponible. La automatización diaria con Codex puede añadir entradas al catálogo remoto y actualizar `shopping_items.category_id` cuando la recategorización sea clara.
 
+Las recategorizaciones automáticas se registran en un historial propio de Supabase, separado del historial de acciones manuales de compra. La sección Historial de la app muestra ambos historiales en pestañas para distinguir cambios humanos de mantenimiento automático.
+
 ## Historial de cambios
 
 En el Hito 22, Jucart añade un historial auditado para altas, compras, cambios de lista y borrados.

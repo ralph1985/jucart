@@ -35,6 +35,7 @@ Reglas estrictas:
 
 Formato del changes-json si aplicas cambios:
 {
+  "summary": "Resumen corto de la revisión",
   "catalogEntries": [
     {
       "category_id": "vegetables",
@@ -44,7 +45,9 @@ Formato del changes-json si aplicas cambios:
   "itemUpdates": [
     {
       "id": "item-id",
-      "category_id": "vegetables"
+      "category_id": "vegetables",
+      "reason": "El nombre contiene cebollas, que pertenece a verdura",
+      "catalog_entry_id": "vegetables-cebollas"
     }
   ]
 }
@@ -54,6 +57,8 @@ Antes de aplicar cambios, lee el JSON de contexto. Al final, resume:
 - entradas de catálogo añadidas;
 - productos recategorizados;
 - productos dudosos no tocados.
+
+El helper registrará cada recategorización en Supabase para que se vea en la pestaña Categorías del Historial de la app.
 PROMPT
 
 "$CODEX_BIN" exec \

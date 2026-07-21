@@ -64,7 +64,6 @@ PROMPT
 "$CODEX_BIN" exec \
   -C "$REPO_ROOT" \
   -s workspace-write \
-  -a never \
   -o "$REPORT_PATH" \
   - < "$PROMPT_PATH"
 

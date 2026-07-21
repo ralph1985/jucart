@@ -420,20 +420,43 @@ describe("shopping items Supabase adapter", () => {
     expect(data?.sections.length).toBeGreaterThan(0);
   });
 
-  it("throws non-missing Supabase read errors", async () => {
-    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
-      configuredSupabase,
-    );
-    const error = new Error("permission denied");
+  it.each([
+    ["shopping_items", "items failed"],
+    ["shopping_sections", "sections failed"],
+    ["shopping_history_events", "history failed"],
+    ["freezer_items", "freezer failed"],
+  ] as const)(
+    "throws mandatory Supabase read errors from %s",
+    async (table, message) => {
+      vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+        configuredSupabase,
+      );
+      supabaseMocks.setResult(table, "select", {
+        error: new Error(message),
+      });
 
-    supabaseMocks.setResult("shopping_items", "select", {
-      error,
-    });
+      await expect(getSupabaseShoppingData()).rejects.toThrow(message);
+    },
+  );
 
-    await expect(getSupabaseShoppingData()).rejects.toThrow(
-      "permission denied",
-    );
-  });
+  it.each([
+    ["shopping_categories", "categories failed"],
+    ["shopping_product_catalog_entries", "catalog failed"],
+    ["shopping_recategorization_runs", "runs failed"],
+    ["shopping_recategorization_changes", "changes failed"],
+  ] as const)(
+    "throws non-missing optional Supabase read errors from %s",
+    async (table, message) => {
+      vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+        configuredSupabase,
+      );
+      supabaseMocks.setResult(table, "select", {
+        error: new Error(message),
+      });
+
+      await expect(getSupabaseShoppingData()).rejects.toThrow(message);
+    },
+  );
 
   it("replaces Supabase shopping data with upserts and stale-row deletes", async () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
@@ -582,6 +605,31 @@ describe("shopping items Supabase adapter", () => {
       operation: "order",
       table: "developer_backup_runs",
     });
+  });
+
+  it("returns null when there is no developer backup run", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.setResult("developer_backup_runs", "maybeSingle", {
+      data: null,
+      error: null,
+    });
+
+    await expect(getLatestDeveloperBackupRun()).resolves.toBeNull();
+  });
+
+  it("throws developer backup read errors", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.setResult("developer_backup_runs", "maybeSingle", {
+      error: new Error("backup read failed"),
+    });
+
+    await expect(getLatestDeveloperBackupRun()).rejects.toThrow(
+      "backup read failed",
+    );
   });
 
   it("subscribes to Supabase tables and removes the channel on cleanup", () => {

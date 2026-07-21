@@ -287,3 +287,13 @@
 - [x] Mostrar pestañas de cambios y categorías en la vista Historial.
 - [x] Incluir el historial de recategorización en backups.
 - [x] Añadir tests razonables de Supabase e interfaz.
+
+## Hito 29 — Tests E2E
+
+- [x] Instalar Playwright como dependencia de desarrollo.
+- [x] Configurar ejecución E2E con Chromium sobre `vite preview`.
+- [x] Añadir smoke local de arranque y navegación principal.
+- [x] Añadir flujo E2E de alta, compra y vuelta a pendiente.
+- [x] Añadir comprobación de persistencia local tras recarga.
+- [x] Añadir flujo E2E de alta de producto congelado desde bottom sheet.
+- [x] Ejecutar los E2E en `pre-push`.

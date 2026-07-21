@@ -29,6 +29,7 @@ El objetivo principal es que añadir un producto sea más rápido que escribirlo
 - Embla Carousel.
 - Vitest.
 - React Testing Library.
+- Playwright.
 - ESLint.
 - Prettier.
 - pnpm.
@@ -51,7 +52,17 @@ pnpm lint
 pnpm format
 pnpm format:check
 pnpm test
+pnpm test:e2e
+pnpm test:e2e:headed
 pnpm test:watch
+```
+
+Los scripts E2E fuerzan `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_SUPABASE_LIST_ID` vacías durante el build para probar el fallback local sin tocar Supabase remoto.
+
+El hook `pre-push` vive en `.githooks/pre-push` y ejecuta `pnpm test:e2e`. En este checkout se activa con:
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 ## Desarrollo
@@ -175,3 +186,5 @@ El Hito 24 añade sugerencias rápidas bajo el campo de producto cuando se empie
 El Hito 27 mueve categorías y catálogo maestro a Supabase, mantiene fallback local y añade la recategorización diaria con Codex desde cron.
 
 El Hito 28 añade auditoría de recategorizaciones y una pestaña `Categorías` dentro de Historial para ver qué productos se han movido de categoría.
+
+El Hito 29 añade tests E2E con Playwright sobre Chromium para validar la app construida con Vite en navegador real. La primera capa cubre arranque local, alta y compra de productos, persistencia local tras recarga y alta de productos congelados.

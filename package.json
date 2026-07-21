@@ -20,6 +20,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:e2e": "VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= VITE_SUPABASE_LIST_ID= pnpm build && playwright test",
+    "test:e2e:headed": "VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= VITE_SUPABASE_LIST_ID= pnpm build && playwright test --headed",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -32,6 +34,7 @@
   },
   "devDependencies": {
     "@eslint/js": "latest",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "latest",
     "@testing-library/react": "latest",
     "@types/node": "latest",

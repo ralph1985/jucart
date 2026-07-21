@@ -25,7 +25,9 @@ import {
 } from "./shoppingItems";
 import {
   addFreezerItem,
+  getFreezerDrawerName,
   getFreezerItemsByDrawer,
+  isFreezerDrawerId,
   removeFreezerItem,
   sortFreezerItemsByUseFirst,
   updateFreezerItem,
@@ -693,6 +695,12 @@ describe("shopping item logic", () => {
 });
 
 describe("freezer item logic", () => {
+  it("validates and names freezer drawers", () => {
+    expect(isFreezerDrawerId("middle")).toBe(true);
+    expect(isFreezerDrawerId("unknown")).toBe(false);
+    expect(getFreezerDrawerName("bottom")).toBe("Abajo");
+  });
+
   it("adds freezer items with normalized optional quantity", () => {
     expect(
       addFreezerItem(
@@ -742,6 +750,29 @@ describe("freezer item logic", () => {
         },
       ]).map((item) => item.id),
     ).toEqual(["old", "new"]);
+  });
+
+  it("uses creation date as the freezer item sort tiebreaker", () => {
+    expect(
+      sortFreezerItemsByUseFirst([
+        {
+          id: "newer",
+          name: "Nuevo",
+          drawerId: "top",
+          frozenAt: 100,
+          createdAt: 300,
+          updatedAt: 300,
+        },
+        {
+          id: "older",
+          name: "Viejo",
+          drawerId: "top",
+          frozenAt: 100,
+          createdAt: 200,
+          updatedAt: 200,
+        },
+      ]).map((item) => item.id),
+    ).toEqual(["older", "newer"]);
   });
 
   it("groups drawer items ordered by use priority", () => {
@@ -811,5 +842,34 @@ describe("freezer item logic", () => {
       },
     ]);
     expect(removeFreezerItem(updatedItems, "freezer-1")).toEqual([]);
+  });
+
+  it("keeps freezer items unchanged for empty, missing or equal updates", () => {
+    const freezerItems = addFreezerItem(
+      [],
+      "Caldo",
+      "top",
+      100,
+      "1 litro",
+      () => "freezer-1",
+      () => 100,
+    );
+
+    expect(
+      updateFreezerItem(freezerItems, "freezer-1", "   ", "top", 100),
+    ).toBe(freezerItems);
+    expect(
+      updateFreezerItem(freezerItems, "missing", "Caldo", "top", 100),
+    ).toBe(freezerItems);
+    expect(
+      updateFreezerItem(
+        freezerItems,
+        "freezer-1",
+        "Caldo",
+        "top",
+        100,
+        "1 litro",
+      ),
+    ).toBe(freezerItems);
   });
 });

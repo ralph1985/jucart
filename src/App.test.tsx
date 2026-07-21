@@ -130,9 +130,15 @@ describe("App", () => {
     fireEvent.change(within(addFreezerDialog).getByLabelText("Producto"), {
       target: { value: "Lentejas" },
     });
-    fireEvent.change(within(addFreezerDialog).getByLabelText("Cantidad"), {
+    const freezerQuantityInput = within(addFreezerDialog).getByLabelText(
+      "Cantidad",
+    ) as HTMLInputElement;
+    fireEvent.change(freezerQuantityInput, {
       target: { value: "2 raciones" },
     });
+    fireEvent.focus(freezerQuantityInput);
+    expect(freezerQuantityInput.selectionStart).toBe(0);
+    expect(freezerQuantityInput.selectionEnd).toBe("2 raciones".length);
     fireEvent.change(within(addFreezerDialog).getByLabelText("Cajón"), {
       target: { value: "middle" },
     });
@@ -158,7 +164,13 @@ describe("App", () => {
       name: "Editar Lentejas",
     });
 
-    fireEvent.change(within(editFreezerDialog).getByLabelText("Cantidad"), {
+    const editFreezerQuantityInput = within(editFreezerDialog).getByLabelText(
+      "Cantidad",
+    ) as HTMLInputElement;
+    fireEvent.focus(editFreezerQuantityInput);
+    expect(editFreezerQuantityInput.selectionStart).toBe(0);
+    expect(editFreezerQuantityInput.selectionEnd).toBe("2 raciones".length);
+    fireEvent.change(editFreezerQuantityInput, {
       target: { value: "3 raciones" },
     });
     fireEvent.click(
@@ -401,9 +413,15 @@ describe("App", () => {
     fireEvent.change(within(dialog).getByLabelText("Supermercado"), {
       target: { value: "alcampo" },
     });
-    fireEvent.change(within(dialog).getByLabelText("Cantidad"), {
+    const quantityInput = within(dialog).getByLabelText(
+      "Cantidad",
+    ) as HTMLInputElement;
+    fireEvent.change(quantityInput, {
       target: { value: "12" },
     });
+    fireEvent.focus(quantityInput);
+    expect(quantityInput.selectionStart).toBe(0);
+    expect(quantityInput.selectionEnd).toBe(2);
     fireEvent.change(screen.getByLabelText("Añadido por"), {
       target: { value: "begona" },
     });
@@ -2151,6 +2169,9 @@ describe("App", () => {
     fireEvent.change(within(addDialog).getByLabelText("Producto"), {
       target: { value: "Leche" },
     });
+    fireEvent.change(within(addDialog).getByLabelText("Cantidad"), {
+      target: { value: "2" },
+    });
     fireEvent.click(within(addDialog).getByRole("button", { name: "Añadir" }));
     fireEvent.click(screen.getByRole("button", { name: "Editar Leche" }));
 
@@ -2159,7 +2180,13 @@ describe("App", () => {
     fireEvent.change(within(dialog).getByLabelText("Producto"), {
       target: { value: "Pan integral" },
     });
-    fireEvent.change(within(dialog).getByLabelText("Cantidad"), {
+    const editQuantityInput = within(dialog).getByLabelText(
+      "Cantidad",
+    ) as HTMLInputElement;
+    fireEvent.focus(editQuantityInput);
+    expect(editQuantityInput.selectionStart).toBe(0);
+    expect(editQuantityInput.selectionEnd).toBe(1);
+    fireEvent.change(editQuantityInput, {
       target: { value: "1 kg" },
     });
     fireEvent.change(within(dialog).getByLabelText("Sección"), {
@@ -2234,22 +2261,46 @@ describe("App", () => {
     ]);
 
     vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(shoppingItemsDb, "getStoredShoppingData")
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: "item-1",
+            name: "Leche",
+            sectionId: "farmacia",
+            addedBy: "rafa",
+            purchased: false,
+            createdAt: 100,
+            updatedAt: 100,
+          },
+        ],
+        sections: defaultShoppingSections,
+        historyEvents: [],
+        freezerItems: [],
+      })
+      .mockResolvedValue({
+        items: [
+          {
+            id: "item-2",
+            name: "Pan",
+            sectionId: "mercadona",
+            addedBy: "begona",
+            purchased: false,
+            createdAt: 200,
+            updatedAt: 200,
+          },
+        ],
+        sections: defaultShoppingSections,
+        historyEvents: [],
+        freezerItems: [],
+      });
 
     render(<App />);
 
     expect(await screen.findByText("Leche")).toBeInTheDocument();
-
-    await replaceStoredShoppingItems([
-      {
-        id: "item-2",
-        name: "Pan",
-        sectionId: "mercadona",
-        addedBy: "begona",
-        purchased: false,
-        createdAt: 200,
-        updatedAt: 200,
-      },
-    ]);
+    await waitFor(() =>
+      expect(shoppingItemsDb.getStoredShoppingData).toHaveBeenCalledTimes(1),
+    );
 
     Object.defineProperty(document, "visibilityState", {
       configurable: true,

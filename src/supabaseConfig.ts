@@ -4,14 +4,19 @@ export type SupabaseConfig = {
   listId: string;
 };
 
-export function getSupabaseConfig(): SupabaseConfig | null {
-  if (import.meta.env.MODE === "test") {
+type SupabaseEnv = Record<string, string | undefined>;
+
+export function resolveSupabaseConfig(
+  env: SupabaseEnv,
+  mode: string,
+): SupabaseConfig | null {
+  if (mode === "test") {
     return null;
   }
 
-  const url = import.meta.env.VITE_SUPABASE_URL?.trim();
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
-  const listId = import.meta.env.VITE_SUPABASE_LIST_ID?.trim();
+  const url = env.VITE_SUPABASE_URL?.trim();
+  const anonKey = env.VITE_SUPABASE_ANON_KEY?.trim();
+  const listId = env.VITE_SUPABASE_LIST_ID?.trim();
 
   if (
     !url ||
@@ -24,6 +29,10 @@ export function getSupabaseConfig(): SupabaseConfig | null {
   }
 
   return { url, anonKey, listId };
+}
+
+export function getSupabaseConfig(): SupabaseConfig | null {
+  return resolveSupabaseConfig(import.meta.env, import.meta.env.MODE);
 }
 
 export function isSupabaseConfigured() {

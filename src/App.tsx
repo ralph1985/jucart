@@ -2,6 +2,7 @@ import {
   FormEvent,
   ChangeEvent,
   CSSProperties,
+  FocusEvent,
   KeyboardEvent,
   MouseEvent,
   PointerEvent,
@@ -323,6 +324,10 @@ function getInitialHistoryClientId() {
 
 function formatShoppingItemQuantity(quantity: string) {
   return /^\d+(?:[.,]\d+)?$/.test(quantity) ? `x${quantity}` : quantity;
+}
+
+function selectTextOnFocus(event: FocusEvent<HTMLInputElement>) {
+  event.currentTarget.select();
 }
 
 function formatDateInputValue(value: number) {
@@ -3852,6 +3857,7 @@ export function App() {
                     onChange={(event) =>
                       handleAddItemQuantityChange(event.target.value)
                     }
+                    onFocus={selectTextOnFocus}
                     disabled={!isLoaded}
                     type="text"
                   />
@@ -3993,6 +3999,7 @@ export function App() {
                     onChange={(event) =>
                       setFreezerItemQuantity(event.target.value)
                     }
+                    onFocus={selectTextOnFocus}
                     placeholder="2 raciones"
                     type="text"
                     disabled={!isLoaded}
@@ -4761,6 +4768,7 @@ export function App() {
                   onChange={(event) =>
                     setEditingItemQuantity(event.target.value)
                   }
+                  onFocus={selectTextOnFocus}
                   placeholder="x2, 1 kg, 2 packs..."
                   type="text"
                 />
@@ -4887,6 +4895,7 @@ export function App() {
                     onChange={(event) =>
                       setEditingFreezerItemQuantity(event.target.value)
                     }
+                    onFocus={selectTextOnFocus}
                     placeholder="2 raciones"
                     type="text"
                   />

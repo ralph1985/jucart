@@ -1260,6 +1260,60 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("notifies unseen recategorization changes like remote shopping changes", async () => {
+    await replaceStoredShoppingData({
+      items: [],
+      sections: [{ id: "mercadona", name: "Mercadona", color: "mint" }],
+      historyEvents: [],
+      freezerItems: [],
+      recategorizationRuns: [
+        {
+          id: "run-1",
+          source: "codex",
+          status: "success",
+          summary: "Recategorizado 1 producto.",
+          catalogEntriesAdded: 1,
+          itemsRecategorized: 1,
+          startedAt: Date.now() - 2000,
+          finishedAt: Date.now() - 1000,
+          createdAt: Date.now() - 1000,
+        },
+      ],
+      recategorizationChanges: [
+        {
+          id: "change-1",
+          runId: "run-1",
+          itemId: "item-1",
+          itemName: "Cebollas",
+          previousCategoryId: "other",
+          nextCategoryId: "vegetables",
+          reason: "Cebollas pertenece a verdura.",
+          catalogEntryId: "vegetables-cebollas",
+          createdAt: Date.now(),
+        },
+      ],
+    });
+
+    render(<App />);
+
+    await waitForAddFab();
+
+    expect(
+      screen.getByText("Hay 1 cambio de otro dispositivo."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver cambios" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Cambios nuevos" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Categoría actualizada")).toBeInTheDocument();
+    expect(screen.getByText("Cebollas")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Hay 1 cambio de otro dispositivo."),
+    ).not.toBeInTheDocument();
+  });
+
   it("notifies unseen history events from another device", async () => {
     window.localStorage.setItem("jucart:history-client-id", "client-local");
 
@@ -1326,8 +1380,11 @@ describe("App", () => {
     const createListDialog = screen.getByRole("dialog", {
       name: "Crear lista",
     });
+    const newListInput = within(createListDialog).getByLabelText("Nueva lista");
 
-    fireEvent.change(within(createListDialog).getByLabelText("Nueva lista"), {
+    await waitFor(() => expect(newListInput).toHaveFocus());
+
+    fireEvent.change(newListInput, {
       target: { value: "Frutería" },
     });
     fireEvent.click(

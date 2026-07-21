@@ -533,6 +533,30 @@ function getRecategorizationRunSummary(
   return `${run.itemsRecategorized} productos · ${run.catalogEntriesAdded} entradas catálogo`;
 }
 
+function getRecentRecategorizationChanges(
+  changes: ShoppingRecategorizationChange[],
+  now: () => number = () => Date.now(),
+) {
+  const cutoff = now() - 30 * 24 * 60 * 60 * 1000;
+
+  return [...changes]
+    .filter((change) => change.createdAt >= cutoff)
+    .sort(
+      (firstChange, secondChange) =>
+        secondChange.createdAt - firstChange.createdAt,
+    );
+}
+
+function getUnseenRecategorizationChanges(
+  changes: ShoppingRecategorizationChange[],
+  lastSeenHistoryEventAt: number,
+  now: () => number = () => Date.now(),
+) {
+  return getRecentRecategorizationChanges(changes, now).filter(
+    (change) => change.createdAt > lastSeenHistoryEventAt,
+  );
+}
+
 function formatHistoryEventDate(createdAt: number) {
   return new Intl.DateTimeFormat("es-ES", {
     day: "2-digit",
@@ -703,6 +727,10 @@ export function App() {
   const [unseenHistoryEventsForView, setUnseenHistoryEventsForView] = useState<
     ShoppingHistoryEvent[]
   >([]);
+  const [
+    unseenRecategorizationChangesForView,
+    setUnseenRecategorizationChangesForView,
+  ] = useState<ShoppingRecategorizationChange[]>([]);
   const [itemName, setItemName] = useState("");
   const [freezerItemName, setFreezerItemName] = useState("");
   const [freezerItemQuantity, setFreezerItemQuantity] = useState("");
@@ -856,7 +884,10 @@ export function App() {
     ? freezerItems.find((item) => item.id === editingFreezerItemId)
     : null;
   const isBottomSheetOpen =
-    isAddSheetOpen || isFreezerAddSheetOpen || editingFreezerItem !== null;
+    isAddSheetOpen ||
+    isSectionAddSheetOpen ||
+    isFreezerAddSheetOpen ||
+    editingFreezerItem !== null;
   const selectedSectionName =
     sections.find((section) => section.id === selectedSectionId)?.name ??
     "esta lista";
@@ -889,15 +920,27 @@ export function App() {
     historyClientId,
     lastSeenHistoryEventAt,
   );
+  const recentRecategorizationChanges = getRecentRecategorizationChanges(
+    recategorizationChanges,
+  );
+  const unseenRecategorizationChanges = getUnseenRecategorizationChanges(
+    recategorizationChanges,
+    lastSeenHistoryEventAt,
+  );
+  const unseenChangeCount =
+    unseenRemoteHistoryEvents.length + unseenRecategorizationChanges.length;
   const displayedHistoryEvents = showUnseenHistoryOnly
     ? unseenHistoryEventsForView
     : recentHistoryEvents;
+  const displayedRecategorizationChanges = showUnseenHistoryOnly
+    ? unseenRecategorizationChangesForView
+    : recentRecategorizationChanges;
   const recategorizationRunsById = new Map(
     recategorizationRuns.map((run) => [run.id, run]),
   );
   const displayedHistoryCount =
-    historyTab === "categories" && !showUnseenHistoryOnly
-      ? recategorizationChanges.length
+    historyTab === "categories"
+      ? displayedRecategorizationChanges.length
       : displayedHistoryEvents.length;
   const removePurchasedButtonText =
     selectedPurchasedCount === 1
@@ -1796,6 +1839,11 @@ export function App() {
         return;
       }
 
+      if (isSectionAddSheetOpen) {
+        sectionNameInputRef.current?.focus({ preventScroll: true });
+        return;
+      }
+
       freezerItemNameInputRef.current?.focus({ preventScroll: true });
     });
 
@@ -1805,7 +1853,12 @@ export function App() {
       window.visualViewport?.removeEventListener("resize", updateViewportInset);
       window.visualViewport?.removeEventListener("scroll", updateViewportInset);
     };
-  }, [editingFreezerItem, isAddSheetOpen, isBottomSheetOpen]);
+  }, [
+    editingFreezerItem,
+    isAddSheetOpen,
+    isBottomSheetOpen,
+    isSectionAddSheetOpen,
+  ]);
 
   useEffect(() => {
     if (!isAddSheetOpen || !addProductNotice) {
@@ -2031,7 +2084,6 @@ export function App() {
     flushSync(() => {
       setIsSectionAddSheetOpen(true);
     });
-    sectionNameInputRef.current?.focus({ preventScroll: true });
     runHapticFeedback("light");
   }
 
@@ -2714,6 +2766,7 @@ export function App() {
     setShowUnseenHistoryOnly(false);
     setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
+    setUnseenRecategorizationChangesForView([]);
     runHapticFeedback("light");
   }
 
@@ -2722,6 +2775,7 @@ export function App() {
     setShowUnseenHistoryOnly(false);
     setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
+    setUnseenRecategorizationChangesForView([]);
     runHapticFeedback("light");
   }
 
@@ -2730,6 +2784,7 @@ export function App() {
     setShowUnseenHistoryOnly(false);
     setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
+    setUnseenRecategorizationChangesForView([]);
     runHapticFeedback("light");
   }
 
@@ -2738,6 +2793,7 @@ export function App() {
     setShowUnseenHistoryOnly(false);
     setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
+    setUnseenRecategorizationChangesForView([]);
     runHapticFeedback("light");
   }
 
@@ -2746,6 +2802,7 @@ export function App() {
     setShowUnseenHistoryOnly(false);
     setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
+    setUnseenRecategorizationChangesForView([]);
     void refreshDeveloperBackupRun();
     runHapticFeedback("light");
   }
@@ -2753,13 +2810,20 @@ export function App() {
   function showUnseenHistoryView() {
     const latestUnseenEventAt = Math.max(
       ...unseenRemoteHistoryEvents.map((event) => event.createdAt),
+      ...unseenRecategorizationChanges.map((change) => change.createdAt),
       lastSeenHistoryEventAt,
     );
 
     setLastSeenHistoryEventAt(latestUnseenEventAt);
     setUnseenHistoryEventsForView(unseenRemoteHistoryEvents);
+    setUnseenRecategorizationChangesForView(unseenRecategorizationChanges);
     setShowUnseenHistoryOnly(true);
-    setHistoryTab("changes");
+    setHistoryTab(
+      unseenRemoteHistoryEvents.length === 0 &&
+        unseenRecategorizationChanges.length > 0
+        ? "categories"
+        : "changes",
+    );
     setActiveView("history");
     runHapticFeedback("light");
   }
@@ -3336,12 +3400,18 @@ export function App() {
   }
 
   function renderRecategorizationChanges() {
-    if (recategorizationChanges.length === 0) {
+    if (displayedRecategorizationChanges.length === 0) {
       return (
         <div className={styles.historyEmpty}>
-          <p className={styles.emptyTitle}>No hay recategorizaciones</p>
+          <p className={styles.emptyTitle}>
+            {showUnseenHistoryOnly
+              ? "No hay recategorizaciones pendientes"
+              : "No hay recategorizaciones"}
+          </p>
           <p className={styles.emptyDescription}>
-            Los cambios automáticos de categoría aparecerán aquí.
+            {showUnseenHistoryOnly
+              ? "Las recategorizaciones ya están revisadas."
+              : "Los cambios automáticos de categoría aparecerán aquí."}
           </p>
         </div>
       );
@@ -3349,7 +3419,7 @@ export function App() {
 
     return (
       <ol className={styles.historyList}>
-        {recategorizationChanges.map((change) => {
+        {displayedRecategorizationChanges.map((change) => {
           const run = recategorizationRunsById.get(change.runId);
           const runSummary = getRecategorizationRunSummary(run);
 
@@ -4083,12 +4153,12 @@ export function App() {
         </div>
       ) : null}
 
-      {unseenRemoteHistoryEvents.length > 0 && activeView !== "history" ? (
+      {unseenChangeCount > 0 && activeView !== "history" ? (
         <section className={styles.remoteChangesBanner} role="status">
           <span>
-            {unseenRemoteHistoryEvents.length === 1
+            {unseenChangeCount === 1
               ? "Hay 1 cambio de otro dispositivo."
-              : `Hay ${unseenRemoteHistoryEvents.length} cambios de otro dispositivo.`}
+              : `Hay ${unseenChangeCount} cambios de otro dispositivo.`}
           </span>
           <button
             className={styles.undoButton}
@@ -4404,7 +4474,10 @@ export function App() {
             >
               Ver historial completo
             </button>
-          ) : (
+          ) : null}
+          {!showUnseenHistoryOnly ||
+          (unseenHistoryEventsForView.length > 0 &&
+            unseenRecategorizationChangesForView.length > 0) ? (
             <div className={styles.historyTabs} role="tablist">
               <button
                 className={
@@ -4435,8 +4508,8 @@ export function App() {
                 Categorías
               </button>
             </div>
-          )}
-          {historyTab === "categories" && !showUnseenHistoryOnly
+          ) : null}
+          {historyTab === "categories"
             ? renderRecategorizationChanges()
             : renderHistoryEvents()}
         </section>

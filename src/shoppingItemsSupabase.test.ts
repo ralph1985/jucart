@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const supabaseMocks = vi.hoisted(() => {
-  type QueryOperation = "delete" | "maybeSingle" | "select";
+  type QueryOperation = "delete" | "maybeSingle" | "select" | "upsert";
   type QueryResult = { data?: unknown; error?: unknown };
 
   const queryResults = new Map<string, QueryResult>();
@@ -153,6 +153,66 @@ const configuredSupabase = {
   listId: "00000000-0000-4000-8000-000000000001",
   url: "https://example.supabase.co",
 };
+
+function createReplaceShoppingData(
+  overrides: Partial<Parameters<typeof replaceSupabaseShoppingData>[0]> = {},
+): Parameters<typeof replaceSupabaseShoppingData>[0] {
+  return {
+    categories: [],
+    freezerItems: [
+      {
+        id: "freezer-1",
+        name: "Caldo",
+        drawerId: "bottom",
+        frozenAt: Date.parse("2026-07-01T00:00:00.000Z"),
+        createdAt: Date.parse("2026-07-02T10:00:00.000Z"),
+        updatedAt: Date.parse("2026-07-02T10:05:00.000Z"),
+      },
+    ],
+    historyEvents: [
+      {
+        id: "history-1",
+        itemId: "item-1",
+        type: "initial",
+        actor: "rafa",
+        clientId: "client-1",
+        item: {
+          id: "item-1",
+          name: "Pan",
+          sectionId: "mercadona",
+          sectionName: "Mercadona",
+          addedBy: "rafa",
+          purchased: false,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+        createdAt: Date.parse("2026-07-14T10:05:00.000Z"),
+      },
+    ],
+    items: [
+      {
+        id: "item-1",
+        name: "Pan",
+        sectionId: "mercadona",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: Date.parse("2026-07-14T10:00:00.000Z"),
+        updatedAt: Date.parse("2026-07-14T10:05:00.000Z"),
+      },
+    ],
+    productCatalogEntries: [],
+    recategorizationChanges: [],
+    recategorizationRuns: [],
+    sections: [
+      {
+        id: "mercadona",
+        name: "Mercadona",
+        color: "mint",
+      },
+    ],
+    ...overrides,
+  };
+}
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -381,60 +441,7 @@ describe("shopping items Supabase adapter", () => {
     );
 
     await expect(
-      replaceSupabaseShoppingData({
-        categories: [],
-        freezerItems: [
-          {
-            id: "freezer-1",
-            name: "Caldo",
-            drawerId: "bottom",
-            frozenAt: Date.parse("2026-07-01T00:00:00.000Z"),
-            createdAt: Date.parse("2026-07-02T10:00:00.000Z"),
-            updatedAt: Date.parse("2026-07-02T10:05:00.000Z"),
-          },
-        ],
-        historyEvents: [
-          {
-            id: "history-1",
-            itemId: "item-1",
-            type: "initial",
-            actor: "rafa",
-            clientId: "client-1",
-            item: {
-              id: "item-1",
-              name: "Pan",
-              sectionId: "mercadona",
-              sectionName: "Mercadona",
-              addedBy: "rafa",
-              purchased: false,
-              createdAt: 100,
-              updatedAt: 100,
-            },
-            createdAt: Date.parse("2026-07-14T10:05:00.000Z"),
-          },
-        ],
-        items: [
-          {
-            id: "item-1",
-            name: "Pan",
-            sectionId: "mercadona",
-            addedBy: "rafa",
-            purchased: false,
-            createdAt: Date.parse("2026-07-14T10:00:00.000Z"),
-            updatedAt: Date.parse("2026-07-14T10:05:00.000Z"),
-          },
-        ],
-        productCatalogEntries: [],
-        recategorizationChanges: [],
-        recategorizationRuns: [],
-        sections: [
-          {
-            id: "mercadona",
-            name: "Mercadona",
-            color: "mint",
-          },
-        ],
-      }),
+      replaceSupabaseShoppingData(createReplaceShoppingData()),
     ).resolves.toBe(true);
 
     expect(supabaseMocks.operations).toEqual(
@@ -479,26 +486,69 @@ describe("shopping items Supabase adapter", () => {
     );
   });
 
-  it("throws Supabase write errors", async () => {
+  it("replaces empty Supabase shopping data without upserts", async () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
     );
-    supabaseMocks.setResult("shopping_sections", "delete", {
-      error: new Error("delete failed"),
+
+    await expect(
+      replaceSupabaseShoppingData(
+        createReplaceShoppingData({
+          freezerItems: [],
+          historyEvents: [],
+          items: [],
+          sections: [],
+        }),
+      ),
+    ).resolves.toBe(true);
+
+    expect(
+      supabaseMocks.operations.some(
+        (operation) => operation.operation === "upsert",
+      ),
+    ).toBe(false);
+    expect(supabaseMocks.operations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          operation: "delete",
+          table: "shopping_sections",
+        }),
+        expect.objectContaining({
+          operation: "delete",
+          table: "shopping_items",
+        }),
+        expect.objectContaining({
+          operation: "delete",
+          table: "shopping_history_events",
+        }),
+        expect.objectContaining({
+          operation: "delete",
+          table: "freezer_items",
+        }),
+      ]),
+    );
+  });
+
+  it.each([
+    ["shopping_sections", "upsert"],
+    ["shopping_sections", "delete"],
+    ["shopping_items", "upsert"],
+    ["shopping_items", "delete"],
+    ["shopping_history_events", "upsert"],
+    ["shopping_history_events", "delete"],
+    ["freezer_items", "upsert"],
+    ["freezer_items", "delete"],
+  ] as const)("throws when Supabase %s %s fails", async (table, operation) => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.setResult(table, operation, {
+      error: new Error(`${table} ${operation} failed`),
     });
 
     await expect(
-      replaceSupabaseShoppingData({
-        categories: [],
-        freezerItems: [],
-        historyEvents: [],
-        items: [],
-        productCatalogEntries: [],
-        recategorizationChanges: [],
-        recategorizationRuns: [],
-        sections: [],
-      }),
-    ).rejects.toThrow("delete failed");
+      replaceSupabaseShoppingData(createReplaceShoppingData()),
+    ).rejects.toThrow(`${table} ${operation} failed`);
   });
 
   it("reads the latest developer backup run", async () => {

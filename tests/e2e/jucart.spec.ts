@@ -34,6 +34,19 @@ async function addShoppingProduct(page: Page, name: string) {
   await waitForStoredShoppingProduct(page, name);
 }
 
+async function createShoppingList(page: Page, name: string) {
+  await page.getByRole("button", { name: "Gestionar listas" }).click();
+  await page.getByRole("button", { name: "Crear lista" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Crear lista" });
+
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Nueva lista").fill(name);
+  await dialog.getByRole("button", { name: "Crear" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByLabel(`Nombre de ${name}`)).toHaveValue(name);
+}
+
 async function waitForStoredShoppingProduct(page: Page, name: string) {
   await page.waitForFunction(async (productName) => {
     return await new Promise<boolean>((resolve) => {
@@ -128,4 +141,129 @@ test("adds a freezer product from the bottom sheet", async ({ page }) => {
 
   await expect(useFirstPanel.getByText("Lentejas e2e")).toBeVisible();
   await expect(useFirstPanel.getByText("2 raciones")).toBeVisible();
+});
+
+test("creates a shopping list from the bottom sheet", async ({ page }) => {
+  await page.getByRole("button", { name: "Gestionar listas" }).click();
+
+  await expect(page.getByRole("heading", { name: "Listas" })).toBeVisible();
+  await expect(page.getByLabel("Nueva lista")).toBeHidden();
+
+  await page.getByRole("button", { name: "Crear lista" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Crear lista" });
+
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Nueva lista").fill("Frutería e2e");
+  await dialog.getByRole("button", { name: "Crear" }).click();
+
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByLabel("Nombre de Frutería e2e")).toHaveValue(
+    "Frutería e2e",
+  );
+
+  await page.getByRole("button", { name: "Lista", exact: true }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Frutería e2e" }),
+  ).toBeVisible();
+});
+
+test("renames, colors and reorders shopping lists", async ({ page }) => {
+  await createShoppingList(page, "Frutería e2e");
+
+  await page.getByLabel("Nombre de Frutería e2e").fill("Fruta e2e");
+  await expect(page.getByLabel("Nombre de Fruta e2e")).toHaveValue("Fruta e2e");
+
+  await page
+    .getByRole("button", { name: "Poner Fruta e2e en color amber" })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Poner Fruta e2e en color amber" }),
+  ).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("button", { name: "Subir Fruta e2e" }).click();
+
+  const managedListNames = await page
+    .getByLabel(/^Nombre de /)
+    .evaluateAll((inputs) =>
+      inputs.map((input) => (input as HTMLInputElement).value),
+    );
+
+  expect(managedListNames.at(-2)).toBe("Fruta e2e");
+  expect(managedListNames.at(-1)).toBe("General");
+
+  await page.getByRole("button", { name: "Lista", exact: true }).click();
+
+  const boardListNames = await page
+    .getByRole("region", { name: "Lista por secciones" })
+    .getByRole("heading", { level: 2 })
+    .evaluateAll((headings) =>
+      headings.map((heading) =>
+        heading.textContent?.replace(/·\s*\d+/, "").trim(),
+      ),
+    );
+
+  expect(boardListNames.at(-2)).toBe("Fruta e2e");
+  expect(boardListNames.at(-1)).toBe("General");
+
+  const fruitColumn = page.getByRole("article", { name: /Fruta e2e/ });
+
+  await expect(fruitColumn).toBeVisible();
+  await expect(fruitColumn).toHaveClass(/sectionColoramber/);
+});
+
+test("removes a shopping product and restores it with undo", async ({
+  page,
+}) => {
+  await addShoppingProduct(page, "Huevos e2e");
+
+  await page.getByRole("button", { name: "Eliminar Huevos e2e" }).click();
+
+  await expect(page.getByText("Producto borrado.")).toBeVisible();
+  await expect(page.getByText("Huevos e2e")).toBeHidden();
+
+  await page.getByRole("button", { name: "Deshacer" }).click();
+
+  await expect(page.getByText("Producto borrado.")).toBeHidden();
+  await expect(page.getByText("Huevos e2e")).toBeVisible();
+});
+
+test("edits a shopping product name, quantity and list", async ({ page }) => {
+  await addShoppingProduct(page, "Leche e2e");
+
+  await page.getByRole("button", { name: "Editar Leche e2e" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Editar Leche e2e" });
+
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Producto").fill("Yogur e2e");
+  await dialog.getByLabel("Cantidad").fill("2 packs");
+  await dialog.getByLabel("Sección").selectOption("farmacia");
+  await dialog.getByRole("button", { name: "Guardar" }).click();
+
+  await expect(dialog).toBeHidden();
+
+  const farmaciaColumn = page.getByRole("article", { name: /Farmacia/ });
+
+  await expect(farmaciaColumn.getByText("Yogur e2e")).toBeVisible();
+  await expect(farmaciaColumn.getByText("2 packs")).toBeVisible();
+  await expect(
+    page.getByRole("article", { name: /Mercadona/ }).getByText("Leche e2e"),
+  ).toBeHidden();
+});
+
+test("shows recent shopping actions in history", async ({ page }) => {
+  await addShoppingProduct(page, "Arroz e2e");
+  await page
+    .getByRole("button", { name: "Marcar Arroz e2e como comprado" })
+    .click();
+
+  await page.getByRole("button", { name: "Historial" }).click();
+
+  await expect(page.getByRole("heading", { name: "Historial" })).toBeVisible();
+  await expect(page.getByText("Producto añadido")).toBeVisible();
+  await expect(page.getByText("Marcado como comprado")).toBeVisible();
+  await expect(page.getByText("Arroz e2e")).toHaveCount(2);
+  await expect(page.getByText("Mercadona · Rafa")).toHaveCount(2);
 });

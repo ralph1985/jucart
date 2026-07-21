@@ -296,4 +296,6 @@
 - [x] Añadir flujo E2E de alta, compra y vuelta a pendiente.
 - [x] Añadir comprobación de persistencia local tras recarga.
 - [x] Añadir flujo E2E de alta de producto congelado desde bottom sheet.
+- [x] Añadir flujos E2E de crear y gestionar listas.
+- [x] Añadir flujos E2E de borrar con deshacer, editar producto e historial.
 - [x] Ejecutar los E2E en `pre-push`.

@@ -50,6 +50,60 @@
   overflow: hidden;
 }
 
+.splashScreen {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.32rem;
+  padding: max(1.5rem, env(safe-area-inset-top, 0px))
+    max(1.5rem, env(safe-area-inset-right, 0px))
+    max(1.5rem, env(safe-area-inset-bottom, 0px))
+    max(1.5rem, env(safe-area-inset-left, 0px));
+  background: linear-gradient(180deg, #eef3f1 0%, #f8faf9 54%, #f2f4f6 100%);
+  color: #17212b;
+}
+
+.splashLogo {
+  display: inline-grid;
+  width: 4.35rem;
+  height: 4.35rem;
+  place-items: center;
+  border-radius: 1.08rem;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 20%) 0%, transparent 46%), #167c5a;
+  color: #ffffff;
+  box-shadow: 0 0.85rem 2rem rgb(22 124 90 / 18%);
+}
+
+.splashKicker,
+.splashTitle,
+.splashStatus {
+  margin: 0;
+}
+
+.splashKicker {
+  margin-top: 0.72rem;
+  color: #5b6976;
+  font-size: 0.76rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.splashTitle {
+  color: #0f172a;
+  font-size: 2.05rem;
+  font-weight: 850;
+}
+
+.splashStatus {
+  min-height: 1.25rem;
+  color: #4f5f6d;
+  font-size: 0.88rem;
+}
+
 .header {
   position: fixed;
   z-index: 8;
@@ -1381,6 +1435,7 @@ h2 {
 }
 
 .sectionIndicators {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1393,6 +1448,8 @@ h2 {
 
 .sectionIndicator,
 .sectionIndicatorActive {
+  position: relative;
+  z-index: 1;
   width: 1.75rem;
   height: 1.65rem;
   border: 0;
@@ -1414,8 +1471,20 @@ h2 {
 }
 
 .sectionIndicatorActive::after {
+  background: transparent;
+}
+
+.sectionIndicatorThumb {
+  position: absolute;
+  top: calc(50% + 0.11rem);
+  left: 0;
   width: 1.05rem;
+  height: 0.42rem;
+  border-radius: 999rem;
   background: #167c5a;
+  box-shadow: 0 0.18rem 0.5rem rgb(22 124 90 / 20%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .loadingIndicator {
@@ -1985,6 +2054,10 @@ h2 {
 
   .floatingAddButton {
     animation: none;
+  }
+
+  .splashScreen {
+    transition: none;
   }
 }
 

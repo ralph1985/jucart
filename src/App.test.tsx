@@ -177,7 +177,7 @@ describe("App", () => {
     expect(screen.getAllByText("Lentejas").length).toBeGreaterThan(0);
   });
 
-  it("shows the integrated loading skeleton while stored products are loading", async () => {
+  it("shows the splash and integrated skeleton while stored products are loading", async () => {
     let resolveStoredData: (data: ShoppingData) => void = () => {};
     const storedDataPromise = new Promise<ShoppingData>((resolve) => {
       resolveStoredData = resolve;
@@ -189,6 +189,7 @@ describe("App", () => {
 
     render(<App />);
 
+    expect(screen.getAllByText("Jucart").length).toBeGreaterThan(0);
     expect(screen.getByRole("status")).toHaveTextContent("Cargando lista...");
     expect(
       screen.getByRole("button", { name: "Añadir producto" }),
@@ -218,7 +219,9 @@ describe("App", () => {
     });
 
     expect(await screen.findByText("Leche")).toBeInTheDocument();
-    expect(screen.queryByText("Cargando lista...")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText("Cargando lista...")).not.toBeInTheDocument(),
+    );
     await waitForAddFab();
   });
 

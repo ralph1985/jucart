@@ -739,6 +739,7 @@ export function App() {
     useState<FreezerDrawerId>("top");
   const [editingFreezerFrozenAt, setEditingFreezerFrozenAt] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isSplashVisible, setIsSplashVisible] = useState(true);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isSupabaseConfigured() ? "syncing" : "local",
@@ -779,6 +780,7 @@ export function App() {
   const sectionsScreenRef = useRef<HTMLElement>(null);
   const historyScreenRef = useRef<HTMLElement>(null);
   const developerScreenRef = useRef<HTMLElement>(null);
+  const splashScreenRef = useRef<HTMLDivElement>(null);
   const addSheetBackdropRef = useRef<HTMLDivElement>(null);
   const addSheetRef = useRef<HTMLFormElement>(null);
   const freezerAddSheetBackdropRef = useRef<HTMLDivElement>(null);
@@ -792,6 +794,10 @@ export function App() {
   const sectionColumnRefs = useRef<
     Partial<Record<ShoppingSectionId, HTMLElement>>
   >({});
+  const sectionIndicatorRefs = useRef<
+    Partial<Record<ShoppingSectionId, HTMLButtonElement>>
+  >({});
+  const activeSectionIndicatorRef = useRef<HTMLSpanElement>(null);
   const itemsRef = useRef(items);
   const freezerItemsRef = useRef(freezerItems);
   const sectionsRef = useRef(sections);
@@ -1304,6 +1310,85 @@ export function App() {
       ease: "outCubic",
     });
   }, [isLoaded, sections]);
+
+  useEffect(() => {
+    const splashScreen = splashScreenRef.current;
+
+    if (!isLoaded || !splashScreen) {
+      return;
+    }
+
+    runAnimationWithCompletion(
+      splashScreen,
+      {
+        opacity: [1, 0],
+        scale: [1, 0.985],
+        duration: 260,
+        ease: "outCubic",
+      },
+      () => setIsSplashVisible(false),
+    );
+  }, [isLoaded]);
+
+  useLayoutEffect(() => {
+    if (!isLoaded || activeView !== "shopping") {
+      return;
+    }
+
+    const activeIndicator = activeSectionIndicatorRef.current;
+    const selectedButton = sectionIndicatorRefs.current[selectedSectionId];
+
+    if (!activeIndicator || !selectedButton) {
+      return;
+    }
+
+    const targetX =
+      selectedButton.offsetLeft +
+      selectedButton.offsetWidth / 2 -
+      activeIndicator.offsetWidth / 2;
+
+    if (!shouldAnimate()) {
+      activeIndicator.style.transform = `translate3d(${targetX}px, 0, 0)`;
+      activeIndicator.style.opacity = "1";
+      return;
+    }
+
+    runAnimation(activeIndicator, {
+      translateX: targetX,
+      scale: [0.82, 1],
+      opacity: [0.72, 1],
+      duration: 300,
+      ease: "outCubic",
+    });
+  }, [activeView, isLoaded, selectedSectionId, sections]);
+
+  useEffect(() => {
+    if (!isLoaded || activeView !== "shopping") {
+      return;
+    }
+
+    function syncActiveSectionIndicatorPosition() {
+      const activeIndicator = activeSectionIndicatorRef.current;
+      const selectedButton = sectionIndicatorRefs.current[selectedSectionId];
+
+      if (!activeIndicator || !selectedButton) {
+        return;
+      }
+
+      const targetX =
+        selectedButton.offsetLeft +
+        selectedButton.offsetWidth / 2 -
+        activeIndicator.offsetWidth / 2;
+
+      activeIndicator.style.transform = `translate3d(${targetX}px, 0, 0)`;
+    }
+
+    window.addEventListener("resize", syncActiveSectionIndicatorPosition);
+
+    return () => {
+      window.removeEventListener("resize", syncActiveSectionIndicatorPosition);
+    };
+  }, [activeView, isLoaded, selectedSectionId]);
 
   useLayoutEffect(() => {
     const targets =
@@ -3315,6 +3400,22 @@ export function App() {
           : styles.app
       }
     >
+      {isSplashVisible ? (
+        <div
+          ref={splashScreenRef}
+          className={styles.splashScreen}
+          aria-live="polite"
+        >
+          <span className={styles.splashLogo} aria-hidden="true">
+            <HeaderLogo />
+          </span>
+          <p className={styles.splashKicker}>Lista de la compra</p>
+          <p className={styles.splashTitle}>Jucart</p>
+          <p className={styles.splashStatus} role="status">
+            {getLoadingStatusText()}
+          </p>
+        </div>
+      ) : null}
       <section className={styles.header} aria-labelledby="app-title">
         <div className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">
@@ -3442,7 +3543,7 @@ export function App() {
         </section>
       ) : null}
 
-      {!isLoaded ? (
+      {!isLoaded && !isSplashVisible ? (
         <p className={styles.loadingStatus} role="status" aria-live="polite">
           {getLoadingStatusText()}
         </p>
@@ -3908,6 +4009,13 @@ export function App() {
             >
               {sections.map((section) => (
                 <button
+                  ref={(indicator) => {
+                    if (indicator) {
+                      sectionIndicatorRefs.current[section.id] = indicator;
+                    } else {
+                      delete sectionIndicatorRefs.current[section.id];
+                    }
+                  }}
                   className={
                     selectedSectionId === section.id
                       ? styles.sectionIndicatorActive
@@ -3923,6 +4031,11 @@ export function App() {
                   onClick={() => selectSection(section.id)}
                 />
               ))}
+              <span
+                ref={activeSectionIndicatorRef}
+                className={styles.sectionIndicatorThumb}
+                aria-hidden="true"
+              />
             </nav>
           ) : (
             <div className={styles.sectionIndicators} aria-hidden="true">

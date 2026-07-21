@@ -1319,12 +1319,25 @@ describe("App", () => {
 
     expect(screen.getByRole("heading", { name: "Listas" })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Nueva lista"), {
+    expect(screen.queryByLabelText("Nueva lista")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Crear lista" }));
+
+    const createListDialog = screen.getByRole("dialog", {
+      name: "Crear lista",
+    });
+
+    fireEvent.change(within(createListDialog).getByLabelText("Nueva lista"), {
       target: { value: "Frutería" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Crear" }));
+    fireEvent.click(
+      within(createListDialog).getByRole("button", { name: "Crear" }),
+    );
 
     expect(screen.getByLabelText("Nombre de Frutería")).toHaveValue("Frutería");
+    expect(
+      screen.queryByRole("dialog", { name: "Crear lista" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Poner Frutería en color amber" }),

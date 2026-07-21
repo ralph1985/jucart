@@ -117,6 +117,7 @@ type HapticFeedback = "light" | "medium" | "success" | "warning";
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
 type AppOverlay =
   | "add-sheet"
+  | "section-add-sheet"
   | "freezer-add-sheet"
   | "freezer-edit-sheet"
   | "clear-dialog"
@@ -124,7 +125,7 @@ type AppOverlay =
 
 type BottomSheetOverlay = Extract<
   AppOverlay,
-  "add-sheet" | "freezer-add-sheet" | "freezer-edit-sheet"
+  "add-sheet" | "section-add-sheet" | "freezer-add-sheet" | "freezer-edit-sheet"
 >;
 type AddProductNotice =
   | { type: "success"; message: string }
@@ -757,6 +758,7 @@ export function App() {
     useState<ShoppingItem | null>(null);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [isSectionAddSheetOpen, setIsSectionAddSheetOpen] = useState(false);
   const [isFreezerAddSheetOpen, setIsFreezerAddSheetOpen] = useState(false);
   const [closingBottomSheet, setClosingBottomSheet] =
     useState<BottomSheetOverlay | null>(null);
@@ -770,6 +772,7 @@ export function App() {
   );
   const itemNameInputRef = useRef<HTMLTextAreaElement>(null);
   const addFabRef = useRef<HTMLButtonElement>(null);
+  const sectionAddFabRef = useRef<HTMLButtonElement>(null);
   const freezerAddFabRef = useRef<HTMLButtonElement>(null);
   const freezerItemNameInputRef = useRef<HTMLInputElement>(null);
   const editingFreezerItemNameInputRef = useRef<HTMLInputElement>(null);
@@ -783,6 +786,8 @@ export function App() {
   const splashScreenRef = useRef<HTMLDivElement>(null);
   const addSheetBackdropRef = useRef<HTMLDivElement>(null);
   const addSheetRef = useRef<HTMLFormElement>(null);
+  const sectionAddSheetBackdropRef = useRef<HTMLDivElement>(null);
+  const sectionAddSheetRef = useRef<HTMLFormElement>(null);
   const freezerAddSheetBackdropRef = useRef<HTMLDivElement>(null);
   const freezerAddSheetRef = useRef<HTMLFormElement>(null);
   const freezerEditSheetBackdropRef = useRef<HTMLDivElement>(null);
@@ -1550,6 +1555,31 @@ export function App() {
   }, [closingBottomSheet, isFreezerAddSheetOpen]);
 
   useLayoutEffect(() => {
+    if (!isSectionAddSheetOpen || closingBottomSheet === "section-add-sheet") {
+      return;
+    }
+
+    const sheet = sectionAddSheetRef.current;
+    const backdrop = sectionAddSheetBackdropRef.current;
+
+    if (!sheet || !backdrop) {
+      return;
+    }
+
+    runAnimation(backdrop, {
+      opacity: [0, 1],
+      duration: 180,
+      ease: "outCubic",
+    });
+    runAnimation(sheet, {
+      opacity: [0.92, 1],
+      y: ["100%", 0],
+      duration: 260,
+      ease: "outCubic",
+    });
+  }, [closingBottomSheet, isSectionAddSheetOpen]);
+
+  useLayoutEffect(() => {
     if (!editingFreezerItem || closingBottomSheet === "freezer-edit-sheet") {
       return;
     }
@@ -1973,6 +2003,38 @@ export function App() {
     runHapticFeedback("light");
   }
 
+  function closeSectionAddSheet(restoreFabFocus = true, syncHistory = true) {
+    closeBottomSheetWithAnimation(
+      "section-add-sheet",
+      sectionAddSheetRef.current,
+      sectionAddSheetBackdropRef.current,
+      () => {
+        if (syncHistory) {
+          consumeOverlayHistory("section-add-sheet");
+        }
+
+        setIsSectionAddSheetOpen(false);
+        setClosingBottomSheet(null);
+        setSectionName("");
+        setSheetDragOffset(0);
+        addSheetDragStartYRef.current = null;
+
+        if (restoreFabFocus) {
+          window.requestAnimationFrame(() => sectionAddFabRef.current?.focus());
+        }
+      },
+    );
+  }
+
+  function openSectionAddSheet() {
+    pushOverlayHistory("section-add-sheet");
+    flushSync(() => {
+      setIsSectionAddSheetOpen(true);
+    });
+    sectionNameInputRef.current?.focus({ preventScroll: true });
+    runHapticFeedback("light");
+  }
+
   function closeFreezerEditSheet(syncHistory = true) {
     closeBottomSheetWithAnimation(
       "freezer-edit-sheet",
@@ -2002,6 +2064,11 @@ export function App() {
       return;
     }
 
+    if (isSectionAddSheetOpen) {
+      closeSectionAddSheet();
+      return;
+    }
+
     if (editingFreezerItem) {
       closeFreezerEditSheet();
     }
@@ -2026,6 +2093,11 @@ export function App() {
 
       if (overlay === "freezer-add-sheet") {
         closeFreezerAddSheet(false, false);
+        return;
+      }
+
+      if (overlay === "section-add-sheet") {
+        closeSectionAddSheet(false, false);
         return;
       }
 
@@ -2643,7 +2715,6 @@ export function App() {
     setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
     runHapticFeedback("light");
-    window.setTimeout(() => sectionNameInputRef.current?.focus(), 0);
   }
 
   function showShoppingView() {
@@ -2723,8 +2794,7 @@ export function App() {
     setSections(nextSections);
     setSelectedSectionId(nextSections[nextSections.length - 1].id);
     setSectionActionMessage(null);
-    setSectionName("");
-    sectionNameInputRef.current?.focus();
+    closeSectionAddSheet();
   }
 
   function handleMoveSection(sectionId: ShoppingSectionId, direction: -1 | 1) {
@@ -3585,6 +3655,21 @@ export function App() {
         </button>
       ) : null}
 
+      {activeView === "sections" && !isSectionAddSheetOpen ? (
+        <button
+          ref={sectionAddFabRef}
+          className={styles.floatingAddButton}
+          type="button"
+          aria-label="Crear lista"
+          title="Crear lista"
+          onPointerDown={handleButtonPointerDown}
+          onClick={openSectionAddSheet}
+          disabled={!isLoaded}
+        >
+          <Icon name="plus" />
+        </button>
+      ) : null}
+
       {activeView === "shopping" && isAddSheetOpen ? (
         <div
           ref={addSheetBackdropRef}
@@ -3907,6 +3992,97 @@ export function App() {
         </div>
       ) : null}
 
+      {activeView === "sections" && isSectionAddSheetOpen ? (
+        <div
+          ref={sectionAddSheetBackdropRef}
+          className={styles.addSheetBackdrop}
+          style={
+            {
+              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
+            } as CSSProperties
+          }
+          onClick={() => closeSectionAddSheet()}
+        >
+          <form
+            ref={sectionAddSheetRef}
+            className={`${styles.addSheet} ${styles.addSheetCompact}`}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="section-add-sheet-title"
+            style={
+              {
+                "--sheet-drag-offset": `${sheetDragOffset}px`,
+              } as CSSProperties
+            }
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={handleAddSheetKeyDown}
+            onSubmit={handleSectionSubmit}
+          >
+            <div
+              className={styles.addSheetHandle}
+              aria-label="Cerrar panel de lista"
+              role="button"
+              tabIndex={0}
+              onPointerDown={handleAddSheetDragStart}
+              onPointerMove={handleAddSheetDragMove}
+              onPointerUp={handleAddSheetDragEnd}
+              onPointerCancel={handleAddSheetDragEnd}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  closeSectionAddSheet();
+                }
+              }}
+            >
+              <span />
+            </div>
+            <h2 id="section-add-sheet-title" className={styles.visuallyHidden}>
+              Crear lista
+            </h2>
+            <div className={styles.addSheetFields}>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="section-name">
+                  Nueva lista
+                </label>
+                <input
+                  id="section-name"
+                  ref={sectionNameInputRef}
+                  className={styles.addSheetInput}
+                  autoComplete="off"
+                  autoCapitalize="sentences"
+                  autoCorrect="on"
+                  enterKeyHint="done"
+                  value={sectionName}
+                  onChange={(event) => setSectionName(event.target.value)}
+                  placeholder="Carrefour, frutería..."
+                  type="text"
+                  disabled={!isLoaded}
+                />
+              </div>
+            </div>
+            <div className={styles.addSheetFooter}>
+              <p className={styles.addSheetNotice} aria-live="polite" />
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onPointerDown={handleButtonPointerDown}
+                onClick={() => closeSectionAddSheet()}
+              >
+                Cerrar
+              </button>
+              <button
+                className={styles.primaryButton}
+                type="submit"
+                onPointerDown={handleButtonPointerDown}
+                disabled={!isLoaded}
+              >
+                Crear
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
       {unseenRemoteHistoryEvents.length > 0 && activeView !== "history" ? (
         <section className={styles.remoteChangesBanner} role="status">
           <span>
@@ -4108,35 +4284,6 @@ export function App() {
             <h2 id="sections-title">Listas</h2>
             <span className={styles.count}>{sections.length}</span>
           </div>
-          <form
-            className={styles.sectionCreateForm}
-            onSubmit={handleSectionSubmit}
-          >
-            <label className={styles.label} htmlFor="section-name">
-              Nueva lista
-            </label>
-            <div className={styles.addRow}>
-              <input
-                id="section-name"
-                ref={sectionNameInputRef}
-                className={styles.input}
-                autoComplete="off"
-                value={sectionName}
-                onChange={(event) => setSectionName(event.target.value)}
-                placeholder="Carrefour, frutería..."
-                type="text"
-                disabled={!isLoaded}
-              />
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-                disabled={!isLoaded}
-              >
-                Crear
-              </button>
-            </div>
-          </form>
           {sectionActionMessage ? (
             <p className={styles.sectionActionMessage} role="status">
               {sectionActionMessage}

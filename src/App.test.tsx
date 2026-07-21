@@ -889,6 +889,7 @@ describe("App", () => {
 
     render(<App />);
 
+    await waitForAddFab();
     fireEvent.click(await screen.findByRole("button", { name: "Congelador" }));
     const caldoItem = (await screen.findAllByText("Caldo"))[0].closest("li");
 
@@ -2259,16 +2260,20 @@ describe("App", () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
 
+    await waitFor(() => {
+      const mercadonaColumn = screen
+        .getByRole("heading", { name: "Mercadona" })
+        .closest("article");
+
+      expect(mercadonaColumn).not.toBeNull();
+      expect(
+        within(mercadonaColumn as HTMLElement).getByText("Pan"),
+      ).toBeInTheDocument();
+    });
     const mercadonaColumn = screen
       .getByRole("heading", { name: "Mercadona" })
       .closest("article");
 
-    expect(mercadonaColumn).not.toBeNull();
-    await waitFor(() =>
-      expect(
-        within(mercadonaColumn as HTMLElement).getByText("Pan"),
-      ).toBeInTheDocument(),
-    );
     expect(
       within(mercadonaColumn as HTMLElement).queryByText("Leche"),
     ).not.toBeInTheDocument();

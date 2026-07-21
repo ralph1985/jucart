@@ -972,6 +972,7 @@ describe("App", () => {
 
     render(<App />);
 
+    await waitForAddFab();
     fireEvent.click(await screen.findByRole("button", { name: "Congelador" }));
     const caldoItem = (await screen.findAllByText("Caldo"))[0].closest("li");
 

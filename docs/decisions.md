@@ -27,9 +27,9 @@ La interfaz se organiza como un tablero por columnas: en escritorio se muestran 
 
 En el Hito 21, los productos se agrupan por categoría dentro de cada lista para comprar productos relacionados juntos.
 
-La app usa un catálogo maestro inicial mantenido en código para inferir la categoría a partir del nombre del producto. No se añade todavía una pantalla de edición del catálogo porque la prioridad es validar el flujo de compra; los productos no reconocidos caen en `Otros`.
+Desde el Hito 27, las categorías y el catálogo maestro viven en Supabase como datos globales. La app los lee para inferir la categoría a partir del nombre del producto. El código mantiene un fallback local para uso offline o fallo remoto, pero Supabase es la fuente operativa del catálogo.
 
-La categoría inferida se guarda en el producto y se recalcula al renombrarlo. Los productos antiguos sin categoría se normalizan al cargar usando el mismo catálogo.
+La categoría inferida se guarda en el producto y se recalcula al renombrarlo. Los productos antiguos sin categoría se normalizan al cargar usando el catálogo disponible. La automatización diaria con Codex puede añadir entradas al catálogo remoto y actualizar `shopping_items.category_id` cuando la recategorización sea clara.
 
 ## Historial de cambios
 

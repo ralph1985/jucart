@@ -62,6 +62,19 @@ describe("shopping item logic", () => {
     expect(inferShoppingCategoryId("Producto raro")).toBe("other");
   });
 
+  it("infers categories from a remote catalog", () => {
+    expect(
+      inferShoppingCategoryId("Nueces peladas", [
+        {
+          id: "pantry-nueces",
+          categoryId: "pantry",
+          name: "nueces",
+          normalizedName: "nueces",
+        },
+      ]),
+    ).toBe("pantry");
+  });
+
   it("infers categories for current remote products added after the initial catalog", () => {
     expect(inferShoppingCategoryId("Kiwis")).toBe("fruit");
     expect(inferShoppingCategoryId("Guacamole")).toBe("prepared");
@@ -86,6 +99,30 @@ describe("shopping item logic", () => {
         (suggestion) => suggestion.name,
       ),
     ).toEqual(["Pan", "Huevos", "Agua", "Pañales"]);
+  });
+
+  it("uses remote catalog entries in quick suggestions", () => {
+    expect(
+      getQuickShoppingItemSuggestions(
+        [],
+        [],
+        "mercadona",
+        "nu",
+        4,
+        [
+          { id: "pantry", name: "Despensa", position: 0 },
+          { id: "other", name: "Otros", position: 1 },
+        ],
+        [
+          {
+            id: "pantry-nueces",
+            categoryId: "pantry",
+            name: "nueces",
+            normalizedName: "nueces",
+          },
+        ],
+      ),
+    ).toEqual([{ name: "Nueces", categoryId: "pantry" }]);
   });
 
   it("filters quick suggestions by the typed text", () => {

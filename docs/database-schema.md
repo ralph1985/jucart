@@ -9,6 +9,8 @@ En la interfaz se habla de "listas" porque es el lenguaje de uso. En el código 
 ```mermaid
 erDiagram
   SHOPPING_SECTIONS ||--o{ SHOPPING_ITEMS : contains
+  SHOPPING_CATEGORIES ||--o{ SHOPPING_ITEMS : classifies
+  SHOPPING_CATEGORIES ||--o{ SHOPPING_PRODUCT_CATALOG_ENTRIES : contains
   SHOPPING_ITEMS ||--o{ SHOPPING_HISTORY_EVENTS : records
 
   SHOPPING_SECTIONS {
@@ -29,6 +31,23 @@ erDiagram
     text category_id "fruit|vegetables|meat|fish|dairy|bakery|pantry|drinks|frozen|prepared|cleaning|household|baby|hygiene|pharmacy|pets|other"
     text added_by "rafa|begona"
     boolean purchased
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  SHOPPING_CATEGORIES {
+    text id PK "fruit|vegetables|..."
+    text name "nombre visible"
+    integer position "orden de agrupación"
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  SHOPPING_PRODUCT_CATALOG_ENTRIES {
+    text id PK
+    text category_id FK
+    text name "nombre o variante de producto"
+    text normalized_name "texto normalizado para inferencia"
     timestamptz created_at
     timestamptz updated_at
   }
@@ -76,6 +95,13 @@ VITE_SUPABASE_LIST_ID
   |     - purchased separa pendiente y comprado
   |     - added_by indica quién lo añadió
   |
+  +-- shopping_categories
+  |     - categorías globales y orden de agrupación
+  |
+  +-- shopping_product_catalog_entries
+  |     - catálogo global usado para inferir categorías de productos nuevos
+  |     - la automatización diaria puede añadir variantes de nombres
+  |
   +-- shopping_history_events
         - eventos auditados de altas, compras, devoluciones a pendiente, movimientos y borrados
         - item_snapshot conserva el producto aunque se borre después
@@ -116,9 +142,18 @@ jucart
     actor
     clientId
     createdAt
+
+  shoppingCategories
+    id
+    position
+
+  shoppingProductCatalogEntries
+    id
+    categoryId
+    normalizedName
 ```
 
-Al cargar, si Supabase está disponible, la aplicación lee datos remotos y actualiza IndexedDB. Si Supabase no está configurado o falla, usa IndexedDB como almacenamiento local.
+Al cargar, si Supabase está disponible, la aplicación lee datos remotos, categorías y catálogo, y actualiza IndexedDB. Si Supabase no está configurado o falla, usa IndexedDB como almacenamiento local con fallback de categorías en código.
 
 ## Migraciones
 
@@ -131,3 +166,4 @@ Al cargar, si Supabase está disponible, la aplicación lee datos remotos y actu
 - `supabase/migrations/20260715160000_create_developer_backup_runs.sql`: crea `developer_backup_runs` para registrar metadatos del backup local de Supabase.
 - `supabase/migrations/20260715210000_extend_shopping_item_categories.sql`: amplía las categorías de productos con preparados, hogar y bebé, y recategoriza productos existentes.
 - `supabase/migrations/20260715211000_recategorize_baby_items.sql`: mueve productos de bebé que ya existían a la nueva categoría.
+- `supabase/migrations/20260721090000_create_shopping_category_catalog.sql`: crea categorías y catálogo maestro globales en Supabase, migra el catálogo inicial y convierte `shopping_items.category_id` en referencia a categorías.

@@ -4,8 +4,10 @@ import {
   mapFreezerItemToRow,
   mapRowToFreezerItem,
   mapRowToDeveloperBackupRun,
+  mapRowToShoppingCategory,
   mapRowToShoppingHistoryEvent,
   mapRowToShoppingItem,
+  mapRowToShoppingProductCatalogEntry,
   mapRowToShoppingSection,
   mapShoppingHistoryEventToRow,
   mapShoppingItemToRow,
@@ -149,6 +151,36 @@ describe("shopping items Supabase adapter", () => {
       id: "fruteria",
       name: "Frutería",
       color: "amber",
+    });
+  });
+
+  it("maps Supabase category rows", () => {
+    expect(
+      mapRowToShoppingCategory({
+        id: "pantry",
+        name: "Despensa",
+        position: 6,
+      }),
+    ).toEqual({
+      id: "pantry",
+      name: "Despensa",
+      position: 6,
+    });
+  });
+
+  it("maps Supabase product catalog rows", () => {
+    expect(
+      mapRowToShoppingProductCatalogEntry({
+        id: "pantry-nueces",
+        category_id: "pantry",
+        name: "nueces",
+        normalized_name: "nueces",
+      }),
+    ).toEqual({
+      id: "pantry-nueces",
+      categoryId: "pantry",
+      name: "nueces",
+      normalizedName: "nueces",
     });
   });
 

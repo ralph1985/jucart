@@ -128,7 +128,7 @@ describe("shopping items database", () => {
       ],
     });
 
-    await expect(getStoredShoppingData()).resolves.toEqual({
+    await expect(getStoredShoppingData()).resolves.toMatchObject({
       items: [],
       sections: [
         { id: "mercadona", name: "Mercadona", color: "mint" },

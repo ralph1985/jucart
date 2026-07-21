@@ -6,12 +6,16 @@ import {
   isFreezerDrawerId,
 } from "./freezerItems";
 import {
+  defaultShoppingCategories,
+  defaultShoppingProductCatalogEntries,
   defaultShoppingSections,
   inferShoppingCategoryId,
   isShoppingCategoryId,
   isShoppingHistoryEventType,
   isShoppingSectionColor,
   isShoppingUserId,
+  ShoppingCategory,
+  ShoppingProductCatalogEntry,
   ShoppingHistoryEvent,
   ShoppingHistoryItemSnapshot,
   ShoppingItem,
@@ -56,6 +60,23 @@ type ShoppingHistoryEventRow = {
   item_snapshot: ShoppingHistoryItemSnapshot;
   previous_item_snapshot?: ShoppingHistoryItemSnapshot;
   created_at: string;
+};
+
+type ShoppingCategoryRow = {
+  id: string;
+  name: string;
+  position: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+type ShoppingProductCatalogEntryRow = {
+  id: string;
+  category_id: string;
+  name: string;
+  normalized_name: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 type FreezerItemRow = {
@@ -128,29 +149,43 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
   }
 
   const client = getSupabaseClient(config);
-  const [itemsResult, sectionsResult, historyResult, freezerResult] =
-    await Promise.all([
-      client
-        .from("shopping_items")
-        .select("*")
-        .eq("list_id", config.listId)
-        .order("created_at", { ascending: true }),
-      client
-        .from("shopping_sections")
-        .select("*")
-        .eq("list_id", config.listId)
-        .order("position", { ascending: true }),
-      client
-        .from("shopping_history_events")
-        .select("*")
-        .eq("list_id", config.listId)
-        .order("created_at", { ascending: true }),
-      client
-        .from("freezer_items")
-        .select("*")
-        .eq("list_id", config.listId)
-        .order("frozen_at", { ascending: true }),
-    ]);
+  const [
+    itemsResult,
+    sectionsResult,
+    historyResult,
+    freezerResult,
+    categoriesResult,
+    catalogResult,
+  ] = await Promise.all([
+    client
+      .from("shopping_items")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("created_at", { ascending: true }),
+    client
+      .from("shopping_sections")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("position", { ascending: true }),
+    client
+      .from("shopping_history_events")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("created_at", { ascending: true }),
+    client
+      .from("freezer_items")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("frozen_at", { ascending: true }),
+    client
+      .from("shopping_categories")
+      .select("*")
+      .order("position", { ascending: true }),
+    client
+      .from("shopping_product_catalog_entries")
+      .select("*")
+      .order("normalized_name", { ascending: true }),
+  ]);
 
   if (itemsResult.error) {
     throw itemsResult.error;
@@ -168,14 +203,39 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
     throw freezerResult.error;
   }
 
+  if (
+    categoriesResult.error &&
+    !isMissingRelationError(categoriesResult.error)
+  ) {
+    throw categoriesResult.error;
+  }
+
+  if (catalogResult.error && !isMissingRelationError(catalogResult.error)) {
+    throw catalogResult.error;
+  }
+
+  const productCatalogEntries =
+    !catalogResult.error && catalogResult.data && catalogResult.data.length > 0
+      ? catalogResult.data.map(mapRowToShoppingProductCatalogEntry)
+      : defaultShoppingProductCatalogEntries;
+
   return {
-    items: (itemsResult.data ?? []).map(mapRowToShoppingItem),
+    items: (itemsResult.data ?? []).map((row) =>
+      mapRowToShoppingItem(row, productCatalogEntries),
+    ),
     sections:
       sectionsResult.data && sectionsResult.data.length > 0
         ? sectionsResult.data.map(mapRowToShoppingSection)
         : defaultShoppingSections,
     historyEvents: (historyResult.data ?? []).map(mapRowToShoppingHistoryEvent),
     freezerItems: (freezerResult.data ?? []).map(mapRowToFreezerItem),
+    categories:
+      !categoriesResult.error &&
+      categoriesResult.data &&
+      categoriesResult.data.length > 0
+        ? categoriesResult.data.map(mapRowToShoppingCategory)
+        : defaultShoppingCategories,
+    productCatalogEntries,
   };
 }
 
@@ -364,6 +424,24 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
       },
       onChange,
     )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_categories",
+      },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_product_catalog_entries",
+      },
+      onChange,
+    )
     .subscribe();
 
   return () => {
@@ -371,17 +449,45 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
   };
 }
 
-export function mapRowToShoppingItem(row: ShoppingItemRow): ShoppingItem {
+export function mapRowToShoppingItem(
+  row: ShoppingItemRow,
+  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
+): ShoppingItem {
   return {
     id: row.id,
     name: row.name,
     quantity: row.quantity?.trim() ? row.quantity : undefined,
     sectionId: normalizeSectionId(row.section_id),
-    categoryId: normalizeCategoryId(row.category_id, row.name),
+    categoryId: normalizeCategoryId(
+      row.category_id,
+      row.name,
+      productCatalogEntries,
+    ),
     addedBy: normalizeUserId(row.added_by),
     purchased: row.purchased,
     createdAt: Date.parse(row.created_at),
     updatedAt: Date.parse(row.updated_at),
+  };
+}
+
+export function mapRowToShoppingCategory(
+  row: ShoppingCategoryRow,
+): ShoppingCategory {
+  return {
+    id: row.id,
+    name: row.name,
+    position: row.position,
+  };
+}
+
+export function mapRowToShoppingProductCatalogEntry(
+  row: ShoppingProductCatalogEntryRow,
+): ShoppingProductCatalogEntry {
+  return {
+    id: row.id,
+    categoryId: row.category_id,
+    name: row.name,
+    normalizedName: row.normalized_name,
   };
 }
 
@@ -563,14 +669,22 @@ function normalizeUserId(value: string): ShoppingUserId {
   return isShoppingUserId(value) ? value : "rafa";
 }
 
-function normalizeCategoryId(value: string | undefined, itemName: string) {
+function normalizeCategoryId(
+  value: string | undefined,
+  itemName: string,
+  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
+) {
   return value && isShoppingCategoryId(value)
     ? value
-    : inferShoppingCategoryId(itemName);
+    : inferShoppingCategoryId(itemName, productCatalogEntries);
 }
 
 function normalizeFreezerDrawerId(value: string): FreezerDrawerId {
   return isFreezerDrawerId(value) ? value : "top";
+}
+
+function isMissingRelationError(error: { code?: string; message?: string }) {
+  return error.code === "42P01" || error.message?.includes("does not exist");
 }
 
 function encodePostgrestTextList(values: string[]) {

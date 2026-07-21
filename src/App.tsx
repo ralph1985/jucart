@@ -34,6 +34,8 @@ import {
   compareShoppingItemsForShopping,
   createInitialShoppingHistoryEvents,
   createShoppingHistoryEvent,
+  defaultShoppingCategories,
+  defaultShoppingProductCatalogEntries,
   defaultShoppingSections,
   findPendingShoppingItemByName,
   getShoppingCategoryName,
@@ -49,8 +51,10 @@ import {
   removeShoppingItem,
   renameShoppingSection,
   reactivatePurchasedShoppingItem,
+  ShoppingCategory,
   ShoppingHistoryEvent,
   ShoppingItem,
+  ShoppingProductCatalogEntry,
   shoppingSectionColors,
   ShoppingSectionColor,
   ShoppingSection,
@@ -387,8 +391,15 @@ function createLocalId() {
 function compareShoppingItemsForVisibleOrder(
   firstItem: ShoppingItem,
   secondItem: ShoppingItem,
+  categories: ShoppingCategory[] = defaultShoppingCategories,
+  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
 ) {
-  return compareShoppingItemsForShopping(firstItem, secondItem);
+  return compareShoppingItemsForShopping(
+    firstItem,
+    secondItem,
+    categories,
+    productCatalogEntries,
+  );
 }
 
 function shouldAnimate() {
@@ -644,6 +655,12 @@ export function App() {
   const [sections, setSections] = useState<ShoppingSection[]>(
     defaultShoppingSections,
   );
+  const [categories, setCategories] = useState<ShoppingCategory[]>(
+    defaultShoppingCategories,
+  );
+  const [productCatalogEntries, setProductCatalogEntries] = useState<
+    ShoppingProductCatalogEntry[]
+  >(defaultShoppingProductCatalogEntries);
   const [historyEvents, setHistoryEvents] = useState<ShoppingHistoryEvent[]>(
     [],
   );
@@ -806,6 +823,8 @@ export function App() {
     items.filter(
       (item) => item.sectionId === selectedSectionId && item.purchased,
     ),
+    categories,
+    productCatalogEntries,
   );
   const selectedPurchasedCount = selectedPurchasedItems.length;
   const normalizedShoppingSearchQuery =
@@ -820,6 +839,8 @@ export function App() {
           selectedSectionId,
           itemName,
           12,
+          categories,
+          productCatalogEntries,
         )
       : [];
   const unseenRemoteHistoryEvents = getUnseenRemoteShoppingHistoryEvents(
@@ -892,6 +913,11 @@ export function App() {
           setItems(storedData.items);
           setFreezerItems(storedData.freezerItems ?? []);
           setSections(storedData.sections);
+          setCategories(storedData.categories ?? defaultShoppingCategories);
+          setProductCatalogEntries(
+            storedData.productCatalogEntries ??
+              defaultShoppingProductCatalogEntries,
+          );
           setHistoryEvents(nextHistoryEvents);
           setSelectedSectionId((currentSectionId) =>
             isShoppingSectionId(currentSectionId, storedData.sections)
@@ -945,6 +971,8 @@ export function App() {
           sections,
           historyEvents,
           freezerItems,
+          categories,
+          productCatalogEntries,
         });
         pendingAddDraftRef.current = null;
         setStorageError(null);
@@ -983,9 +1011,11 @@ export function App() {
     void storeItems();
   }, [
     beginRemoteRequest,
+    categories,
     freezerItems,
     isLoaded,
     items,
+    productCatalogEntries,
     sections,
     historyEvents,
   ]);
@@ -1027,6 +1057,11 @@ export function App() {
         setItems(nextStoredData.items);
         setFreezerItems(nextStoredData.freezerItems ?? []);
         setSections(nextStoredData.sections);
+        setCategories(nextStoredData.categories ?? defaultShoppingCategories);
+        setProductCatalogEntries(
+          nextStoredData.productCatalogEntries ??
+            defaultShoppingProductCatalogEntries,
+        );
         setHistoryEvents(nextStoredData.historyEvents);
         setSelectedSectionId((currentSectionId) =>
           isShoppingSectionId(currentSectionId, nextStoredData.sections)
@@ -1924,6 +1959,7 @@ export function App() {
       undefined,
       undefined,
       rawQuantity,
+      productCatalogEntries,
     );
 
     if (nextItems !== items) {
@@ -2134,6 +2170,8 @@ export function App() {
       editingItemName,
       editingSectionId,
       editingItemQuantity,
+      undefined,
+      productCatalogEntries,
     );
 
     if (nextItems !== items) {
@@ -2820,9 +2858,19 @@ export function App() {
       );
     }
 
-    const visibleItems = sortShoppingItemsForShopping(renderedSectionItems);
+    const visibleItems = sortShoppingItemsForShopping(
+      renderedSectionItems,
+      categories,
+      productCatalogEntries,
+    );
     const sortedRemovedItems = [...removedSectionItems].sort(
-      compareShoppingItemsForVisibleOrder,
+      (firstItem, secondItem) =>
+        compareShoppingItemsForVisibleOrder(
+          firstItem,
+          secondItem,
+          categories,
+          productCatalogEntries,
+        ),
     );
     const hasPendingItems = sectionItems.some((item) => !item.purchased);
     const hasPurchasedItems = sectionItems.some((item) => item.purchased);
@@ -2830,12 +2878,16 @@ export function App() {
     let hasRenderedUndoItem = false;
     let hasRenderedHiddenPurchasedUndoItem = false;
     const listItems = visibleItems.flatMap((item, index) => {
-      const itemCategoryId = getShoppingItemCategoryId(item);
+      const itemCategoryId = getShoppingItemCategoryId(
+        item,
+        productCatalogEntries,
+      );
       const previousItem = visibleItems[index - 1];
       const shouldRenderCategoryDivider =
         !previousItem ||
         previousItem.purchased !== item.purchased ||
-        getShoppingItemCategoryId(previousItem) !== itemCategoryId;
+        getShoppingItemCategoryId(previousItem, productCatalogEntries) !==
+          itemCategoryId;
       const shouldRenderPurchasedDivider =
         shouldShowPurchasedDivider &&
         item.purchased &&
@@ -2935,17 +2987,27 @@ export function App() {
           className={styles.categoryDivider}
           key={`${item.purchased ? "purchased" : "pending"}-${itemCategoryId}`}
         >
-          {getShoppingCategoryName(itemCategoryId)}
+          {getShoppingCategoryName(itemCategoryId, categories)}
         </li>
       ) : null;
       const shouldRenderUndoItem =
         !hasRenderedUndoItem &&
         sortedRemovedItems.length > 0 &&
-        compareShoppingItemsForVisibleOrder(sortedRemovedItems[0], item) < 0;
+        compareShoppingItemsForVisibleOrder(
+          sortedRemovedItems[0],
+          item,
+          categories,
+          productCatalogEntries,
+        ) < 0;
       const shouldRenderHiddenPurchasedUndoItem =
         !hasRenderedHiddenPurchasedUndoItem &&
         hiddenPurchasedItem &&
-        compareShoppingItemsForVisibleOrder(hiddenPurchasedItem, item) < 0;
+        compareShoppingItemsForVisibleOrder(
+          hiddenPurchasedItem,
+          item,
+          categories,
+          productCatalogEntries,
+        ) < 0;
 
       if (shouldRenderUndoItem) {
         hasRenderedUndoItem = true;
@@ -3449,7 +3511,10 @@ export function App() {
                   type="button"
                   role="option"
                   aria-selected="false"
-                  title={getShoppingCategoryName(suggestion.categoryId)}
+                  title={getShoppingCategoryName(
+                    suggestion.categoryId,
+                    categories,
+                  )}
                   onPointerDown={(event) => {
                     event.preventDefault();
                     handleButtonPointerDown(event);

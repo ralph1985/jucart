@@ -39,6 +39,10 @@ El objetivo principal es que añadir un producto sea más rápido que escribirlo
 pnpm dev
 pnpm build
 pnpm preview
+pnpm backup:supabase
+pnpm backup:supabase:cron:install
+pnpm recategorize:codex
+pnpm recategorize:codex:cron:install
 pnpm supabase:login
 pnpm supabase:link
 pnpm supabase:db:push
@@ -105,6 +109,22 @@ pnpm backup:supabase:cron:install
 
 El cron escribe su log en `var/log/supabase-backup.cron.log`. Los backups y logs locales están ignorados por Git.
 
+## Recategorización diaria con Codex
+
+Las categorías y el catálogo maestro viven en Supabase. Ejecutar una revisión manual:
+
+```bash
+pnpm recategorize:codex
+```
+
+El script exporta productos, categorías y catálogo remoto, lanza `codex exec` con instrucciones acotadas y permite aplicar cambios directos solo mediante el helper de recategorización. Los informes y logs se guardan en `var/log/`.
+
+Instalar el cron diario a las 03:00:
+
+```bash
+pnpm recategorize:codex:cron:install
+```
+
 ## Estado
 
 Jucart mantiene una sola aplicación sin rutas, con tablero de compra, gestión de listas, historial de cambios, sincronización remota y fallback local.
@@ -151,3 +171,5 @@ El Hito 22 añade un historial auditado de altas, compras, cambios de lista y bo
 El Hito 23 añade backup local de Supabase y una vista interna de desarrollador. La vista solo aparece cuando el selector de persona está en Rafa y muestra metadatos del último backup junto con información operativa de la app.
 
 El Hito 24 añade sugerencias rápidas bajo el campo de producto cuando se empieza a escribir. Las sugerencias combinan catálogo, productos existentes e historial reciente, se filtran mientras se escribe y evitan sugerir productos ya presentes en el tablero.
+
+El Hito 27 mueve categorías y catálogo maestro a Supabase, mantiene fallback local y añade la recategorización diaria con Codex desde cron.

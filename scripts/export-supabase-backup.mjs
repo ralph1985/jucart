@@ -23,6 +23,15 @@ const sectionColumns = [
   "created_at",
   "updated_at",
 ];
+const categoryColumns = ["id", "name", "position", "created_at", "updated_at"];
+const catalogEntryColumns = [
+  "id",
+  "category_id",
+  "name",
+  "normalized_name",
+  "created_at",
+  "updated_at",
+];
 const itemColumns = [
   "id",
   "list_id",
@@ -60,22 +69,38 @@ const backupRunColumns = [
 ];
 
 const config = await readSupabaseConfig();
-const [sections, items, historyEvents, backupRuns] = await Promise.all([
-  fetchRows("shopping_sections", "list_id", config.listId, "position.asc"),
-  fetchRows("shopping_items", "list_id", config.listId, "created_at.asc"),
-  fetchRows(
-    "shopping_history_events",
-    "list_id",
-    config.listId,
-    "created_at.asc",
-  ),
-  fetchRows("developer_backup_runs", null, null, "created_at.asc"),
-]);
+const [sections, categories, catalogEntries, items, historyEvents, backupRuns] =
+  await Promise.all([
+    fetchRows("shopping_sections", "list_id", config.listId, "position.asc"),
+    fetchRows("shopping_categories", null, null, "position.asc"),
+    fetchRows(
+      "shopping_product_catalog_entries",
+      null,
+      null,
+      "normalized_name.asc",
+    ),
+    fetchRows("shopping_items", "list_id", config.listId, "created_at.asc"),
+    fetchRows(
+      "shopping_history_events",
+      "list_id",
+      config.listId,
+      "created_at.asc",
+    ),
+    fetchRows("developer_backup_runs", null, null, "created_at.asc"),
+  ]);
 
 await writeFile(schemaOutputPath, await buildSchemaSql(), "utf8");
 await writeFile(
   dataOutputPath,
-  buildDataSql({ backupRuns, config, historyEvents, items, sections }),
+  buildDataSql({
+    backupRuns,
+    catalogEntries,
+    categories,
+    config,
+    historyEvents,
+    items,
+    sections,
+  }),
   "utf8",
 );
 
@@ -185,7 +210,15 @@ async function buildSchemaSql() {
   ].join("\n");
 }
 
-function buildDataSql({ backupRuns, config, historyEvents, items, sections }) {
+function buildDataSql({
+  backupRuns,
+  catalogEntries,
+  categories,
+  config,
+  historyEvents,
+  items,
+  sections,
+}) {
   const statements = [
     "-- Jucart Supabase data backup",
     `-- Generated at ${new Date().toISOString()}`,
@@ -196,6 +229,15 @@ function buildDataSql({ backupRuns, config, historyEvents, items, sections }) {
     `delete from public.shopping_items where list_id = ${sqlString(config.listId)}::uuid;`,
     `delete from public.shopping_sections where list_id = ${sqlString(config.listId)}::uuid;`,
     "",
+    buildInsertStatement("shopping_categories", categoryColumns, categories, [
+      "id",
+    ]),
+    buildInsertStatement(
+      "shopping_product_catalog_entries",
+      catalogEntryColumns,
+      catalogEntries,
+      ["id"],
+    ),
     buildInsertStatement("shopping_sections", sectionColumns, sections, [
       "list_id",
       "id",

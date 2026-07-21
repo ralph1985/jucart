@@ -268,3 +268,13 @@
 - [x] Permitir marcar productos como usados con deshacer inmediato.
 - [x] Persistir el congelador en IndexedDB y Supabase remoto.
 - [x] Añadir tests razonables de lógica, persistencia, Supabase e interfaz.
+
+## Hito 27 — Catálogo remoto de categorías
+
+- [x] Mover categorías y catálogo maestro a Supabase.
+- [x] Mantener fallback local para uso offline o fallo remoto.
+- [x] Inferir categorías desde el catálogo remoto al añadir y renombrar.
+- [x] Agrupar productos usando el orden remoto de categorías.
+- [x] Añadir automatización diaria con Codex para recategorizar productos.
+- [x] Añadir script instalador de cron a las 03:00.
+- [x] Actualizar backup y documentación del esquema.

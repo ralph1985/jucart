@@ -6,13 +6,17 @@ import {
   isFreezerDrawerId,
 } from "./freezerItems";
 import {
+  defaultShoppingCategories,
+  defaultShoppingProductCatalogEntries,
   defaultShoppingSections,
   inferShoppingCategoryId,
   isShoppingCategoryId,
   isShoppingSectionColor,
   isShoppingUserId,
+  ShoppingCategory,
   ShoppingHistoryEvent,
   ShoppingItem,
+  ShoppingProductCatalogEntry,
   ShoppingSection,
   ShoppingSectionId,
   ShoppingUserId,
@@ -32,12 +36,16 @@ type StoredShoppingHistoryEvent = ShoppingHistoryEvent;
 type StoredFreezerItem = Omit<FreezerItem, "drawerId"> & {
   drawerId?: FreezerDrawerId;
 };
+type StoredShoppingCategory = ShoppingCategory;
+type StoredShoppingProductCatalogEntry = ShoppingProductCatalogEntry;
 export type ShoppingItemsStorageMode = "local" | "remote" | "fallback";
 export type ShoppingData = {
   items: ShoppingItem[];
   sections: ShoppingSection[];
   historyEvents: ShoppingHistoryEvent[];
   freezerItems: FreezerItem[];
+  categories?: ShoppingCategory[];
+  productCatalogEntries?: ShoppingProductCatalogEntry[];
 };
 
 let lastStorageMode: ShoppingItemsStorageMode = "local";
@@ -47,6 +55,11 @@ class JucartDatabase extends Dexie {
   shoppingSections!: Table<StoredShoppingSection, string>;
   shoppingHistoryEvents!: Table<StoredShoppingHistoryEvent, string>;
   freezerItems!: Table<StoredFreezerItem, string>;
+  shoppingCategories!: Table<StoredShoppingCategory, string>;
+  shoppingProductCatalogEntries!: Table<
+    StoredShoppingProductCatalogEntry,
+    string
+  >;
 
   constructor() {
     super("jucart");
@@ -99,6 +112,16 @@ class JucartDatabase extends Dexie {
       shoppingSections: "id, position",
       shoppingHistoryEvents: "id, itemId, type, actor, clientId, createdAt",
       freezerItems: "id, drawerId, frozenAt, createdAt, updatedAt",
+    });
+
+    this.version(10).stores({
+      shoppingItems:
+        "id, sectionId, categoryId, addedBy, createdAt, updatedAt, purchased",
+      shoppingSections: "id, position",
+      shoppingHistoryEvents: "id, itemId, type, actor, clientId, createdAt",
+      freezerItems: "id, drawerId, frozenAt, createdAt, updatedAt",
+      shoppingCategories: "id, position",
+      shoppingProductCatalogEntries: "id, categoryId, normalizedName",
     });
   }
 }
@@ -173,15 +196,21 @@ export async function replaceStoredShoppingItems(items: ShoppingItem[]) {
 export async function resetShoppingItemsDatabase() {
   await db.transaction(
     "rw",
-    db.shoppingItems,
-    db.shoppingSections,
-    db.shoppingHistoryEvents,
-    db.freezerItems,
+    [
+      db.shoppingItems,
+      db.shoppingSections,
+      db.shoppingHistoryEvents,
+      db.freezerItems,
+      db.shoppingCategories,
+      db.shoppingProductCatalogEntries,
+    ],
     async () => {
       await db.shoppingItems.clear();
       await db.shoppingSections.clear();
       await db.shoppingHistoryEvents.clear();
       await db.freezerItems.clear();
+      await db.shoppingCategories.clear();
+      await db.shoppingProductCatalogEntries.clear();
     },
   );
 }
@@ -199,8 +228,19 @@ async function getLocalShoppingData() {
     getLocalShoppingHistoryEvents(),
     getLocalFreezerItems(),
   ]);
+  const [categories, productCatalogEntries] = await Promise.all([
+    getLocalShoppingCategories(),
+    getLocalShoppingProductCatalogEntries(),
+  ]);
 
-  return { items, sections, historyEvents, freezerItems };
+  return {
+    items,
+    sections,
+    historyEvents,
+    freezerItems,
+    categories,
+    productCatalogEntries,
+  };
 }
 
 async function getLocalShoppingSections() {
@@ -214,21 +254,33 @@ async function getLocalShoppingSections() {
 async function replaceLocalShoppingData(data: ShoppingData) {
   await db.transaction(
     "rw",
-    db.shoppingItems,
-    db.shoppingSections,
-    db.shoppingHistoryEvents,
-    db.freezerItems,
+    [
+      db.shoppingItems,
+      db.shoppingSections,
+      db.shoppingHistoryEvents,
+      db.freezerItems,
+      db.shoppingCategories,
+      db.shoppingProductCatalogEntries,
+    ],
     async () => {
       await db.shoppingItems.clear();
       await db.shoppingSections.clear();
       await db.shoppingHistoryEvents.clear();
       await db.freezerItems.clear();
+      await db.shoppingCategories.clear();
+      await db.shoppingProductCatalogEntries.clear();
       await db.shoppingItems.bulkAdd(data.items);
       await db.shoppingSections.bulkAdd(
         data.sections.map((section, position) => ({ ...section, position })),
       );
       await db.shoppingHistoryEvents.bulkAdd(data.historyEvents);
       await db.freezerItems.bulkAdd(data.freezerItems);
+      await db.shoppingCategories.bulkAdd(
+        data.categories ?? defaultShoppingCategories,
+      );
+      await db.shoppingProductCatalogEntries.bulkAdd(
+        data.productCatalogEntries ?? defaultShoppingProductCatalogEntries,
+      );
     },
   );
 }
@@ -241,6 +293,20 @@ async function getLocalFreezerItems() {
   const items = await db.freezerItems.orderBy("frozenAt").toArray();
 
   return items.map(normalizeStoredFreezerItem);
+}
+
+async function getLocalShoppingCategories() {
+  const categories = await db.shoppingCategories.orderBy("position").toArray();
+
+  return categories.length > 0 ? categories : defaultShoppingCategories;
+}
+
+async function getLocalShoppingProductCatalogEntries() {
+  const entries = await db.shoppingProductCatalogEntries
+    .orderBy("normalizedName")
+    .toArray();
+
+  return entries.length > 0 ? entries : defaultShoppingProductCatalogEntries;
 }
 
 function normalizeStoredSection(

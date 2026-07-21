@@ -32,6 +32,12 @@ export const shoppingUsers = [
 
 export type ShoppingUserId = (typeof shoppingUsers)[number]["id"];
 
+export type ShoppingCategory = {
+  id: string;
+  name: string;
+  position: number;
+};
+
 export const shoppingCategories = [
   { id: "fruit", name: "Fruta" },
   { id: "vegetables", name: "Verdura" },
@@ -50,9 +56,19 @@ export const shoppingCategories = [
   { id: "pharmacy", name: "Farmacia" },
   { id: "pets", name: "Mascotas" },
   { id: "other", name: "Otros" },
-] as const;
+] as const satisfies readonly Omit<ShoppingCategory, "position">[];
 
-export type ShoppingCategoryId = (typeof shoppingCategories)[number]["id"];
+export type ShoppingCategoryId = string;
+
+export type ShoppingProductCatalogEntry = {
+  id: string;
+  categoryId: ShoppingCategoryId;
+  name: string;
+  normalizedName: string;
+};
+
+export const defaultShoppingCategories: ShoppingCategory[] =
+  shoppingCategories.map((category, position) => ({ ...category, position }));
 
 const shoppingProductCatalog: Record<ShoppingCategoryId, string[]> = {
   fruit: [
@@ -179,6 +195,16 @@ const quickShoppingProductDefaults = [
   "detergente",
 ] as const;
 
+export const defaultShoppingProductCatalogEntries: ShoppingProductCatalogEntry[] =
+  Object.entries(shoppingProductCatalog).flatMap(([categoryId, productNames]) =>
+    productNames.map((productName) => ({
+      id: `${categoryId}:${normalizeCatalogText(productName)}`,
+      categoryId,
+      name: productName,
+      normalizedName: normalizeCatalogText(productName),
+    })),
+  );
+
 export type ShoppingItem = {
   id: string;
   name: string;
@@ -273,7 +299,7 @@ export function isShoppingUserId(value: string): value is ShoppingUserId {
 export function isShoppingCategoryId(
   value: string,
 ): value is ShoppingCategoryId {
-  return shoppingCategories.some((category) => category.id === value);
+  return value.trim().length > 0;
 }
 
 export function isShoppingHistoryEventType(
@@ -299,33 +325,33 @@ export function getShoppingUserName(userId: ShoppingUserId) {
   return shoppingUsers.find((user) => user.id === userId)?.name ?? "Rafa";
 }
 
-export function getShoppingCategoryName(categoryId: ShoppingCategoryId) {
+export function getShoppingCategoryName(
+  categoryId: ShoppingCategoryId,
+  categories: ShoppingCategory[] = defaultShoppingCategories,
+) {
   return (
-    shoppingCategories.find((category) => category.id === categoryId)?.name ??
-    "Otros"
+    categories.find((category) => category.id === categoryId)?.name ?? "Otros"
   );
 }
 
 export function getShoppingItemCategoryId(
   item: Pick<ShoppingItem, "name" | "categoryId">,
+  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
 ) {
   return item.categoryId && isShoppingCategoryId(item.categoryId)
     ? item.categoryId
-    : inferShoppingCategoryId(item.name);
+    : inferShoppingCategoryId(item.name, productCatalogEntries);
 }
 
-export function inferShoppingCategoryId(rawName: string): ShoppingCategoryId {
+export function inferShoppingCategoryId(
+  rawName: string,
+  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
+): ShoppingCategoryId {
   const normalizedName = normalizeCatalogText(rawName);
 
-  for (const category of shoppingCategories) {
-    if (
-      shoppingProductCatalog[category.id].some((catalogName) => {
-        const normalizedCatalogName = normalizeCatalogText(catalogName);
-
-        return catalogNameMatches(normalizedName, normalizedCatalogName);
-      })
-    ) {
-      return category.id;
+  for (const catalogEntry of productCatalogEntries) {
+    if (catalogNameMatches(normalizedName, catalogEntry.normalizedName)) {
+      return catalogEntry.categoryId;
     }
   }
 
@@ -342,6 +368,8 @@ export function getQuickShoppingItemSuggestions(
   _sectionId: ShoppingSectionId,
   rawQuery: string = "",
   limit: number = 8,
+  categories: ShoppingCategory[] = defaultShoppingCategories,
+  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
 ): QuickShoppingItemSuggestion[] {
   const normalizedQuery = normalizeCatalogText(rawQuery);
   const existingNames = new Set(
@@ -405,7 +433,7 @@ export function getQuickShoppingItemSuggestions(
       categoryId:
         categoryId && isShoppingCategoryId(categoryId)
           ? categoryId
-          : inferShoppingCategoryId(name),
+          : inferShoppingCategoryId(name, productCatalogEntries),
       score,
     });
   }
@@ -418,14 +446,16 @@ export function getQuickShoppingItemSuggestions(
     addCandidate(productName, undefined, 10_000 - index);
   });
 
-  shoppingCategories.forEach((category, categoryIndex) => {
-    shoppingProductCatalog[category.id].forEach((productName, productIndex) => {
-      addCandidate(
-        productName,
-        category.id,
-        1_000 - categoryIndex * 50 - productIndex,
-      );
-    });
+  categories.forEach((category, categoryIndex) => {
+    productCatalogEntries
+      .filter((entry) => entry.categoryId === category.id)
+      .forEach((catalogEntry, productIndex) => {
+        addCandidate(
+          catalogEntry.name,
+          category.id,
+          1_000 - categoryIndex * 50 - productIndex,
+        );
+      });
   });
 
   return [...candidates.values()]
@@ -601,6 +631,7 @@ export function addShoppingItem(
   createId: () => string = createShoppingItemId,
   now: () => number = () => Date.now(),
   rawQuantity?: string,
+  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
 ) {
   const parsedItem = parseShoppingItemNameAndQuantity(rawName);
   const name = parsedItem.name;
@@ -622,7 +653,7 @@ export function addShoppingItem(
       name,
       quantity,
       sectionId,
-      categoryId: inferShoppingCategoryId(name),
+      categoryId: inferShoppingCategoryId(name, productCatalogEntries),
       addedBy,
       purchased: false,
       createdAt,
@@ -801,6 +832,7 @@ export function updateShoppingItem(
   sectionId: ShoppingSectionId,
   rawQuantityOrNow: string | undefined | (() => number) = undefined,
   now: () => number = () => Date.now(),
+  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
 ) {
   const name = normalizeItemName(rawName);
   const quantity =
@@ -846,7 +878,7 @@ export function updateShoppingItem(
           name,
           quantity,
           sectionId,
-          categoryId: inferShoppingCategoryId(name),
+          categoryId: inferShoppingCategoryId(name, productCatalogEntries),
           updatedAt: getNow(),
         }
       : item,
@@ -861,23 +893,38 @@ export function removePurchasedShoppingItems(items: ShoppingItem[]) {
   return items.filter((item) => !item.purchased);
 }
 
-export function sortShoppingItemsForShopping(items: ShoppingItem[]) {
-  return [...items].sort(compareShoppingItemsForShopping);
+export function sortShoppingItemsForShopping(
+  items: ShoppingItem[],
+  categories: ShoppingCategory[] = defaultShoppingCategories,
+  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
+) {
+  return [...items].sort((firstItem, secondItem) =>
+    compareShoppingItemsForShopping(
+      firstItem,
+      secondItem,
+      categories,
+      productCatalogEntries,
+    ),
+  );
 }
 
 export function compareShoppingItemsForShopping(
   firstItem: ShoppingItem,
   secondItem: ShoppingItem,
+  categories: ShoppingCategory[] = defaultShoppingCategories,
+  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
 ) {
   if (firstItem.purchased !== secondItem.purchased) {
     return firstItem.purchased ? 1 : -1;
   }
 
   const firstCategoryOrder = getShoppingCategoryOrder(
-    getShoppingItemCategoryId(firstItem),
+    getShoppingItemCategoryId(firstItem, productCatalogEntries),
+    categories,
   );
   const secondCategoryOrder = getShoppingCategoryOrder(
-    getShoppingItemCategoryId(secondItem),
+    getShoppingItemCategoryId(secondItem, productCatalogEntries),
+    categories,
   );
 
   if (firstCategoryOrder !== secondCategoryOrder) {
@@ -887,8 +934,15 @@ export function compareShoppingItemsForShopping(
   return firstItem.createdAt - secondItem.createdAt;
 }
 
-function getShoppingCategoryOrder(categoryId: ShoppingCategoryId) {
-  return shoppingCategories.findIndex((category) => category.id === categoryId);
+function getShoppingCategoryOrder(
+  categoryId: ShoppingCategoryId,
+  categories: ShoppingCategory[],
+) {
+  const categoryIndex = categories.findIndex(
+    (category) => category.id === categoryId,
+  );
+
+  return categoryIndex >= 0 ? categoryIndex : categories.length;
 }
 
 function normalizeCatalogText(value: string) {

@@ -553,7 +553,6 @@ h2 {
   background: #ffffff;
   box-shadow: 0 -0.9rem 2.2rem rgb(15 23 42 / 16%);
   transform: translateY(var(--sheet-drag-offset, 0px));
-  animation: sheetIn 0.24s ease-out;
 }
 
 .addSheetCompact {
@@ -1955,8 +1954,7 @@ h2 {
     animation: none;
   }
 
-  .floatingAddButton,
-  .addSheet {
+  .floatingAddButton {
     animation: none;
   }
 }
@@ -1970,18 +1968,6 @@ h2 {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes sheetIn {
-  from {
-    opacity: 0.86;
-    transform: translateY(100%);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(var(--sheet-drag-offset, 0px));
   }
 }
 

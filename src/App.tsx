@@ -7,6 +7,7 @@ import {
   PointerEvent,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -113,6 +114,11 @@ type AppOverlay =
   | "freezer-edit-sheet"
   | "clear-dialog"
   | "edit-dialog";
+
+type BottomSheetOverlay = Extract<
+  AppOverlay,
+  "add-sheet" | "freezer-add-sheet" | "freezer-edit-sheet"
+>;
 type AddProductNotice =
   | { type: "success"; message: string }
   | { type: "error"; message: string }
@@ -386,6 +392,10 @@ function compareShoppingItemsForVisibleOrder(
 }
 
 function shouldAnimate() {
+  if (import.meta.env.MODE === "test") {
+    return false;
+  }
+
   return !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
@@ -401,6 +411,33 @@ function runAnimation(
     animate(targets, parameters);
   } catch {
     return;
+  }
+}
+
+function runAnimationWithCompletion(
+  targets: HTMLElement | HTMLElement[],
+  parameters: Parameters<typeof animate>[1],
+  onComplete: () => void,
+) {
+  if (!shouldAnimate()) {
+    onComplete();
+    return;
+  }
+
+  let hasCompleted = false;
+  const completeOnce = () => {
+    if (hasCompleted) {
+      return;
+    }
+
+    hasCompleted = true;
+    onComplete();
+  };
+
+  try {
+    animate(targets, { ...parameters, onComplete: completeOnce });
+  } catch {
+    completeOnce();
   }
 }
 
@@ -673,6 +710,8 @@ export function App() {
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isFreezerAddSheetOpen, setIsFreezerAddSheetOpen] = useState(false);
+  const [closingBottomSheet, setClosingBottomSheet] =
+    useState<BottomSheetOverlay | null>(null);
   const [addItemQuantity, setAddItemQuantity] = useState("1");
   const [addProductNotice, setAddProductNotice] =
     useState<AddProductNotice | null>(null);
@@ -686,7 +725,21 @@ export function App() {
   const freezerAddFabRef = useRef<HTMLButtonElement>(null);
   const freezerItemNameInputRef = useRef<HTMLInputElement>(null);
   const editingFreezerItemNameInputRef = useRef<HTMLInputElement>(null);
+  const syncStatusRef = useRef<HTMLParagraphElement>(null);
+  const commandPanelRef = useRef<HTMLElement>(null);
+  const shoppingBoardElementRef = useRef<HTMLElement | null>(null);
+  const freezerScreenRef = useRef<HTMLElement>(null);
+  const sectionsScreenRef = useRef<HTMLElement>(null);
+  const historyScreenRef = useRef<HTMLElement>(null);
+  const developerScreenRef = useRef<HTMLElement>(null);
+  const addSheetBackdropRef = useRef<HTMLDivElement>(null);
+  const addSheetRef = useRef<HTMLFormElement>(null);
+  const freezerAddSheetBackdropRef = useRef<HTMLDivElement>(null);
+  const freezerAddSheetRef = useRef<HTMLFormElement>(null);
+  const freezerEditSheetBackdropRef = useRef<HTMLDivElement>(null);
+  const freezerEditSheetRef = useRef<HTMLFormElement>(null);
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
+  const freezerItemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
   const clearDialogRef = useRef<HTMLDivElement>(null);
   const sectionNameInputRef = useRef<HTMLInputElement>(null);
   const sectionColumnRefs = useRef<
@@ -698,12 +751,18 @@ export function App() {
   const selectedSectionIdRef = useRef(selectedSectionId);
   const hasAnimatedInitialColumnsRef = useRef(false);
   const previousItemIdsRef = useRef<Set<string>>(new Set());
+  const previousFreezerItemIdsRef = useRef<Set<string>>(new Set());
+  const previousSyncStatusRef = useRef<SyncStatus>(syncStatus);
   const previousUndoKeyRef = useRef<string | null>(null);
   const previousHiddenUndoKeyRef = useRef<string | null>(null);
   const undoItemRef = useRef<HTMLLIElement>(null);
   const hiddenUndoItemRef = useRef<HTMLLIElement>(null);
+  const freezerUndoRef = useRef<HTMLDivElement>(null);
   const addSheetOpenRef = useRef(false);
   const overlayHistoryStackRef = useRef<AppOverlay[]>([]);
+  const closeOverlayFromHistoryRef = useRef<
+    ((overlay: AppOverlay) => void) | null
+  >(null);
   const ignoreNextOverlayPopRef = useRef(false);
   const addSheetDragStartYRef = useRef<number | null>(null);
   const pendingAddDraftRef = useRef<string | null>(null);
@@ -1164,6 +1223,33 @@ export function App() {
     });
   }, [isLoaded, sections]);
 
+  useLayoutEffect(() => {
+    const targets =
+      activeView === "shopping"
+        ? [commandPanelRef.current, shoppingBoardElementRef.current]
+        : [
+            activeView === "freezer" ? freezerScreenRef.current : null,
+            activeView === "sections" ? sectionsScreenRef.current : null,
+            activeView === "history" ? historyScreenRef.current : null,
+            activeView === "developer" ? developerScreenRef.current : null,
+          ];
+    const visibleTargets = targets.filter((target): target is HTMLElement =>
+      Boolean(target),
+    );
+
+    if (visibleTargets.length === 0) {
+      return;
+    }
+
+    runAnimation(visibleTargets, {
+      opacity: [0, 1],
+      y: [10, 0],
+      duration: 240,
+      delay: stagger(35),
+      ease: "outCubic",
+    });
+  }, [activeView]);
+
   useEffect(() => {
     const selectedColumn = sectionColumnRefs.current[selectedSectionId];
 
@@ -1201,6 +1287,125 @@ export function App() {
       ease: "outBack",
     });
   }, [items]);
+
+  useEffect(() => {
+    const previousFreezerItemIds = previousFreezerItemIdsRef.current;
+    const newFreezerItems = freezerItems.filter(
+      (item) => !previousFreezerItemIds.has(item.id),
+    );
+
+    previousFreezerItemIdsRef.current = new Set(
+      freezerItems.map((item) => item.id),
+    );
+
+    const newFreezerItemElements = newFreezerItems
+      .map((item) => freezerItemRefs.current[item.id])
+      .filter((item): item is HTMLElement => Boolean(item));
+
+    if (newFreezerItemElements.length === 0) {
+      return;
+    }
+
+    runAnimation(newFreezerItemElements, {
+      opacity: [0, 1],
+      y: [-8, 0],
+      scale: [0.97, 1],
+      duration: 320,
+      delay: stagger(35),
+      ease: "outBack",
+    });
+  }, [freezerItems]);
+
+  useEffect(() => {
+    const previousSyncStatus = previousSyncStatusRef.current;
+    previousSyncStatusRef.current = syncStatus;
+
+    if (previousSyncStatus === syncStatus || !syncStatusRef.current) {
+      return;
+    }
+
+    runAnimation(syncStatusRef.current, {
+      scale: [0.94, 1],
+      opacity: [0.72, 1],
+      duration: 220,
+      ease: "outBack",
+    });
+  }, [syncStatus]);
+
+  useLayoutEffect(() => {
+    if (!isAddSheetOpen || closingBottomSheet === "add-sheet") {
+      return;
+    }
+
+    const sheet = addSheetRef.current;
+    const backdrop = addSheetBackdropRef.current;
+
+    if (!sheet || !backdrop) {
+      return;
+    }
+
+    runAnimation(backdrop, {
+      opacity: [0, 1],
+      duration: 180,
+      ease: "outCubic",
+    });
+    runAnimation(sheet, {
+      opacity: [0.92, 1],
+      y: ["100%", 0],
+      duration: 260,
+      ease: "outCubic",
+    });
+  }, [closingBottomSheet, isAddSheetOpen]);
+
+  useLayoutEffect(() => {
+    if (!isFreezerAddSheetOpen || closingBottomSheet === "freezer-add-sheet") {
+      return;
+    }
+
+    const sheet = freezerAddSheetRef.current;
+    const backdrop = freezerAddSheetBackdropRef.current;
+
+    if (!sheet || !backdrop) {
+      return;
+    }
+
+    runAnimation(backdrop, {
+      opacity: [0, 1],
+      duration: 180,
+      ease: "outCubic",
+    });
+    runAnimation(sheet, {
+      opacity: [0.92, 1],
+      y: ["100%", 0],
+      duration: 260,
+      ease: "outCubic",
+    });
+  }, [closingBottomSheet, isFreezerAddSheetOpen]);
+
+  useLayoutEffect(() => {
+    if (!editingFreezerItem || closingBottomSheet === "freezer-edit-sheet") {
+      return;
+    }
+
+    const sheet = freezerEditSheetRef.current;
+    const backdrop = freezerEditSheetBackdropRef.current;
+
+    if (!sheet || !backdrop) {
+      return;
+    }
+
+    runAnimation(backdrop, {
+      opacity: [0, 1],
+      duration: 180,
+      ease: "outCubic",
+    });
+    runAnimation(sheet, {
+      opacity: [0.92, 1],
+      y: ["100%", 0],
+      duration: 260,
+      ease: "outCubic",
+    });
+  }, [closingBottomSheet, editingFreezerItem]);
 
   useEffect(() => {
     if (lastRemovedItems.length === 0) {
@@ -1258,6 +1463,20 @@ export function App() {
       ease: "outBack",
     });
   }, [lastHiddenPurchasedItem]);
+
+  useEffect(() => {
+    if (!lastUsedFreezerItem || !freezerUndoRef.current) {
+      return;
+    }
+
+    runAnimation(freezerUndoRef.current, {
+      opacity: [0, 1],
+      y: [-6, 0],
+      scale: [0.98, 1],
+      duration: 260,
+      ease: "outBack",
+    });
+  }, [lastUsedFreezerItem]);
 
   useEffect(() => {
     if (!lastHiddenPurchasedItem) {
@@ -1327,41 +1546,7 @@ export function App() {
         return;
       }
 
-      if (overlay === "edit-dialog") {
-        setEditingItemId(null);
-        setEditingItemName("");
-        setEditingItemQuantity("");
-        setEditingSectionId("mercadona");
-        return;
-      }
-
-      if (overlay === "freezer-edit-sheet") {
-        setEditingFreezerItemId(null);
-        setEditingFreezerItemName("");
-        setEditingFreezerItemQuantity("");
-        setEditingFreezerDrawerId("top");
-        setEditingFreezerFrozenAt("");
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
-        return;
-      }
-
-      if (overlay === "clear-dialog") {
-        setIsClearDialogOpen(false);
-        return;
-      }
-
-      if (overlay === "freezer-add-sheet") {
-        setIsFreezerAddSheetOpen(false);
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
-        return;
-      }
-
-      setIsAddSheetOpen(false);
-      setAddProductNotice(null);
-      setSheetDragOffset(0);
-      addSheetDragStartYRef.current = null;
+      closeOverlayFromHistoryRef.current?.(overlay);
     }
 
     window.addEventListener("popstate", handleOverlayPopState);
@@ -1527,19 +1712,60 @@ export function App() {
     window.history.back();
   }
 
+  function closeBottomSheetWithAnimation(
+    overlay: BottomSheetOverlay,
+    sheet: HTMLElement | null,
+    backdrop: HTMLElement | null,
+    closeNow: () => void,
+  ) {
+    if (closingBottomSheet === overlay) {
+      return;
+    }
+
+    if (!sheet || !backdrop || !shouldAnimate()) {
+      closeNow();
+      return;
+    }
+
+    setClosingBottomSheet(overlay);
+    runAnimation(backdrop, {
+      opacity: [1, 0],
+      duration: 180,
+      ease: "outCubic",
+    });
+    runAnimationWithCompletion(
+      sheet,
+      {
+        opacity: [1, 0.88],
+        y: [Math.max(sheetDragOffset, 0), "100%"],
+        duration: 220,
+        ease: "inCubic",
+      },
+      closeNow,
+    );
+  }
+
   function closeAddSheet(restoreFabFocus = true, syncHistory = true) {
-    if (syncHistory) {
-      consumeOverlayHistory("add-sheet");
-    }
+    closeBottomSheetWithAnimation(
+      "add-sheet",
+      addSheetRef.current,
+      addSheetBackdropRef.current,
+      () => {
+        if (syncHistory) {
+          consumeOverlayHistory("add-sheet");
+        }
 
-    setIsAddSheetOpen(false);
-    setAddProductNotice(null);
-    setSheetDragOffset(0);
-    addSheetDragStartYRef.current = null;
+        setIsAddSheetOpen(false);
+        setClosingBottomSheet(null);
+        setAddProductNotice(null);
+        setSheetDragOffset(0);
+        addSheetDragStartYRef.current = null;
 
-    if (restoreFabFocus) {
-      window.requestAnimationFrame(() => addFabRef.current?.focus());
-    }
+        if (restoreFabFocus) {
+          window.requestAnimationFrame(() => addFabRef.current?.focus());
+        }
+      },
+    );
   }
 
   function openAddSheet() {
@@ -1553,17 +1779,25 @@ export function App() {
   }
 
   function closeFreezerAddSheet(restoreFabFocus = true, syncHistory = true) {
-    if (syncHistory) {
-      consumeOverlayHistory("freezer-add-sheet");
-    }
+    closeBottomSheetWithAnimation(
+      "freezer-add-sheet",
+      freezerAddSheetRef.current,
+      freezerAddSheetBackdropRef.current,
+      () => {
+        if (syncHistory) {
+          consumeOverlayHistory("freezer-add-sheet");
+        }
 
-    setIsFreezerAddSheetOpen(false);
-    setSheetDragOffset(0);
-    addSheetDragStartYRef.current = null;
+        setIsFreezerAddSheetOpen(false);
+        setClosingBottomSheet(null);
+        setSheetDragOffset(0);
+        addSheetDragStartYRef.current = null;
 
-    if (restoreFabFocus) {
-      window.requestAnimationFrame(() => freezerAddFabRef.current?.focus());
-    }
+        if (restoreFabFocus) {
+          window.requestAnimationFrame(() => freezerAddFabRef.current?.focus());
+        }
+      },
+    );
   }
 
   function openFreezerAddSheet() {
@@ -1573,13 +1807,21 @@ export function App() {
   }
 
   function closeFreezerEditSheet(syncHistory = true) {
-    if (syncHistory) {
-      consumeOverlayHistory("freezer-edit-sheet");
-    }
+    closeBottomSheetWithAnimation(
+      "freezer-edit-sheet",
+      freezerEditSheetRef.current,
+      freezerEditSheetBackdropRef.current,
+      () => {
+        if (syncHistory) {
+          consumeOverlayHistory("freezer-edit-sheet");
+        }
 
-    resetEditingFreezerItem();
-    setSheetDragOffset(0);
-    addSheetDragStartYRef.current = null;
+        resetEditingFreezerItem();
+        setClosingBottomSheet(null);
+        setSheetDragOffset(0);
+        addSheetDragStartYRef.current = null;
+      },
+    );
   }
 
   function closeActiveBottomSheet() {
@@ -1597,6 +1839,32 @@ export function App() {
       closeFreezerEditSheet();
     }
   }
+
+  useEffect(() => {
+    closeOverlayFromHistoryRef.current = (overlay) => {
+      if (overlay === "edit-dialog") {
+        resetEditing();
+        return;
+      }
+
+      if (overlay === "freezer-edit-sheet") {
+        closeFreezerEditSheet(false);
+        return;
+      }
+
+      if (overlay === "clear-dialog") {
+        setIsClearDialogOpen(false);
+        return;
+      }
+
+      if (overlay === "freezer-add-sheet") {
+        closeFreezerAddSheet(false, false);
+        return;
+      }
+
+      closeAddSheet(false, false);
+    };
+  });
 
   function addItemFromName(rawName: string, rawQuantity?: string) {
     const duplicateItem = findPendingShoppingItemByName(
@@ -2013,6 +2281,11 @@ export function App() {
 
     markLocalDataChange();
     setItems(nextItems);
+    runAnimation(itemRefs.current[itemId] ?? [], {
+      scale: [0.96, 1],
+      duration: 240,
+      ease: "outBack",
+    });
     runHapticFeedback("medium");
   }
 
@@ -2106,6 +2379,20 @@ export function App() {
     if (nextItems !== freezerItems) {
       markLocalDataChange();
       setFreezerItems(nextItems);
+      window.requestAnimationFrame(() => {
+        const movedItemElement = freezerItemRefs.current[itemId];
+
+        if (!movedItemElement) {
+          return;
+        }
+
+        runAnimation(movedItemElement, {
+          scale: [0.97, 1],
+          y: [-6, 0],
+          duration: 260,
+          ease: "outBack",
+        });
+      });
     }
     runHapticFeedback("medium");
   }
@@ -2390,7 +2677,7 @@ export function App() {
     }
 
     return (
-      <div className={styles.freezerUndo} role="status">
+      <div ref={freezerUndoRef} className={styles.freezerUndo} role="status">
         <span>{lastUsedFreezerItem.name} usado.</span>
         <button
           className={styles.undoButton}
@@ -2410,7 +2697,17 @@ export function App() {
     );
 
     return (
-      <li className={styles.freezerItem} key={item.id}>
+      <li
+        ref={(itemElement) => {
+          if (itemElement) {
+            freezerItemRefs.current[item.id] = itemElement;
+          } else {
+            delete freezerItemRefs.current[item.id];
+          }
+        }}
+        className={styles.freezerItem}
+        key={item.id}
+      >
         <div className={styles.freezerItemBody}>
           <p className={styles.freezerItemName}>{item.name}</p>
           <p className={styles.freezerItemMeta}>
@@ -2887,6 +3184,7 @@ export function App() {
             </div>
           </dl>
           <p
+            ref={syncStatusRef}
             className={`${styles.syncStatus} ${styles[`syncStatus${syncStatus}`]}`}
             aria-live="polite"
           >
@@ -2921,6 +3219,7 @@ export function App() {
       {activeView === "shopping" ? (
         <section
           id="shopping-controls"
+          ref={commandPanelRef}
           className={styles.commandPanel}
           aria-label="Controles de lista"
         >
@@ -3022,6 +3321,7 @@ export function App() {
 
       {activeView === "shopping" && isAddSheetOpen ? (
         <div
+          ref={addSheetBackdropRef}
           className={styles.addSheetBackdrop}
           style={
             {
@@ -3031,6 +3331,7 @@ export function App() {
           onClick={() => closeAddSheet()}
         >
           <form
+            ref={addSheetRef}
             className={styles.addSheet}
             role="dialog"
             aria-modal="false"
@@ -3191,6 +3492,7 @@ export function App() {
 
       {activeView === "freezer" && isFreezerAddSheetOpen ? (
         <div
+          ref={freezerAddSheetBackdropRef}
           className={styles.addSheetBackdrop}
           style={
             {
@@ -3200,6 +3502,7 @@ export function App() {
           onClick={() => closeFreezerAddSheet()}
         >
           <form
+            ref={freezerAddSheetRef}
             className={`${styles.addSheet} ${styles.addSheetCompact}`}
             role="dialog"
             aria-modal="false"
@@ -3357,7 +3660,10 @@ export function App() {
         <>
           <section
             id="shopping-board"
-            ref={boardRef}
+            ref={(boardElement) => {
+              shoppingBoardElementRef.current = boardElement;
+              boardRef(boardElement);
+            }}
             className={styles.board}
             aria-label="Lista por secciones"
             tabIndex={0}
@@ -3465,6 +3771,7 @@ export function App() {
 
       {activeView === "freezer" ? (
         <section
+          ref={freezerScreenRef}
           className={styles.freezerScreen}
           aria-labelledby="freezer-title"
         >
@@ -3512,6 +3819,7 @@ export function App() {
 
       {activeView === "sections" ? (
         <section
+          ref={sectionsScreenRef}
           className={styles.sectionsScreen}
           aria-labelledby="sections-title"
         >
@@ -3649,6 +3957,7 @@ export function App() {
 
       {activeView === "history" ? (
         <section
+          ref={historyScreenRef}
           className={styles.historyScreen}
           aria-labelledby="history-title"
         >
@@ -3676,6 +3985,7 @@ export function App() {
 
       {activeView === "developer" && selectedUserId === "rafa" ? (
         <section
+          ref={developerScreenRef}
           className={styles.developerScreen}
           aria-labelledby="developer-title"
         >
@@ -3966,6 +4276,7 @@ export function App() {
 
       {editingFreezerItem ? (
         <div
+          ref={freezerEditSheetBackdropRef}
           className={styles.addSheetBackdrop}
           style={
             {
@@ -3975,6 +4286,7 @@ export function App() {
           onClick={() => closeFreezerEditSheet()}
         >
           <form
+            ref={freezerEditSheetRef}
             className={`${styles.addSheet} ${styles.addSheetCompact}`}
             role="dialog"
             aria-modal="false"

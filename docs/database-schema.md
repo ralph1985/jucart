@@ -93,6 +93,20 @@ erDiagram
     timestamptz created_at
   }
 
+  PUSH_SUBSCRIPTIONS {
+    uuid id PK
+    uuid list_id "lista compartida configurada por entorno"
+    text client_id "dispositivo local suscrito"
+    text endpoint UK "endpoint Web Push"
+    text p256dh "clave publica de la suscripcion"
+    text auth "secreto de autenticacion de la suscripcion"
+    text user_agent
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz last_seen_at
+    timestamptz disabled_at
+  }
+
   DEVELOPER_BACKUP_RUNS {
     uuid id PK
     timestamptz started_at
@@ -138,10 +152,15 @@ VITE_SUPABASE_LIST_ID
   |     - cambios producto a producto visibles en la pestaña Categorías del Historial
   |
   +-- shopping_history_events
-        - eventos auditados de altas, compras, devoluciones a pendiente, movimientos y borrados
-        - item_snapshot conserva el producto aunque se borre después
-        - previous_item_snapshot conserva la lista anterior cuando se mueve un producto
-        - client_id permite distinguir cambios de otro dispositivo
+  |     - eventos auditados de altas, compras, devoluciones a pendiente, movimientos y borrados
+  |     - item_snapshot conserva el producto aunque se borre después
+  |     - previous_item_snapshot conserva la lista anterior cuando se mueve un producto
+  |     - client_id permite distinguir cambios de otro dispositivo
+  |
+  +-- push_subscriptions
+        - suscripciones Web Push activas o deshabilitadas por dispositivo
+        - no expone lectura pública de endpoints
+        - la Edge Function usa permisos de servidor para resolver destinatarios
 
   +-- developer_backup_runs
         - metadatos del backup local de Supabase
@@ -213,3 +232,5 @@ Al cargar, si Supabase está disponible, la aplicación lee datos remotos, categ
 - `supabase/migrations/20260715211000_recategorize_baby_items.sql`: mueve productos de bebé que ya existían a la nueva categoría.
 - `supabase/migrations/20260721090000_create_shopping_category_catalog.sql`: crea categorías y catálogo maestro globales en Supabase, migra el catálogo inicial y convierte `shopping_items.category_id` en referencia a categorías.
 - `supabase/migrations/20260721103000_create_recategorization_history.sql`: crea el historial de ejecuciones y cambios de recategorización para consultarlo desde la app.
+- `supabase/migrations/20260723233000_create_push_subscriptions.sql`: crea `push_subscriptions` para registrar suscripciones Web Push por dispositivo sin lectura pública de endpoints.
+- `supabase/migrations/20260723234500_harden_push_subscription_grants.sql`: revoca privilegios heredados y deja a `anon` solo con inserción y actualización de suscripciones push.

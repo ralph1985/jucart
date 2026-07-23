@@ -314,12 +314,12 @@ Objetivo: permitir que la PWA avise cuando otro dispositivo haga cambios relevan
 
 ### Fase 2 — Modelo de suscripciones en Supabase
 
-- [ ] Crear una migración para `push_subscriptions`.
-- [ ] Guardar una suscripción por dispositivo usando `list_id`, `client_id`, `endpoint`, claves `p256dh` y `auth`, `user_agent` y marcas de fecha.
-- [ ] Crear un índice único por `endpoint`.
-- [ ] Crear índices para consultar suscripciones activas por `list_id`, `client_id` y `disabled_at`.
-- [ ] Activar RLS sin permitir lectura pública de todos los endpoints.
-- [ ] Permitir desde el cliente registrar, refrescar y desactivar su propia suscripción.
+- [x] Crear una migración para `push_subscriptions`.
+- [x] Guardar una suscripción por dispositivo usando `list_id`, `client_id`, `endpoint`, claves `p256dh` y `auth`, `user_agent` y marcas de fecha.
+- [x] Crear un índice único por `endpoint`.
+- [x] Crear índices para consultar suscripciones activas por `list_id`, `client_id` y `disabled_at`.
+- [x] Activar RLS sin permitir lectura pública de todos los endpoints.
+- [x] Permitir desde el cliente registrar, refrescar y desactivar su propia suscripción.
 
 ### Fase 3 — Cliente PWA
 

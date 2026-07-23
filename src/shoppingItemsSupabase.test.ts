@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const supabaseMocks = vi.hoisted(() => {
-  type QueryOperation = "delete" | "maybeSingle" | "select" | "upsert";
+  type QueryOperation =
+    "delete" | "maybeSingle" | "select" | "update" | "upsert";
   type QueryResult = { data?: unknown; error?: unknown };
 
   const queryResults = new Map<string, QueryResult>();
@@ -72,6 +73,13 @@ const supabaseMocks = vi.hoisted(() => {
       );
     }
 
+    update(...args: unknown[]) {
+      this.operation = "update";
+      operations.push({ args, operation: "update", table: this.table });
+
+      return this;
+    }
+
     then<TResult1 = QueryResult, TResult2 = never>(
       onfulfilled?:
         ((value: QueryResult) => TResult1 | PromiseLike<TResult1>) | null,
@@ -130,6 +138,7 @@ vi.mock("@supabase/supabase-js", () => ({
 import {
   getLatestDeveloperBackupRun,
   getSupabaseShoppingData,
+  disableSupabasePushSubscription,
   mapFreezerItemToRow,
   mapRowToFreezerItem,
   mapRowToDeveloperBackupRun,
@@ -143,6 +152,7 @@ import {
   mapShoppingHistoryEventToRow,
   mapShoppingItemToRow,
   mapShoppingSectionToRow,
+  registerSupabasePushSubscription,
   replaceSupabaseShoppingData,
   subscribeToSupabaseShoppingItems,
 } from "./shoppingItemsSupabase";
@@ -657,6 +667,74 @@ describe("shopping items Supabase adapter", () => {
     expect(supabaseMocks.client.removeChannel).toHaveBeenCalledWith(
       supabaseMocks.channel,
     );
+  });
+
+  it("registers a push subscription without reading push endpoints", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+
+    await expect(
+      registerSupabasePushSubscription({
+        auth: "auth-key",
+        clientId: "client-1",
+        endpoint: "https://push.example/subscription-1",
+        p256dh: "p256dh-key",
+        userAgent: "Test browser",
+      }),
+    ).resolves.toBe(true);
+
+    expect(supabaseMocks.operations).toContainEqual({
+      args: [
+        expect.objectContaining({
+          auth: "auth-key",
+          client_id: "client-1",
+          disabled_at: null,
+          endpoint: "https://push.example/subscription-1",
+          list_id: configuredSupabase.listId,
+          p256dh: "p256dh-key",
+          user_agent: "Test browser",
+        }),
+        { onConflict: "endpoint" },
+      ],
+      operation: "upsert",
+      table: "push_subscriptions",
+    });
+    expect(
+      supabaseMocks.operations.some(
+        (operation) =>
+          operation.table === "push_subscriptions" &&
+          operation.operation === "select",
+      ),
+    ).toBe(false);
+  });
+
+  it("disables a push subscription by endpoint without reading push endpoints", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+
+    await expect(
+      disableSupabasePushSubscription("https://push.example/subscription-1"),
+    ).resolves.toBe(true);
+
+    expect(supabaseMocks.operations).toContainEqual({
+      args: [expect.objectContaining({ disabled_at: expect.any(String) })],
+      operation: "update",
+      table: "push_subscriptions",
+    });
+    expect(supabaseMocks.operations).toContainEqual({
+      args: ["endpoint", "https://push.example/subscription-1"],
+      operation: "eq",
+      table: "push_subscriptions",
+    });
+    expect(
+      supabaseMocks.operations.some(
+        (operation) =>
+          operation.table === "push_subscriptions" &&
+          operation.operation === "select",
+      ),
+    ).toBe(false);
   });
 
   it("maps a Supabase row to a freezer item", () => {

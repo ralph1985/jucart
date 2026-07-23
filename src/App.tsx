@@ -77,6 +77,12 @@ import {
   getStoredShoppingData,
   replaceStoredShoppingData,
 } from "./shoppingItemsDb";
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  getPushNotificationSnapshot,
+} from "./pushNotifications";
+import type { PushNotificationSnapshot } from "./pushNotifications";
 import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
 import { isSupabaseConfigured } from "./supabaseConfig";
 import { updateBadge } from "./services/badgeService";
@@ -87,6 +93,10 @@ const showPurchasedItemsStorageKey = "jucart:show-purchased-items";
 const historyClientIdStorageKey = "jucart:history-client-id";
 const lastSeenHistoryEventAtStorageKey = "jucart:last-seen-history-event-at";
 const backupStaleThresholdMs = 6 * 60 * 60 * 1000;
+const initialPushNotificationSnapshot: PushNotificationSnapshot = {
+  status: "syncing",
+  message: "Comprobando",
+};
 
 type AppView = "shopping" | "freezer" | "sections" | "history" | "developer";
 type HistoryTab = "changes" | "categories";
@@ -701,6 +711,50 @@ function normalizeShoppingSearchQuery(value: string) {
   return value.trim().toLocaleLowerCase("es");
 }
 
+function getPushNotificationActionText(
+  snapshot: PushNotificationSnapshot,
+  isSupabaseAvailable: boolean,
+) {
+  if (!isSupabaseAvailable) {
+    return "Sin Supabase";
+  }
+
+  if (snapshot.status === "subscribed") {
+    return "Desactivar";
+  }
+
+  if (snapshot.status === "denied") {
+    return "Bloqueadas";
+  }
+
+  if (snapshot.status === "unsupported") {
+    return "No soportadas";
+  }
+
+  if (snapshot.status === "unconfigured") {
+    return "Sin clave";
+  }
+
+  if (snapshot.status === "syncing") {
+    return "Comprobando";
+  }
+
+  return snapshot.status === "error" ? "Reintentar" : "Activar";
+}
+
+function isPushNotificationActionDisabled(
+  snapshot: PushNotificationSnapshot,
+  isSupabaseAvailable: boolean,
+) {
+  return (
+    !isSupabaseAvailable ||
+    snapshot.status === "denied" ||
+    snapshot.status === "syncing" ||
+    snapshot.status === "unconfigured" ||
+    snapshot.status === "unsupported"
+  );
+}
+
 export function App() {
   const [activeView, setActiveView] = useState<AppView>("shopping");
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -784,6 +838,11 @@ export function App() {
   const [developerBackupError, setDeveloperBackupError] = useState<
     string | null
   >(null);
+  const [pushNotificationSnapshot, setPushNotificationSnapshot] = useState(
+    initialPushNotificationSnapshot,
+  );
+  const [isPushNotificationActionPending, setIsPushNotificationActionPending] =
+    useState(false);
   const [lastRemovedItems, setLastRemovedItems] = useState<ShoppingItem[]>([]);
   const [lastUsedFreezerItem, setLastUsedFreezerItem] =
     useState<FreezerItem | null>(null);
@@ -985,6 +1044,24 @@ export function App() {
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function refreshPushNotificationSnapshot() {
+      const nextSnapshot = await getPushNotificationSnapshot();
+
+      if (isActive) {
+        setPushNotificationSnapshot(nextSnapshot);
+      }
+    }
+
+    void refreshPushNotificationSnapshot();
+
+    return () => {
+      isActive = false;
     };
   }, []);
 
@@ -2768,6 +2845,24 @@ export function App() {
     }
   }
 
+  async function handlePushNotificationAction() {
+    setIsPushNotificationActionPending(true);
+    setPushNotificationSnapshot({
+      status: "syncing",
+      message: "Sincronizando",
+    });
+
+    const nextSnapshot =
+      pushNotificationSnapshot.status === "subscribed"
+        ? await disablePushNotifications()
+        : await enablePushNotifications(historyClientId);
+
+    if (isMountedRef.current) {
+      setPushNotificationSnapshot(nextSnapshot);
+      setIsPushNotificationActionPending(false);
+    }
+  }
+
   function showSectionsView() {
     setActiveView("sections");
     setShowUnseenHistoryOnly(false);
@@ -3535,6 +3630,63 @@ export function App() {
             Hace más de 6 horas que no se completa una copia de seguridad.
           </p>
         ) : null}
+      </section>
+    );
+  }
+
+  function renderDeveloperPushNotificationCard() {
+    const isSupabaseAvailable = isSupabaseConfigured();
+    const isSubscribed = pushNotificationSnapshot.status === "subscribed";
+    const isActionDisabled =
+      isPushNotificationActionPending ||
+      isPushNotificationActionDisabled(
+        pushNotificationSnapshot,
+        isSupabaseAvailable,
+      );
+
+    return (
+      <section
+        className={styles.developerPanel}
+        aria-label="Notificaciones push"
+      >
+        <div className={styles.developerPanelHeader}>
+          <h3>Notificaciones push</h3>
+          <span
+            className={
+              isSubscribed
+                ? styles.developerStatusSuccess
+                : styles.developerStatusFailed
+            }
+          >
+            {pushNotificationSnapshot.message}
+          </span>
+        </div>
+        <dl className={styles.developerMetrics}>
+          <div>
+            <dt>Permiso</dt>
+            <dd>{pushNotificationSnapshot.message}</dd>
+          </div>
+          <div>
+            <dt>Supabase</dt>
+            <dd>{isSupabaseAvailable ? "Configurado" : "No configurado"}</dd>
+          </div>
+        </dl>
+        <div className={styles.developerActions}>
+          <button
+            className={
+              isSubscribed ? styles.secondaryButton : styles.primaryButton
+            }
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={handlePushNotificationAction}
+            disabled={isActionDisabled}
+          >
+            {getPushNotificationActionText(
+              pushNotificationSnapshot,
+              isSupabaseAvailable,
+            )}
+          </button>
+        </div>
       </section>
     );
   }
@@ -4535,6 +4687,7 @@ export function App() {
             <span className={styles.count}>Rafa</span>
           </div>
           {renderDeveloperBackupCard()}
+          {renderDeveloperPushNotificationCard()}
           <section
             className={styles.developerPanel}
             aria-label="Información operativa"

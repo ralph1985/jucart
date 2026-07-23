@@ -310,7 +310,7 @@ Objetivo: permitir que la PWA avise cuando otro dispositivo haga cambios relevan
 - [x] Guardar la clave pública en `VITE_PUSH_VAPID_PUBLIC_KEY`.
 - [x] Guardar la clave privada como secret de Supabase Edge Functions.
 - [x] Definir `PUSH_VAPID_SUBJECT` como contacto técnico.
-- [ ] Mantener las notificaciones como opt-in explícito.
+- [x] Mantener las notificaciones como opt-in explícito.
 
 ### Fase 2 — Modelo de suscripciones en Supabase
 
@@ -323,13 +323,13 @@ Objetivo: permitir que la PWA avise cuando otro dispositivo haga cambios relevan
 
 ### Fase 3 — Cliente PWA
 
-- [ ] Añadir un control discreto para activar o desactivar notificaciones.
-- [ ] Comprobar soporte de `Notification`, Service Worker y `PushManager`.
-- [ ] Pedir permiso solo tras interacción del usuario.
-- [ ] Crear la suscripción con el Service Worker registrado y la clave pública VAPID.
-- [ ] Persistir la suscripción en Supabase asociada al `client_id` local.
-- [ ] Mostrar estados discretos: no soportado, pendiente, denegado, activado y error temporal.
-- [ ] Permitir desactivar notificaciones con `unsubscribe()` y marcar `disabled_at` en Supabase.
+- [x] Añadir un control discreto para activar o desactivar notificaciones.
+- [x] Comprobar soporte de `Notification`, Service Worker y `PushManager`.
+- [x] Pedir permiso solo tras interacción del usuario.
+- [x] Crear la suscripción con el Service Worker registrado y la clave pública VAPID.
+- [x] Persistir la suscripción en Supabase asociada al `client_id` local.
+- [x] Mostrar estados discretos: no soportado, pendiente, denegado, activado y error temporal.
+- [x] Permitir desactivar notificaciones con `unsubscribe()` y marcar `disabled_at` en Supabase.
 
 ### Fase 4 — Service Worker
 

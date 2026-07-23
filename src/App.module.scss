@@ -1310,6 +1310,11 @@ h2 {
   font-weight: 850;
 }
 
+.developerActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .developerNote {
   margin: 0;
   border: 1px solid rgb(220 38 38 / 20%);

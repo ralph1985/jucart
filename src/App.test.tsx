@@ -68,8 +68,44 @@ const emblaCarouselMock = vi.hoisted(() => {
   };
 });
 
+const pushNotificationMocks = vi.hoisted(() => ({
+  disablePushNotifications: vi.fn(() =>
+    Promise.resolve({ message: "Desactivadas", status: "unsubscribed" }),
+  ),
+  enablePushNotifications: vi.fn(() =>
+    Promise.resolve({ message: "Activadas", status: "subscribed" }),
+  ),
+  getPushNotificationSnapshot: vi.fn(() =>
+    Promise.resolve({ message: "Pendientes", status: "prompt" }),
+  ),
+  reset() {
+    this.disablePushNotifications.mockClear();
+    this.enablePushNotifications.mockClear();
+    this.getPushNotificationSnapshot.mockClear();
+    this.disablePushNotifications.mockResolvedValue({
+      message: "Desactivadas",
+      status: "unsubscribed",
+    });
+    this.enablePushNotifications.mockResolvedValue({
+      message: "Activadas",
+      status: "subscribed",
+    });
+    this.getPushNotificationSnapshot.mockResolvedValue({
+      message: "Pendientes",
+      status: "prompt",
+    });
+  },
+}));
+
 vi.mock("embla-carousel-react", () => ({
   default: emblaCarouselMock.useEmblaCarousel,
+}));
+
+vi.mock("./pushNotifications", () => ({
+  disablePushNotifications: pushNotificationMocks.disablePushNotifications,
+  enablePushNotifications: pushNotificationMocks.enablePushNotifications,
+  getPushNotificationSnapshot:
+    pushNotificationMocks.getPushNotificationSnapshot,
 }));
 
 afterEach(async () => {
@@ -77,6 +113,7 @@ afterEach(async () => {
   cleanup();
   vi.restoreAllMocks();
   emblaCarouselMock.reset();
+  pushNotificationMocks.reset();
   Reflect.deleteProperty(navigator, "setAppBadge");
   Reflect.deleteProperty(navigator, "clearAppBadge");
   delete (Element.prototype as Partial<Element>).scrollIntoView;
@@ -331,6 +368,48 @@ describe("App", () => {
     ).toHaveTextContent(
       "Hace más de 6 horas que no se completa una copia de seguridad.",
     );
+  });
+
+  it("shows push notification status in the developer view without requesting permission", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Vista de desarrollador" }),
+    );
+
+    expect(await screen.findByText("Notificaciones push")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Activar" })).toBeEnabled();
+    expect(
+      pushNotificationMocks.getPushNotificationSnapshot,
+    ).toHaveBeenCalledOnce();
+    expect(
+      pushNotificationMocks.enablePushNotifications,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("enables push notifications from the developer view", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    window.localStorage.setItem("jucart:history-client-id", "client-local");
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Vista de desarrollador" }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Activar" }));
+
+    await waitFor(() =>
+      expect(
+        pushNotificationMocks.enablePushNotifications,
+      ).toHaveBeenCalledWith("client-local"),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Desactivar" }),
+    ).toBeEnabled();
   });
 
   it("keeps the developer view hidden when Begoña is restored", async () => {

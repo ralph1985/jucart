@@ -107,6 +107,17 @@ type ShoppingRecategorizationChangeRow = {
   created_at: string;
 };
 
+type PushSubscriptionRow = {
+  list_id: string;
+  client_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent: string;
+  last_seen_at: string;
+  disabled_at: string | null;
+};
+
 type FreezerItemRow = {
   id: string;
   list_id: string;
@@ -535,6 +546,65 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
   return () => {
     void getSupabaseClient(config).removeChannel(channel);
   };
+}
+
+export type SupabasePushSubscriptionInput = {
+  clientId: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent: string;
+};
+
+export async function registerSupabasePushSubscription(
+  subscription: SupabasePushSubscriptionInput,
+) {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return false;
+  }
+
+  const now = new Date().toISOString();
+  const row: PushSubscriptionRow = {
+    list_id: config.listId,
+    client_id: subscription.clientId,
+    endpoint: subscription.endpoint,
+    p256dh: subscription.p256dh,
+    auth: subscription.auth,
+    user_agent: subscription.userAgent,
+    last_seen_at: now,
+    disabled_at: null,
+  };
+
+  const { error } = await getSupabaseClient(config)
+    .from("push_subscriptions")
+    .upsert(row, { onConflict: "endpoint" });
+
+  if (error) {
+    throw error;
+  }
+
+  return true;
+}
+
+export async function disableSupabasePushSubscription(endpoint: string) {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return false;
+  }
+
+  const { error } = await getSupabaseClient(config)
+    .from("push_subscriptions")
+    .update({ disabled_at: new Date().toISOString() })
+    .eq("endpoint", endpoint);
+
+  if (error) {
+    throw error;
+  }
+
+  return true;
 }
 
 export function mapRowToShoppingItem(

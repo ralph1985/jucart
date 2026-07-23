@@ -353,11 +353,11 @@ Objetivo: permitir que la PWA avise cuando otro dispositivo haga cambios relevan
 
 ### Fase 6 — Disparador de cambios remotos
 
-- [ ] Lanzar el envío cuando se registren eventos relevantes en `shopping_history_events`.
-- [ ] Notificar solo cambios originados por otro dispositivo.
-- [ ] Usar en v1 un texto genérico y fiable: `Cambios en Jucart` y `Hay cambios nuevos en la lista`.
-- [ ] No notificar en esta fase recategorizaciones automáticas, backups, estados internos ni recordatorios.
-- [ ] Mantener el payload sin datos completos de productos; la app refresca Supabase al abrirse o volver a primer plano.
+- [x] Lanzar el envío cuando se registren eventos relevantes en `shopping_history_events`.
+- [x] Notificar solo cambios originados por otro dispositivo.
+- [x] Usar en v1 un texto genérico y fiable: `Cambios en Jucart` y `Hay cambios nuevos en la lista`.
+- [x] No notificar en esta fase recategorizaciones automáticas, backups, estados internos ni recordatorios.
+- [x] Mantener el payload sin datos completos de productos; la app refresca Supabase al abrirse o volver a primer plano.
 
 ### Fase 7 — Validación
 

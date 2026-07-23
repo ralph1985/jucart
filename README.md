@@ -102,12 +102,15 @@ pnpm supabase:db:push
 
 ```bash
 pnpm exec supabase secrets set \
+  JUCART_PUSH_TRIGGER_SECRET="..." \
   PUSH_VAPID_PUBLIC_KEY="..." \
   PUSH_VAPID_PRIVATE_KEY="..." \
   PUSH_VAPID_SUBJECT="mailto:jucart@conquense.dev"
 ```
 
-8. Desplegar Edge Functions:
+8. Guardar el mismo valor de `JUCART_PUSH_TRIGGER_SECRET` en Supabase Vault con el nombre `jucart_push_trigger_secret`. El trigger SQL lo usa para invocar la Edge Function sin exponer la clave VAPID ni el service role.
+
+9. Desplegar Edge Functions:
 
 ```bash
 pnpm supabase:functions:deploy send-push-notification

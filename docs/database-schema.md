@@ -234,3 +234,4 @@ Al cargar, si Supabase está disponible, la aplicación lee datos remotos, categ
 - `supabase/migrations/20260721103000_create_recategorization_history.sql`: crea el historial de ejecuciones y cambios de recategorización para consultarlo desde la app.
 - `supabase/migrations/20260723233000_create_push_subscriptions.sql`: crea `push_subscriptions` para registrar suscripciones Web Push por dispositivo sin lectura pública de endpoints.
 - `supabase/migrations/20260723234500_harden_push_subscription_grants.sql`: revoca privilegios heredados y deja a `anon` solo con inserción y actualización de suscripciones push.
+- `supabase/migrations/20260724003000_trigger_push_notifications_for_history.sql`: instala `pg_net` y crea el trigger `shopping_history_events_notify_push_subscribers` para invocar la Edge Function de push al insertar eventos relevantes en `shopping_history_events`.

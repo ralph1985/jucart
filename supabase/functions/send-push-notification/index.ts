@@ -24,6 +24,7 @@ type WebPushSubscription = {
 };
 
 const requiredEnvVars = [
+  "JUCART_PUSH_TRIGGER_SECRET",
   "PUSH_VAPID_PRIVATE_KEY",
   "PUSH_VAPID_PUBLIC_KEY",
   "PUSH_VAPID_SUBJECT",
@@ -45,7 +46,7 @@ Deno.serve(async (request) => {
     );
   }
 
-  if (!isAuthorizedRequest(request, env.values.SUPABASE_SERVICE_ROLE_KEY)) {
+  if (!isAuthorizedRequest(request, env.values.JUCART_PUSH_TRIGGER_SECRET)) {
     return Response.json({ error: "No autorizado." }, { status: 401 });
   }
 
@@ -163,6 +164,6 @@ function readEnv() {
       };
 }
 
-function isAuthorizedRequest(request: Request, serviceRoleKey: string) {
-  return request.headers.get("authorization") === `Bearer ${serviceRoleKey}`;
+function isAuthorizedRequest(request: Request, triggerSecret: string) {
+  return request.headers.get("x-jucart-push-secret") === triggerSecret;
 }

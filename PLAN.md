@@ -361,10 +361,10 @@ Objetivo: permitir que la PWA avise cuando otro dispositivo haga cambios relevan
 
 ### Fase 7 — Validación
 
-- [ ] Añadir tests unitarios del módulo de push para soporte, permisos, alta, baja y errores.
-- [ ] Añadir tests del adaptador Supabase para registrar, refrescar y desactivar suscripciones.
-- [ ] Añadir tests del Service Worker para `push` y `notificationclick`.
-- [ ] Añadir tests de interfaz para el control de notificaciones y sus estados.
+- [x] Añadir tests unitarios del módulo de push para soporte, permisos, alta, baja y errores.
+- [x] Añadir tests del adaptador Supabase para registrar, refrescar y desactivar suscripciones.
+- [x] Añadir tests del Service Worker para `push` y `notificationclick`.
+- [x] Añadir tests de interfaz para el control de notificaciones y sus estados.
 - [ ] Validar manualmente en HTTPS con la PWA cerrada y cambios desde otro dispositivo.
 - [ ] Validar iOS/iPadOS solo con Jucart instalada en pantalla de inicio.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.

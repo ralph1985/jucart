@@ -709,6 +709,40 @@ describe("shopping items Supabase adapter", () => {
     ).toBe(false);
   });
 
+  it("returns false when registering push subscriptions without Supabase config", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(null);
+
+    await expect(
+      registerSupabasePushSubscription({
+        auth: "auth-key",
+        clientId: "client-1",
+        endpoint: "https://push.example/subscription-1",
+        p256dh: "p256dh-key",
+        userAgent: "Test browser",
+      }),
+    ).resolves.toBe(false);
+
+    expect(supabaseMocks.client.from).not.toHaveBeenCalled();
+  });
+
+  it("throws Supabase errors when registering a push subscription fails", async () => {
+    const error = new Error("upsert failed");
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.setResult("push_subscriptions", "upsert", { error });
+
+    await expect(
+      registerSupabasePushSubscription({
+        auth: "auth-key",
+        clientId: "client-1",
+        endpoint: "https://push.example/subscription-1",
+        p256dh: "p256dh-key",
+        userAgent: "Test browser",
+      }),
+    ).rejects.toThrow(error);
+  });
+
   it("disables a push subscription by endpoint without reading push endpoints", async () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
@@ -735,6 +769,28 @@ describe("shopping items Supabase adapter", () => {
           operation.operation === "select",
       ),
     ).toBe(false);
+  });
+
+  it("returns false when disabling push subscriptions without Supabase config", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(null);
+
+    await expect(
+      disableSupabasePushSubscription("https://push.example/subscription-1"),
+    ).resolves.toBe(false);
+
+    expect(supabaseMocks.client.from).not.toHaveBeenCalled();
+  });
+
+  it("throws Supabase errors when disabling a push subscription fails", async () => {
+    const error = new Error("update failed");
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.setResult("push_subscriptions", "update", { error });
+
+    await expect(
+      disableSupabasePushSubscription("https://push.example/subscription-1"),
+    ).rejects.toThrow(error);
   });
 
   it("maps a Supabase row to a freezer item", () => {

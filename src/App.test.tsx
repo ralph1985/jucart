@@ -412,6 +412,73 @@ describe("App", () => {
     ).toBeEnabled();
   });
 
+  it("disables push notifications from the developer view", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    pushNotificationMocks.getPushNotificationSnapshot.mockResolvedValue({
+      message: "Activadas",
+      status: "subscribed",
+    });
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Vista de desarrollador" }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Desactivar" }));
+
+    await waitFor(() =>
+      expect(pushNotificationMocks.disablePushNotifications).toHaveBeenCalled(),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Activar" }),
+    ).toBeEnabled();
+  });
+
+  it("keeps blocked push notifications disabled in the developer view", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    pushNotificationMocks.getPushNotificationSnapshot.mockResolvedValue({
+      message: "Bloqueadas",
+      status: "denied",
+    });
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Vista de desarrollador" }),
+    );
+
+    const pushButton = await screen.findByRole("button", {
+      name: "Bloqueadas",
+    });
+
+    expect(pushButton).toBeDisabled();
+    expect(
+      pushNotificationMocks.enablePushNotifications,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("allows retrying push notifications after a temporary error", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    pushNotificationMocks.getPushNotificationSnapshot.mockResolvedValue({
+      message: "Error",
+      status: "error",
+    });
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Vista de desarrollador" }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Reintentar" }));
+
+    await waitFor(() =>
+      expect(pushNotificationMocks.enablePushNotifications).toHaveBeenCalled(),
+    );
+  });
+
   it("keeps the developer view hidden when Begoña is restored", async () => {
     window.localStorage.setItem("jucart:selected-user-id", "begona");
 

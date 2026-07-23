@@ -95,6 +95,16 @@ describe("pushNotifications", () => {
     });
   });
 
+  it("reports unconfigured push when the VAPID public key is missing", async () => {
+    setNotificationApi("default");
+    setPushApi();
+
+    await expect(getPushNotificationSnapshot()).resolves.toEqual({
+      message: "Sin clave",
+      status: "unconfigured",
+    });
+  });
+
   it("reports pending permission without requesting it", async () => {
     vi.stubEnv("VITE_PUSH_VAPID_PUBLIC_KEY", "public-key");
     const { requestPermission } = setNotificationApi("default");
@@ -105,6 +115,29 @@ describe("pushNotifications", () => {
       status: "prompt",
     });
     expect(requestPermission).not.toHaveBeenCalled();
+  });
+
+  it("reports denied permission without requesting it", async () => {
+    vi.stubEnv("VITE_PUSH_VAPID_PUBLIC_KEY", "public-key");
+    const { requestPermission } = setNotificationApi("denied");
+    setPushApi();
+
+    await expect(getPushNotificationSnapshot()).resolves.toEqual({
+      message: "Bloqueadas",
+      status: "denied",
+    });
+    expect(requestPermission).not.toHaveBeenCalled();
+  });
+
+  it("reports an existing subscription", async () => {
+    vi.stubEnv("VITE_PUSH_VAPID_PUBLIC_KEY", "public-key");
+    setNotificationApi("granted");
+    setPushApi(createPushSubscription("https://push.example/current"));
+
+    await expect(getPushNotificationSnapshot()).resolves.toEqual({
+      message: "Activadas",
+      status: "subscribed",
+    });
   });
 
   it("subscribes and stores the push endpoint after permission is granted", async () => {
@@ -137,6 +170,35 @@ describe("pushNotifications", () => {
     });
   });
 
+  it("refreshes an existing subscription without creating a new browser subscription", async () => {
+    vi.stubEnv(
+      "VITE_PUSH_VAPID_PUBLIC_KEY",
+      "BHrmrkMlKLRikY-WOROxZs-gSg-yH_Bo20dp1Kt2BRFB9dvny_3I-ymbUpcowJJGPCNkQCM6HA8yC5MZtL-ijXU",
+    );
+    setNotificationApi(
+      "granted",
+      vi.fn(() => Promise.resolve("granted" as NotificationPermission)),
+    );
+    const currentSubscription = createPushSubscription(
+      "https://push.example/current",
+    );
+    const { pushManager } = setPushApi(currentSubscription);
+
+    await expect(enablePushNotifications("client-1")).resolves.toEqual({
+      message: "Activadas",
+      status: "subscribed",
+    });
+
+    expect(pushManager.subscribe).not.toHaveBeenCalled();
+    expect(registerSupabasePushSubscription).toHaveBeenCalledWith({
+      auth: "auth-key",
+      clientId: "client-1",
+      endpoint: "https://push.example/current",
+      p256dh: "p256dh-key",
+      userAgent: navigator.userAgent,
+    });
+  });
+
   it("does not subscribe when permission is denied", async () => {
     vi.stubEnv("VITE_PUSH_VAPID_PUBLIC_KEY", "public-key");
     setNotificationApi(
@@ -154,6 +216,28 @@ describe("pushNotifications", () => {
     expect(registerSupabasePushSubscription).not.toHaveBeenCalled();
   });
 
+  it("unsubscribes a new browser subscription when storing it fails", async () => {
+    vi.stubEnv(
+      "VITE_PUSH_VAPID_PUBLIC_KEY",
+      "BHrmrkMlKLRikY-WOROxZs-gSg-yH_Bo20dp1Kt2BRFB9dvny_3I-ymbUpcowJJGPCNkQCM6HA8yC5MZtL-ijXU",
+    );
+    setNotificationApi(
+      "granted",
+      vi.fn(() => Promise.resolve("granted" as NotificationPermission)),
+    );
+    const { subscription } = setPushApi();
+    vi.mocked(registerSupabasePushSubscription).mockRejectedValueOnce(
+      new Error("Supabase failed"),
+    );
+
+    await expect(enablePushNotifications("client-1")).resolves.toEqual({
+      message: "Error",
+      status: "error",
+    });
+
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+
   it("disables the stored endpoint and unsubscribes locally", async () => {
     vi.stubEnv("VITE_PUSH_VAPID_PUBLIC_KEY", "public-key");
     setNotificationApi("granted");
@@ -169,5 +253,30 @@ describe("pushNotifications", () => {
       "https://push.example/current",
     );
     expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it("reports disabled when no local subscription exists", async () => {
+    vi.stubEnv("VITE_PUSH_VAPID_PUBLIC_KEY", "public-key");
+    setNotificationApi("granted");
+    setPushApi(null);
+
+    await expect(disablePushNotifications()).resolves.toEqual({
+      message: "Desactivadas",
+      status: "unsubscribed",
+    });
+
+    expect(disableSupabasePushSubscription).not.toHaveBeenCalled();
+  });
+
+  it("reports errors while reading the current subscription", async () => {
+    vi.stubEnv("VITE_PUSH_VAPID_PUBLIC_KEY", "public-key");
+    setNotificationApi("granted");
+    const { pushManager } = setPushApi();
+    pushManager.getSubscription.mockRejectedValueOnce(new Error("SW failed"));
+
+    await expect(getPushNotificationSnapshot()).resolves.toEqual({
+      message: "Error",
+      status: "error",
+    });
   });
 });

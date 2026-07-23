@@ -306,10 +306,10 @@ Objetivo: permitir que la PWA avise cuando otro dispositivo haga cambios relevan
 
 ### Fase 1 — Diseño y claves Web Push
 
-- [ ] Generar un par de claves VAPID para Web Push.
-- [ ] Guardar la clave pública en `VITE_PUSH_VAPID_PUBLIC_KEY`.
-- [ ] Guardar la clave privada como secret de Supabase Edge Functions.
-- [ ] Definir `PUSH_VAPID_SUBJECT` como contacto técnico.
+- [x] Generar un par de claves VAPID para Web Push.
+- [x] Guardar la clave pública en `VITE_PUSH_VAPID_PUBLIC_KEY`.
+- [x] Guardar la clave privada como secret de Supabase Edge Functions.
+- [x] Definir `PUSH_VAPID_SUBJECT` como contacto técnico.
 - [ ] Mantener las notificaciones como opt-in explícito.
 
 ### Fase 2 — Modelo de suscripciones en Supabase

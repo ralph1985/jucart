@@ -333,11 +333,11 @@ Objetivo: permitir que la PWA avise cuando otro dispositivo haga cambios relevan
 
 ### Fase 4 — Service Worker
 
-- [ ] Ampliar la configuración de `vite-plugin-pwa` para añadir lógica propia al Service Worker sin perder el precache offline actual.
-- [ ] Gestionar eventos `push` mostrando una notificación breve de cambios en Jucart.
-- [ ] Usar iconos existentes de la PWA en la notificación.
-- [ ] Gestionar `notificationclick` enfocando Jucart si ya está abierta o abriendo `/`.
-- [ ] Mantener el Service Worker sin lógica de negocio pesada.
+- [x] Ampliar la configuración de `vite-plugin-pwa` para añadir lógica propia al Service Worker sin perder el precache offline actual.
+- [x] Gestionar eventos `push` mostrando una notificación breve de cambios en Jucart.
+- [x] Usar iconos existentes de la PWA en la notificación.
+- [x] Gestionar `notificationclick` enfocando Jucart si ya está abierta o abriendo `/`.
+- [x] Mantener el Service Worker sin lógica de negocio pesada.
 - [ ] Evaluar si conviene actualizar App Badge al recibir un push cuando el navegador lo soporte.
 
 ### Fase 5 — Edge Function de envío

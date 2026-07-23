@@ -102,6 +102,7 @@ type AppView = "shopping" | "freezer" | "sections" | "history" | "developer";
 type HistoryTab = "changes" | "categories";
 
 type IconName =
+  | "bell"
   | "check"
   | "edit"
   | "trash"
@@ -153,6 +154,10 @@ const overlayHistoryStateKey = "jucartOverlay";
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, string[]> = {
+    bell: [
+      "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9",
+      "M13.73 21a2 2 0 0 1-3.46 0",
+    ],
     check: ["M5 12l4 4L19 6"],
     edit: ["M12 20h9", "M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"],
     trash: [
@@ -755,6 +760,18 @@ function isPushNotificationActionDisabled(
   );
 }
 
+function shouldShowPushNotificationInvite(
+  snapshot: PushNotificationSnapshot,
+  isSupabaseAvailable: boolean,
+) {
+  return (
+    isSupabaseAvailable &&
+    (snapshot.status === "prompt" ||
+      snapshot.status === "unsubscribed" ||
+      snapshot.status === "error")
+  );
+}
+
 export function App() {
   const [activeView, setActiveView] = useState<AppView>("shopping");
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -1014,6 +1031,12 @@ export function App() {
     selectedPurchasedCount === 1
       ? `Se borrará 1 producto comprado de ${selectedSectionName}. Podrás deshacerlo después.`
       : `Se borrarán ${selectedPurchasedCount} productos comprados de ${selectedSectionName}. Podrás deshacerlo después.`;
+  const isPushInviteVisible =
+    isLoaded &&
+    shouldShowPushNotificationInvite(
+      pushNotificationSnapshot,
+      isSupabaseConfigured(),
+    );
 
   itemsRef.current = items;
   freezerItemsRef.current = freezerItems;
@@ -3691,11 +3714,44 @@ export function App() {
     );
   }
 
+  function renderPushNotificationInvite() {
+    if (!isPushInviteVisible) {
+      return null;
+    }
+
+    return (
+      <section className={styles.pushInvite} aria-label="Avisos de cambios">
+        <span className={styles.pushInviteIcon} aria-hidden="true">
+          <Icon name="bell" />
+        </span>
+        <div className={styles.pushInviteText}>
+          <h2>Avisos de cambios</h2>
+          <p>
+            Recibe una notificación cuando otro dispositivo cambie la lista.
+          </p>
+        </div>
+        <button
+          className={styles.primaryButton}
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={handlePushNotificationAction}
+          disabled={isPushNotificationActionPending}
+        >
+          {pushNotificationSnapshot.status === "error"
+            ? "Reintentar"
+            : "Activar"}
+        </button>
+      </section>
+    );
+  }
+
   return (
     <main
       className={
         activeView === "shopping"
-          ? `${styles.app} ${styles.appShopping}`
+          ? `${styles.app} ${styles.appShopping} ${
+              isPushInviteVisible ? styles.appPushInviteVisible : ""
+            }`
           : styles.app
       }
     >
@@ -3841,6 +3897,8 @@ export function App() {
           </div>
         </section>
       ) : null}
+
+      {activeView === "shopping" ? renderPushNotificationInvite() : null}
 
       {!isLoaded && !isSplashVisible ? (
         <p className={styles.loadingStatus} role="status" aria-live="polite">

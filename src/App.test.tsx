@@ -412,6 +412,59 @@ describe("App", () => {
     ).toBeEnabled();
   });
 
+  it("invites enabling push notifications from the shopping view", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    window.localStorage.setItem("jucart:history-client-id", "client-local");
+
+    render(<App />);
+
+    await waitForAddFab();
+
+    expect(screen.getByText("Avisos de cambios")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Recibe una notificación cuando otro dispositivo cambie la lista.",
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Activar" }));
+
+    await waitFor(() =>
+      expect(
+        pushNotificationMocks.enablePushNotifications,
+      ).toHaveBeenCalledWith("client-local"),
+    );
+    expect(screen.queryByText("Avisos de cambios")).not.toBeInTheDocument();
+  });
+
+  it("does not show the shopping push invite when notifications are already active", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    pushNotificationMocks.getPushNotificationSnapshot.mockResolvedValue({
+      message: "Activadas",
+      status: "subscribed",
+    });
+
+    render(<App />);
+
+    await waitForAddFab();
+
+    expect(screen.queryByText("Avisos de cambios")).not.toBeInTheDocument();
+  });
+
+  it("does not show the shopping push invite when permission is blocked", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    pushNotificationMocks.getPushNotificationSnapshot.mockResolvedValue({
+      message: "Bloqueadas",
+      status: "denied",
+    });
+
+    render(<App />);
+
+    await waitForAddFab();
+
+    expect(screen.queryByText("Avisos de cambios")).not.toBeInTheDocument();
+  });
+
   it("disables push notifications from the developer view", async () => {
     vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
     pushNotificationMocks.getPushNotificationSnapshot.mockResolvedValue({

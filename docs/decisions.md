@@ -185,7 +185,7 @@ Las notificaciones son opt-in: la app solo pide permiso tras una interacción ex
 
 La PWA genera una suscripción Web Push por dispositivo usando la clave pública VAPID. La suscripción se guarda en Supabase asociada a `list_id` y al `clientId` local que ya usa la app para distinguir cambios remotos. El endpoint y las claves de la suscripción se tratan como datos sensibles: la tabla de suscripciones no debe permitir lectura pública de todos los endpoints.
 
-Supabase Edge Functions actúa como servidor de envío. La clave privada VAPID vive solo como secret de la función, nunca en el frontend. La función recibe un aviso de cambio, busca suscripciones activas de la lista, excluye el `clientId` que originó el evento y envía Web Push al resto de dispositivos.
+Supabase Edge Functions actúa como servidor de envío. La clave privada VAPID vive solo como secret de la función, nunca en el frontend. La función también recibe la clave pública VAPID como configuración propia porque no lee variables de Vercel. La función recibe un aviso de cambio, busca suscripciones activas de la lista, excluye el `clientId` que originó el evento y envía Web Push al resto de dispositivos. La función requiere `verify_jwt` y además exige autorización con service role, por lo que no se invoca desde el frontend.
 
 La primera versión se limita a eventos relevantes del historial manual de compra. No incluye recordatorios programados, recategorizaciones automáticas, backups ni preferencias finas por tipo de evento. El payload de push debe ser mínimo y genérico; al abrirse, la app refresca los datos desde Supabase como ya hace con Realtime y al volver a primer plano.
 

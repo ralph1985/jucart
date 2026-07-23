@@ -13,6 +13,7 @@
     "recategorize:codex": "scripts/recategorize-with-codex.sh",
     "recategorize:codex:cron:install": "scripts/install-codex-recategorization-cron.sh",
     "supabase:db:push": "supabase db push",
+    "supabase:functions:deploy": "supabase functions deploy",
     "supabase:link": "supabase link",
     "supabase:login": "supabase login",
     "typecheck": "tsc -b",

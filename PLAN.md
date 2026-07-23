@@ -342,14 +342,14 @@ Objetivo: permitir que la PWA avise cuando otro dispositivo haga cambios relevan
 
 ### Fase 5 — Edge Function de envío
 
-- [ ] Crear una Supabase Edge Function para enviar Web Push.
-- [ ] Leer la clave privada VAPID desde secrets, nunca desde el frontend.
-- [ ] Recibir un payload mínimo con `list_id`, `origin_client_id`, `title`, `body` y `url`.
-- [ ] Buscar suscripciones activas de la lista.
-- [ ] Excluir el `client_id` que originó el cambio.
-- [ ] Enviar la notificación a cada endpoint activo.
-- [ ] Marcar como deshabilitados los endpoints expirados o inválidos.
-- [ ] Hacer que el envío tolere reintentos y duplicados sin romper datos.
+- [x] Crear una Supabase Edge Function para enviar Web Push.
+- [x] Leer la clave privada VAPID desde secrets, nunca desde el frontend.
+- [x] Recibir un payload mínimo con `list_id`, `origin_client_id`, `title`, `body` y `url`.
+- [x] Buscar suscripciones activas de la lista.
+- [x] Excluir el `client_id` que originó el cambio.
+- [x] Enviar la notificación a cada endpoint activo.
+- [x] Marcar como deshabilitados los endpoints expirados o inválidos.
+- [x] Hacer que el envío tolere reintentos y duplicados sin romper datos.
 
 ### Fase 6 — Disparador de cambios remotos
 

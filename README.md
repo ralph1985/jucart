@@ -98,6 +98,21 @@ pnpm supabase:link --project-ref <project-ref>
 pnpm supabase:db:push
 ```
 
+7. Configurar secrets de notificaciones push cuando se use Web Push:
+
+```bash
+pnpm exec supabase secrets set \
+  PUSH_VAPID_PUBLIC_KEY="..." \
+  PUSH_VAPID_PRIVATE_KEY="..." \
+  PUSH_VAPID_SUBJECT="mailto:jucart@conquense.dev"
+```
+
+8. Desplegar Edge Functions:
+
+```bash
+pnpm supabase:functions:deploy send-push-notification
+```
+
 El esquema remoto y la copia local IndexedDB están documentados en [`docs/database-schema.md`](docs/database-schema.md).
 
 ## Backup local de Supabase

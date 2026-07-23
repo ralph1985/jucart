@@ -2203,6 +2203,7 @@ export function App() {
 
       setItems(reactivatedItems);
       setItemName("");
+      setAddItemQuantity("1");
       setAddProductNotice({
         type: "success",
         message: "Producto devuelto a pendientes",
@@ -2236,6 +2237,7 @@ export function App() {
 
       setItems(nextItems);
       setItemName("");
+      setAddItemQuantity("1");
       setAddProductNotice({ type: "success", message: "Producto añadido" });
       focusAddInputAtEnd();
       window.requestAnimationFrame(resizeAddInput);

@@ -598,7 +598,7 @@ describe("App", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("adds several products with Enter while keeping section and quantity", async () => {
+  it("adds several products with Enter while keeping section and resetting quantity", async () => {
     render(<App />);
 
     const dialog = await openAddSheet();
@@ -613,6 +613,11 @@ describe("App", () => {
 
     fireEvent.change(productInput, { target: { value: "Leche" } });
     fireEvent.keyDown(productInput, { key: "Enter" });
+    expect(within(dialog).getByLabelText("Cantidad")).toHaveValue("1");
+
+    fireEvent.change(within(dialog).getByLabelText("Cantidad"), {
+      target: { value: "3 uds" },
+    });
     fireEvent.change(productInput, { target: { value: "Pan" } });
     fireEvent.keyDown(productInput, { key: "Enter" });
 
@@ -620,7 +625,7 @@ describe("App", () => {
     expect(within(dialog).getByLabelText("Supermercado")).toHaveValue(
       "alcampo",
     );
-    expect(within(dialog).getByLabelText("Cantidad")).toHaveValue("3");
+    expect(within(dialog).getByLabelText("Cantidad")).toHaveValue("1");
     expect(screen.getAllByText("Producto añadido")).toHaveLength(1);
 
     const alcampoColumn = screen

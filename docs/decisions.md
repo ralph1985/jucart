@@ -176,3 +176,17 @@ El Service Worker se registra con actualización automática y precachea el shel
 Los iconos son provisionales y locales: SVG, PNG 192x192 y PNG 512x512. No se añade una dependencia solo para generar iconos.
 
 La persistencia offline sigue dependiendo de IndexedDB mediante Dexie. Cuando no hay red o Supabase falla, la modificación de datos locales no requiere conexión.
+
+## Notificaciones push
+
+El Hito 30 planifica notificaciones push para avisar de cambios remotos relevantes en Jucart cuando la PWA no esté abierta.
+
+Las notificaciones son opt-in: la app solo pide permiso tras una interacción explícita del usuario. Si el navegador no soporta `Notification`, Service Worker o `PushManager`, la acción no se ofrece como flujo principal.
+
+La PWA genera una suscripción Web Push por dispositivo usando la clave pública VAPID. La suscripción se guarda en Supabase asociada a `list_id` y al `clientId` local que ya usa la app para distinguir cambios remotos. El endpoint y las claves de la suscripción se tratan como datos sensibles: la tabla de suscripciones no debe permitir lectura pública de todos los endpoints.
+
+Supabase Edge Functions actúa como servidor de envío. La clave privada VAPID vive solo como secret de la función, nunca en el frontend. La función recibe un aviso de cambio, busca suscripciones activas de la lista, excluye el `clientId` que originó el evento y envía Web Push al resto de dispositivos.
+
+La primera versión se limita a eventos relevantes del historial manual de compra. No incluye recordatorios programados, recategorizaciones automáticas, backups ni preferencias finas por tipo de evento. El payload de push debe ser mínimo y genérico; al abrirse, la app refresca los datos desde Supabase como ya hace con Realtime y al volver a primer plano.
+
+En iOS/iPadOS, el soporte se considera solo para Jucart instalada en pantalla de inicio. No se diseña esta fase para pestañas normales de Safari.

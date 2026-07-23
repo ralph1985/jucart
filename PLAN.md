@@ -299,3 +299,72 @@
 - [x] Añadir flujos E2E de crear y gestionar listas.
 - [x] Añadir flujos E2E de borrar con deshacer, editar producto e historial.
 - [x] Ejecutar los E2E en `pre-push`.
+
+## Hito 30 — Notificaciones push de cambios remotos
+
+Objetivo: permitir que la PWA avise cuando otro dispositivo haga cambios relevantes en Jucart, incluso si la app no está abierta.
+
+### Fase 1 — Diseño y claves Web Push
+
+- [ ] Generar un par de claves VAPID para Web Push.
+- [ ] Guardar la clave pública en `VITE_PUSH_VAPID_PUBLIC_KEY`.
+- [ ] Guardar la clave privada como secret de Supabase Edge Functions.
+- [ ] Definir `PUSH_VAPID_SUBJECT` como contacto técnico.
+- [ ] Mantener las notificaciones como opt-in explícito.
+
+### Fase 2 — Modelo de suscripciones en Supabase
+
+- [ ] Crear una migración para `push_subscriptions`.
+- [ ] Guardar una suscripción por dispositivo usando `list_id`, `client_id`, `endpoint`, claves `p256dh` y `auth`, `user_agent` y marcas de fecha.
+- [ ] Crear un índice único por `endpoint`.
+- [ ] Crear índices para consultar suscripciones activas por `list_id`, `client_id` y `disabled_at`.
+- [ ] Activar RLS sin permitir lectura pública de todos los endpoints.
+- [ ] Permitir desde el cliente registrar, refrescar y desactivar su propia suscripción.
+
+### Fase 3 — Cliente PWA
+
+- [ ] Añadir un control discreto para activar o desactivar notificaciones.
+- [ ] Comprobar soporte de `Notification`, Service Worker y `PushManager`.
+- [ ] Pedir permiso solo tras interacción del usuario.
+- [ ] Crear la suscripción con el Service Worker registrado y la clave pública VAPID.
+- [ ] Persistir la suscripción en Supabase asociada al `client_id` local.
+- [ ] Mostrar estados discretos: no soportado, pendiente, denegado, activado y error temporal.
+- [ ] Permitir desactivar notificaciones con `unsubscribe()` y marcar `disabled_at` en Supabase.
+
+### Fase 4 — Service Worker
+
+- [ ] Ampliar la configuración de `vite-plugin-pwa` para añadir lógica propia al Service Worker sin perder el precache offline actual.
+- [ ] Gestionar eventos `push` mostrando una notificación breve de cambios en Jucart.
+- [ ] Usar iconos existentes de la PWA en la notificación.
+- [ ] Gestionar `notificationclick` enfocando Jucart si ya está abierta o abriendo `/`.
+- [ ] Mantener el Service Worker sin lógica de negocio pesada.
+- [ ] Evaluar si conviene actualizar App Badge al recibir un push cuando el navegador lo soporte.
+
+### Fase 5 — Edge Function de envío
+
+- [ ] Crear una Supabase Edge Function para enviar Web Push.
+- [ ] Leer la clave privada VAPID desde secrets, nunca desde el frontend.
+- [ ] Recibir un payload mínimo con `list_id`, `origin_client_id`, `title`, `body` y `url`.
+- [ ] Buscar suscripciones activas de la lista.
+- [ ] Excluir el `client_id` que originó el cambio.
+- [ ] Enviar la notificación a cada endpoint activo.
+- [ ] Marcar como deshabilitados los endpoints expirados o inválidos.
+- [ ] Hacer que el envío tolere reintentos y duplicados sin romper datos.
+
+### Fase 6 — Disparador de cambios remotos
+
+- [ ] Lanzar el envío cuando se registren eventos relevantes en `shopping_history_events`.
+- [ ] Notificar solo cambios originados por otro dispositivo.
+- [ ] Usar en v1 un texto genérico y fiable: `Cambios en Jucart` y `Hay cambios nuevos en la lista`.
+- [ ] No notificar en esta fase recategorizaciones automáticas, backups, estados internos ni recordatorios.
+- [ ] Mantener el payload sin datos completos de productos; la app refresca Supabase al abrirse o volver a primer plano.
+
+### Fase 7 — Validación
+
+- [ ] Añadir tests unitarios del módulo de push para soporte, permisos, alta, baja y errores.
+- [ ] Añadir tests del adaptador Supabase para registrar, refrescar y desactivar suscripciones.
+- [ ] Añadir tests del Service Worker para `push` y `notificationclick`.
+- [ ] Añadir tests de interfaz para el control de notificaciones y sus estados.
+- [ ] Validar manualmente en HTTPS con la PWA cerrada y cambios desde otro dispositivo.
+- [ ] Validar iOS/iPadOS solo con Jucart instalada en pantalla de inicio.
+- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.

@@ -376,10 +376,30 @@ Estado: pausado. La arquitectura está implementada y subida, pero la validació
 Objetivo: crear una base estable para que el historial de precios no duplique productos por plurales, variantes de ticket o nombres externos.
 
 - [ ] Crear un modelo remoto de productos canónicos en Supabase.
+- [ ] Elegir como nombre canónico el nombre más habitual de compra, no forzar singular si el plural es más natural.
+- [ ] Preferir productos canónicos generales frente a canónicos por marca o formato, salvo que separar sea imprescindible para comparar precios con sentido.
+- [ ] Comparar formatos distintos del mismo producto mediante precio unitario en lugar de crear canónicos separados por formato.
+- [ ] Dejar que Codex elija la unidad natural de comparación por producto, como `€/kg`, `€/L` o `€/unidad`.
+- [ ] Permitir que Codex cambie la unidad natural de comparación si nuevos datos hacen más adecuada otra unidad.
+- [ ] Aplicar los cambios de unidad natural solo a observaciones nuevas, sin recalcular precios históricos.
 - [ ] Crear aliases por producto canónico para variantes como `plátano`, `plátanos` o nombres más largos de supermercado.
-- [ ] Generar una primera propuesta de productos canónicos desde productos pendientes, comprados, historial útil y catálogo remoto actual.
+- [ ] Preparar el modelo para que Codex pueda generar y mantener productos canónicos por la noche, sin revisión manual en el flujo normal.
+- [ ] Aplicar al alta una normalización inmediata usando los aliases canónicos ya conocidos en Supabase/Dexie.
+- [ ] Hacer la normalización inmediata sin avisos ni confirmaciones para mantener el alta rápida.
+- [ ] No registrar en Historial las normalizaciones inmediatas del alta; solo registrar las ejecuciones nocturnas de Codex.
+- [ ] Permitir que Codex fusione productos canónicos duplicados cuando detecte que representan el mismo producto.
+- [ ] Permitir que Codex renombre automáticamente el nombre visible de productos pendientes al nombre canónico elegido.
+- [ ] Al fusionar productos, conservar la cantidad del producto que siga pendiente de compra para no perder la lista semanal.
+- [ ] Al fusionar productos presentes en listas distintas, conservar cada pendiente en su lista para poder comparar precios por supermercado.
+- [ ] Al fusionar productos pendientes en la misma lista, sumar sus cantidades cuando ambas existan, dejando que Codex resuelva también cantidades ambiguas.
+- [ ] Al fusionar en la misma lista un producto pendiente con otro no pendiente, conservar el pendiente y eliminar el otro de la lista activa.
+- [ ] Crear en Historial la pestaña de normalizaciones de productos canónicos.
+- [ ] Preparar esa pestaña para mostrar detalle técnico de entradas tocadas, cantidades sumadas, aliases creados y criterio resumido de Codex.
+- [ ] No duplicar las fusiones automáticas como eventos del historial manual de compra.
+- [ ] Separar los avisos de cambios nuevos por cambios manuales, recategorizaciones y normalizaciones, cada uno abriendo su pestaña de Historial.
+- [ ] Permitir que los tres avisos se muestren a la vez y mantener cada uno visible hasta que se vea su pestaña correspondiente.
 - [ ] Excluir por defecto los productos borrados de la propuesta inicial de precios.
-- [ ] Añadir un aviso antes de borrar productos indicando que se perderá su uso en el análisis de precios si no queda asociado a un producto canónico.
+- [ ] Añadir siempre un aviso antes de borrar productos indicando que se perderá su uso en el análisis de precios si no queda asociado a un producto canónico.
 - [ ] Mantener la lista de la compra rápida: el producto canónico no debe añadir fricción al alta normal.
 - [ ] Añadir tests razonables de normalización, aliases, borrado y compatibilidad con el flujo actual.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
@@ -403,6 +423,7 @@ Objetivo: analizar tickets pendientes por la noche desde la máquina local y con
 
 - [ ] Crear un script local que descargue tickets `pending` desde Supabase.
 - [ ] Procesar cada PDF con Codex para extraer supermercado, fecha, líneas, cantidades, precios unitarios y totales.
+- [ ] Ejecutar la generación y mantenimiento nocturno de productos canónicos y aliases.
 - [ ] Asociar cada línea a un producto canónico existente o dejarla como `needs_review` si la confianza es baja.
 - [ ] Guardar líneas de ticket y observaciones de precio en Supabase de forma idempotente por ticket y línea.
 - [ ] Registrar ejecuciones con estado, resumen, errores y número de líneas aceptadas o pendientes de revisión.

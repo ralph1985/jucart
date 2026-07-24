@@ -192,3 +192,15 @@ El disparo v1 sale de un trigger `after insert` sobre `shopping_history_events`.
 La primera versión se limita a eventos relevantes del historial manual de compra. No incluye recordatorios programados, recategorizaciones automáticas, backups ni preferencias finas por tipo de evento. El payload de push debe ser mínimo y genérico; al abrirse, la app refresca los datos desde Supabase como ya hace con Realtime y al volver a primer plano.
 
 En iOS/iPadOS, el soporte se considera solo para Jucart instalada en pantalla de inicio. No se diseña esta fase para pestañas normales de Safari.
+
+## Historial de precios y tickets
+
+A partir del Hito 31, Jucart planifica un historial de precios basado en productos canónicos. El objetivo es que variantes como `plátano`, `plátanos` o nombres más largos de un ticket apunten al mismo producto para no falsear subidas, bajadas o comparativas.
+
+El universo inicial de productos canónicos sale de los productos pendientes, comprados, historial útil y catálogo remoto. Los productos borrados quedan fuera por defecto del análisis de precios. Antes de borrar un producto, la app debe avisar de que se perderá su uso en el análisis si no queda asociado a un producto canónico.
+
+La PWA desplegada en Vercel no debe intentar subir PDFs directamente a un servidor local. La arquitectura elegida usa Supabase Storage como bandeja privada temporal: la app sube el PDF, crea un registro de ticket pendiente y un cron local lo descarga por la noche para procesarlo con Codex.
+
+El cron local escribe en Supabase las líneas extraídas, observaciones de precio, asociaciones con productos canónicos y estados de revisión. Tras procesar correctamente un ticket, el PDF se borra de la bandeja salvo decisión explícita de conservarlo. La app no trabaja con el PDF procesado, sino con metadatos y datos extraídos.
+
+Las fuentes externas de precios, incluida Mercadona mientras no haya una API pública estable, se tratan como semillas auxiliares. Los precios procedentes de tickets reales y los precios externos deben conservar su origen para que la interfaz no mezcle datos con distinta fiabilidad.

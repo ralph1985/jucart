@@ -370,3 +370,68 @@ Estado: pausado. La arquitectura está implementada y subida, pero la validació
 - [ ] Validar manualmente en HTTPS con la PWA cerrada y cambios desde otro dispositivo.
 - [ ] Validar iOS/iPadOS solo con Jucart instalada en pantalla de inicio.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+
+## Hito 31 — Productos canónicos para precios
+
+Objetivo: crear una base estable para que el historial de precios no duplique productos por plurales, variantes de ticket o nombres externos.
+
+- [ ] Crear un modelo remoto de productos canónicos en Supabase.
+- [ ] Crear aliases por producto canónico para variantes como `plátano`, `plátanos` o nombres más largos de supermercado.
+- [ ] Generar una primera propuesta de productos canónicos desde productos pendientes, comprados, historial útil y catálogo remoto actual.
+- [ ] Excluir por defecto los productos borrados de la propuesta inicial de precios.
+- [ ] Añadir un aviso antes de borrar productos indicando que se perderá su uso en el análisis de precios si no queda asociado a un producto canónico.
+- [ ] Mantener la lista de la compra rápida: el producto canónico no debe añadir fricción al alta normal.
+- [ ] Añadir tests razonables de normalización, aliases, borrado y compatibilidad con el flujo actual.
+- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+
+## Hito 32 — Bandeja privada de tickets
+
+Objetivo: permitir que la PWA desplegada en Vercel deje tickets pendientes en Supabase sin exponer un servidor local.
+
+- [ ] Crear un bucket privado de Supabase Storage para tickets de compra.
+- [ ] Crear una tabla de tickets con estado `pending`, `processing`, `processed`, `needs_review` o `failed`.
+- [ ] Guardar metadatos mínimos: lista, supermercado opcional, fecha de subida, ruta del archivo, hash y error no sensible.
+- [ ] Subir PDFs desde la app a la bandeja privada y crear la fila asociada.
+- [ ] Evitar guardar el contenido extraído del ticket hasta que lo procese el flujo nocturno.
+- [ ] Definir retención: borrar el PDF tras procesarlo correctamente salvo decisión explícita de conservarlo.
+- [ ] Añadir tests razonables del adaptador Supabase, estados de UI y errores de subida.
+- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+
+## Hito 33 — Procesamiento nocturno de tickets con Codex
+
+Objetivo: analizar tickets pendientes por la noche desde la máquina local y convertirlos en líneas de compra auditables.
+
+- [ ] Crear un script local que descargue tickets `pending` desde Supabase.
+- [ ] Procesar cada PDF con Codex para extraer supermercado, fecha, líneas, cantidades, precios unitarios y totales.
+- [ ] Asociar cada línea a un producto canónico existente o dejarla como `needs_review` si la confianza es baja.
+- [ ] Guardar líneas de ticket y observaciones de precio en Supabase de forma idempotente por ticket y línea.
+- [ ] Registrar ejecuciones con estado, resumen, errores y número de líneas aceptadas o pendientes de revisión.
+- [ ] Crear un instalador de cron nocturno siguiendo el patrón de backups y recategorización.
+- [ ] Guardar logs duraderos en `var/log/` y datos transitorios en `/tmp`.
+- [ ] Añadir tests razonables del parser de salida, normalización, idempotencia y errores parciales.
+- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+
+## Hito 34 — Revisión y vista de historial de precios
+
+Objetivo: hacer visible el histórico de precios sin convertir Jucart en una aplicación pesada.
+
+- [ ] Añadir una pestaña de precios dentro de la vista Historial o una vista interna equivalente si la navegación actual lo pide.
+- [ ] Mostrar por producto canónico el último precio, supermercado, fecha y tendencia básica.
+- [ ] Mostrar el detalle de observaciones recientes por producto.
+- [ ] Añadir una cola de revisión para líneas dudosas y aliases nuevos propuestos por Codex.
+- [ ] Permitir aceptar una asociación, crear un alias o dejar la línea fuera del análisis.
+- [ ] Mantener los PDFs fuera de la interfaz una vez procesados; la app trabaja con metadatos y líneas extraídas.
+- [ ] Añadir tests razonables de interfaz, estados vacíos, revisión y cálculo de tendencias.
+- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+
+## Hito 35 — Semillas externas de precios
+
+Objetivo: precargar precios iniciales desde fuentes externas solo cuando aporten datos claros sin convertirse en dependencia crítica.
+
+- [ ] Investigar y elegir explícitamente fuentes por supermercado antes de implementar conectores.
+- [ ] Tratar Mercadona como fuente no oficial salvo que exista una API pública estable.
+- [ ] Guardar observaciones externas con origen diferenciado de los tickets reales.
+- [ ] No mezclar precios externos con precios de ticket sin mostrar su procedencia.
+- [ ] Permitir descartar coincidencias externas dudosas antes de que afecten a tendencias.
+- [ ] Añadir tests razonables de importación, procedencia y conflictos con productos canónicos.
+- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.

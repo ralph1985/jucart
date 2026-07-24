@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const supabaseMocks = vi.hoisted(() => {
   type QueryOperation =
-    "delete" | "maybeSingle" | "select" | "update" | "upsert";
+    "delete" | "insert" | "maybeSingle" | "select" | "update" | "upsert";
   type QueryResult = { data?: unknown; error?: unknown };
 
   const queryResults = new Map<string, QueryResult>();
   const operations: Array<{
     args?: unknown[];
     operation: string;
+    rpcName?: string;
     table: string;
   }> = [];
 
@@ -40,6 +41,17 @@ const supabaseMocks = vi.hoisted(() => {
       operations.push({ args, operation: "limit", table: this.table });
 
       return this;
+    }
+
+    insert(...args: unknown[]) {
+      operations.push({ args, operation: "insert", table: this.table });
+
+      return Promise.resolve(
+        queryResults.get(`${this.table}:insert`) ?? {
+          data: null,
+          error: null,
+        },
+      );
     }
 
     maybeSingle() {
@@ -106,6 +118,21 @@ const supabaseMocks = vi.hoisted(() => {
     channel: vi.fn(() => channel),
     from: vi.fn((table: string) => new QueryBuilder(table)),
     removeChannel: vi.fn(),
+    rpc: vi.fn((rpcName: string, args: unknown) => {
+      operations.push({
+        args: [args],
+        operation: "rpc",
+        rpcName,
+        table: "rpc",
+      });
+
+      return Promise.resolve(
+        queryResults.get(`rpc:${rpcName}`) ?? {
+          data: true,
+          error: null,
+        },
+      );
+    }),
   };
 
   return {
@@ -120,6 +147,7 @@ const supabaseMocks = vi.hoisted(() => {
       client.channel.mockClear();
       client.from.mockClear();
       client.removeChannel.mockClear();
+      client.rpc.mockClear();
       channel.on.mockClear();
       channel.on.mockReturnValue(channel);
       channel.subscribe.mockClear();
@@ -669,7 +697,7 @@ describe("shopping items Supabase adapter", () => {
     );
   });
 
-  it("registers a push subscription without reading push endpoints", async () => {
+  it("registers a push subscription through RPC without reading push endpoints", async () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
     );
@@ -686,19 +714,18 @@ describe("shopping items Supabase adapter", () => {
 
     expect(supabaseMocks.operations).toContainEqual({
       args: [
-        expect.objectContaining({
-          auth: "auth-key",
-          client_id: "client-1",
-          disabled_at: null,
-          endpoint: "https://push.example/subscription-1",
-          list_id: configuredSupabase.listId,
-          p256dh: "p256dh-key",
-          user_agent: "Test browser",
-        }),
-        { onConflict: "endpoint" },
+        {
+          p_auth: "auth-key",
+          p_client_id: "client-1",
+          p_endpoint: "https://push.example/subscription-1",
+          p_list_id: configuredSupabase.listId,
+          p_p256dh: "p256dh-key",
+          p_user_agent: "Test browser",
+        },
       ],
-      operation: "upsert",
-      table: "push_subscriptions",
+      operation: "rpc",
+      rpcName: "register_push_subscription",
+      table: "rpc",
     });
     expect(
       supabaseMocks.operations.some(
@@ -730,7 +757,7 @@ describe("shopping items Supabase adapter", () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
     );
-    supabaseMocks.setResult("push_subscriptions", "upsert", { error });
+    supabaseMocks.queryResults.set("rpc:register_push_subscription", { error });
 
     await expect(
       registerSupabasePushSubscription({
@@ -743,7 +770,7 @@ describe("shopping items Supabase adapter", () => {
     ).rejects.toThrow(error);
   });
 
-  it("disables a push subscription by endpoint without reading push endpoints", async () => {
+  it("disables a push subscription by endpoint through RPC without reading push endpoints", async () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
     );
@@ -753,14 +780,10 @@ describe("shopping items Supabase adapter", () => {
     ).resolves.toBe(true);
 
     expect(supabaseMocks.operations).toContainEqual({
-      args: [expect.objectContaining({ disabled_at: expect.any(String) })],
-      operation: "update",
-      table: "push_subscriptions",
-    });
-    expect(supabaseMocks.operations).toContainEqual({
-      args: ["endpoint", "https://push.example/subscription-1"],
-      operation: "eq",
-      table: "push_subscriptions",
+      args: [{ p_endpoint: "https://push.example/subscription-1" }],
+      operation: "rpc",
+      rpcName: "disable_push_subscription",
+      table: "rpc",
     });
     expect(
       supabaseMocks.operations.some(
@@ -786,7 +809,7 @@ describe("shopping items Supabase adapter", () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
     );
-    supabaseMocks.setResult("push_subscriptions", "update", { error });
+    supabaseMocks.queryResults.set("rpc:disable_push_subscription", { error });
 
     await expect(
       disableSupabasePushSubscription("https://push.example/subscription-1"),

@@ -107,17 +107,6 @@ type ShoppingRecategorizationChangeRow = {
   created_at: string;
 };
 
-type PushSubscriptionRow = {
-  list_id: string;
-  client_id: string;
-  endpoint: string;
-  p256dh: string;
-  auth: string;
-  user_agent: string;
-  last_seen_at: string;
-  disabled_at: string | null;
-};
-
 type FreezerItemRow = {
   id: string;
   list_id: string;
@@ -565,21 +554,17 @@ export async function registerSupabasePushSubscription(
     return false;
   }
 
-  const now = new Date().toISOString();
-  const row: PushSubscriptionRow = {
-    list_id: config.listId,
-    client_id: subscription.clientId,
-    endpoint: subscription.endpoint,
-    p256dh: subscription.p256dh,
-    auth: subscription.auth,
-    user_agent: subscription.userAgent,
-    last_seen_at: now,
-    disabled_at: null,
-  };
-
-  const { error } = await getSupabaseClient(config)
-    .from("push_subscriptions")
-    .upsert(row, { onConflict: "endpoint" });
+  const { error } = await getSupabaseClient(config).rpc(
+    "register_push_subscription",
+    {
+      p_auth: subscription.auth,
+      p_client_id: subscription.clientId,
+      p_endpoint: subscription.endpoint,
+      p_list_id: config.listId,
+      p_p256dh: subscription.p256dh,
+      p_user_agent: subscription.userAgent,
+    },
+  );
 
   if (error) {
     throw error;
@@ -595,10 +580,12 @@ export async function disableSupabasePushSubscription(endpoint: string) {
     return false;
   }
 
-  const { error } = await getSupabaseClient(config)
-    .from("push_subscriptions")
-    .update({ disabled_at: new Date().toISOString() })
-    .eq("endpoint", endpoint);
+  const { error } = await getSupabaseClient(config).rpc(
+    "disable_push_subscription",
+    {
+      p_endpoint: endpoint,
+    },
+  );
 
   if (error) {
     throw error;

@@ -183,7 +183,7 @@ El Hito 30 planifica notificaciones push para avisar de cambios remotos relevant
 
 Las notificaciones son opt-in: la app solo pide permiso tras una interacción explícita del usuario. Si el navegador no soporta `Notification`, Service Worker o `PushManager`, la acción no se ofrece como flujo principal.
 
-La PWA genera una suscripción Web Push por dispositivo usando la clave pública VAPID. La suscripción se guarda en Supabase asociada a `list_id` y al `clientId` local que ya usa la app para distinguir cambios remotos. El endpoint y las claves de la suscripción se tratan como datos sensibles: la tabla de suscripciones no debe permitir lectura pública de todos los endpoints.
+La PWA genera una suscripción Web Push por dispositivo usando la clave pública VAPID. La suscripción se guarda en Supabase asociada a `list_id` y al `clientId` local que ya usa la app para distinguir cambios remotos. El endpoint y las claves de la suscripción se tratan como datos sensibles: la tabla de suscripciones no debe permitir lectura pública de todos los endpoints. El cliente registra y desactiva suscripciones mediante RPC `security definer`, no con `upsert` directo sobre la tabla, para evitar conceder `SELECT` a `anon`.
 
 Supabase Edge Functions actúa como servidor de envío. La clave privada VAPID vive solo como secret de la función, nunca en el frontend. La función también recibe la clave pública VAPID como configuración propia porque no lee variables de Vercel. La función recibe un aviso de cambio, busca suscripciones activas de la lista, excluye el `clientId` que originó el evento y envía Web Push al resto de dispositivos.
 

@@ -78,11 +78,15 @@ import {
   replaceStoredShoppingData,
 } from "./shoppingItemsDb";
 import {
+  diagnosePushNotifications,
   disablePushNotifications,
   enablePushNotifications,
   getPushNotificationSnapshot,
 } from "./pushNotifications";
-import type { PushNotificationSnapshot } from "./pushNotifications";
+import type {
+  PushNotificationDiagnostic,
+  PushNotificationSnapshot,
+} from "./pushNotifications";
 import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
 import { isSupabaseConfigured } from "./supabaseConfig";
 import { updateBadge } from "./services/badgeService";
@@ -866,6 +870,9 @@ export function App() {
   );
   const [isPushNotificationActionPending, setIsPushNotificationActionPending] =
     useState(false);
+  const [pushNotificationDiagnostic, setPushNotificationDiagnostic] =
+    useState<PushNotificationDiagnostic | null>(null);
+  const [isPushDiagnosticPending, setIsPushDiagnosticPending] = useState(false);
   const [lastRemovedItems, setLastRemovedItems] = useState<ShoppingItem[]>([]);
   const [lastUsedFreezerItem, setLastUsedFreezerItem] =
     useState<FreezerItem | null>(null);
@@ -2877,6 +2884,7 @@ export function App() {
 
   async function handlePushNotificationAction() {
     setIsPushNotificationActionPending(true);
+    setPushNotificationDiagnostic(null);
     window.localStorage.removeItem(pushInviteDismissedStorageKey);
     setIsPushInviteDismissed(false);
     setPushNotificationSnapshot({
@@ -2898,6 +2906,22 @@ export function App() {
   function handleDismissPushNotificationInvite() {
     window.localStorage.setItem(pushInviteDismissedStorageKey, "true");
     setIsPushInviteDismissed(true);
+  }
+
+  async function handlePushNotificationDiagnostic() {
+    setIsPushDiagnosticPending(true);
+    setPushNotificationDiagnostic({
+      details: ["Comprobando..."],
+      message: "Comprobando",
+      ok: false,
+    });
+
+    const diagnostic = await diagnosePushNotifications(historyClientId);
+
+    if (isMountedRef.current) {
+      setPushNotificationDiagnostic(diagnostic);
+      setIsPushDiagnosticPending(false);
+    }
   }
 
   function showSectionsView() {
@@ -3708,7 +3732,33 @@ export function App() {
             <dd>{isSupabaseAvailable ? "Configurado" : "No configurado"}</dd>
           </div>
         </dl>
+        {pushNotificationDiagnostic ? (
+          <div
+            className={
+              pushNotificationDiagnostic.ok
+                ? styles.developerDiagnosticSuccess
+                : styles.developerDiagnosticFailed
+            }
+            role="status"
+          >
+            <p>{pushNotificationDiagnostic.message}</p>
+            <ul>
+              {pushNotificationDiagnostic.details.map((detail) => (
+                <li key={detail}>{detail}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className={styles.developerActions}>
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={handlePushNotificationDiagnostic}
+            disabled={!isSupabaseAvailable || isPushDiagnosticPending}
+          >
+            Probar registro
+          </button>
           <button
             className={
               isSubscribed ? styles.secondaryButton : styles.primaryButton

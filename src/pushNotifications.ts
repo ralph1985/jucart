@@ -13,6 +13,12 @@ export type PushNotificationSnapshot = {
   message: string;
 };
 
+export type PushNotificationDiagnostic = {
+  details: string[];
+  message: string;
+  ok: boolean;
+};
+
 type SerializedPushSubscription = {
   endpoint?: string;
   keys?: {
@@ -20,6 +26,108 @@ type SerializedPushSubscription = {
     p256dh?: string;
   };
 };
+
+export async function diagnosePushNotifications(
+  clientId: string,
+): Promise<PushNotificationDiagnostic> {
+  const details: string[] = [];
+  const supportSnapshot = getPushNotificationSupportSnapshot();
+
+  if (supportSnapshot) {
+    return {
+      details: [`Soporte: ${supportSnapshot.message}`],
+      message: supportSnapshot.message,
+      ok: false,
+    };
+  }
+
+  details.push(`Permiso: ${Notification.permission}`);
+
+  if (Notification.permission !== "granted") {
+    return {
+      details,
+      message:
+        Notification.permission === "denied"
+          ? "Permiso bloqueado"
+          : "Permiso pendiente",
+      ok: false,
+    };
+  }
+
+  let registration: ServiceWorkerRegistration;
+
+  try {
+    registration = await navigator.serviceWorker.ready;
+    details.push("Service Worker: listo");
+  } catch (error) {
+    return {
+      details: [...details, `Service Worker: ${getErrorMessage(error)}`],
+      message: "Service Worker no disponible",
+      ok: false,
+    };
+  }
+
+  let subscription: PushSubscription | null;
+
+  try {
+    subscription = await registration.pushManager.getSubscription();
+  } catch (error) {
+    return {
+      details: [...details, `Suscripción: ${getErrorMessage(error)}`],
+      message: "No se pudo leer la suscripción",
+      ok: false,
+    };
+  }
+
+  if (!subscription) {
+    return {
+      details: [...details, "Suscripción: no existe"],
+      message: "No hay suscripción en este dispositivo",
+      ok: false,
+    };
+  }
+
+  details.push("Suscripción: existe");
+
+  let serializedSubscription: ReturnType<typeof serializePushSubscription>;
+
+  try {
+    serializedSubscription = serializePushSubscription(subscription);
+    details.push("Claves: disponibles");
+  } catch (error) {
+    return {
+      details: [...details, `Claves: ${getErrorMessage(error)}`],
+      message: "La suscripción no contiene claves",
+      ok: false,
+    };
+  }
+
+  try {
+    const { registerSupabasePushSubscription } =
+      await import("./shoppingItemsSupabase");
+
+    await registerSupabasePushSubscription({
+      clientId,
+      endpoint: serializedSubscription.endpoint,
+      p256dh: serializedSubscription.p256dh,
+      auth: serializedSubscription.auth,
+      userAgent: navigator.userAgent,
+    });
+    details.push("Supabase: registrada");
+
+    return {
+      details,
+      message: "Registro push correcto",
+      ok: true,
+    };
+  } catch (error) {
+    return {
+      details: [...details, `Supabase: ${getErrorMessage(error)}`],
+      message: "Supabase no guardó la suscripción",
+      ok: false,
+    };
+  }
+}
 
 export async function getPushNotificationSnapshot(): Promise<PushNotificationSnapshot> {
   const supportSnapshot = getPushNotificationSupportSnapshot();
@@ -204,6 +312,12 @@ function serializePushSubscription(subscription: PushSubscription) {
 
 function getVapidPublicKey() {
   return import.meta.env.VITE_PUSH_VAPID_PUBLIC_KEY?.trim() ?? "";
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error && error.message.trim()
+    ? error.message.trim()
+    : "Error desconocido";
 }
 
 function decodeBase64UrlToUint8Array(value: string) {

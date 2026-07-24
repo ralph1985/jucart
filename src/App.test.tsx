@@ -69,6 +69,18 @@ const emblaCarouselMock = vi.hoisted(() => {
 });
 
 const pushNotificationMocks = vi.hoisted(() => ({
+  diagnosePushNotifications: vi.fn(() =>
+    Promise.resolve({
+      details: [
+        "Permiso: granted",
+        "Service Worker: listo",
+        "Suscripción: existe",
+        "Supabase: registrada",
+      ],
+      message: "Registro push correcto",
+      ok: true,
+    }),
+  ),
   disablePushNotifications: vi.fn(() =>
     Promise.resolve({ message: "Desactivadas", status: "unsubscribed" }),
   ),
@@ -79,9 +91,20 @@ const pushNotificationMocks = vi.hoisted(() => ({
     Promise.resolve({ message: "Pendientes", status: "prompt" }),
   ),
   reset() {
+    this.diagnosePushNotifications.mockClear();
     this.disablePushNotifications.mockClear();
     this.enablePushNotifications.mockClear();
     this.getPushNotificationSnapshot.mockClear();
+    this.diagnosePushNotifications.mockResolvedValue({
+      details: [
+        "Permiso: granted",
+        "Service Worker: listo",
+        "Suscripción: existe",
+        "Supabase: registrada",
+      ],
+      message: "Registro push correcto",
+      ok: true,
+    });
     this.disablePushNotifications.mockResolvedValue({
       message: "Desactivadas",
       status: "unsubscribed",
@@ -102,6 +125,7 @@ vi.mock("embla-carousel-react", () => ({
 }));
 
 vi.mock("./pushNotifications", () => ({
+  diagnosePushNotifications: pushNotificationMocks.diagnosePushNotifications,
   disablePushNotifications: pushNotificationMocks.disablePushNotifications,
   enablePushNotifications: pushNotificationMocks.enablePushNotifications,
   getPushNotificationSnapshot:
@@ -388,6 +412,32 @@ describe("App", () => {
     expect(
       pushNotificationMocks.enablePushNotifications,
     ).not.toHaveBeenCalled();
+  });
+
+  it("tests push registration from the developer view", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    window.localStorage.setItem("jucart:history-client-id", "client-local");
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Vista de desarrollador" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Probar registro" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        pushNotificationMocks.diagnosePushNotifications,
+      ).toHaveBeenCalledWith("client-local"),
+    );
+    expect(
+      await screen.findByText("Registro push correcto"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Permiso: granted")).toBeInTheDocument();
+    expect(screen.getByText("Supabase: registrada")).toBeInTheDocument();
   });
 
   it("enables push notifications from the developer view", async () => {

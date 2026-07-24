@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  diagnosePushNotifications,
   disablePushNotifications,
   enablePushNotifications,
   getPushNotificationSnapshot,
@@ -167,6 +168,69 @@ describe("pushNotifications", () => {
       endpoint: "https://push.example/new",
       p256dh: "p256dh-key",
       userAgent: navigator.userAgent,
+    });
+  });
+
+  it("diagnoses and registers an existing push subscription", async () => {
+    vi.stubEnv("VITE_PUSH_VAPID_PUBLIC_KEY", "public-key");
+    setNotificationApi("granted");
+    setPushApi(createPushSubscription("https://push.example/current"));
+
+    await expect(diagnosePushNotifications("client-1")).resolves.toEqual({
+      details: [
+        "Permiso: granted",
+        "Service Worker: listo",
+        "Suscripción: existe",
+        "Claves: disponibles",
+        "Supabase: registrada",
+      ],
+      message: "Registro push correcto",
+      ok: true,
+    });
+    expect(registerSupabasePushSubscription).toHaveBeenCalledWith({
+      auth: "auth-key",
+      clientId: "client-1",
+      endpoint: "https://push.example/current",
+      p256dh: "p256dh-key",
+      userAgent: navigator.userAgent,
+    });
+  });
+
+  it("diagnoses missing browser push subscriptions", async () => {
+    vi.stubEnv("VITE_PUSH_VAPID_PUBLIC_KEY", "public-key");
+    setNotificationApi("granted");
+    setPushApi(null);
+
+    await expect(diagnosePushNotifications("client-1")).resolves.toEqual({
+      details: [
+        "Permiso: granted",
+        "Service Worker: listo",
+        "Suscripción: no existe",
+      ],
+      message: "No hay suscripción en este dispositivo",
+      ok: false,
+    });
+    expect(registerSupabasePushSubscription).not.toHaveBeenCalled();
+  });
+
+  it("diagnoses Supabase registration errors", async () => {
+    vi.stubEnv("VITE_PUSH_VAPID_PUBLIC_KEY", "public-key");
+    setNotificationApi("granted");
+    setPushApi(createPushSubscription("https://push.example/current"));
+    vi.mocked(registerSupabasePushSubscription).mockRejectedValueOnce(
+      new Error("RPC failed"),
+    );
+
+    await expect(diagnosePushNotifications("client-1")).resolves.toEqual({
+      details: [
+        "Permiso: granted",
+        "Service Worker: listo",
+        "Suscripción: existe",
+        "Claves: disponibles",
+        "Supabase: RPC failed",
+      ],
+      message: "Supabase no guardó la suscripción",
+      ok: false,
     });
   });
 

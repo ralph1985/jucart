@@ -229,6 +229,7 @@
   display: grid;
   gap: 0.08rem;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .pushInviteText h2,
@@ -2028,13 +2029,20 @@ h2 {
   }
 
   .appPushInviteVisible {
-    --push-invite-height: 5.1rem;
+    --push-invite-height: 5.35rem;
   }
 
   .pushInvite {
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.5rem;
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
+  }
+
+  .pushInvite .primaryButton {
+    min-width: 5.6rem;
+    padding-inline: 0.72rem;
+    white-space: nowrap;
   }
 
   .pushInviteIcon {

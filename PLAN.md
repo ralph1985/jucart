@@ -304,6 +304,8 @@
 
 Objetivo: permitir que la PWA avise cuando otro dispositivo haga cambios relevantes en Jucart, incluso si la app no está abierta.
 
+Estado: pausado. La arquitectura está implementada y subida, pero la validación end-to-end en iPhone no se ha cerrado. El iPhone aceptó permiso de notificaciones, pero `push_subscriptions` seguía sin filas activas. No hay Mac/Web Inspector disponible; si se retoma, empezar por leer el resultado exacto de `Probar registro` en la vista Dev o añadir un logging remoto temporal no sensible (`push_debug_events`) sin endpoints ni claves.
+
 ### Fase 1 — Diseño y claves Web Push
 
 - [x] Generar un par de claves VAPID para Web Push.

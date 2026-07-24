@@ -42,6 +42,15 @@ Jucart es una aplicación web privada para gestionar una lista de la compra pers
 - Dexie, Supabase, `vite-plugin-pwa` y Anime.js ya forman parte del proyecto; no añadir alternativas paralelas sin necesidad actual.
 - Antes de cerrar un hito, ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build`.
 
+## Flujo Operativo Del Repo
+
+- Supabase remoto es el flujo por defecto. No insistir en Docker ni Supabase local salvo petición explícita; los avisos de Docker tras un `supabase db push` remoto correcto son caché local de la CLI, no una tarea pendiente.
+- Para inspecciones remotas, preferir `pnpm exec supabase db query --linked --output json "<sql>"` o `--output table`; no usar flags no soportados como `--query`.
+- Si el usuario dice que revisará visualmente la app, no arrancar dev server solo para preview. Usar validación por comandos y revisión de código salvo petición explícita.
+- Para operaciones con GitHub CLI (`gh`), usar ejecución fuera del sandbox cuando sea necesario; dentro del sandbox puede dar falsos fallos de autenticación o red.
+- Los flujos de añadir y editar productos del congelador deben seguir el patrón de bottom sheet de la lista de compra, no formularios inline ni modales centrados.
+- Los datos transitorios de scripts o diagnósticos deben ir a `/tmp`; los logs o informes duraderos del repo pueden ir a `var/log/` si están ignorados o previstos por el flujo.
+
 ## Selección De Agentes
 
 - Coordinación normal: `coordinator`.

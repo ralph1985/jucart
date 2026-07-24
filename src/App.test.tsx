@@ -426,6 +426,7 @@ describe("App", () => {
         "Recibe una notificación cuando otro dispositivo cambie la lista.",
       ),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ahora no" })).toBeEnabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Activar" }));
 
@@ -434,6 +435,34 @@ describe("App", () => {
         pushNotificationMocks.enablePushNotifications,
       ).toHaveBeenCalledWith("client-local"),
     );
+    expect(screen.queryByText("Avisos de cambios")).not.toBeInTheDocument();
+  });
+
+  it("dismisses the shopping push invite on this device", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Ahora no" }));
+
+    expect(screen.queryByText("Avisos de cambios")).not.toBeInTheDocument();
+    expect(window.localStorage.getItem("jucart:push-invite-dismissed")).toBe(
+      "true",
+    );
+    expect(
+      pushNotificationMocks.enablePushNotifications,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("keeps the shopping push invite hidden after it has been dismissed", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    window.localStorage.setItem("jucart:push-invite-dismissed", "true");
+
+    render(<App />);
+
+    await waitForAddFab();
+
     expect(screen.queryByText("Avisos de cambios")).not.toBeInTheDocument();
   });
 

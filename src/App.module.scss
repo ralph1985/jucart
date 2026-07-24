@@ -250,6 +250,20 @@
   line-height: 1.25;
 }
 
+.pushInviteActions {
+  display: flex;
+  justify-content: end;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.pushInviteActions .primaryButton,
+.pushInviteActions .secondaryButton {
+  min-width: 5.6rem;
+  padding-inline: 0.72rem;
+  white-space: nowrap;
+}
+
 .undoItem {
   display: flex;
   align-items: center;
@@ -2029,20 +2043,26 @@ h2 {
   }
 
   .appPushInviteVisible {
-    --push-invite-height: 5.35rem;
+    --push-invite-height: 7.25rem;
   }
 
   .pushInvite {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
   }
 
-  .pushInvite .primaryButton {
-    min-width: 5.6rem;
-    padding-inline: 0.72rem;
-    white-space: nowrap;
+  .pushInviteActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .pushInviteActions .primaryButton,
+  .pushInviteActions .secondaryButton {
+    width: 100%;
+    min-width: 0;
   }
 
   .pushInviteIcon {

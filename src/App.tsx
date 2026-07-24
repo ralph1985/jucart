@@ -92,6 +92,7 @@ const selectedUserStorageKey = "jucart:selected-user-id";
 const showPurchasedItemsStorageKey = "jucart:show-purchased-items";
 const historyClientIdStorageKey = "jucart:history-client-id";
 const lastSeenHistoryEventAtStorageKey = "jucart:last-seen-history-event-at";
+const pushInviteDismissedStorageKey = "jucart:push-invite-dismissed";
 const backupStaleThresholdMs = 6 * 60 * 60 * 1000;
 const initialPushNotificationSnapshot: PushNotificationSnapshot = {
   status: "syncing",
@@ -763,9 +764,11 @@ function isPushNotificationActionDisabled(
 function shouldShowPushNotificationInvite(
   snapshot: PushNotificationSnapshot,
   isSupabaseAvailable: boolean,
+  isDismissed: boolean,
 ) {
   return (
     isSupabaseAvailable &&
+    !isDismissed &&
     (snapshot.status === "prompt" ||
       snapshot.status === "unsubscribed" ||
       snapshot.status === "error")
@@ -857,6 +860,9 @@ export function App() {
   >(null);
   const [pushNotificationSnapshot, setPushNotificationSnapshot] = useState(
     initialPushNotificationSnapshot,
+  );
+  const [isPushInviteDismissed, setIsPushInviteDismissed] = useState(
+    () => window.localStorage.getItem(pushInviteDismissedStorageKey) === "true",
   );
   const [isPushNotificationActionPending, setIsPushNotificationActionPending] =
     useState(false);
@@ -1036,6 +1042,7 @@ export function App() {
     shouldShowPushNotificationInvite(
       pushNotificationSnapshot,
       isSupabaseConfigured(),
+      isPushInviteDismissed,
     );
 
   itemsRef.current = items;
@@ -2870,6 +2877,8 @@ export function App() {
 
   async function handlePushNotificationAction() {
     setIsPushNotificationActionPending(true);
+    window.localStorage.removeItem(pushInviteDismissedStorageKey);
+    setIsPushInviteDismissed(false);
     setPushNotificationSnapshot({
       status: "syncing",
       message: "Sincronizando",
@@ -2884,6 +2893,11 @@ export function App() {
       setPushNotificationSnapshot(nextSnapshot);
       setIsPushNotificationActionPending(false);
     }
+  }
+
+  function handleDismissPushNotificationInvite() {
+    window.localStorage.setItem(pushInviteDismissedStorageKey, "true");
+    setIsPushInviteDismissed(true);
   }
 
   function showSectionsView() {
@@ -3730,17 +3744,28 @@ export function App() {
             Recibe una notificación cuando otro dispositivo cambie la lista.
           </p>
         </div>
-        <button
-          className={styles.primaryButton}
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handlePushNotificationAction}
-          disabled={isPushNotificationActionPending}
-        >
-          {pushNotificationSnapshot.status === "error"
-            ? "Reintentar"
-            : "Activar"}
-        </button>
+        <div className={styles.pushInviteActions}>
+          <button
+            className={styles.secondaryButton}
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={handleDismissPushNotificationInvite}
+            disabled={isPushNotificationActionPending}
+          >
+            Ahora no
+          </button>
+          <button
+            className={styles.primaryButton}
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={handlePushNotificationAction}
+            disabled={isPushNotificationActionPending}
+          >
+            {pushNotificationSnapshot.status === "error"
+              ? "Reintentar"
+              : "Activar"}
+          </button>
+        </div>
       </section>
     );
   }

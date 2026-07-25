@@ -234,11 +234,34 @@ describe("App", () => {
     fireEvent.change(editFreezerQuantityInput, {
       target: { value: "3 raciones" },
     });
+    fireEvent.change(within(editFreezerDialog).getByLabelText("Cajón"), {
+      target: { value: "bottom" },
+    });
+    fireEvent.change(within(editFreezerDialog).getByLabelText("Congelado"), {
+      target: { value: "2026-07-02" },
+    });
     fireEvent.click(
       within(editFreezerDialog).getByRole("button", { name: "Guardar" }),
     );
 
     expect(screen.getAllByText("3 raciones").length).toBeGreaterThan(0);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Editar Lentejas" })[0],
+    );
+
+    const reopenedEditFreezerDialog = screen.getByRole("dialog", {
+      name: "Editar Lentejas",
+    });
+    fireEvent.click(
+      within(reopenedEditFreezerDialog).getByRole("button", {
+        name: "Cancelar",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Editar Lentejas" }),
+      ).not.toBeInTheDocument(),
+    );
 
     fireEvent.click(screen.getAllByRole("button", { name: "Usado" })[0]);
 
@@ -1059,6 +1082,295 @@ describe("App", () => {
       expect(screen.queryByText("Sincronizando")).not.toBeInTheDocument(),
     );
     expect(screen.getByText("Sincronizado")).toBeInTheDocument();
+  });
+
+  it("shows latest and average prices for canonical products", async () => {
+    const shoppingData: ShoppingData = {
+      items: [
+        {
+          id: "item-platanos",
+          name: "Plátanos",
+          sectionId: "mercadona",
+          canonicalProductId: "canonical-platanos",
+          addedBy: "rafa",
+          purchased: false,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+        {
+          id: "item-gasas",
+          name: "Gasas",
+          sectionId: "mercadona",
+          canonicalProductId: "canonical-gasas",
+          addedBy: "begona",
+          purchased: false,
+          createdAt: 110,
+          updatedAt: 110,
+        },
+        {
+          id: "item-leche",
+          name: "Leche",
+          sectionId: "mercadona",
+          canonicalProductId: "canonical-leche",
+          addedBy: "rafa",
+          purchased: false,
+          createdAt: 120,
+          updatedAt: 120,
+        },
+        {
+          id: "item-arroz",
+          name: "Arroz",
+          sectionId: "mercadona",
+          canonicalProductId: "canonical-arroz",
+          addedBy: "rafa",
+          purchased: false,
+          createdAt: 130,
+          updatedAt: 130,
+        },
+      ],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+    };
+
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(shoppingItemsDb, "getShoppingItemsStorageMode").mockReturnValue(
+      "remote",
+    );
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockResolvedValue(
+      shoppingData,
+    );
+    vi.spyOn(shoppingItemsDb, "getStoredShoppingData").mockResolvedValue(
+      shoppingData,
+    );
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabasePriceObservations",
+    ).mockResolvedValue([
+      {
+        id: "price-observation-latest",
+        source: "ticket",
+        ticketId: "ticket-2",
+        ticketLineId: "line-2",
+        canonicalProductId: "canonical-platanos",
+        sectionId: "mercadona",
+        observedAt: Date.parse("2026-07-25T20:00:00.000Z"),
+        productName: "Plátanos",
+        quantity: "1 kg",
+        comparisonUnit: "kg",
+        priceKind: "unit",
+        observedPrice: 1.8,
+        unitPrice: 1.8,
+        totalPrice: 1.8,
+        originalTotalPrice: null,
+        discountTotal: null,
+        createdAt: Date.parse("2026-07-25T20:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T20:05:00.000Z"),
+      },
+      {
+        id: "price-observation-previous",
+        source: "ticket",
+        ticketId: "ticket-1",
+        ticketLineId: "line-1",
+        canonicalProductId: "canonical-platanos",
+        sectionId: "alcampo",
+        observedAt: Date.parse("2026-07-24T20:00:00.000Z"),
+        productName: "Plátanos",
+        quantity: "1 kg",
+        comparisonUnit: "kg",
+        priceKind: "unit",
+        observedPrice: 2.2,
+        unitPrice: 2.2,
+        totalPrice: 2.2,
+        originalTotalPrice: null,
+        discountTotal: null,
+        createdAt: Date.parse("2026-07-24T20:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-24T20:05:00.000Z"),
+      },
+      {
+        id: "price-observation-gasas",
+        source: "ticket",
+        ticketId: "ticket-3",
+        ticketLineId: "line-3",
+        canonicalProductId: "canonical-gasas",
+        sectionId: "farmacia",
+        observedAt: Date.parse("2026-07-25T19:00:00.000Z"),
+        productName: "Gasas",
+        quantity: "1 caja",
+        comparisonUnit: "unit",
+        priceKind: "total",
+        observedPrice: 3.5,
+        unitPrice: null,
+        totalPrice: 3.5,
+        originalTotalPrice: null,
+        discountTotal: null,
+        createdAt: Date.parse("2026-07-25T19:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T19:05:00.000Z"),
+      },
+      {
+        id: "price-observation-leche-latest",
+        source: "ticket",
+        ticketId: "ticket-4",
+        ticketLineId: "line-4",
+        canonicalProductId: "canonical-leche",
+        sectionId: "mercadona",
+        observedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        productName: "Leche",
+        quantity: "1 l",
+        comparisonUnit: "l",
+        priceKind: "unit",
+        observedPrice: 2,
+        unitPrice: 2,
+        totalPrice: 2,
+        originalTotalPrice: null,
+        discountTotal: null,
+        createdAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+      },
+      {
+        id: "price-observation-leche-previous",
+        source: "ticket",
+        ticketId: "ticket-5",
+        ticketLineId: "line-5",
+        canonicalProductId: "canonical-leche",
+        sectionId: "alcampo",
+        observedAt: Date.parse("2026-07-24T18:00:00.000Z"),
+        productName: "Leche",
+        quantity: "1 l",
+        comparisonUnit: "l",
+        priceKind: "unit",
+        observedPrice: 1.5,
+        unitPrice: 1.5,
+        totalPrice: 1.5,
+        originalTotalPrice: null,
+        discountTotal: null,
+        createdAt: Date.parse("2026-07-24T18:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-24T18:05:00.000Z"),
+      },
+      {
+        id: "price-observation-arroz-latest",
+        source: "ticket",
+        ticketId: "ticket-6",
+        ticketLineId: "line-6",
+        canonicalProductId: "canonical-arroz",
+        sectionId: "mercadona",
+        observedAt: Date.parse("2026-07-25T17:00:00.000Z"),
+        productName: "Arroz",
+        quantity: "1 paquete",
+        comparisonUnit: "unit",
+        priceKind: "total",
+        observedPrice: 1.25,
+        unitPrice: null,
+        totalPrice: 1.25,
+        originalTotalPrice: null,
+        discountTotal: null,
+        createdAt: Date.parse("2026-07-25T17:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T17:05:00.000Z"),
+      },
+      {
+        id: "price-observation-arroz-previous",
+        source: "ticket",
+        ticketId: "ticket-7",
+        ticketLineId: "line-7",
+        canonicalProductId: "canonical-arroz",
+        sectionId: "alcampo",
+        observedAt: Date.parse("2026-07-24T17:00:00.000Z"),
+        productName: "Arroz",
+        quantity: "1 paquete",
+        comparisonUnit: "unit",
+        priceKind: "total",
+        observedPrice: 1.25,
+        unitPrice: null,
+        totalPrice: 1.25,
+        originalTotalPrice: null,
+        discountTotal: null,
+        createdAt: Date.parse("2026-07-24T17:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-24T17:05:00.000Z"),
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByText("Plátanos")).toBeInTheDocument();
+    expect(await screen.findByText("Últ. 1,80 €/kg")).toBeInTheDocument();
+    expect(screen.getByText("Media 2,00 €/kg")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ver precios de Plátanos" }),
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Plátanos",
+    });
+
+    expect(
+      within(dialog).getByText("Histórico de precios"),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText("-0,40 €/kg")).toBeInTheDocument();
+    expect(within(dialog).getAllByText("Mercadona").length).toBeGreaterThan(0);
+    expect(within(dialog).getByText("Alcampo")).toBeInTheDocument();
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Cerrar precios" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Plátanos" }),
+      ).not.toBeInTheDocument(),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ver precios de Gasas" }),
+    );
+    const unitDialog = await screen.findByRole("dialog", { name: "Gasas" });
+
+    expect(
+      within(unitDialog).getAllByText("3,50 €/ud.").length,
+    ).toBeGreaterThan(0);
+    expect(within(unitDialog).getByText("Sin anterior")).toBeInTheDocument();
+    fireEvent.keyDown(unitDialog, { key: "Escape" });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Gasas" }),
+      ).not.toBeInTheDocument(),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ver precios de Leche" }),
+    );
+    const literDialog = await screen.findByRole("dialog", { name: "Leche" });
+
+    expect(within(literDialog).getByText("+0,50 €/l")).toBeInTheDocument();
+    fireEvent.click(
+      within(literDialog).getByRole("button", { name: "Cerrar precios" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Leche" }),
+      ).not.toBeInTheDocument(),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ver precios de Arroz" }),
+    );
+    const neutralDialog = await screen.findByRole("dialog", { name: "Arroz" });
+
+    expect(within(neutralDialog).getByText("0,00 €/ud.")).toBeInTheDocument();
+    fireEvent.keyDown(
+      within(neutralDialog).getByRole("button", {
+        name: "Cerrar detalle de precios",
+      }),
+      { key: "Enter" },
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Arroz" }),
+      ).not.toBeInTheDocument(),
+    );
   });
 
   it("keeps a purchased item stable while its Supabase echo arrives during save", async () => {

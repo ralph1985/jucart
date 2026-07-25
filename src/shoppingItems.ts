@@ -195,6 +195,30 @@ export type ShoppingTicket = {
   lines: ShoppingTicketLine[];
 };
 
+export type ShoppingPriceObservationSource = "ticket" | "external";
+export type ShoppingPriceObservationPriceKind = "unit" | "total";
+
+export type ShoppingPriceObservation = {
+  id: string;
+  source: ShoppingPriceObservationSource;
+  ticketId: string | null;
+  ticketLineId: string | null;
+  canonicalProductId: string;
+  sectionId: ShoppingSectionId;
+  observedAt: number;
+  productName: string | null;
+  quantity: string | null;
+  comparisonUnit: CanonicalProductComparisonUnit;
+  priceKind: ShoppingPriceObservationPriceKind;
+  observedPrice: number;
+  unitPrice: number | null;
+  totalPrice: number | null;
+  originalTotalPrice: number | null;
+  discountTotal: number | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export const defaultShoppingCategories: ShoppingCategory[] =
   shoppingCategories.map((category, position) => ({ ...category, position }));
 

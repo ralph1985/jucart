@@ -186,6 +186,7 @@ vi.mock("@supabase/supabase-js", () => ({
 
 import {
   getLatestDeveloperBackupRun,
+  getSupabasePriceObservations,
   getSupabaseShoppingData,
   getSupabaseShoppingTickets,
   createSupabaseTicketFileUrl,
@@ -200,6 +201,7 @@ import {
   mapRowToShoppingItem,
   mapRowToShoppingProductNormalizationChange,
   mapRowToShoppingProductNormalizationRun,
+  mapRowToShoppingPriceObservation,
   mapRowToShoppingProductCatalogEntry,
   mapRowToShoppingRecategorizationChange,
   mapRowToShoppingRecategorizationRun,
@@ -898,6 +900,57 @@ describe("shopping items Supabase adapter", () => {
     });
   });
 
+  it("loads Supabase price observations for the configured list", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.setResult("shopping_price_observations", "select", {
+      data: [
+        {
+          id: "price-observation-1",
+          list_id: configuredSupabase.listId,
+          source: "ticket",
+          ticket_id: "ticket-1",
+          ticket_line_id: "ticket-line-1",
+          canonical_product_id: "canonical-platanos",
+          section_id: "mercadona",
+          observed_at: "2026-07-25T20:15:00.000Z",
+          product_name: "Plátanos",
+          quantity: "1 kg",
+          comparison_unit: "kg",
+          price_kind: "unit",
+          observed_price: 1.95,
+          unit_price: 1.95,
+          total_price: 1.95,
+          original_total_price: null,
+          discount_total: null,
+          created_at: "2026-07-25T20:20:00.000Z",
+          updated_at: "2026-07-25T20:20:05.000Z",
+        },
+      ],
+    });
+
+    const observations = await getSupabasePriceObservations();
+
+    expect(observations).toHaveLength(1);
+    expect(observations?.[0]).toMatchObject({
+      canonicalProductId: "canonical-platanos",
+      comparisonUnit: "kg",
+      observedPrice: 1.95,
+      sectionId: "mercadona",
+    });
+    expect(supabaseMocks.operations).toContainEqual({
+      args: ["list_id", configuredSupabase.listId],
+      operation: "eq",
+      table: "shopping_price_observations",
+    });
+    expect(supabaseMocks.operations).toContainEqual({
+      args: ["observed_at", { ascending: false }],
+      operation: "order",
+      table: "shopping_price_observations",
+    });
+  });
+
   it("uploads ticket files before creating ticket metadata", async () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
@@ -1530,6 +1583,51 @@ describe("shopping items Supabase adapter", () => {
       id: "normalization-change-1",
       action: "alias_created",
       nextCanonicalProductId: "canonical-1",
+    });
+  });
+
+  it("maps Supabase price observation rows", () => {
+    expect(
+      mapRowToShoppingPriceObservation({
+        id: "price-observation-1",
+        list_id: configuredSupabase.listId,
+        source: "ticket",
+        ticket_id: "ticket-1",
+        ticket_line_id: "ticket-line-1",
+        canonical_product_id: "canonical-platanos",
+        section_id: "mercadona",
+        observed_at: "2026-07-25T20:15:00.000Z",
+        product_name: "Plátanos",
+        quantity: "1 kg",
+        comparison_unit: "kg",
+        price_kind: "unit",
+        observed_price: 1.95,
+        unit_price: 1.95,
+        total_price: 1.95,
+        original_total_price: 2.1,
+        discount_total: 0.15,
+        created_at: "2026-07-25T20:20:00.000Z",
+        updated_at: "2026-07-25T20:20:05.000Z",
+      }),
+    ).toEqual({
+      id: "price-observation-1",
+      source: "ticket",
+      ticketId: "ticket-1",
+      ticketLineId: "ticket-line-1",
+      canonicalProductId: "canonical-platanos",
+      sectionId: "mercadona",
+      observedAt: Date.parse("2026-07-25T20:15:00.000Z"),
+      productName: "Plátanos",
+      quantity: "1 kg",
+      comparisonUnit: "kg",
+      priceKind: "unit",
+      observedPrice: 1.95,
+      unitPrice: 1.95,
+      totalPrice: 1.95,
+      originalTotalPrice: 2.1,
+      discountTotal: 0.15,
+      createdAt: Date.parse("2026-07-25T20:20:00.000Z"),
+      updatedAt: Date.parse("2026-07-25T20:20:05.000Z"),
     });
   });
 

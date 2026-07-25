@@ -32,6 +32,7 @@ import {
 import {
   addShoppingItem,
   addShoppingSection,
+  CanonicalProductComparisonUnit,
   compareShoppingItemsForShopping,
   createInitialShoppingHistoryEvents,
   createShoppingHistoryEvent,
@@ -59,6 +60,7 @@ import {
   ShoppingItem,
   ShoppingProductNormalizationChange,
   ShoppingProductNormalizationRun,
+  ShoppingPriceObservation,
   ShoppingProductCatalogEntry,
   ShoppingRecategorizationChange,
   ShoppingRecategorizationRun,
@@ -153,6 +155,7 @@ type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
 type AppOverlay =
   | "add-sheet"
   | "ticket-upload-sheet"
+  | "price-detail-sheet"
   | "section-add-sheet"
   | "freezer-add-sheet"
   | "freezer-edit-sheet"
@@ -163,6 +166,7 @@ type BottomSheetOverlay = Extract<
   AppOverlay,
   | "add-sheet"
   | "ticket-upload-sheet"
+  | "price-detail-sheet"
   | "section-add-sheet"
   | "freezer-add-sheet"
   | "freezer-edit-sheet"
@@ -381,6 +385,142 @@ function getInitialHistoryClientId() {
 
 function formatShoppingItemQuantity(quantity: string) {
   return /^\d+(?:[.,]\d+)?$/.test(quantity) ? `x${quantity}` : quantity;
+}
+
+type ProductPriceSummary = {
+  latestObservedAt: number;
+  latestPrice: number;
+  averagePrice: number;
+  comparisonUnit: CanonicalProductComparisonUnit;
+  observationCount: number;
+};
+
+type ProductPriceSectionSummary = ProductPriceSummary & {
+  sectionId: ShoppingSectionId;
+};
+
+function getProductPriceSummaries(
+  priceObservations: ShoppingPriceObservation[],
+) {
+  const observationsByProductId = priceObservations.reduce(
+    (groups, observation) => {
+      const currentObservations =
+        groups.get(observation.canonicalProductId) ?? [];
+      currentObservations.push(observation);
+      groups.set(observation.canonicalProductId, currentObservations);
+
+      return groups;
+    },
+    new Map<string, ShoppingPriceObservation[]>(),
+  );
+  const priceSummaries = new Map<string, ProductPriceSummary>();
+
+  observationsByProductId.forEach((observations, canonicalProductId) => {
+    const [latestObservation] = [...observations].sort(
+      (firstObservation, secondObservation) =>
+        secondObservation.observedAt - firstObservation.observedAt,
+    );
+
+    if (!latestObservation) {
+      return;
+    }
+
+    priceSummaries.set(canonicalProductId, {
+      latestObservedAt: latestObservation.observedAt,
+      latestPrice: latestObservation.observedPrice,
+      averagePrice:
+        observations.reduce(
+          (total, observation) => total + observation.observedPrice,
+          0,
+        ) / observations.length,
+      comparisonUnit: latestObservation.comparisonUnit,
+      observationCount: observations.length,
+    });
+  });
+
+  return priceSummaries;
+}
+
+function getPriceSectionSummaries(
+  priceObservations: ShoppingPriceObservation[],
+) {
+  const observationsBySectionId = priceObservations.reduce(
+    (groups, observation) => {
+      const currentObservations = groups.get(observation.sectionId) ?? [];
+      currentObservations.push(observation);
+      groups.set(observation.sectionId, currentObservations);
+
+      return groups;
+    },
+    new Map<ShoppingSectionId, ShoppingPriceObservation[]>(),
+  );
+
+  return [...observationsBySectionId.entries()]
+    .map(([sectionId, observations]): ProductPriceSectionSummary | null => {
+      const [latestObservation] = [...observations].sort(
+        (firstObservation, secondObservation) =>
+          secondObservation.observedAt - firstObservation.observedAt,
+      );
+
+      if (!latestObservation) {
+        return null;
+      }
+
+      return {
+        sectionId,
+        latestObservedAt: latestObservation.observedAt,
+        latestPrice: latestObservation.observedPrice,
+        averagePrice:
+          observations.reduce(
+            (total, observation) => total + observation.observedPrice,
+            0,
+          ) / observations.length,
+        comparisonUnit: latestObservation.comparisonUnit,
+        observationCount: observations.length,
+      };
+    })
+    .filter((summary): summary is ProductPriceSectionSummary =>
+      Boolean(summary),
+    )
+    .sort(
+      (firstSummary, secondSummary) =>
+        secondSummary.latestObservedAt - firstSummary.latestObservedAt,
+    );
+}
+
+function formatPriceValue(value: number) {
+  return new Intl.NumberFormat("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatComparisonUnit(unit: CanonicalProductComparisonUnit) {
+  if (unit === "kg") {
+    return "€/kg";
+  }
+
+  if (unit === "l") {
+    return "€/l";
+  }
+
+  return "€/ud.";
+}
+
+function formatPriceSummaryValue(
+  value: number,
+  unit: CanonicalProductComparisonUnit,
+) {
+  return `${formatPriceValue(value)} ${formatComparisonUnit(unit)}`;
+}
+
+function formatPriceDifference(
+  value: number,
+  unit: CanonicalProductComparisonUnit,
+) {
+  const prefix = value > 0 ? "+" : "";
+
+  return `${prefix}${formatPriceSummaryValue(value, unit)}`;
 }
 
 function selectTextOnFocus(event: FocusEvent<HTMLInputElement>) {
@@ -1013,6 +1153,21 @@ function shouldShowPushNotificationInvite(
   );
 }
 
+async function getStoredPriceObservations() {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  try {
+    const { getSupabasePriceObservations } =
+      await import("./shoppingItemsSupabase");
+
+    return (await getSupabasePriceObservations()) ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export function App() {
   const [activeView, setActiveView] = useState<AppView>("shopping");
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -1047,6 +1202,12 @@ export function App() {
   const [productNormalizationChanges, setProductNormalizationChanges] =
     useState<ShoppingProductNormalizationChange[]>([]);
   const [tickets, setTickets] = useState<ShoppingTicket[]>([]);
+  const [priceObservations, setPriceObservations] = useState<
+    ShoppingPriceObservation[]
+  >([]);
+  const [selectedPriceProductId, setSelectedPriceProductId] = useState<
+    string | null
+  >(null);
   const [ticketFilter, setTicketFilter] = useState<TicketFilter>("all");
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [isTicketsLoading, setIsTicketsLoading] = useState(false);
@@ -1186,6 +1347,8 @@ export function App() {
   const freezerAddSheetRef = useRef<HTMLFormElement>(null);
   const ticketUploadSheetBackdropRef = useRef<HTMLDivElement>(null);
   const ticketUploadSheetRef = useRef<HTMLFormElement>(null);
+  const priceDetailSheetBackdropRef = useRef<HTMLDivElement>(null);
+  const priceDetailSheetRef = useRef<HTMLElement>(null);
   const ticketFileInputRef = useRef<HTMLInputElement>(null);
   const freezerEditSheetBackdropRef = useRef<HTMLDivElement>(null);
   const freezerEditSheetRef = useRef<HTMLFormElement>(null);
@@ -1255,6 +1418,7 @@ export function App() {
   const isBottomSheetOpen =
     isAddSheetOpen ||
     isTicketUploadSheetOpen ||
+    selectedPriceProductId !== null ||
     isSectionAddSheetOpen ||
     isFreezerAddSheetOpen ||
     editingFreezerItem !== null;
@@ -1276,6 +1440,46 @@ export function App() {
     ticketFilter === "all"
       ? tickets
       : tickets.filter((ticket) => ticket.status === ticketFilter);
+  const productPriceSummaries = getProductPriceSummaries(priceObservations);
+  const selectedPriceProduct = selectedPriceProductId
+    ? canonicalProducts.find((product) => product.id === selectedPriceProductId)
+    : null;
+  const selectedPriceObservations = selectedPriceProductId
+    ? priceObservations
+        .filter(
+          (observation) =>
+            observation.canonicalProductId === selectedPriceProductId,
+        )
+        .sort(
+          (firstObservation, secondObservation) =>
+            secondObservation.observedAt - firstObservation.observedAt,
+        )
+    : [];
+  const selectedPriceSummary = selectedPriceProductId
+    ? productPriceSummaries.get(selectedPriceProductId)
+    : null;
+  const selectedPriceSectionSummaries = getPriceSectionSummaries(
+    selectedPriceObservations,
+  );
+  const selectedLatestPriceObservation = selectedPriceObservations[0] ?? null;
+  const selectedPreviousPriceObservation = selectedPriceObservations[1] ?? null;
+  const selectedPriceDifference =
+    selectedLatestPriceObservation && selectedPreviousPriceObservation
+      ? selectedLatestPriceObservation.observedPrice -
+        selectedPreviousPriceObservation.observedPrice
+      : null;
+  const selectedPriceDifferenceClassName =
+    selectedPriceDifference === null
+      ? styles.priceDifferenceNeutral
+      : selectedPriceDifference > 0
+        ? styles.priceDifferenceUp
+        : selectedPriceDifference < 0
+          ? styles.priceDifferenceDown
+          : styles.priceDifferenceNeutral;
+  const selectedPriceProductName =
+    selectedPriceProduct?.name ??
+    selectedLatestPriceObservation?.productName ??
+    "Producto";
   const recentHistoryEvents = getRecentShoppingHistoryEvents(historyEvents);
   const quickItemSuggestions =
     isLoaded && isAddSheetOpen
@@ -1557,7 +1761,10 @@ export function App() {
       const finishRemoteRequest = beginRemoteRequest();
 
       try {
-        const storedData = await getStoredShoppingData();
+        const [storedData, nextPriceObservations] = await Promise.all([
+          getStoredShoppingData(),
+          getStoredPriceObservations(),
+        ]);
 
         if (!isActive) {
           return;
@@ -1602,6 +1809,7 @@ export function App() {
         setProductNormalizationChanges(
           nextStoredData.productNormalizationChanges ?? [],
         );
+        setPriceObservations(nextPriceObservations);
         setSelectedSectionId((currentSectionId) =>
           isShoppingSectionId(currentSectionId, nextStoredData.sections)
             ? currentSectionId
@@ -2128,6 +2336,34 @@ export function App() {
   }, [closingBottomSheet, isTicketUploadSheetOpen]);
 
   useLayoutEffect(() => {
+    if (
+      selectedPriceProductId === null ||
+      closingBottomSheet === "price-detail-sheet"
+    ) {
+      return;
+    }
+
+    const sheet = priceDetailSheetRef.current;
+    const backdrop = priceDetailSheetBackdropRef.current;
+
+    if (!sheet || !backdrop) {
+      return;
+    }
+
+    runAnimation(backdrop, {
+      opacity: [0, 1],
+      duration: 180,
+      ease: "outCubic",
+    });
+    runAnimation(sheet, {
+      opacity: [0.92, 1],
+      y: ["100%", 0],
+      duration: 260,
+      ease: "outCubic",
+    });
+  }, [closingBottomSheet, selectedPriceProductId]);
+
+  useLayoutEffect(() => {
     if (!isSectionAddSheetOpen || closingBottomSheet === "section-add-sheet") {
       return;
     }
@@ -2367,6 +2603,11 @@ export function App() {
         return;
       }
 
+      if (selectedPriceProductId !== null) {
+        priceDetailSheetRef.current?.focus({ preventScroll: true });
+        return;
+      }
+
       if (editingFreezerItem) {
         editingFreezerItemNameInputRef.current?.focus({
           preventScroll: true,
@@ -2394,6 +2635,7 @@ export function App() {
     isBottomSheetOpen,
     isSectionAddSheetOpen,
     isTicketUploadSheetOpen,
+    selectedPriceProductId,
   ]);
 
   useEffect(() => {
@@ -2592,6 +2834,34 @@ export function App() {
     runHapticFeedback("light");
   }
 
+  function closePriceDetailSheet(syncHistory = true) {
+    closeBottomSheetWithAnimation(
+      "price-detail-sheet",
+      priceDetailSheetRef.current,
+      priceDetailSheetBackdropRef.current,
+      () => {
+        if (syncHistory) {
+          consumeOverlayHistory("price-detail-sheet");
+        }
+
+        setSelectedPriceProductId(null);
+        setClosingBottomSheet(null);
+        setSheetDragOffset(0);
+        addSheetDragStartYRef.current = null;
+      },
+    );
+  }
+
+  function openPriceDetailSheet(item: ShoppingItem) {
+    if (!item.canonicalProductId) {
+      return;
+    }
+
+    pushOverlayHistory("price-detail-sheet");
+    setSelectedPriceProductId(item.canonicalProductId);
+    runHapticFeedback("light");
+  }
+
   function closeSectionAddSheet(restoreFabFocus = true, syncHistory = true) {
     closeBottomSheetWithAnimation(
       "section-add-sheet",
@@ -2657,6 +2927,11 @@ export function App() {
       return;
     }
 
+    if (selectedPriceProductId !== null) {
+      closePriceDetailSheet();
+      return;
+    }
+
     if (isSectionAddSheetOpen) {
       closeSectionAddSheet();
       return;
@@ -2691,6 +2966,11 @@ export function App() {
 
       if (overlay === "ticket-upload-sheet") {
         closeTicketUploadSheet(false, false);
+        return;
+      }
+
+      if (overlay === "price-detail-sheet") {
+        closePriceDetailSheet(false);
         return;
       }
 
@@ -3958,6 +4238,9 @@ export function App() {
         shouldShowPurchasedDivider &&
         item.purchased &&
         !visibleItems[index - 1]?.purchased;
+      const itemPriceSummary = item.canonicalProductId
+        ? productPriceSummaries.get(item.canonicalProductId)
+        : null;
       const itemContent = (
         <li
           ref={(itemElement) => {
@@ -4010,6 +4293,51 @@ export function App() {
               </span>
             ) : null}
           </span>
+          {itemPriceSummary ? (
+            <span
+              className={styles.itemPriceSummary}
+              aria-label={`Último precio ${formatPriceSummaryValue(
+                itemPriceSummary.latestPrice,
+                itemPriceSummary.comparisonUnit,
+              )}, media ${formatPriceSummaryValue(
+                itemPriceSummary.averagePrice,
+                itemPriceSummary.comparisonUnit,
+              )}`}
+              title={`${itemPriceSummary.observationCount} ${
+                itemPriceSummary.observationCount === 1
+                  ? "observación"
+                  : "observaciones"
+              }`}
+            >
+              <span>
+                Últ.{" "}
+                {formatPriceSummaryValue(
+                  itemPriceSummary.latestPrice,
+                  itemPriceSummary.comparisonUnit,
+                )}
+              </span>
+              <span>
+                Media{" "}
+                {formatPriceSummaryValue(
+                  itemPriceSummary.averagePrice,
+                  itemPriceSummary.comparisonUnit,
+                )}
+              </span>
+              <button
+                className={styles.itemPriceDetailButton}
+                type="button"
+                aria-label={`Ver precios de ${item.name}`}
+                title="Ver precios"
+                onPointerDown={handleButtonPointerDown}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openPriceDetailSheet(item);
+                }}
+              >
+                <Icon name="history" />
+              </button>
+            </span>
+          ) : null}
           <span className={styles.itemMeta}>
             {getShoppingUserName(item.addedBy)}
           </span>
@@ -4904,6 +5232,200 @@ export function App() {
               </button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {activeView === "shopping" && selectedPriceProductId ? (
+        <div
+          ref={priceDetailSheetBackdropRef}
+          className={styles.addSheetBackdrop}
+          style={
+            {
+              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
+            } as CSSProperties
+          }
+          onClick={() => closePriceDetailSheet()}
+        >
+          <section
+            ref={priceDetailSheetRef}
+            className={`${styles.addSheet} ${styles.priceDetailSheet}`}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="price-detail-title"
+            tabIndex={-1}
+            style={
+              {
+                "--sheet-drag-offset": `${sheetDragOffset}px`,
+              } as CSSProperties
+            }
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                closePriceDetailSheet();
+              }
+            }}
+          >
+            <div
+              className={styles.addSheetHandle}
+              aria-label="Cerrar detalle de precios"
+              role="button"
+              tabIndex={0}
+              onPointerDown={handleAddSheetDragStart}
+              onPointerMove={handleAddSheetDragMove}
+              onPointerUp={handleAddSheetDragEnd}
+              onPointerCancel={handleAddSheetDragEnd}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  closePriceDetailSheet();
+                }
+              }}
+            >
+              <span />
+            </div>
+            <header className={styles.priceDetailHeader}>
+              <div>
+                <h2 id="price-detail-title">{selectedPriceProductName}</h2>
+                <p>Histórico de precios</p>
+              </div>
+              <button
+                className={styles.iconButton}
+                type="button"
+                aria-label="Cerrar precios"
+                title="Cerrar"
+                onPointerDown={handleButtonPointerDown}
+                onClick={() => closePriceDetailSheet()}
+              >
+                <Icon name="close" />
+              </button>
+            </header>
+            {selectedPriceSummary ? (
+              <dl className={styles.priceDetailMetrics}>
+                <div>
+                  <dt>Último</dt>
+                  <dd>
+                    {formatPriceSummaryValue(
+                      selectedPriceSummary.latestPrice,
+                      selectedPriceSummary.comparisonUnit,
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Media</dt>
+                  <dd>
+                    {formatPriceSummaryValue(
+                      selectedPriceSummary.averagePrice,
+                      selectedPriceSummary.comparisonUnit,
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Observaciones</dt>
+                  <dd>{selectedPriceSummary.observationCount}</dd>
+                </div>
+              </dl>
+            ) : null}
+            <div className={styles.priceDetailContent}>
+              {selectedLatestPriceObservation ? (
+                <section
+                  className={styles.priceDetailPanel}
+                  aria-labelledby="price-latest-title"
+                >
+                  <h3 id="price-latest-title">Último precio</h3>
+                  <div className={styles.priceLatestGrid}>
+                    <strong>
+                      {formatPriceSummaryValue(
+                        selectedLatestPriceObservation.observedPrice,
+                        selectedLatestPriceObservation.comparisonUnit,
+                      )}
+                    </strong>
+                    <span>
+                      {sections.find(
+                        (section) =>
+                          section.id ===
+                          selectedLatestPriceObservation.sectionId,
+                      )?.name ?? selectedLatestPriceObservation.sectionId}
+                    </span>
+                    <span>
+                      {formatTicketDate(
+                        selectedLatestPriceObservation.observedAt,
+                      )}
+                    </span>
+                    <span className={selectedPriceDifferenceClassName}>
+                      {selectedPriceDifference === null
+                        ? "Sin anterior"
+                        : formatPriceDifference(
+                            selectedPriceDifference,
+                            selectedLatestPriceObservation.comparisonUnit,
+                          )}
+                    </span>
+                  </div>
+                </section>
+              ) : null}
+              {selectedPriceSectionSummaries.length > 0 ? (
+                <section
+                  className={styles.priceDetailPanel}
+                  aria-labelledby="price-sections-title"
+                >
+                  <h3 id="price-sections-title">Por lista</h3>
+                  <ol className={styles.priceSectionList}>
+                    {selectedPriceSectionSummaries.map((summary) => (
+                      <li key={summary.sectionId}>
+                        <span>
+                          {sections.find(
+                            (section) => section.id === summary.sectionId,
+                          )?.name ?? summary.sectionId}
+                        </span>
+                        <strong>
+                          {formatPriceSummaryValue(
+                            summary.latestPrice,
+                            summary.comparisonUnit,
+                          )}
+                        </strong>
+                        <small>
+                          Media{" "}
+                          {formatPriceSummaryValue(
+                            summary.averagePrice,
+                            summary.comparisonUnit,
+                          )}{" "}
+                          · {summary.observationCount}
+                        </small>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              ) : null}
+              {selectedPriceObservations.length > 0 ? (
+                <section
+                  className={styles.priceDetailPanel}
+                  aria-labelledby="price-observations-title"
+                >
+                  <h3 id="price-observations-title">Observaciones</h3>
+                  <ol className={styles.priceObservationList}>
+                    {selectedPriceObservations.map((observation) => (
+                      <li key={observation.id}>
+                        <span>
+                          {formatTicketDate(observation.observedAt)} ·{" "}
+                          {sections.find(
+                            (section) => section.id === observation.sectionId,
+                          )?.name ?? observation.sectionId}
+                        </span>
+                        <strong>
+                          {formatPriceSummaryValue(
+                            observation.observedPrice,
+                            observation.comparisonUnit,
+                          )}
+                        </strong>
+                        {observation.quantity ? (
+                          <small>{observation.quantity}</small>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              ) : null}
+            </div>
+          </section>
         </div>
       ) : null}
 

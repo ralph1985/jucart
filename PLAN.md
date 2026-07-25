@@ -442,8 +442,8 @@ Objetivo: analizar tickets pendientes por la noche desde la máquina local y con
 - [ ] Ejecutar la generación y mantenimiento nocturno de productos canónicos y aliases.
 - [x] Asociar cada línea a un producto canónico existente o dejarla como `needs_review` si la confianza es baja.
 - [x] Marcar el ticket como `needs_review` si alguna línea queda en revisión, manteniendo marcadas las líneas afectadas.
-- [ ] Generar observaciones de precio para las líneas válidas aunque el ticket completo quede `needs_review`.
-- [ ] Usar el precio original sin descuento como base de medias y comparativas cuando esté disponible.
+- [x] Generar observaciones de precio para las líneas válidas aunque el ticket completo quede `needs_review`.
+- [x] Usar el precio original sin descuento como base de medias y comparativas cuando esté disponible.
 - [x] Usar el precio final como observación normal cuando el ticket no muestre un precio original claro.
 - [x] Fechar observaciones con la fecha detectada en el ticket y usar la fecha de subida si no se puede leer.
 - [x] Guardar líneas de ticket y observaciones de precio en Supabase de forma idempotente por ticket y línea.
@@ -460,11 +460,11 @@ Objetivo: analizar tickets pendientes por la noche desde la máquina local y con
 
 Objetivo: hacer visible el histórico de precios sin convertir Jucart en una aplicación pesada.
 
-- [ ] Mostrar en cada tarjeta de la lista de compra el último precio global y precio medio global en formato pequeño cuando exista histórico suficiente.
-- [ ] Añadir en la tarjeta un botón para abrir el detalle ampliado de precios del producto en bottom sheet.
-- [ ] Mostrar por producto canónico el último precio, supermercado, fecha y diferencia exacta en euros frente al precio anterior.
-- [ ] Mostrar en el bottom sheet desglose por supermercado/lista, como Mercadona frente a Alcampo.
-- [ ] Mostrar todas las observaciones históricas disponibles por producto.
+- [x] Mostrar en cada tarjeta de la lista de compra el último precio global y precio medio global en formato pequeño cuando exista histórico suficiente.
+- [x] Añadir en la tarjeta un botón para abrir el detalle ampliado de precios del producto en bottom sheet.
+- [x] Mostrar por producto canónico el último precio, supermercado, fecha y diferencia exacta en euros frente al precio anterior.
+- [x] Mostrar en el bottom sheet desglose por supermercado/lista, como Mercadona frente a Alcampo.
+- [x] Mostrar todas las observaciones históricas disponibles por producto.
 - [ ] Añadir en la vista Tickets la cola de revisión para líneas dudosas y aliases nuevos propuestos por Codex.
 - [ ] Permitir desde Tickets aceptar una asociación, crear un alias o dejar la línea fuera del análisis.
 - [ ] Crear automáticamente un alias cuando se acepte manualmente una asociación de línea con producto canónico.

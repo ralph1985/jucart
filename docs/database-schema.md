@@ -21,6 +21,8 @@ erDiagram
   SHOPPING_TICKETS ||--o{ SHOPPING_TICKET_FILES : contains
   SHOPPING_TICKETS ||--o{ SHOPPING_TICKET_LINES : extracts
   SHOPPING_CANONICAL_PRODUCTS ||--o{ SHOPPING_TICKET_LINES : matches
+  SHOPPING_CANONICAL_PRODUCTS ||--o{ SHOPPING_PRICE_OBSERVATIONS : prices
+  SHOPPING_TICKET_LINES ||--o| SHOPPING_PRICE_OBSERVATIONS : produces
 
   SHOPPING_SECTIONS {
     text id PK "id de lista, ej: mercadona"
@@ -193,6 +195,26 @@ erDiagram
     text review_reason
   }
 
+  SHOPPING_PRICE_OBSERVATIONS {
+    uuid id PK
+    uuid list_id
+    text source "ticket|external"
+    uuid ticket_id FK
+    uuid ticket_line_id FK
+    uuid canonical_product_id FK
+    text section_id "supermercado/lista"
+    timestamptz observed_at
+    text product_name
+    text quantity
+    text comparison_unit "kg|l|unit"
+    text price_kind "unit|total"
+    numeric observed_price
+    numeric unit_price
+    numeric total_price
+    numeric original_total_price
+    numeric discount_total
+  }
+
   PUSH_SUBSCRIPTIONS {
     uuid id PK
     uuid list_id "lista compartida configurada por entorno"
@@ -282,6 +304,11 @@ VITE_SUPABASE_LIST_ID
   |     - líneas extraídas por el procesamiento nocturno
   |     - puede asociar producto canónico o quedar marcada como needs_review
   |
+  +-- shopping_price_observations
+  |     - observaciones históricas de precio por producto canónico
+  |     - source distingue tickets reales de futuras fuentes externas
+  |     - observed_price es el precio comparable para medias y tendencias
+  |
   +-- storage.objects / bucket shopping-tickets
   |     - bucket privado para PDFs/fotos de tickets
   |     - la app abre archivos mediante URL firmada temporal
@@ -367,3 +394,4 @@ Al cargar, si Supabase está disponible, la aplicación lee datos remotos, categ
 - `supabase/migrations/20260724102000_create_push_subscription_rpc.sql`: crea RPC `security definer` para registrar y desactivar suscripciones push sin conceder lectura pública de endpoints.
 - `supabase/migrations/20260725120000_create_canonical_products.sql`: crea productos canónicos, aliases, enlace desde productos y el historial de normalizaciones nocturnas.
 - `supabase/migrations/20260725180000_create_shopping_tickets.sql`: crea el bucket privado `shopping-tickets`, la bandeja remota de tickets, archivos asociados y líneas extraídas para el procesamiento nocturno.
+- `supabase/migrations/20260725211500_create_price_observations.sql`: crea observaciones históricas de precio por producto canónico, supermercado/lista y fuente, con backfill desde líneas de ticket ya procesadas.

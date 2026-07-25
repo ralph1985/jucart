@@ -224,6 +224,7 @@ async function applyExtraction(rawExtraction) {
   let insertedLineCount = 0;
 
   for (const ticket of extractionTickets) {
+    const currentTicket = ticketsById.get(ticket.id);
     const plannedProductsByClientId = new Map();
 
     for (const product of ticket.canonicalProducts) {
@@ -316,6 +317,16 @@ async function applyExtraction(rawExtraction) {
       "list_id,normalized_alias",
     );
     await upsertRows("shopping_ticket_lines", lineRows, "ticket_id,line_index");
+    await upsertRows(
+      "shopping_price_observations",
+      await buildPriceObservationRows({
+        currentTicket,
+        lineRows,
+        productsById,
+        ticket,
+      }),
+      "ticket_line_id",
+    );
 
     insertedLineCount += lineRows.length;
 
@@ -327,7 +338,7 @@ async function applyExtraction(rawExtraction) {
       `id=eq.${encodeURIComponent(ticket.id)}&list_id=eq.${config.listId}`,
       {
         status,
-        processed_at: ticket.purchased_at || new Date().toISOString(),
+        processed_at: new Date().toISOString(),
         error_message: null,
       },
     );
@@ -336,6 +347,92 @@ async function applyExtraction(rawExtraction) {
   console.log(
     `Processed ${extractionTickets.length} ticket(s) and ${insertedLineCount} line(s).`,
   );
+}
+
+async function buildPriceObservationRows({
+  currentTicket,
+  lineRows,
+  productsById,
+  ticket,
+}) {
+  const persistedLines = await fetchRows(
+    "shopping_ticket_lines",
+    "ticket_id",
+    ticket.id,
+    "line_index.asc",
+  );
+  const persistedLinesByLineIndex = new Map(
+    persistedLines.map((line) => [line.line_index, line]),
+  );
+  const observedAt =
+    ticket.purchased_at ||
+    currentTicket.uploaded_at ||
+    new Date().toISOString();
+  const observationRows = [];
+
+  for (const line of lineRows) {
+    const ticketLine = persistedLinesByLineIndex.get(line.line_index);
+    const canonicalProduct = line.canonical_product_id
+      ? productsById.get(line.canonical_product_id)
+      : null;
+    const observedPrice = calculateObservedPrice(line);
+
+    if (
+      !ticketLine ||
+      !canonicalProduct ||
+      line.needs_review ||
+      line.status !== "processed" ||
+      observedPrice === null
+    ) {
+      continue;
+    }
+
+    observationRows.push({
+      list_id: config.listId,
+      source: "ticket",
+      ticket_id: ticket.id,
+      ticket_line_id: ticketLine.id,
+      canonical_product_id: line.canonical_product_id,
+      section_id: currentTicket.section_id,
+      observed_at: observedAt,
+      product_name: line.product_name,
+      quantity: line.quantity,
+      comparison_unit: canonicalProduct.comparison_unit,
+      price_kind: line.unit_price === null ? "total" : "unit",
+      observed_price: observedPrice,
+      unit_price: line.unit_price,
+      total_price: line.total_price,
+      original_total_price: line.original_total_price,
+      discount_total: line.discount_total,
+    });
+  }
+
+  return observationRows;
+}
+
+function calculateObservedPrice(line) {
+  if (line.unit_price !== null) {
+    if (
+      line.original_total_price !== null &&
+      line.total_price !== null &&
+      line.total_price > 0
+    ) {
+      return roundPrice(
+        (line.unit_price * line.original_total_price) / line.total_price,
+        4,
+      );
+    }
+
+    return line.unit_price;
+  }
+
+  return line.original_total_price ?? line.total_price;
+}
+
+function roundPrice(value, decimals) {
+  const factor = 10 ** decimals;
+
+  return Math.round(value * factor) / factor;
 }
 
 async function markContextTicketsFailed(context, message) {

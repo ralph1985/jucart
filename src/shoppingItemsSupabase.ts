@@ -6,6 +6,7 @@ import {
   isFreezerDrawerId,
 } from "./freezerItems";
 import {
+  CanonicalProductComparisonUnit,
   defaultShoppingCategories,
   defaultShoppingProductCatalogEntries,
   defaultShoppingSections,
@@ -24,6 +25,9 @@ import {
   ShoppingItem,
   ShoppingProductNormalizationChange,
   ShoppingProductNormalizationRun,
+  ShoppingPriceObservation,
+  ShoppingPriceObservationPriceKind,
+  ShoppingPriceObservationSource,
   ShoppingTicket,
   ShoppingTicketFile,
   ShoppingTicketLine,
@@ -213,6 +217,28 @@ type ShoppingTicketLineRow = {
   status: string;
   needs_review: boolean;
   review_reason: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type ShoppingPriceObservationRow = {
+  id: string;
+  list_id: string;
+  source: string;
+  ticket_id: string | null;
+  ticket_line_id: string | null;
+  canonical_product_id: string;
+  section_id: string;
+  observed_at: string;
+  product_name: string | null;
+  quantity: string | null;
+  comparison_unit: string;
+  price_kind: string;
+  observed_price: number;
+  unit_price: number | null;
+  total_price: number | null;
+  original_total_price: number | null;
+  discount_total: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -455,6 +481,33 @@ export async function createSupabaseTicketFileUrl(file: ShoppingTicketFile) {
   }
 
   return data.signedUrl;
+}
+
+export async function getSupabasePriceObservations(): Promise<
+  ShoppingPriceObservation[] | null
+> {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return null;
+  }
+
+  const client = getSupabaseClient(config);
+  const result = await client
+    .from("shopping_price_observations")
+    .select("*")
+    .eq("list_id", config.listId)
+    .order("observed_at", { ascending: false });
+
+  if (result.error && !isMissingRelationError(result.error)) {
+    throw result.error;
+  }
+
+  if (result.error) {
+    return [];
+  }
+
+  return (result.data ?? []).map(mapRowToShoppingPriceObservation);
 }
 
 export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
@@ -1057,10 +1110,7 @@ export function mapRowToShoppingCanonicalProduct(
     id: row.id,
     name: row.name,
     normalizedName: row.normalized_name,
-    comparisonUnit:
-      row.comparison_unit === "kg" || row.comparison_unit === "l"
-        ? row.comparison_unit
-        : "unit",
+    comparisonUnit: normalizeComparisonUnit(row.comparison_unit),
     createdAt: Date.parse(row.created_at),
     updatedAt: Date.parse(row.updated_at),
   };
@@ -1226,6 +1276,31 @@ export function mapRowToShoppingTicketLine(
     status: normalizeTicketLineStatus(row.status),
     needsReview: row.needs_review,
     reviewReason: row.review_reason,
+    createdAt: Date.parse(row.created_at),
+    updatedAt: Date.parse(row.updated_at),
+  };
+}
+
+export function mapRowToShoppingPriceObservation(
+  row: ShoppingPriceObservationRow,
+): ShoppingPriceObservation {
+  return {
+    id: row.id,
+    source: normalizePriceObservationSource(row.source),
+    ticketId: row.ticket_id,
+    ticketLineId: row.ticket_line_id,
+    canonicalProductId: row.canonical_product_id,
+    sectionId: row.section_id,
+    observedAt: Date.parse(row.observed_at),
+    productName: row.product_name,
+    quantity: row.quantity,
+    comparisonUnit: normalizeComparisonUnit(row.comparison_unit),
+    priceKind: normalizePriceObservationKind(row.price_kind),
+    observedPrice: row.observed_price,
+    unitPrice: row.unit_price,
+    totalPrice: row.total_price,
+    originalTotalPrice: row.original_total_price,
+    discountTotal: row.discount_total,
     createdAt: Date.parse(row.created_at),
     updatedAt: Date.parse(row.updated_at),
   };
@@ -1437,6 +1512,24 @@ function normalizeTicketStatus(value: string): ShoppingTicketStatus {
 
 function normalizeTicketLineStatus(value: string): ShoppingTicketLineStatus {
   return value === "needs_review" || value === "excluded" ? value : "processed";
+}
+
+function normalizeComparisonUnit(
+  value: string,
+): CanonicalProductComparisonUnit {
+  return value === "kg" || value === "l" || value === "unit" ? value : "unit";
+}
+
+function normalizePriceObservationSource(
+  value: string,
+): ShoppingPriceObservationSource {
+  return value === "external" ? "external" : "ticket";
+}
+
+function normalizePriceObservationKind(
+  value: string,
+): ShoppingPriceObservationPriceKind {
+  return value === "total" ? "total" : "unit";
 }
 
 function groupRowsByTicketId<T extends { ticketId: string }>(rows: T[]) {

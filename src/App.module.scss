@@ -695,6 +695,191 @@ h2 {
   grid-template-rows: auto auto 1fr auto;
 }
 
+.priceDetailSheet {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  max-height: min(
+    calc(
+      100dvh - var(--sheet-keyboard-inset, 0px) - max(
+          1.25rem,
+          env(safe-area-inset-bottom, 0px)
+        )
+    ),
+    34rem
+  );
+}
+
+.priceDetailHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.6rem;
+}
+
+.priceDetailHeader h2,
+.priceDetailHeader p {
+  margin: 0;
+}
+
+.priceDetailHeader h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #102033;
+  font-size: 1.15rem;
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+.priceDetailHeader p {
+  margin-top: 0.12rem;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 780;
+}
+
+.priceDetailMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.priceDetailMetrics div {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  border: 1px solid rgb(148 163 184 / 24%);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.55rem;
+  background: #f8fafc;
+}
+
+.priceDetailMetrics dt {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.priceDetailMetrics dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #102033;
+  font-size: 0.9rem;
+  font-weight: 950;
+}
+
+.priceDetailContent {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding-right: 0.08rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.priceDetailPanel {
+  display: grid;
+  gap: 0.42rem;
+  border: 1px solid rgb(148 163 184 / 24%);
+  border-radius: 0.5rem;
+  padding: 0.58rem;
+  background: #ffffff;
+}
+
+.priceDetailPanel h3 {
+  margin: 0;
+  color: #102033;
+  font-size: 0.82rem;
+  font-weight: 930;
+}
+
+.priceLatestGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.18rem 0.55rem;
+  align-items: center;
+}
+
+.priceLatestGrid strong {
+  color: #102033;
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.priceLatestGrid span {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 780;
+}
+
+.priceLatestGrid span:nth-child(4) {
+  justify-self: end;
+  font-weight: 920;
+}
+
+.priceDifferenceUp {
+  color: #b42318 !important;
+}
+
+.priceDifferenceDown {
+  color: #167c5a !important;
+}
+
+.priceDifferenceNeutral {
+  color: #64748b !important;
+}
+
+.priceSectionList,
+.priceObservationList {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.priceSectionList li,
+.priceObservationList li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.12rem 0.55rem;
+  align-items: center;
+  border: 1px solid rgb(148 163 184 / 18%);
+  border-radius: 0.45rem;
+  padding: 0.44rem 0.5rem;
+  background: #f8fafc;
+}
+
+.priceSectionList span,
+.priceObservationList span {
+  min-width: 0;
+  overflow: hidden;
+  color: #102033;
+  font-size: 0.8rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priceSectionList strong,
+.priceObservationList strong {
+  color: #102033;
+  font-size: 0.84rem;
+  font-weight: 950;
+}
+
+.priceSectionList small,
+.priceObservationList small {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
 .ticketUploadFields {
   display: grid;
   gap: 0.5rem;
@@ -2169,7 +2354,7 @@ h2 {
   position: relative;
   display: grid;
   grid-template-columns: 2.75rem minmax(0, 1fr) auto;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto auto auto;
   align-items: center;
   column-gap: 0.45rem;
   row-gap: 0.18rem;
@@ -2216,6 +2401,8 @@ h2 {
 }
 
 .itemCheck {
+  grid-column: 1;
+  grid-row: 1 / span 3;
   display: inline-grid;
   width: 1.92rem;
   height: 1.92rem;
@@ -2291,7 +2478,7 @@ h2 {
 
 .itemMeta {
   grid-column: 2;
-  grid-row: 2;
+  grid-row: 3;
   min-width: 0;
   overflow: hidden;
   color: #64748b;
@@ -2304,9 +2491,52 @@ h2 {
   white-space: nowrap;
 }
 
+.itemPriceSummary {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.22rem 0.45rem;
+  min-width: 0;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.itemPriceSummary span {
+  display: inline-flex;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.itemPriceDetailButton {
+  display: inline-grid;
+  width: 1.38rem;
+  height: 1.38rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(47 128 237 / 22%);
+  border-radius: 0.42rem;
+  padding: 0;
+  background: #eff6ff;
+  color: #1d4ed8;
+  cursor: pointer;
+}
+
+.itemPriceDetailButton svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.itemPriceDetailButton:focus-visible {
+  outline: 3px solid rgb(47 128 237 / 22%);
+  outline-offset: 2px;
+}
+
 .itemActions {
   grid-column: 3;
-  grid-row: 1 / span 2;
+  grid-row: 1 / span 3;
   display: grid;
   grid-template-columns: repeat(2, 2.75rem);
   gap: 0.22rem;

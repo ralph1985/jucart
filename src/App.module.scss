@@ -1686,6 +1686,84 @@ h2 {
   padding-top: 0.55rem;
 }
 
+.ticketReviewQueue {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid rgb(217 119 6 / 30%);
+  border-radius: 0.5rem;
+  padding: 0.65rem;
+  background: #fffbeb;
+  box-shadow: 0 0.35rem 0.75rem var(--surface-shadow);
+}
+
+.ticketReviewQueueHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.ticketReviewQueueHeader h3 {
+  margin: 0;
+  color: #102033;
+  font-size: 0.92rem;
+  font-weight: 950;
+}
+
+.ticketReviewQueueHeader span {
+  display: inline-grid;
+  min-width: 1.7rem;
+  min-height: 1.7rem;
+  place-items: center;
+  border-radius: 999rem;
+  background: #d97706;
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+
+.ticketReviewList {
+  display: grid;
+  gap: 0.42rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ticketReviewList li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid rgb(217 119 6 / 24%);
+  border-radius: 0.46rem;
+  padding: 0.52rem;
+  background: #ffffff;
+}
+
+.ticketReviewList div {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.ticketReviewList strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #102033;
+  font-size: 0.88rem;
+  font-weight: 920;
+}
+
+.ticketReviewList span,
+.ticketReviewList small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #536b7c;
+  font-size: 0.73rem;
+  font-weight: 760;
+}
+
 .ticketLines {
   display: grid;
   gap: 0.42rem;
@@ -2675,6 +2753,14 @@ h2 {
 
   .item {
     grid-template-columns: 2.35rem minmax(0, 1fr) auto;
+  }
+
+  .ticketReviewList li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ticketReviewList button {
+    width: 100%;
   }
 
   .itemActions {

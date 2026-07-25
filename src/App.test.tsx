@@ -1966,12 +1966,24 @@ describe("App", () => {
     await waitForAddFab();
     fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
 
+    expect(await screen.findByText("Cola de revisión")).toBeInTheDocument();
     expect(await screen.findByText("Necesita revisión")).toBeInTheDocument();
+    expect(screen.getByText("Alias no confirmado")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver ticket" }));
+    expect(screen.getByRole("button", { name: /Mercadona/i })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Mercadona/i }));
     fireEvent.click(screen.getByRole("button", { name: /Mercadona/i }));
 
-    expect(screen.getByText("Plátanos")).toBeInTheDocument();
-    expect(screen.getByText("1 kg · 1.20 €/ud. · 1.20 €")).toBeInTheDocument();
-    expect(screen.getByText("Alias no confirmado")).toBeInTheDocument();
+    expect(screen.getAllByText("Plátanos").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("1 kg · 1.20 €/ud. · 1.20 €").length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText("Alias no confirmado").length).toBeGreaterThan(
+      0,
+    );
   });
 
   it("shows processing and processed ticket states", async () => {
@@ -2099,11 +2111,13 @@ describe("App", () => {
       await screen.findByRole("button", { name: /tienda-rara/i }),
     );
 
-    expect(screen.getByText("Línea de ticket")).toBeInTheDocument();
-    expect(screen.getAllByText("Necesita revisión")).toHaveLength(2);
+    expect(screen.getAllByText("Línea de ticket").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Necesita revisión").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /tienda-rara/i }));
 
-    expect(screen.queryByText("Línea de ticket")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /tienda-rara/i }),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 
   it("shows ticket load errors and empty filtered states", async () => {

@@ -399,6 +399,11 @@ type ProductPriceSectionSummary = ProductPriceSummary & {
   sectionId: ShoppingSectionId;
 };
 
+type TicketReviewEntry = {
+  ticket: ShoppingTicket;
+  line: ShoppingTicket["lines"][number];
+};
+
 function getProductPriceSummaries(
   priceObservations: ShoppingPriceObservation[],
 ) {
@@ -521,6 +526,20 @@ function formatPriceDifference(
   const prefix = value > 0 ? "+" : "";
 
   return `${prefix}${formatPriceSummaryValue(value, unit)}`;
+}
+
+function getTicketLineName(line: ShoppingTicket["lines"][number]) {
+  return line.productName ?? line.rawText ?? "Línea de ticket";
+}
+
+function getTicketLinePriceText(line: ShoppingTicket["lines"][number]) {
+  return [
+    line.quantity,
+    line.unitPrice !== null ? `${line.unitPrice.toFixed(2)} €/ud.` : null,
+    line.totalPrice !== null ? `${line.totalPrice.toFixed(2)} €` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function selectTextOnFocus(event: FocusEvent<HTMLInputElement>) {
@@ -1440,6 +1459,11 @@ export function App() {
     ticketFilter === "all"
       ? tickets
       : tickets.filter((ticket) => ticket.status === ticketFilter);
+  const ticketReviewEntries = tickets.flatMap<TicketReviewEntry>((ticket) =>
+    ticket.lines
+      .filter((line) => line.needsReview)
+      .map((line) => ({ ticket, line })),
+  );
   const productPriceSummaries = getProductPriceSummaries(priceObservations);
   const selectedPriceProduct = selectedPriceProductId
     ? canonicalProducts.find((product) => product.id === selectedPriceProductId)
@@ -6039,6 +6063,51 @@ export function App() {
               {ticketError}
             </p>
           ) : null}
+          {ticketReviewEntries.length > 0 ? (
+            <section
+              className={styles.ticketReviewQueue}
+              aria-labelledby="ticket-review-queue-title"
+            >
+              <div className={styles.ticketReviewQueueHeader}>
+                <h3 id="ticket-review-queue-title">Cola de revisión</h3>
+                <span>{ticketReviewEntries.length}</span>
+              </div>
+              <ol className={styles.ticketReviewList}>
+                {ticketReviewEntries.map(({ ticket, line }) => {
+                  const sectionName =
+                    sections.find((section) => section.id === ticket.sectionId)
+                      ?.name ?? ticket.sectionId;
+                  const linePriceText = getTicketLinePriceText(line);
+
+                  return (
+                    <li key={line.id}>
+                      <div>
+                        <strong>{getTicketLineName(line)}</strong>
+                        <span>
+                          {sectionName} · {formatTicketDate(ticket.uploadedAt)}
+                        </span>
+                        {linePriceText ? <small>{linePriceText}</small> : null}
+                        <small>
+                          {line.reviewReason ?? "Necesita revisión"}
+                        </small>
+                      </div>
+                      <button
+                        className={styles.secondaryButton}
+                        type="button"
+                        onPointerDown={handleButtonPointerDown}
+                        onClick={() => {
+                          setTicketFilter("all");
+                          setSelectedTicketId(ticket.id);
+                        }}
+                      >
+                        Ver ticket
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          ) : null}
           <div className={styles.ticketFilters} role="tablist">
             {(
               [
@@ -6154,24 +6223,8 @@ export function App() {
                                     : styles.ticketLine
                                 }
                               >
-                                <strong>
-                                  {line.productName ??
-                                    line.rawText ??
-                                    "Línea de ticket"}
-                                </strong>
-                                <span>
-                                  {[
-                                    line.quantity,
-                                    line.unitPrice !== null
-                                      ? `${line.unitPrice.toFixed(2)} €/ud.`
-                                      : null,
-                                    line.totalPrice !== null
-                                      ? `${line.totalPrice.toFixed(2)} €`
-                                      : null,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(" · ")}
-                                </span>
+                                <strong>{getTicketLineName(line)}</strong>
+                                <span>{getTicketLinePriceText(line)}</span>
                                 {line.needsReview ? (
                                   <small>
                                     {line.reviewReason ?? "Necesita revisión"}

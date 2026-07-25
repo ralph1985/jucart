@@ -218,6 +218,10 @@ test("removes a shopping product and restores it with undo", async ({
 }) => {
   await addShoppingProduct(page, "Huevos e2e");
 
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("Huevos e2e");
+    await dialog.accept();
+  });
   await page.getByRole("button", { name: "Eliminar Huevos e2e" }).click();
 
   await expect(page.getByText("Producto borrado.")).toBeVisible();

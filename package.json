@@ -14,6 +14,7 @@
     "recategorize:codex:cron:install": "scripts/install-codex-recategorization-cron.sh",
     "normalize:codex": "scripts/normalize-products-with-codex.sh",
     "normalize:codex:cron:install": "scripts/install-codex-product-normalization-cron.sh",
+    "tickets:process": "scripts/process-tickets-with-codex.sh",
     "supabase:db:push": "supabase db push",
     "supabase:functions:deploy": "supabase functions deploy",
     "supabase:link": "supabase link",

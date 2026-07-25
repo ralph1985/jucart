@@ -436,23 +436,23 @@ Objetivo: permitir que la PWA desplegada en Vercel deje tickets pendientes en Su
 
 Objetivo: analizar tickets pendientes por la noche desde la máquina local y convertirlos en líneas de compra auditables.
 
-- [ ] Crear un script local que descargue tickets `pending` desde Supabase.
-- [ ] Procesar todos los tickets pendientes en cada ejecución nocturna; revisar límites si la aplicación crece en usuarios o volumen.
-- [ ] Procesar cada archivo con Codex para extraer supermercado, fecha, líneas, cantidades, precios unitarios, totales, precio original y descuentos cuando aparezcan.
+- [x] Crear un script local que descargue tickets `pending` desde Supabase.
+- [x] Procesar todos los tickets pendientes en cada ejecución nocturna; revisar límites si la aplicación crece en usuarios o volumen.
+- [x] Procesar cada archivo con Codex para extraer supermercado, fecha, líneas, cantidades, precios unitarios, totales, precio original y descuentos cuando aparezcan.
 - [ ] Ejecutar la generación y mantenimiento nocturno de productos canónicos y aliases.
-- [ ] Asociar cada línea a un producto canónico existente o dejarla como `needs_review` si la confianza es baja.
-- [ ] Marcar el ticket como `needs_review` si alguna línea queda en revisión, manteniendo marcadas las líneas afectadas.
+- [x] Asociar cada línea a un producto canónico existente o dejarla como `needs_review` si la confianza es baja.
+- [x] Marcar el ticket como `needs_review` si alguna línea queda en revisión, manteniendo marcadas las líneas afectadas.
 - [ ] Generar observaciones de precio para las líneas válidas aunque el ticket completo quede `needs_review`.
 - [ ] Usar el precio original sin descuento como base de medias y comparativas cuando esté disponible.
-- [ ] Usar el precio final como observación normal cuando el ticket no muestre un precio original claro.
-- [ ] Fechar observaciones con la fecha detectada en el ticket y usar la fecha de subida si no se puede leer.
-- [ ] Guardar líneas de ticket y observaciones de precio en Supabase de forma idempotente por ticket y línea.
+- [x] Usar el precio final como observación normal cuando el ticket no muestre un precio original claro.
+- [x] Fechar observaciones con la fecha detectada en el ticket y usar la fecha de subida si no se puede leer.
+- [x] Guardar líneas de ticket y observaciones de precio en Supabase de forma idempotente por ticket y línea.
 - [ ] Registrar ejecuciones con estado, resumen, errores y número de líneas aceptadas o pendientes de revisión.
-- [ ] Dejar los tickets con error en estado `failed` sin reintento automático nocturno.
+- [x] Dejar los tickets con error en estado `failed` sin reintento automático nocturno.
 - [ ] No añadir botón de reintento en la interfaz; reintentar tickets fallidos queda como tarea técnica.
-- [ ] Añadir un comando manual local para ejecutar el mismo procesamiento sin esperar al cron.
+- [x] Añadir un comando manual local para ejecutar el mismo procesamiento sin esperar al cron.
 - [ ] Crear un instalador de cron nocturno a las 03:30 siguiendo el patrón de backups y recategorización.
-- [ ] Guardar logs duraderos en `var/log/` y datos transitorios en `/tmp`.
+- [x] Guardar logs duraderos en `var/log/` y datos transitorios en `/tmp`.
 - [ ] Añadir tests razonables del parser de salida, normalización, idempotencia y errores parciales.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 

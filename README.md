@@ -46,6 +46,7 @@ pnpm recategorize:codex
 pnpm recategorize:codex:cron:install
 pnpm normalize:codex
 pnpm normalize:codex:cron:install
+pnpm tickets:process
 pnpm supabase:login
 pnpm supabase:link
 pnpm supabase:db:push
@@ -171,6 +172,16 @@ Instalar el cron diario independiente a las 03:30:
 ```bash
 pnpm normalize:codex:cron:install
 ```
+
+## Procesamiento manual de tickets con Codex
+
+Los tickets subidos desde la app viven en Supabase Storage y en las tablas remotas de tickets. Ejecutar el procesamiento manual:
+
+```bash
+pnpm tickets:process
+```
+
+El script descarga los tickets `pending`, lanza `codex exec` con los archivos privados ya disponibles en local y permite aplicar cambios directos solo mediante el helper de tickets. Las líneas extraídas se guardan de forma idempotente en Supabase; si alguna queda dudosa, el ticket queda como `needs_review`. Los informes, contexto y extracciones se guardan en `var/log/`, ignorado por Git.
 
 ## Estado
 

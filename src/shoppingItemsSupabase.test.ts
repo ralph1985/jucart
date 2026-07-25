@@ -19,7 +19,9 @@ const supabaseMocks = vi.hoisted(() => {
     constructor(private readonly table: string) {}
 
     select(...args: unknown[]) {
-      this.operation = "select";
+      if (this.operation !== "insert") {
+        this.operation = "select";
+      }
       operations.push({ args, operation: "select", table: this.table });
 
       return this;
@@ -44,14 +46,10 @@ const supabaseMocks = vi.hoisted(() => {
     }
 
     insert(...args: unknown[]) {
+      this.operation = "insert";
       operations.push({ args, operation: "insert", table: this.table });
 
-      return Promise.resolve(
-        queryResults.get(`${this.table}:insert`) ?? {
-          data: null,
-          error: null,
-        },
-      );
+      return this;
     }
 
     maybeSingle() {
@@ -113,6 +111,15 @@ const supabaseMocks = vi.hoisted(() => {
   };
   channel.on.mockReturnValue(channel);
   channel.subscribe.mockReturnValue(channel);
+  const storageBucket = {
+    createSignedUrl: vi.fn((path: string) =>
+      Promise.resolve({
+        data: { signedUrl: `https://signed.example/${path}` },
+        error: null,
+      }),
+    ),
+    upload: vi.fn(() => Promise.resolve({ data: {}, error: null })),
+  };
 
   const client = {
     channel: vi.fn(() => channel),
@@ -133,6 +140,9 @@ const supabaseMocks = vi.hoisted(() => {
         },
       );
     }),
+    storage: {
+      from: vi.fn(() => storageBucket),
+    },
   };
 
   return {
@@ -152,10 +162,21 @@ const supabaseMocks = vi.hoisted(() => {
       channel.on.mockReturnValue(channel);
       channel.subscribe.mockClear();
       channel.subscribe.mockReturnValue(channel);
+      client.storage.from.mockClear();
+      storageBucket.createSignedUrl.mockClear();
+      storageBucket.createSignedUrl.mockImplementation((path: string) =>
+        Promise.resolve({
+          data: { signedUrl: `https://signed.example/${path}` },
+          error: null,
+        }),
+      );
+      storageBucket.upload.mockClear();
+      storageBucket.upload.mockResolvedValue({ data: {}, error: null });
     },
     setResult(table: string, operation: QueryOperation, result: QueryResult) {
       queryResults.set(`${table}:${operation}`, result);
     },
+    storageBucket,
   };
 });
 
@@ -166,6 +187,8 @@ vi.mock("@supabase/supabase-js", () => ({
 import {
   getLatestDeveloperBackupRun,
   getSupabaseShoppingData,
+  getSupabaseShoppingTickets,
+  createSupabaseTicketFileUrl,
   disableSupabasePushSubscription,
   mapFreezerItemToRow,
   mapRowToFreezerItem,
@@ -187,6 +210,7 @@ import {
   registerSupabasePushSubscription,
   replaceSupabaseShoppingData,
   subscribeToSupabaseShoppingItems,
+  uploadSupabaseShoppingTicket,
 } from "./shoppingItemsSupabase";
 import * as supabaseConfig from "./supabaseConfig";
 
@@ -790,6 +814,252 @@ describe("shopping items Supabase adapter", () => {
     );
   });
 
+  it("loads shopping tickets with files and lines", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.setResult("shopping_tickets", "select", {
+      data: [
+        {
+          id: "ticket-1",
+          list_id: configuredSupabase.listId,
+          section_id: "mercadona",
+          uploaded_by: "begona",
+          status: "needs_review",
+          file_count: 1,
+          uploaded_at: "2026-07-25T18:00:00.000Z",
+          processed_at: null,
+          error_message: null,
+          created_at: "2026-07-25T18:00:00.000Z",
+          updated_at: "2026-07-25T18:00:00.000Z",
+        },
+      ],
+    });
+    supabaseMocks.setResult("shopping_ticket_files", "select", {
+      data: [
+        {
+          id: "file-1",
+          ticket_id: "ticket-1",
+          list_id: configuredSupabase.listId,
+          storage_bucket: "shopping-tickets",
+          storage_path: `${configuredSupabase.listId}/ticket-1/00-ticket.pdf`,
+          file_name: "ticket.pdf",
+          content_type: "application/pdf",
+          size_bytes: 1200,
+          sha256:
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          position: 0,
+          uploaded_at: "2026-07-25T18:00:00.000Z",
+          created_at: "2026-07-25T18:00:00.000Z",
+        },
+      ],
+    });
+    supabaseMocks.setResult("shopping_ticket_lines", "select", {
+      data: [
+        {
+          id: "line-1",
+          ticket_id: "ticket-1",
+          list_id: configuredSupabase.listId,
+          line_index: 0,
+          raw_text: "PLATANOS 1.20",
+          product_name: "Plátanos",
+          canonical_product_id: "canonical-1",
+          quantity: "1 kg",
+          unit_price: 1.2,
+          total_price: 1.2,
+          original_total_price: null,
+          discount_total: null,
+          status: "needs_review",
+          needs_review: true,
+          review_reason: "Alias no confirmado",
+          created_at: "2026-07-25T18:05:00.000Z",
+          updated_at: "2026-07-25T18:05:00.000Z",
+        },
+      ],
+    });
+
+    const tickets = await getSupabaseShoppingTickets();
+
+    expect(tickets).toHaveLength(1);
+    expect(tickets?.[0]).toMatchObject({
+      fileCount: 1,
+      sectionId: "mercadona",
+      status: "needs_review",
+      uploadedBy: "begona",
+    });
+    expect(tickets?.[0]?.files[0]).toMatchObject({
+      fileName: "ticket.pdf",
+      storageBucket: "shopping-tickets",
+    });
+    expect(tickets?.[0]?.lines[0]).toMatchObject({
+      needsReview: true,
+      productName: "Plátanos",
+      status: "needs_review",
+    });
+  });
+
+  it("uploads ticket files before creating ticket metadata", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-4111-8111-111111111111",
+    );
+    supabaseMocks.setResult("shopping_tickets", "insert", {
+      data: [
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          list_id: configuredSupabase.listId,
+          section_id: "mercadona",
+          uploaded_by: "rafa",
+          status: "pending",
+          file_count: 1,
+          uploaded_at: "2026-07-25T18:00:00.000Z",
+          processed_at: null,
+          error_message: null,
+          created_at: "2026-07-25T18:00:00.000Z",
+          updated_at: "2026-07-25T18:00:00.000Z",
+        },
+      ],
+    });
+    supabaseMocks.setResult("shopping_ticket_files", "insert", {
+      data: [
+        {
+          id: "file-1",
+          ticket_id: "11111111-1111-4111-8111-111111111111",
+          list_id: configuredSupabase.listId,
+          storage_bucket: "shopping-tickets",
+          storage_path: `${configuredSupabase.listId}/11111111-1111-4111-8111-111111111111/00-ticket-raro-1.pdf`,
+          file_name: "Tícket raro 1.pdf",
+          content_type: "application/octet-stream",
+          size_bytes: 6,
+          sha256:
+            "bef57ec7f53a6d40beb640a780a639c83bc29ac8a9816f1fc6c5c6dcd93c4721",
+          position: 0,
+          uploaded_at: "2026-07-25T18:00:00.000Z",
+          created_at: "2026-07-25T18:00:00.000Z",
+        },
+      ],
+    });
+    const file = new File(["ticket"], "Tícket raro 1.pdf");
+
+    const ticket = await uploadSupabaseShoppingTicket({
+      files: [file],
+      sectionId: "mercadona",
+      uploadedBy: "rafa",
+    });
+
+    expect(supabaseMocks.client.storage.from).toHaveBeenCalledWith(
+      "shopping-tickets",
+    );
+    expect(supabaseMocks.storageBucket.upload).toHaveBeenCalledWith(
+      `${configuredSupabase.listId}/11111111-1111-4111-8111-111111111111/00-ticket-raro-1.pdf`,
+      file,
+      expect.objectContaining({
+        contentType: "application/octet-stream",
+        upsert: false,
+      }),
+    );
+    expect(ticket).toMatchObject({
+      id: "11111111-1111-4111-8111-111111111111",
+      fileCount: 1,
+      sectionId: "mercadona",
+    });
+  });
+
+  it("rejects ticket uploads without files", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+
+    await expect(
+      uploadSupabaseShoppingTicket({
+        files: [],
+        sectionId: "mercadona",
+        uploadedBy: "rafa",
+      }),
+    ).rejects.toThrow("Ticket files are required.");
+  });
+
+  it("returns null when uploading tickets without Supabase config", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(null);
+
+    await expect(
+      uploadSupabaseShoppingTicket({
+        files: [new File(["ticket"], "ticket.pdf")],
+        sectionId: "mercadona",
+        uploadedBy: "rafa",
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("throws when ticket metadata insert returns no row", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-4111-8111-111111111111",
+    );
+    supabaseMocks.setResult("shopping_tickets", "insert", {
+      data: [],
+      error: null,
+    });
+    supabaseMocks.setResult("shopping_ticket_files", "insert", {
+      data: [],
+      error: null,
+    });
+
+    await expect(
+      uploadSupabaseShoppingTicket({
+        files: [new File(["ticket"], "ticket.pdf")],
+        sectionId: "mercadona",
+        uploadedBy: "rafa",
+      }),
+    ).rejects.toThrow("Ticket was not created.");
+  });
+
+  it("creates signed URLs for private ticket files", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+
+    await expect(
+      createSupabaseTicketFileUrl({
+        id: "file-1",
+        ticketId: "ticket-1",
+        storageBucket: "shopping-tickets",
+        storagePath: "list/ticket-1/00-ticket.pdf",
+        fileName: "ticket.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 1200,
+        sha256:
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        position: 0,
+        uploadedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+      }),
+    ).resolves.toBe("https://signed.example/list/ticket-1/00-ticket.pdf");
+  });
+
+  it("returns null when creating signed ticket URLs without Supabase config", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(null);
+
+    await expect(
+      createSupabaseTicketFileUrl({
+        id: "file-1",
+        ticketId: "ticket-1",
+        storageBucket: "shopping-tickets",
+        storagePath: "list/ticket-1/00-ticket.pdf",
+        fileName: "ticket.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 1200,
+        sha256:
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        position: 0,
+        uploadedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+      }),
+    ).resolves.toBeNull();
+  });
+
   it("subscribes to Supabase tables and removes the channel on cleanup", () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
@@ -802,12 +1072,36 @@ describe("shopping items Supabase adapter", () => {
     expect(supabaseMocks.client.channel).toHaveBeenCalledWith(
       `shopping_items:${configuredSupabase.listId}`,
     );
-    expect(supabaseMocks.channel.on).toHaveBeenCalledTimes(12);
+    expect(supabaseMocks.channel.on).toHaveBeenCalledTimes(15);
     expect(supabaseMocks.channel.on).toHaveBeenCalledWith(
       "postgres_changes",
       expect.objectContaining({
         filter: `list_id=eq.${configuredSupabase.listId}`,
         table: "shopping_items",
+      }),
+      onChange,
+    );
+    expect(supabaseMocks.channel.on).toHaveBeenCalledWith(
+      "postgres_changes",
+      expect.objectContaining({
+        filter: `list_id=eq.${configuredSupabase.listId}`,
+        table: "shopping_tickets",
+      }),
+      onChange,
+    );
+    expect(supabaseMocks.channel.on).toHaveBeenCalledWith(
+      "postgres_changes",
+      expect.objectContaining({
+        filter: `list_id=eq.${configuredSupabase.listId}`,
+        table: "shopping_ticket_files",
+      }),
+      onChange,
+    );
+    expect(supabaseMocks.channel.on).toHaveBeenCalledWith(
+      "postgres_changes",
+      expect.objectContaining({
+        filter: `list_id=eq.${configuredSupabase.listId}`,
+        table: "shopping_ticket_lines",
       }),
       onChange,
     );

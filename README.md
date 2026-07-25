@@ -224,3 +224,5 @@ El Hito 27 mueve categorías y catálogo maestro a Supabase, mantiene fallback l
 El Hito 28 añade auditoría de recategorizaciones y una pestaña `Categorías` dentro de Historial para ver qué productos se han movido de categoría.
 
 El Hito 29 añade tests E2E con Playwright sobre Chromium para validar la app construida con Vite en navegador real. La primera capa cubre arranque local, alta y compra de productos, persistencia local tras recarga y alta de productos congelados.
+
+El Hito 32 añade una bandeja privada de Tickets: se pueden subir varios PDFs o fotos desde la app, elegir supermercado/lista y autor, revisar estados desde la navegación inferior y abrir el archivo privado mediante URL firmada.

@@ -142,6 +142,59 @@ export type ShoppingProductNormalizationChange = {
   createdAt: number;
 };
 
+export type ShoppingTicketStatus =
+  "pending" | "processing" | "processed" | "needs_review" | "failed";
+
+export type ShoppingTicketFile = {
+  id: string;
+  ticketId: string;
+  storageBucket: string;
+  storagePath: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  sha256: string;
+  position: number;
+  uploadedAt: number;
+};
+
+export type ShoppingTicketLineStatus =
+  "processed" | "needs_review" | "excluded";
+
+export type ShoppingTicketLine = {
+  id: string;
+  ticketId: string;
+  lineIndex: number;
+  rawText: string | null;
+  productName: string | null;
+  canonicalProductId: string | null;
+  quantity: string | null;
+  unitPrice: number | null;
+  totalPrice: number | null;
+  originalTotalPrice: number | null;
+  discountTotal: number | null;
+  status: ShoppingTicketLineStatus;
+  needsReview: boolean;
+  reviewReason: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type ShoppingTicket = {
+  id: string;
+  sectionId: ShoppingSectionId;
+  uploadedBy: ShoppingUserId;
+  status: ShoppingTicketStatus;
+  fileCount: number;
+  uploadedAt: number;
+  processedAt: number | null;
+  errorMessage: string | null;
+  createdAt: number;
+  updatedAt: number;
+  files: ShoppingTicketFile[];
+  lines: ShoppingTicketLine[];
+};
+
 export const defaultShoppingCategories: ShoppingCategory[] =
   shoppingCategories.map((category, position) => ({ ...category, position }));
 

@@ -614,13 +614,35 @@ h2 {
   color: #102033;
 }
 
-.floatingAddButton {
+.floatingAddButton,
+.floatingSecondaryButton {
   position: fixed;
   z-index: 10;
   right: max(1rem, env(safe-area-inset-right, 0px));
   bottom: calc(
     var(--bottom-nav-height) + max(0.75rem, env(safe-area-inset-bottom, 0px))
   );
+}
+
+.floatingActions {
+  position: fixed;
+  z-index: 10;
+  right: max(1rem, env(safe-area-inset-right, 0px));
+  bottom: calc(
+    var(--bottom-nav-height) + max(0.75rem, env(safe-area-inset-bottom, 0px))
+  );
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.floatingActions .floatingAddButton,
+.floatingActions .floatingSecondaryButton {
+  position: static;
+}
+
+.floatingAddButton,
+.floatingSecondaryButton {
   display: inline-grid;
   width: 3.6rem;
   height: 3.6rem;
@@ -634,12 +656,20 @@ h2 {
   animation: fabIn 0.22s ease-out;
 }
 
-.floatingAddButton:disabled {
+.floatingSecondaryButton {
+  width: 3.2rem;
+  height: 3.2rem;
+  background: #1d4f91;
+}
+
+.floatingAddButton:disabled,
+.floatingSecondaryButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.floatingAddButton:focus-visible {
+.floatingAddButton:focus-visible,
+.floatingSecondaryButton:focus-visible {
   outline: 3px solid rgb(47 128 237 / 34%);
   outline-offset: 3px;
 }
@@ -686,6 +716,66 @@ h2 {
 .addSheetCompact {
   grid-template-rows: auto auto auto;
   min-height: 0;
+}
+
+.ticketUploadSheet {
+  grid-template-rows: auto auto 1fr auto;
+}
+
+.ticketUploadFields {
+  display: grid;
+  gap: 0.5rem;
+  overflow: auto;
+  min-height: 0;
+}
+
+.ticketUploadFields select,
+.ticketUploadFields input[type="file"] {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid rgb(148 163 184 / 38%);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  background: #ffffff;
+  color: #102033;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 760;
+}
+
+.ticketFileList {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ticketFileList li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgb(148 163 184 / 24%);
+  border-radius: 0.5rem;
+  padding: 0.48rem 0.55rem;
+  background: #f8fafc;
+}
+
+.ticketFileList span {
+  min-width: 0;
+  overflow: hidden;
+  color: #102033;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ticketFileList small {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 .addSheetHandle {
@@ -1081,6 +1171,23 @@ h2 {
   padding: 0.15rem 1rem 1rem;
 }
 
+.ticketsScreen {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.15rem 1rem 1rem;
+}
+
+.ticketNotice {
+  margin: 0;
+  border: 1px solid #b7e4c7;
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  background: #edf7ed;
+  color: #1f4d36;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .freezerScreen {
   display: grid;
   gap: 0.85rem;
@@ -1239,6 +1346,16 @@ h2 {
   background: rgb(255 255 255 / 72%);
 }
 
+.ticketFilters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.35rem;
+  border: 1px solid rgb(148 163 184 / 24%);
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+  background: rgb(255 255 255 / 72%);
+}
+
 .historyTab,
 .historyTabActive {
   min-height: 2.3rem;
@@ -1311,6 +1428,109 @@ h2 {
   border-radius: 0.5rem;
   padding: 1rem;
   background: rgb(255 255 255 / 72%);
+}
+
+.ticketList {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ticketItem {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 0.5rem;
+  padding: 0.65rem;
+  background: rgb(255 255 255 / 82%);
+  box-shadow: 0 0.35rem 0.75rem var(--surface-shadow);
+}
+
+.ticketItemButton {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ticketItemButton strong {
+  overflow-wrap: anywhere;
+  color: #102033;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.ticketItemButton span:last-child {
+  color: #536b7c;
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.ticketStatus {
+  width: fit-content;
+  border-radius: 999rem;
+  padding: 0.16rem 0.46rem;
+  background: #dbeafe;
+  color: #1d4f91;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ticketDetail {
+  display: grid;
+  gap: 0.55rem;
+  border-top: 1px solid rgb(148 163 184 / 24%);
+  padding-top: 0.55rem;
+}
+
+.ticketDetailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.ticketLines {
+  display: grid;
+  gap: 0.42rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ticketLine,
+.ticketLineNeedsReview {
+  display: grid;
+  gap: 0.12rem;
+  border-radius: 0.42rem;
+  padding: 0.52rem;
+  background: #f8fafc;
+}
+
+.ticketLineNeedsReview {
+  border: 1px solid rgb(217 119 6 / 32%);
+  background: #fffbeb;
+}
+
+.ticketLine strong,
+.ticketLineNeedsReview strong {
+  color: #102033;
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.ticketLine span,
+.ticketLineNeedsReview span,
+.ticketLineNeedsReview small {
+  color: #536b7c;
+  font-size: 0.74rem;
+  font-weight: 760;
 }
 
 .developerPanel {

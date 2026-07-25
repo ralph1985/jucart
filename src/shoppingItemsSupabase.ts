@@ -24,6 +24,11 @@ import {
   ShoppingItem,
   ShoppingProductNormalizationChange,
   ShoppingProductNormalizationRun,
+  ShoppingTicket,
+  ShoppingTicketFile,
+  ShoppingTicketLine,
+  ShoppingTicketLineStatus,
+  ShoppingTicketStatus,
   ShoppingSection,
   ShoppingSectionId,
   ShoppingRecategorizationChange,
@@ -163,6 +168,55 @@ type ShoppingProductNormalizationChangeRow = {
   created_at: string;
 };
 
+type ShoppingTicketRow = {
+  id: string;
+  list_id: string;
+  section_id: string;
+  uploaded_by: string;
+  status: string;
+  file_count: number;
+  uploaded_at: string;
+  processed_at: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type ShoppingTicketFileRow = {
+  id: string;
+  ticket_id: string;
+  list_id: string;
+  storage_bucket: string;
+  storage_path: string;
+  file_name: string;
+  content_type: string;
+  size_bytes: number;
+  sha256: string;
+  position: number;
+  uploaded_at: string;
+  created_at: string;
+};
+
+type ShoppingTicketLineRow = {
+  id: string;
+  ticket_id: string;
+  list_id: string;
+  line_index: number;
+  raw_text: string | null;
+  product_name: string | null;
+  canonical_product_id: string | null;
+  quantity: string | null;
+  unit_price: number | null;
+  total_price: number | null;
+  original_total_price: number | null;
+  discount_total: number | null;
+  status: string;
+  needs_review: boolean;
+  review_reason: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type FreezerItemRow = {
   id: string;
   list_id: string;
@@ -202,6 +256,12 @@ export type DeveloperBackupRun = {
   createdAt: number;
 };
 
+export type ShoppingTicketUploadInput = {
+  sectionId: ShoppingSectionId;
+  uploadedBy: ShoppingUserId;
+  files: File[];
+};
+
 let supabaseClient: SupabaseClient | null = null;
 
 export async function getLatestDeveloperBackupRun(): Promise<DeveloperBackupRun | null> {
@@ -223,6 +283,178 @@ export async function getLatestDeveloperBackupRun(): Promise<DeveloperBackupRun 
   }
 
   return data ? mapRowToDeveloperBackupRun(data) : null;
+}
+
+export async function getSupabaseShoppingTickets(): Promise<
+  ShoppingTicket[] | null
+> {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return null;
+  }
+
+  const client = getSupabaseClient(config);
+  const [ticketsResult, filesResult, linesResult] = await Promise.all([
+    client
+      .from("shopping_tickets")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("uploaded_at", { ascending: false }),
+    client
+      .from("shopping_ticket_files")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("position", { ascending: true }),
+    client
+      .from("shopping_ticket_lines")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("line_index", { ascending: true }),
+  ]);
+
+  if (ticketsResult.error && !isMissingRelationError(ticketsResult.error)) {
+    throw ticketsResult.error;
+  }
+
+  if (filesResult.error && !isMissingRelationError(filesResult.error)) {
+    throw filesResult.error;
+  }
+
+  if (linesResult.error && !isMissingRelationError(linesResult.error)) {
+    throw linesResult.error;
+  }
+
+  if (ticketsResult.error) {
+    return [];
+  }
+
+  const filesByTicketId = groupRowsByTicketId(
+    (filesResult.data ?? []).map(mapRowToShoppingTicketFile),
+  );
+  const linesByTicketId = groupRowsByTicketId(
+    (linesResult.data ?? []).map(mapRowToShoppingTicketLine),
+  );
+
+  return (ticketsResult.data ?? []).map((row) =>
+    mapRowToShoppingTicket(
+      row,
+      filesByTicketId.get(row.id) ?? [],
+      linesByTicketId.get(row.id) ?? [],
+    ),
+  );
+}
+
+export async function uploadSupabaseShoppingTicket({
+  files,
+  sectionId,
+  uploadedBy,
+}: ShoppingTicketUploadInput): Promise<ShoppingTicket | null> {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return null;
+  }
+
+  if (files.length === 0) {
+    throw new Error("Ticket files are required.");
+  }
+
+  const client = getSupabaseClient(config);
+  const ticketId = crypto.randomUUID();
+  const uploadedAt = new Date().toISOString();
+  const fileRows: Omit<ShoppingTicketFileRow, "id" | "created_at">[] = [];
+
+  for (const [index, file] of files.entries()) {
+    const sha256 = await calculateFileSha256(file);
+    const storagePath = buildTicketStoragePath(
+      config.listId,
+      ticketId,
+      index,
+      file.name,
+    );
+    const { error } = await client.storage
+      .from("shopping-tickets")
+      .upload(storagePath, file, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    fileRows.push({
+      ticket_id: ticketId,
+      list_id: config.listId,
+      storage_bucket: "shopping-tickets",
+      storage_path: storagePath,
+      file_name: file.name,
+      content_type: file.type || "application/octet-stream",
+      size_bytes: file.size,
+      sha256,
+      position: index,
+      uploaded_at: uploadedAt,
+    });
+  }
+
+  const { data: ticketRows, error: ticketError } = await client
+    .from("shopping_tickets")
+    .insert([
+      {
+        id: ticketId,
+        list_id: config.listId,
+        section_id: sectionId,
+        uploaded_by: uploadedBy,
+        status: "pending",
+        file_count: fileRows.length,
+        uploaded_at: uploadedAt,
+      },
+    ])
+    .select("*");
+
+  if (ticketError) {
+    throw ticketError;
+  }
+
+  const { data: insertedFileRows, error: fileError } = await client
+    .from("shopping_ticket_files")
+    .insert(fileRows)
+    .select("*");
+
+  if (fileError) {
+    throw fileError;
+  }
+
+  const [ticketRow] = ticketRows ?? [];
+
+  if (!ticketRow) {
+    throw new Error("Ticket was not created.");
+  }
+
+  return mapRowToShoppingTicket(
+    ticketRow,
+    (insertedFileRows ?? []).map(mapRowToShoppingTicketFile),
+    [],
+  );
+}
+
+export async function createSupabaseTicketFileUrl(file: ShoppingTicketFile) {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return null;
+  }
+
+  const { data, error } = await getSupabaseClient(config)
+    .storage.from(file.storageBucket)
+    .createSignedUrl(file.storagePath, 60 * 5);
+
+  if (error) {
+    throw error;
+  }
+
+  return data.signedUrl;
 }
 
 export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
@@ -702,6 +934,36 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
       },
       onChange,
     )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_tickets",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_ticket_files",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_ticket_lines",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
     .subscribe();
 
   return () => {
@@ -908,6 +1170,67 @@ export function mapRowToShoppingProductNormalizationChange(
   };
 }
 
+export function mapRowToShoppingTicket(
+  row: ShoppingTicketRow,
+  files: ShoppingTicketFile[] = [],
+  lines: ShoppingTicketLine[] = [],
+): ShoppingTicket {
+  return {
+    id: row.id,
+    sectionId: normalizeSectionId(row.section_id),
+    uploadedBy: normalizeUserId(row.uploaded_by),
+    status: normalizeTicketStatus(row.status),
+    fileCount: row.file_count,
+    uploadedAt: Date.parse(row.uploaded_at),
+    processedAt: row.processed_at ? Date.parse(row.processed_at) : null,
+    errorMessage: row.error_message,
+    createdAt: Date.parse(row.created_at),
+    updatedAt: Date.parse(row.updated_at),
+    files,
+    lines,
+  };
+}
+
+export function mapRowToShoppingTicketFile(
+  row: ShoppingTicketFileRow,
+): ShoppingTicketFile {
+  return {
+    id: row.id,
+    ticketId: row.ticket_id,
+    storageBucket: row.storage_bucket,
+    storagePath: row.storage_path,
+    fileName: row.file_name,
+    contentType: row.content_type,
+    sizeBytes: row.size_bytes,
+    sha256: row.sha256,
+    position: row.position,
+    uploadedAt: Date.parse(row.uploaded_at),
+  };
+}
+
+export function mapRowToShoppingTicketLine(
+  row: ShoppingTicketLineRow,
+): ShoppingTicketLine {
+  return {
+    id: row.id,
+    ticketId: row.ticket_id,
+    lineIndex: row.line_index,
+    rawText: row.raw_text,
+    productName: row.product_name,
+    canonicalProductId: row.canonical_product_id,
+    quantity: row.quantity,
+    unitPrice: row.unit_price,
+    totalPrice: row.total_price,
+    originalTotalPrice: row.original_total_price,
+    discountTotal: row.discount_total,
+    status: normalizeTicketLineStatus(row.status),
+    needsReview: row.needs_review,
+    reviewReason: row.review_reason,
+    createdAt: Date.parse(row.created_at),
+    updatedAt: Date.parse(row.updated_at),
+  };
+}
+
 export function mapRowToShoppingSection(
   row: Pick<ShoppingSectionRow, "id" | "name"> &
     Partial<Pick<ShoppingSectionRow, "color">>,
@@ -1101,6 +1424,62 @@ function normalizeCategoryId(
 
 function normalizeFreezerDrawerId(value: string): FreezerDrawerId {
   return isFreezerDrawerId(value) ? value : "top";
+}
+
+function normalizeTicketStatus(value: string): ShoppingTicketStatus {
+  return value === "processing" ||
+    value === "processed" ||
+    value === "needs_review" ||
+    value === "failed"
+    ? value
+    : "pending";
+}
+
+function normalizeTicketLineStatus(value: string): ShoppingTicketLineStatus {
+  return value === "needs_review" || value === "excluded" ? value : "processed";
+}
+
+function groupRowsByTicketId<T extends { ticketId: string }>(rows: T[]) {
+  return rows.reduce((groups, row) => {
+    const currentRows = groups.get(row.ticketId) ?? [];
+    currentRows.push(row);
+    groups.set(row.ticketId, currentRows);
+
+    return groups;
+  }, new Map<string, T[]>());
+}
+
+async function calculateFileSha256(file: File) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    await file.arrayBuffer(),
+  );
+
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function buildTicketStoragePath(
+  listId: string,
+  ticketId: string,
+  position: number,
+  fileName: string,
+) {
+  return `${listId}/${ticketId}/${String(position).padStart(2, "0")}-${sanitizeStorageFileName(fileName)}`;
+}
+
+function sanitizeStorageFileName(fileName: string) {
+  const trimmedName = fileName.trim() || "ticket";
+  const normalizedName = trimmedName
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^\p{Letter}\p{Number}._-]+/gu, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLocaleLowerCase("es-ES");
+
+  return normalizedName || "ticket";
 }
 
 function isMissingRelationError(error: { code?: string; message?: string }) {

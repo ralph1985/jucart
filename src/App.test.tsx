@@ -1485,7 +1485,7 @@ describe("App", () => {
       within(navigation)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Lista", "Congelador", "Listas", "Historial", "Dev"]);
+    ).toEqual(["Lista", "Congelador", "Tickets", "Listas", "Historial", "Dev"]);
     expect(navigation.className).not.toContain("bottomNavHidden");
     expect(
       within(navigation).getByRole("button", { name: "Lista" }),
@@ -1493,6 +1493,416 @@ describe("App", () => {
     expect(
       screen.getByRole("button", { name: "Borrar comprados" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows the tickets view from the main navigation", async () => {
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Tickets" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("No hay tickets subidos.")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Todos" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("uploads a ticket from the shopping view", async () => {
+    const uploadedTicket = {
+      id: "ticket-uploaded",
+      sectionId: "mercadona" as const,
+      uploadedBy: "rafa" as const,
+      status: "pending" as const,
+      fileCount: 1,
+      uploadedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+      processedAt: null,
+      errorMessage: null,
+      createdAt: Date.parse("2026-07-25T18:00:00.000Z"),
+      updatedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+      files: [],
+      lines: [],
+    };
+    const uploadTicket = vi
+      .spyOn(shoppingItemsSupabase, "uploadSupabaseShoppingTicket")
+      .mockResolvedValue(uploadedTicket);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabaseShoppingTickets",
+    ).mockResolvedValue([uploadedTicket]);
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Subir ticket" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Subir ticket" });
+    const file = new File(["ticket"], "ticket.pdf", {
+      type: "application/pdf",
+    });
+
+    expect(within(dialog).getByLabelText("Supermercado")).toHaveValue(
+      "mercadona",
+    );
+    fireEvent.change(within(dialog).getByLabelText("Archivos"), {
+      target: { files: [file] },
+    });
+
+    expect(await within(dialog).findByText("ticket.pdf")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Subir" }));
+
+    await waitFor(() => expect(uploadTicket).toHaveBeenCalledOnce());
+    expect(
+      await screen.findByText("Ticket subido. Queda pendiente de procesar."),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the upload sheet open when ticket upload fails", async () => {
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "uploadSupabaseShoppingTicket",
+    ).mockRejectedValue(new Error("upload failed"));
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Subir ticket" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Subir ticket" });
+    const file = new File(["ticket"], "ticket.pdf", {
+      type: "application/pdf",
+    });
+
+    fireEvent.change(within(dialog).getByLabelText("Archivos"), {
+      target: { files: [file] },
+    });
+    fireEvent.click(
+      await within(dialog).findByRole("button", { name: "Subir" }),
+    );
+
+    expect(
+      await within(dialog).findByText(
+        "No se pudo subir el ticket. Reintenta la subida completa.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows remote ticket details and review lines", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabaseShoppingTickets",
+    ).mockResolvedValue([
+      {
+        id: "ticket-1",
+        sectionId: "mercadona",
+        uploadedBy: "begona",
+        status: "needs_review",
+        fileCount: 1,
+        uploadedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        processedAt: null,
+        errorMessage: null,
+        createdAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        files: [
+          {
+            id: "file-1",
+            ticketId: "ticket-1",
+            storageBucket: "shopping-tickets",
+            storagePath: "list/ticket-1/00-ticket.pdf",
+            fileName: "ticket.pdf",
+            contentType: "application/pdf",
+            sizeBytes: 1200,
+            sha256:
+              "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            position: 0,
+            uploadedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+          },
+        ],
+        lines: [
+          {
+            id: "line-1",
+            ticketId: "ticket-1",
+            lineIndex: 0,
+            rawText: "PLATANOS 1.20",
+            productName: "Plátanos",
+            canonicalProductId: null,
+            quantity: "1 kg",
+            unitPrice: 1.2,
+            totalPrice: 1.2,
+            originalTotalPrice: null,
+            discountTotal: null,
+            status: "needs_review",
+            needsReview: true,
+            reviewReason: "Alias no confirmado",
+            createdAt: Date.parse("2026-07-25T18:05:00.000Z"),
+            updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+          },
+        ],
+      },
+    ]);
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
+
+    expect(await screen.findByText("Necesita revisión")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Mercadona/i }));
+
+    expect(screen.getByText("Plátanos")).toBeInTheDocument();
+    expect(screen.getByText("1 kg · 1.20 €/ud. · 1.20 €")).toBeInTheDocument();
+    expect(screen.getByText("Alias no confirmado")).toBeInTheDocument();
+  });
+
+  it("shows processing and processed ticket states", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabaseShoppingTickets",
+    ).mockResolvedValue([
+      {
+        id: "ticket-processing",
+        sectionId: "general",
+        uploadedBy: "rafa",
+        status: "processing",
+        fileCount: 1,
+        uploadedAt: Date.parse("2026-07-25T19:00:00.000Z"),
+        processedAt: null,
+        errorMessage: null,
+        createdAt: Date.parse("2026-07-25T19:00:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T19:00:00.000Z"),
+        files: [],
+        lines: [],
+      },
+      {
+        id: "ticket-processed",
+        sectionId: "farmacia",
+        uploadedBy: "begona",
+        status: "processed",
+        fileCount: 1,
+        uploadedAt: Date.parse("2026-07-25T18:30:00.000Z"),
+        processedAt: Date.parse("2026-07-25T18:35:00.000Z"),
+        errorMessage: null,
+        createdAt: Date.parse("2026-07-25T18:30:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T18:35:00.000Z"),
+        files: [],
+        lines: [
+          {
+            id: "line-processed",
+            ticketId: "ticket-processed",
+            lineIndex: 0,
+            rawText: "GASAS",
+            productName: null,
+            canonicalProductId: "canonical-gasas",
+            quantity: null,
+            unitPrice: null,
+            totalPrice: null,
+            originalTotalPrice: null,
+            discountTotal: null,
+            status: "processed",
+            needsReview: false,
+            reviewReason: null,
+            createdAt: Date.parse("2026-07-25T18:35:00.000Z"),
+            updatedAt: Date.parse("2026-07-25T18:35:00.000Z"),
+          },
+        ],
+      },
+    ]);
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
+
+    expect(await screen.findByText("Procesando")).toBeInTheDocument();
+    expect(screen.getByText("Procesado")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Procesados" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Farmacia/i }));
+
+    expect(screen.getByText("GASAS")).toBeInTheDocument();
+  });
+
+  it("shows ticket fallback texts for unknown sections and review reasons", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabaseShoppingTickets",
+    ).mockResolvedValue([
+      {
+        id: "ticket-unknown",
+        sectionId: "tienda-rara",
+        uploadedBy: "rafa",
+        status: "needs_review",
+        fileCount: 1,
+        uploadedAt: Date.parse("2026-07-25T19:30:00.000Z"),
+        processedAt: null,
+        errorMessage: null,
+        createdAt: Date.parse("2026-07-25T19:30:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T19:30:00.000Z"),
+        files: [],
+        lines: [
+          {
+            id: "line-empty",
+            ticketId: "ticket-unknown",
+            lineIndex: 0,
+            rawText: null,
+            productName: null,
+            canonicalProductId: null,
+            quantity: null,
+            unitPrice: null,
+            totalPrice: null,
+            originalTotalPrice: null,
+            discountTotal: null,
+            status: "needs_review",
+            needsReview: true,
+            reviewReason: null,
+            createdAt: Date.parse("2026-07-25T19:35:00.000Z"),
+            updatedAt: Date.parse("2026-07-25T19:35:00.000Z"),
+          },
+        ],
+      },
+    ]);
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /tienda-rara/i }),
+    );
+
+    expect(screen.getByText("Línea de ticket")).toBeInTheDocument();
+    expect(screen.getAllByText("Necesita revisión")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: /tienda-rara/i }));
+
+    expect(screen.queryByText("Línea de ticket")).not.toBeInTheDocument();
+  });
+
+  it("shows ticket load errors and empty filtered states", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabaseShoppingTickets",
+    ).mockRejectedValue(new Error("tickets failed"));
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
+
+    expect(
+      await screen.findByText("No se pudo cargar la bandeja de tickets."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Necesitan revisión" }));
+
+    expect(
+      screen.getByText("No hay tickets con este estado."),
+    ).toBeInTheDocument();
+  });
+
+  it("filters tickets and opens the private ticket file", async () => {
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "createSupabaseTicketFileUrl",
+    ).mockResolvedValue("https://signed.example/ticket.pdf");
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabaseShoppingTickets",
+    ).mockResolvedValue([
+      {
+        id: "ticket-pending",
+        sectionId: "alcampo",
+        uploadedBy: "rafa",
+        status: "pending",
+        fileCount: 1,
+        uploadedAt: Date.parse("2026-07-25T17:00:00.000Z"),
+        processedAt: null,
+        errorMessage: null,
+        createdAt: Date.parse("2026-07-25T17:00:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T17:00:00.000Z"),
+        files: [
+          {
+            id: "file-pending",
+            ticketId: "ticket-pending",
+            storageBucket: "shopping-tickets",
+            storagePath: "list/ticket-pending/00-ticket.pdf",
+            fileName: "ticket.pdf",
+            contentType: "application/pdf",
+            sizeBytes: 1200,
+            sha256:
+              "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            position: 0,
+            uploadedAt: Date.parse("2026-07-25T17:00:00.000Z"),
+          },
+        ],
+        lines: [],
+      },
+      {
+        id: "ticket-failed",
+        sectionId: "dia",
+        uploadedBy: "begona",
+        status: "failed",
+        fileCount: 2,
+        uploadedAt: Date.parse("2026-07-25T16:00:00.000Z"),
+        processedAt: null,
+        errorMessage: "No se pudo leer el ticket.",
+        createdAt: Date.parse("2026-07-25T16:00:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T16:00:00.000Z"),
+        files: [],
+        lines: [],
+      },
+    ]);
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
+    fireEvent.click(await screen.findByRole("tab", { name: "Fallidos" }));
+
+    expect(screen.getByText("Fallido")).toBeInTheDocument();
+    expect(screen.queryByText("Pendiente")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Día/i }));
+
+    expect(screen.getByText("No se pudo leer el ticket.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Las líneas aparecerán tras el procesamiento nocturno."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Pendientes" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Alcampo/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir archivo" }));
+
+    await waitFor(() =>
+      expect(openSpy).toHaveBeenCalledWith(
+        "https://signed.example/ticket.pdf",
+        "_blank",
+        "noopener,noreferrer",
+      ),
+    );
   });
 
   it("shows recent shopping actions in the history view", async () => {

@@ -66,6 +66,8 @@ import {
   ShoppingSectionColor,
   ShoppingSection,
   ShoppingSectionId,
+  ShoppingTicket,
+  ShoppingTicketStatus,
   ShoppingUserId,
   shoppingUsers,
   sortShoppingItemsForShopping,
@@ -111,8 +113,10 @@ const initialPushNotificationSnapshot: PushNotificationSnapshot = {
   message: "Comprobando",
 };
 
-type AppView = "shopping" | "freezer" | "sections" | "history" | "developer";
+type AppView =
+  "shopping" | "freezer" | "tickets" | "sections" | "history" | "developer";
 type HistoryTab = "changes" | "categories" | "normalizations";
+type TicketFilter = "all" | ShoppingTicketStatus;
 
 type IconName =
   | "bell"
@@ -131,7 +135,10 @@ type IconName =
   | "sync"
   | "database"
   | "freezer"
-  | "search";
+  | "search"
+  | "ticket"
+  | "upload"
+  | "file";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 
 type TimestampedItem = {
@@ -142,6 +149,7 @@ type HapticFeedback = "light" | "medium" | "success" | "warning";
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
 type AppOverlay =
   | "add-sheet"
+  | "ticket-upload-sheet"
   | "section-add-sheet"
   | "freezer-add-sheet"
   | "freezer-edit-sheet"
@@ -150,7 +158,11 @@ type AppOverlay =
 
 type BottomSheetOverlay = Extract<
   AppOverlay,
-  "add-sheet" | "section-add-sheet" | "freezer-add-sheet" | "freezer-edit-sheet"
+  | "add-sheet"
+  | "ticket-upload-sheet"
+  | "section-add-sheet"
+  | "freezer-add-sheet"
+  | "freezer-edit-sheet"
 >;
 type AddProductNotice =
   | { type: "success"; message: string }
@@ -219,6 +231,14 @@ function Icon({ name }: { name: IconName }) {
       "M21 21l-4.35-4.35",
       "M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z",
     ],
+    ticket: [
+      "M4 4h16v4a2 2 0 1 0 0 4v8H4v-8a2 2 0 1 0 0-4z",
+      "M9 8h6",
+      "M9 12h6",
+      "M9 16h4",
+    ],
+    upload: ["M12 16V4", "M7 9l5-5 5 5", "M5 20h14"],
+    file: ["M14 3H6v18h12V7z", "M14 3v4h4", "M8 13h8", "M8 17h5"],
   };
 
   return (
@@ -704,6 +724,20 @@ function formatDeveloperDate(value: number) {
   }).format(new Date(value));
 }
 
+function formatTicketDate(value: number) {
+  if (!Number.isFinite(value)) {
+    return "Sin fecha";
+  }
+
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 function formatFileSize(bytes: number | null) {
   if (bytes === null || !Number.isFinite(bytes)) {
     return "Sin dato";
@@ -718,6 +752,50 @@ function formatFileSize(bytes: number | null) {
   }
 
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function getTicketStatusText(status: ShoppingTicketStatus) {
+  if (status === "processing") {
+    return "Procesando";
+  }
+
+  if (status === "processed") {
+    return "Procesado";
+  }
+
+  if (status === "needs_review") {
+    return "Necesita revisión";
+  }
+
+  if (status === "failed") {
+    return "Fallido";
+  }
+
+  return "Pendiente";
+}
+
+function getTicketFilterText(filter: TicketFilter) {
+  if (filter === "all") {
+    return "Todos";
+  }
+
+  if (filter === "pending") {
+    return "Pendientes";
+  }
+
+  if (filter === "processed") {
+    return "Procesados";
+  }
+
+  if (filter === "failed") {
+    return "Fallidos";
+  }
+
+  if (filter === "needs_review") {
+    return "Necesitan revisión";
+  }
+
+  return "Procesando";
 }
 
 function formatDuration(durationMs: number) {
@@ -911,6 +989,19 @@ export function App() {
   >([]);
   const [productNormalizationChanges, setProductNormalizationChanges] =
     useState<ShoppingProductNormalizationChange[]>([]);
+  const [tickets, setTickets] = useState<ShoppingTicket[]>([]);
+  const [ticketFilter, setTicketFilter] = useState<TicketFilter>("all");
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [isTicketsLoading, setIsTicketsLoading] = useState(false);
+  const [ticketError, setTicketError] = useState<string | null>(null);
+  const [ticketUploadNotice, setTicketUploadNotice] = useState<string | null>(
+    null,
+  );
+  const [ticketUploadFiles, setTicketUploadFiles] = useState<File[]>([]);
+  const [ticketUploadSectionId, setTicketUploadSectionId] =
+    useState<ShoppingSectionId>(getInitialSelectedSectionId);
+  const [isTicketUploadSheetOpen, setIsTicketUploadSheetOpen] = useState(false);
+  const [isTicketUploadPending, setIsTicketUploadPending] = useState(false);
   const [historyClientId] = useState(getInitialHistoryClientId);
   const [lastSeenHistoryEventAt, setLastSeenHistoryEventAt] = useState(
     getInitialLastSeenHistoryEventAt,
@@ -1018,6 +1109,7 @@ export function App() {
   const addFabRef = useRef<HTMLButtonElement>(null);
   const sectionAddFabRef = useRef<HTMLButtonElement>(null);
   const freezerAddFabRef = useRef<HTMLButtonElement>(null);
+  const ticketUploadFabRef = useRef<HTMLButtonElement>(null);
   const freezerItemNameInputRef = useRef<HTMLInputElement>(null);
   const editingFreezerItemNameInputRef = useRef<HTMLInputElement>(null);
   const syncStatusRef = useRef<HTMLParagraphElement>(null);
@@ -1026,6 +1118,7 @@ export function App() {
   const freezerScreenRef = useRef<HTMLElement>(null);
   const sectionsScreenRef = useRef<HTMLElement>(null);
   const historyScreenRef = useRef<HTMLElement>(null);
+  const ticketsScreenRef = useRef<HTMLElement>(null);
   const developerScreenRef = useRef<HTMLElement>(null);
   const splashScreenRef = useRef<HTMLDivElement>(null);
   const addSheetBackdropRef = useRef<HTMLDivElement>(null);
@@ -1034,6 +1127,9 @@ export function App() {
   const sectionAddSheetRef = useRef<HTMLFormElement>(null);
   const freezerAddSheetBackdropRef = useRef<HTMLDivElement>(null);
   const freezerAddSheetRef = useRef<HTMLFormElement>(null);
+  const ticketUploadSheetBackdropRef = useRef<HTMLDivElement>(null);
+  const ticketUploadSheetRef = useRef<HTMLFormElement>(null);
+  const ticketFileInputRef = useRef<HTMLInputElement>(null);
   const freezerEditSheetBackdropRef = useRef<HTMLDivElement>(null);
   const freezerEditSheetRef = useRef<HTMLFormElement>(null);
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
@@ -1101,6 +1197,7 @@ export function App() {
     : null;
   const isBottomSheetOpen =
     isAddSheetOpen ||
+    isTicketUploadSheetOpen ||
     isSectionAddSheetOpen ||
     isFreezerAddSheetOpen ||
     editingFreezerItem !== null;
@@ -1118,6 +1215,10 @@ export function App() {
   const normalizedShoppingSearchQuery =
     normalizeShoppingSearchQuery(shoppingSearchQuery);
   const isShoppingSearchActive = normalizedShoppingSearchQuery.length > 0;
+  const filteredTickets =
+    ticketFilter === "all"
+      ? tickets
+      : tickets.filter((ticket) => ticket.status === ticketFilter);
   const recentHistoryEvents = getRecentShoppingHistoryEvents(historyEvents);
   const quickItemSuggestions =
     isLoaded && isAddSheetOpen
@@ -1510,6 +1611,47 @@ export function App() {
   }, [beginRemoteRequest, isLoaded]);
 
   useEffect(() => {
+    if (!isLoaded || !isSupabaseConfigured()) {
+      return;
+    }
+
+    let isActive = true;
+
+    async function refreshTickets() {
+      setIsTicketsLoading(true);
+
+      try {
+        const { getSupabaseShoppingTickets } =
+          await import("./shoppingItemsSupabase");
+        const nextTickets = await getSupabaseShoppingTickets();
+
+        if (!isActive) {
+          return;
+        }
+
+        setTickets(nextTickets ?? []);
+        setTicketError(null);
+      } catch {
+        if (isActive) {
+          setTicketError("No se pudo cargar la bandeja de tickets.");
+        }
+      } finally {
+        if (isActive) {
+          setIsTicketsLoading(false);
+        }
+      }
+    }
+
+    void refreshTickets();
+    const intervalId = window.setInterval(refreshTickets, 30_000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
+  }, [isLoaded]);
+
+  useEffect(() => {
     try {
       window.localStorage.setItem(selectedSectionStorageKey, selectedSectionId);
     } catch {
@@ -1746,6 +1888,7 @@ export function App() {
         ? [commandPanelRef.current, shoppingBoardElementRef.current]
         : [
             activeView === "freezer" ? freezerScreenRef.current : null,
+            activeView === "tickets" ? ticketsScreenRef.current : null,
             activeView === "sections" ? sectionsScreenRef.current : null,
             activeView === "history" ? historyScreenRef.current : null,
             activeView === "developer" ? developerScreenRef.current : null,
@@ -1898,6 +2041,34 @@ export function App() {
       ease: "outCubic",
     });
   }, [closingBottomSheet, isFreezerAddSheetOpen]);
+
+  useLayoutEffect(() => {
+    if (
+      !isTicketUploadSheetOpen ||
+      closingBottomSheet === "ticket-upload-sheet"
+    ) {
+      return;
+    }
+
+    const sheet = ticketUploadSheetRef.current;
+    const backdrop = ticketUploadSheetBackdropRef.current;
+
+    if (!sheet || !backdrop) {
+      return;
+    }
+
+    runAnimation(backdrop, {
+      opacity: [0, 1],
+      duration: 180,
+      ease: "outCubic",
+    });
+    runAnimation(sheet, {
+      opacity: [0.92, 1],
+      y: ["100%", 0],
+      duration: 260,
+      ease: "outCubic",
+    });
+  }, [closingBottomSheet, isTicketUploadSheetOpen]);
 
   useLayoutEffect(() => {
     if (!isSectionAddSheetOpen || closingBottomSheet === "section-add-sheet") {
@@ -2134,6 +2305,11 @@ export function App() {
         return;
       }
 
+      if (isTicketUploadSheetOpen) {
+        ticketFileInputRef.current?.focus({ preventScroll: true });
+        return;
+      }
+
       if (editingFreezerItem) {
         editingFreezerItemNameInputRef.current?.focus({
           preventScroll: true,
@@ -2160,6 +2336,7 @@ export function App() {
     isAddSheetOpen,
     isBottomSheetOpen,
     isSectionAddSheetOpen,
+    isTicketUploadSheetOpen,
   ]);
 
   useEffect(() => {
@@ -2418,6 +2595,11 @@ export function App() {
       return;
     }
 
+    if (isTicketUploadSheetOpen) {
+      closeTicketUploadSheet();
+      return;
+    }
+
     if (isSectionAddSheetOpen) {
       closeSectionAddSheet();
       return;
@@ -2447,6 +2629,11 @@ export function App() {
 
       if (overlay === "freezer-add-sheet") {
         closeFreezerAddSheet(false, false);
+        return;
+      }
+
+      if (overlay === "ticket-upload-sheet") {
+        closeTicketUploadSheet(false, false);
         return;
       }
 
@@ -3152,6 +3339,16 @@ export function App() {
     runHapticFeedback("light");
   }
 
+  function showTicketsView() {
+    setActiveView("tickets");
+    setShowUnseenHistoryOnly(false);
+    setHistoryTab("changes");
+    setUnseenHistoryEventsForView([]);
+    setUnseenRecategorizationChangesForView([]);
+    setUnseenProductNormalizationChangesForView([]);
+    runHapticFeedback("light");
+  }
+
   function showHistoryView() {
     setActiveView("history");
     setShowUnseenHistoryOnly(false);
@@ -3168,6 +3365,113 @@ export function App() {
       );
     }
     runHapticFeedback("light");
+  }
+
+  function openTicketUploadSheet() {
+    if (!isLoaded || isTicketUploadSheetOpen) {
+      return;
+    }
+
+    setTicketUploadSectionId(selectedSectionId);
+    setTicketUploadFiles([]);
+    setTicketError(null);
+    setTicketUploadNotice(null);
+    setSheetDragOffset(0);
+    setIsTicketUploadSheetOpen(true);
+    pushOverlayHistory("ticket-upload-sheet");
+    window.requestAnimationFrame(() =>
+      ticketFileInputRef.current?.focus({ preventScroll: true }),
+    );
+    runHapticFeedback("light");
+  }
+
+  function closeTicketUploadSheet(restoreFabFocus = true, syncHistory = true) {
+    if (!isTicketUploadSheetOpen) {
+      return;
+    }
+
+    closeBottomSheetWithAnimation(
+      "ticket-upload-sheet",
+      ticketUploadSheetRef.current,
+      ticketUploadSheetBackdropRef.current,
+      () => {
+        if (syncHistory) {
+          consumeOverlayHistory("ticket-upload-sheet");
+        }
+
+        setIsTicketUploadSheetOpen(false);
+        setClosingBottomSheet(null);
+        setTicketUploadFiles([]);
+        setSheetDragOffset(0);
+
+        if (restoreFabFocus) {
+          window.requestAnimationFrame(() =>
+            ticketUploadFabRef.current?.focus(),
+          );
+        }
+      },
+    );
+  }
+
+  function handleTicketFilesChange(event: ChangeEvent<HTMLInputElement>) {
+    setTicketUploadFiles(Array.from(event.target.files ?? []));
+    setTicketError(null);
+  }
+
+  async function handleTicketUploadSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (ticketUploadFiles.length === 0 || isTicketUploadPending) {
+      setTicketError("Selecciona al menos un PDF o foto.");
+      return;
+    }
+
+    setIsTicketUploadPending(true);
+    setTicketError(null);
+
+    try {
+      const { uploadSupabaseShoppingTicket, getSupabaseShoppingTickets } =
+        await import("./shoppingItemsSupabase");
+      await uploadSupabaseShoppingTicket({
+        files: ticketUploadFiles,
+        sectionId: ticketUploadSectionId,
+        uploadedBy: selectedUserId,
+      });
+      const nextTickets = await getSupabaseShoppingTickets();
+
+      setTickets(nextTickets ?? []);
+      setTicketUploadNotice("Ticket subido. Queda pendiente de procesar.");
+      closeTicketUploadSheet();
+      setActiveView("tickets");
+      runHapticFeedback("success");
+    } catch {
+      setTicketError(
+        "No se pudo subir el ticket. Reintenta la subida completa.",
+      );
+      runHapticFeedback("warning");
+    } finally {
+      setIsTicketUploadPending(false);
+    }
+  }
+
+  async function handleOpenTicketFile(ticket: ShoppingTicket) {
+    const [file] = ticket.files;
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const { createSupabaseTicketFileUrl } =
+        await import("./shoppingItemsSupabase");
+      const signedUrl = await createSupabaseTicketFileUrl(file);
+
+      if (signedUrl) {
+        window.open(signedUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      setTicketError("No se pudo abrir el archivo privado.");
+    }
   }
 
   function showDeveloperView() {
@@ -4316,18 +4620,32 @@ export function App() {
       ) : null}
 
       {activeView === "shopping" && !isAddSheetOpen ? (
-        <button
-          ref={addFabRef}
-          className={styles.floatingAddButton}
-          type="button"
-          aria-label="Añadir producto"
-          title="Añadir producto"
-          onPointerDown={handleButtonPointerDown}
-          onClick={openAddSheet}
-          disabled={!isLoaded}
-        >
-          <Icon name="plus" />
-        </button>
+        <div className={styles.floatingActions}>
+          <button
+            ref={ticketUploadFabRef}
+            className={styles.floatingSecondaryButton}
+            type="button"
+            aria-label="Subir ticket"
+            title="Subir ticket"
+            onPointerDown={handleButtonPointerDown}
+            onClick={openTicketUploadSheet}
+            disabled={!isLoaded}
+          >
+            <Icon name="ticket" />
+          </button>
+          <button
+            ref={addFabRef}
+            className={styles.floatingAddButton}
+            type="button"
+            aria-label="Añadir producto"
+            title="Añadir producto"
+            onPointerDown={handleButtonPointerDown}
+            onClick={openAddSheet}
+            disabled={!isLoaded}
+          >
+            <Icon name="plus" />
+          </button>
+        </div>
       ) : null}
 
       {activeView === "freezer" &&
@@ -4531,6 +4849,128 @@ export function App() {
                 disabled={!isLoaded}
               >
                 Añadir
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {activeView === "shopping" && isTicketUploadSheetOpen ? (
+        <div
+          ref={ticketUploadSheetBackdropRef}
+          className={styles.addSheetBackdrop}
+          style={
+            {
+              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
+            } as CSSProperties
+          }
+          onClick={() => closeTicketUploadSheet()}
+        >
+          <form
+            ref={ticketUploadSheetRef}
+            className={`${styles.addSheet} ${styles.ticketUploadSheet}`}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="ticket-upload-title"
+            style={
+              {
+                "--sheet-drag-offset": `${sheetDragOffset}px`,
+              } as CSSProperties
+            }
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={handleTicketUploadSubmit}
+          >
+            <div
+              className={styles.addSheetHandle}
+              onPointerDown={handleAddSheetDragStart}
+              onPointerMove={handleAddSheetDragMove}
+              onPointerUp={handleAddSheetDragEnd}
+              onPointerCancel={handleAddSheetDragEnd}
+            >
+              <span aria-hidden="true" />
+            </div>
+            <div className={styles.addSheetHeader}>
+              <div>
+                <p className={styles.sheetKicker}>Ticket de compra</p>
+                <h2 id="ticket-upload-title">Subir ticket</h2>
+              </div>
+              <button
+                className={styles.closeButton}
+                type="button"
+                aria-label="Cerrar subida de ticket"
+                onPointerDown={handleButtonPointerDown}
+                onClick={() => closeTicketUploadSheet()}
+              >
+                <Icon name="close" />
+              </button>
+            </div>
+            <div className={styles.ticketUploadFields}>
+              <label className={styles.label} htmlFor="ticket-section-id">
+                Supermercado
+              </label>
+              <select
+                id="ticket-section-id"
+                value={ticketUploadSectionId}
+                onChange={(event) =>
+                  setTicketUploadSectionId(event.target.value)
+                }
+                disabled={isTicketUploadPending}
+              >
+                {sections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.name}
+                  </option>
+                ))}
+              </select>
+              <label className={styles.label} htmlFor="ticket-files">
+                Archivos
+              </label>
+              <input
+                id="ticket-files"
+                ref={ticketFileInputRef}
+                type="file"
+                multiple
+                accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"
+                onChange={handleTicketFilesChange}
+                disabled={isTicketUploadPending}
+              />
+              {ticketUploadFiles.length > 0 ? (
+                <ul className={styles.ticketFileList}>
+                  {ticketUploadFiles.map((file, index) => (
+                    <li key={`${file.name}-${file.size}-${index}`}>
+                      <Icon name="file" />
+                      <span>{file.name}</span>
+                      <small>{formatFileSize(file.size)}</small>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {ticketError ? (
+                <p className={styles.error} role="alert">
+                  {ticketError}
+                </p>
+              ) : null}
+            </div>
+            <div className={styles.addSheetActions}>
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onPointerDown={handleButtonPointerDown}
+                onClick={() => closeTicketUploadSheet()}
+                disabled={isTicketUploadPending}
+              >
+                Cancelar
+              </button>
+              <button
+                className={styles.primaryButton}
+                type="submit"
+                onPointerDown={handleButtonPointerDown}
+                disabled={
+                  isTicketUploadPending || ticketUploadFiles.length === 0
+                }
+              >
+                <Icon name="upload" />
+                {isTicketUploadPending ? "Subiendo" : "Subir"}
               </button>
             </div>
           </form>
@@ -5005,6 +5445,166 @@ export function App() {
         </section>
       ) : null}
 
+      {activeView === "tickets" ? (
+        <section
+          ref={ticketsScreenRef}
+          className={styles.ticketsScreen}
+          aria-labelledby="tickets-title"
+        >
+          <div className={styles.screenTitle}>
+            <h2 id="tickets-title">Tickets</h2>
+            <span className={styles.count}>{tickets.length}</span>
+          </div>
+          {ticketUploadNotice ? (
+            <p className={styles.ticketNotice} role="status">
+              {ticketUploadNotice}
+            </p>
+          ) : null}
+          {ticketError ? (
+            <p className={styles.error} role="alert">
+              {ticketError}
+            </p>
+          ) : null}
+          <div className={styles.ticketFilters} role="tablist">
+            {(
+              [
+                "all",
+                "pending",
+                "processed",
+                "failed",
+                "needs_review",
+              ] as TicketFilter[]
+            ).map((filter) => (
+              <button
+                key={filter}
+                className={
+                  ticketFilter === filter
+                    ? styles.historyTabActive
+                    : styles.historyTab
+                }
+                type="button"
+                role="tab"
+                aria-selected={ticketFilter === filter}
+                onPointerDown={handleButtonPointerDown}
+                onClick={() => setTicketFilter(filter)}
+              >
+                {getTicketFilterText(filter)}
+              </button>
+            ))}
+          </div>
+          {isTicketsLoading && tickets.length === 0 ? (
+            <p className={styles.loadingStatus} role="status">
+              Cargando tickets...
+            </p>
+          ) : filteredTickets.length === 0 ? (
+            <div className={styles.historyEmpty}>
+              <p>
+                {ticketFilter === "all"
+                  ? "No hay tickets subidos."
+                  : "No hay tickets con este estado."}
+              </p>
+            </div>
+          ) : (
+            <ol className={styles.ticketList}>
+              {filteredTickets.map((ticket) => {
+                const sectionName =
+                  sections.find((section) => section.id === ticket.sectionId)
+                    ?.name ?? ticket.sectionId;
+                const isSelected = selectedTicketId === ticket.id;
+
+                return (
+                  <li className={styles.ticketItem} key={ticket.id}>
+                    <button
+                      className={styles.ticketItemButton}
+                      type="button"
+                      onPointerDown={handleButtonPointerDown}
+                      onClick={() =>
+                        setSelectedTicketId(isSelected ? null : ticket.id)
+                      }
+                      aria-expanded={isSelected}
+                    >
+                      <span className={styles.ticketStatus}>
+                        {getTicketStatusText(ticket.status)}
+                      </span>
+                      <strong>{sectionName}</strong>
+                      <span>
+                        {formatTicketDate(ticket.uploadedAt)} ·{" "}
+                        {getShoppingUserName(ticket.uploadedBy)} ·{" "}
+                        {ticket.fileCount}{" "}
+                        {ticket.fileCount === 1 ? "archivo" : "archivos"}
+                      </span>
+                    </button>
+                    {isSelected ? (
+                      <div className={styles.ticketDetail}>
+                        <div className={styles.ticketDetailActions}>
+                          <button
+                            className={styles.secondaryButton}
+                            type="button"
+                            onPointerDown={handleButtonPointerDown}
+                            onClick={() => void handleOpenTicketFile(ticket)}
+                            disabled={ticket.files.length === 0}
+                          >
+                            Abrir archivo
+                          </button>
+                        </div>
+                        {ticket.errorMessage ? (
+                          <p className={styles.historyMeta}>
+                            {ticket.errorMessage}
+                          </p>
+                        ) : null}
+                        {ticket.lines.length > 0 ? (
+                          <ol className={styles.ticketLines}>
+                            {ticket.lines.map((line) => (
+                              <li
+                                key={line.id}
+                                className={
+                                  line.needsReview
+                                    ? styles.ticketLineNeedsReview
+                                    : styles.ticketLine
+                                }
+                              >
+                                <strong>
+                                  {line.productName ??
+                                    line.rawText ??
+                                    "Línea de ticket"}
+                                </strong>
+                                <span>
+                                  {[
+                                    line.quantity,
+                                    line.unitPrice !== null
+                                      ? `${line.unitPrice.toFixed(2)} €/ud.`
+                                      : null,
+                                    line.totalPrice !== null
+                                      ? `${line.totalPrice.toFixed(2)} €`
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </span>
+                                {line.needsReview ? (
+                                  <small>
+                                    {line.reviewReason ?? "Necesita revisión"}
+                                  </small>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ol>
+                        ) : (
+                          <p className={styles.historyMeta}>
+                            Las líneas aparecerán tras el procesamiento
+                            nocturno.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </section>
+      ) : null}
+
       {activeView === "sections" ? (
         <section
           ref={sectionsScreenRef}
@@ -5272,6 +5872,20 @@ export function App() {
         >
           <Icon name="freezer" />
           <span>Congelador</span>
+        </button>
+        <button
+          className={
+            activeView === "tickets"
+              ? styles.bottomNavItemActive
+              : styles.bottomNavItem
+          }
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={showTicketsView}
+          disabled={!isLoaded}
+        >
+          <Icon name="ticket" />
+          <span>Tickets</span>
         </button>
         <button
           className={

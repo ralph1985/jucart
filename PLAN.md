@@ -369,7 +369,7 @@ Estado: pausado. La arquitectura está implementada y subida, pero la validació
 - [x] Añadir tests de interfaz para el control de notificaciones y sus estados.
 - [ ] Validar manualmente en HTTPS con la PWA cerrada y cambios desde otro dispositivo.
 - [ ] Validar iOS/iPadOS solo con Jucart instalada en pantalla de inicio.
-- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+- [x] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 
 ## Hito 31 — Productos canónicos para precios
 
@@ -408,27 +408,27 @@ Objetivo: crear una base estable para que el historial de precios no duplique pr
 
 Objetivo: permitir que la PWA desplegada en Vercel deje tickets pendientes en Supabase sin exponer un servidor local.
 
-- [ ] Crear un bucket privado de Supabase Storage para tickets de compra.
-- [ ] Permitir que cualquier dispositivo de Jucart vea y abra los tickets de la lista compartida.
-- [ ] Crear una tabla de tickets con estado `pending`, `processing`, `processed`, `needs_review` o `failed`.
-- [ ] Crear un modelo de archivos de ticket para permitir uno o varios PDFs/fotos por ticket.
-- [ ] Guardar metadatos mínimos: lista/supermercado obligatorio, autor de subida, fecha de subida, rutas de archivos, hashes y error no sensible.
-- [ ] Permitir que Rafa y Begoña suban uno o varios PDFs o fotos del ticket desde la app a la bandeja privada y crear las filas asociadas.
-- [ ] Si falla algún archivo durante la subida, no crear el ticket y mostrar error para reintentar todo.
-- [ ] No exigir orden manual de fotos; el procesamiento debe tratar los archivos asociados como un conjunto del mismo ticket.
-- [ ] Pedir elegir lista/supermercado al subir el ticket para reducir trabajo y ambigüedad de Codex.
-- [ ] Colocar la acción rápida de subir ticket junto al botón `+` de añadir producto.
-- [ ] Añadir Tickets como nuevo destino de la navegación inferior principal para revisar tickets subidos y sus estados.
-- [ ] Mostrar confirmación tras subir un ticket.
-- [ ] Mostrar en la vista de Tickets una lista única con filtros `Todos`, `Pendientes`, `Procesados`, `Fallidos` y `Necesitan revisión`.
-- [ ] Mostrar en cada ticket supermercado, fecha de subida, autor, estado y número de archivos.
-- [ ] Permitir abrir un detalle de ticket procesado con líneas extraídas, cantidad, precio total, precio unitario y producto canónico asociado.
-- [ ] Marcar como `Necesita revisión` las líneas sin producto canónico fiable.
-- [ ] Dejar la resolución de líneas en revisión para hitos posteriores; en este hito solo se muestran marcadas.
-- [ ] Evitar guardar el contenido extraído del ticket hasta que lo procese el flujo nocturno.
-- [ ] Definir retención: conservar el PDF privado tras procesarlo para poder revisar extracciones incorrectas.
-- [ ] Permitir abrir el PDF conservado desde la app mediante acceso privado.
-- [ ] No permitir borrar tickets subidos desde la interfaz.
+- [x] Crear un bucket privado de Supabase Storage para tickets de compra.
+- [x] Permitir que cualquier dispositivo de Jucart vea y abra los tickets de la lista compartida.
+- [x] Crear una tabla de tickets con estado `pending`, `processing`, `processed`, `needs_review` o `failed`.
+- [x] Crear un modelo de archivos de ticket para permitir uno o varios PDFs/fotos por ticket.
+- [x] Guardar metadatos mínimos: lista/supermercado obligatorio, autor de subida, fecha de subida, rutas de archivos, hashes y error no sensible.
+- [x] Permitir que Rafa y Begoña suban uno o varios PDFs o fotos del ticket desde la app a la bandeja privada y crear las filas asociadas.
+- [x] Si falla algún archivo durante la subida, no crear el ticket y mostrar error para reintentar todo.
+- [x] No exigir orden manual de fotos; el procesamiento debe tratar los archivos asociados como un conjunto del mismo ticket.
+- [x] Pedir elegir lista/supermercado al subir el ticket para reducir trabajo y ambigüedad de Codex.
+- [x] Colocar la acción rápida de subir ticket junto al botón `+` de añadir producto.
+- [x] Añadir Tickets como nuevo destino de la navegación inferior principal para revisar tickets subidos y sus estados.
+- [x] Mostrar confirmación tras subir un ticket.
+- [x] Mostrar en la vista de Tickets una lista única con filtros `Todos`, `Pendientes`, `Procesados`, `Fallidos` y `Necesitan revisión`.
+- [x] Mostrar en cada ticket supermercado, fecha de subida, autor, estado y número de archivos.
+- [x] Permitir abrir un detalle de ticket procesado con líneas extraídas, cantidad, precio total, precio unitario y producto canónico asociado.
+- [x] Marcar como `Necesita revisión` las líneas sin producto canónico fiable.
+- [x] Dejar la resolución de líneas en revisión para hitos posteriores; en este hito solo se muestran marcadas.
+- [x] Evitar guardar el contenido extraído del ticket hasta que lo procese el flujo nocturno.
+- [x] Definir retención: conservar el PDF privado tras procesarlo para poder revisar extracciones incorrectas.
+- [x] Permitir abrir el PDF conservado desde la app mediante acceso privado.
+- [x] No permitir borrar tickets subidos desde la interfaz.
 - [ ] Añadir tests razonables del adaptador Supabase, estados de UI y errores de subida.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 

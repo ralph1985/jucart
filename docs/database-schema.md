@@ -15,6 +15,12 @@ erDiagram
   SHOPPING_CATEGORIES ||--o{ SHOPPING_RECAT_CHANGE : next
   SHOPPING_ITEMS ||--o{ SHOPPING_HISTORY_EVENTS : records
   SHOPPING_RECAT_RUN ||--o{ SHOPPING_RECAT_CHANGE : records
+  SHOPPING_CANONICAL_PRODUCTS ||--o{ SHOPPING_CANONICAL_PRODUCT_ALIASES : has
+  SHOPPING_CANONICAL_PRODUCTS ||--o{ SHOPPING_ITEMS : normalizes
+  SHOPPING_PRODUCT_NORMALIZATION_RUNS ||--o{ SHOPPING_PRODUCT_NORMALIZATION_CHANGES : records
+  SHOPPING_TICKETS ||--o{ SHOPPING_TICKET_FILES : contains
+  SHOPPING_TICKETS ||--o{ SHOPPING_TICKET_LINES : extracts
+  SHOPPING_CANONICAL_PRODUCTS ||--o{ SHOPPING_TICKET_LINES : matches
 
   SHOPPING_SECTIONS {
     text id PK "id de lista, ej: mercadona"
@@ -93,6 +99,100 @@ erDiagram
     timestamptz created_at
   }
 
+  SHOPPING_CANONICAL_PRODUCTS {
+    uuid id PK
+    uuid list_id
+    text name
+    text normalized_name
+    text comparison_unit "kg|l|unit"
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  SHOPPING_CANONICAL_PRODUCT_ALIASES {
+    uuid id PK
+    uuid list_id
+    uuid canonical_product_id FK
+    text alias
+    text normalized_alias
+    timestamptz created_at
+  }
+
+  SHOPPING_PRODUCT_NORMALIZATION_RUNS {
+    uuid id PK
+    uuid list_id
+    text source "codex"
+    text status "success|failed"
+    text summary
+    integer aliases_created
+    integer items_touched
+    integer quantities_merged
+    integer canonical_products_merged
+    timestamptz started_at
+    timestamptz finished_at
+  }
+
+  SHOPPING_PRODUCT_NORMALIZATION_CHANGES {
+    uuid id PK
+    uuid run_id FK
+    uuid list_id
+    text action "renamed|merged|alias_created|deleted"
+    text item_id
+    text previous_item_name
+    text next_item_name
+    uuid previous_canonical_product_id
+    uuid next_canonical_product_id
+    text quantity_before
+    text quantity_after
+    text reason
+  }
+
+  SHOPPING_TICKETS {
+    uuid id PK
+    uuid list_id "lista compartida configurada por entorno"
+    text section_id "supermercado/lista elegido al subir"
+    text uploaded_by "rafa|begona"
+    text status "pending|processing|processed|needs_review|failed"
+    integer file_count
+    timestamptz uploaded_at
+    timestamptz processed_at
+    text error_message
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  SHOPPING_TICKET_FILES {
+    uuid id PK
+    uuid ticket_id FK
+    uuid list_id
+    text storage_bucket "shopping-tickets"
+    text storage_path
+    text file_name
+    text content_type
+    bigint size_bytes
+    text sha256
+    integer position
+    timestamptz uploaded_at
+  }
+
+  SHOPPING_TICKET_LINES {
+    uuid id PK
+    uuid ticket_id FK
+    uuid list_id
+    integer line_index
+    text raw_text
+    text product_name
+    uuid canonical_product_id FK
+    text quantity
+    numeric unit_price
+    numeric total_price
+    numeric original_total_price
+    numeric discount_total
+    text status "processed|needs_review|excluded"
+    boolean needs_review
+    text review_reason
+  }
+
   PUSH_SUBSCRIPTIONS {
     uuid id PK
     uuid list_id "lista compartida configurada por entorno"
@@ -156,6 +256,35 @@ VITE_SUPABASE_LIST_ID
   |     - item_snapshot conserva el producto aunque se borre después
   |     - previous_item_snapshot conserva la lista anterior cuando se mueve un producto
   |     - client_id permite distinguir cambios de otro dispositivo
+  |
+  +-- shopping_canonical_products
+  |     - productos normalizados para comparar precios sin duplicar plurales o variantes
+  |
+  +-- shopping_canonical_product_aliases
+  |     - variantes de nombre que apuntan a un producto canónico
+  |
+  +-- shopping_product_normalization_runs
+  |     - ejecuciones nocturnas de normalización de productos canónicos
+  |
+  +-- shopping_product_normalization_changes
+  |     - cambios técnicos visibles en la pestaña Normalización del Historial
+  |
+  +-- shopping_tickets
+  |     - bandeja privada de tickets subidos desde la PWA
+  |     - estado pending/processing/processed/needs_review/failed
+  |     - conserva autor, supermercado/lista, fecha, contador de archivos y error no sensible
+  |
+  +-- shopping_ticket_files
+  |     - metadatos de PDFs/fotos privados guardados en Supabase Storage
+  |     - cada archivo conserva ruta, nombre, tipo, tamaño, hash y posición
+  |
+  +-- shopping_ticket_lines
+  |     - líneas extraídas por el procesamiento nocturno
+  |     - puede asociar producto canónico o quedar marcada como needs_review
+  |
+  +-- storage.objects / bucket shopping-tickets
+  |     - bucket privado para PDFs/fotos de tickets
+  |     - la app abre archivos mediante URL firmada temporal
   |
   +-- push_subscriptions
         - suscripciones Web Push activas o deshabilitadas por dispositivo
@@ -236,3 +365,5 @@ Al cargar, si Supabase está disponible, la aplicación lee datos remotos, categ
 - `supabase/migrations/20260723234500_harden_push_subscription_grants.sql`: revoca privilegios heredados y deja a `anon` solo con inserción y actualización de suscripciones push.
 - `supabase/migrations/20260724003000_trigger_push_notifications_for_history.sql`: instala `pg_net` y crea el trigger `shopping_history_events_notify_push_subscribers` para invocar la Edge Function de push al insertar eventos relevantes en `shopping_history_events`.
 - `supabase/migrations/20260724102000_create_push_subscription_rpc.sql`: crea RPC `security definer` para registrar y desactivar suscripciones push sin conceder lectura pública de endpoints.
+- `supabase/migrations/20260725120000_create_canonical_products.sql`: crea productos canónicos, aliases, enlace desde productos y el historial de normalizaciones nocturnas.
+- `supabase/migrations/20260725180000_create_shopping_tickets.sql`: crea el bucket privado `shopping-tickets`, la bandeja remota de tickets, archivos asociados y líneas extraídas para el procesamiento nocturno.

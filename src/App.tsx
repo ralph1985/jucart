@@ -53,8 +53,12 @@ import {
   renameShoppingSection,
   reactivatePurchasedShoppingItem,
   ShoppingCategory,
+  ShoppingCanonicalProduct,
+  ShoppingCanonicalProductAlias,
   ShoppingHistoryEvent,
   ShoppingItem,
+  ShoppingProductNormalizationChange,
+  ShoppingProductNormalizationRun,
   ShoppingProductCatalogEntry,
   ShoppingRecategorizationChange,
   ShoppingRecategorizationRun,
@@ -96,6 +100,10 @@ const selectedUserStorageKey = "jucart:selected-user-id";
 const showPurchasedItemsStorageKey = "jucart:show-purchased-items";
 const historyClientIdStorageKey = "jucart:history-client-id";
 const lastSeenHistoryEventAtStorageKey = "jucart:last-seen-history-event-at";
+const lastSeenRecategorizationChangeAtStorageKey =
+  "jucart:last-seen-recategorizations-at";
+const lastSeenProductNormalizationChangeAtStorageKey =
+  "jucart:last-seen-product-normalizations-at";
 const pushInviteDismissedStorageKey = "jucart:push-invite-dismissed";
 const backupStaleThresholdMs = 6 * 60 * 60 * 1000;
 const initialPushNotificationSnapshot: PushNotificationSnapshot = {
@@ -104,7 +112,7 @@ const initialPushNotificationSnapshot: PushNotificationSnapshot = {
 };
 
 type AppView = "shopping" | "freezer" | "sections" | "history" | "developer";
-type HistoryTab = "changes" | "categories";
+type HistoryTab = "changes" | "categories" | "normalizations";
 
 type IconName =
   | "bell"
@@ -397,10 +405,22 @@ function getFreezerAgeText(frozenAt: number, now: number = Date.now()) {
 }
 
 function getInitialLastSeenHistoryEventAt() {
+  return getInitialStoredTimestamp(lastSeenHistoryEventAtStorageKey);
+}
+
+function getInitialLastSeenRecategorizationChangeAt() {
+  return getInitialStoredTimestamp(lastSeenRecategorizationChangeAtStorageKey);
+}
+
+function getInitialLastSeenProductNormalizationChangeAt() {
+  return getInitialStoredTimestamp(
+    lastSeenProductNormalizationChangeAtStorageKey,
+  );
+}
+
+function getInitialStoredTimestamp(storageKey: string) {
   try {
-    const rawValue = window.localStorage.getItem(
-      lastSeenHistoryEventAtStorageKey,
-    );
+    const rawValue = window.localStorage.getItem(storageKey);
     const parsedValue = rawValue ? Number(rawValue) : 0;
 
     return Number.isFinite(parsedValue) ? parsedValue : 0;
@@ -558,6 +578,61 @@ function getRecategorizationRunSummary(
   return `${run.itemsRecategorized} productos · ${run.catalogEntriesAdded} entradas catálogo`;
 }
 
+function getProductNormalizationActionText(
+  change: ShoppingProductNormalizationChange,
+) {
+  if (change.action === "merged") {
+    return "Productos fusionados";
+  }
+
+  if (change.action === "alias_created") {
+    return "Alias creado";
+  }
+
+  if (change.action === "deleted") {
+    return "Producto eliminado";
+  }
+
+  return "Producto normalizado";
+}
+
+function getProductNormalizationProductText(
+  change: ShoppingProductNormalizationChange,
+) {
+  if (change.previousItemName && change.nextItemName) {
+    return `${change.previousItemName} → ${change.nextItemName}`;
+  }
+
+  return change.nextItemName ?? change.previousItemName ?? "Producto";
+}
+
+function getProductNormalizationChangeMeta(
+  change: ShoppingProductNormalizationChange,
+) {
+  const parts = [
+    change.previousCanonicalProductId && change.nextCanonicalProductId
+      ? `${change.previousCanonicalProductId} → ${change.nextCanonicalProductId}`
+      : change.nextCanonicalProductId
+        ? `Canónico: ${change.nextCanonicalProductId}`
+        : null,
+    change.quantityBefore && change.quantityAfter
+      ? `Cantidad: ${change.quantityBefore} → ${change.quantityAfter}`
+      : null,
+  ].filter(Boolean);
+
+  return parts.join(" · ");
+}
+
+function getProductNormalizationRunSummary(
+  run: ShoppingProductNormalizationRun | undefined,
+) {
+  if (!run) {
+    return "";
+  }
+
+  return `${run.itemsTouched} productos · ${run.aliasesCreated} aliases · ${run.quantitiesMerged} cantidades`;
+}
+
 function getRecentRecategorizationChanges(
   changes: ShoppingRecategorizationChange[],
   now: () => number = () => Date.now(),
@@ -574,11 +649,35 @@ function getRecentRecategorizationChanges(
 
 function getUnseenRecategorizationChanges(
   changes: ShoppingRecategorizationChange[],
-  lastSeenHistoryEventAt: number,
+  lastSeenRecategorizationChangeAt: number,
   now: () => number = () => Date.now(),
 ) {
   return getRecentRecategorizationChanges(changes, now).filter(
-    (change) => change.createdAt > lastSeenHistoryEventAt,
+    (change) => change.createdAt > lastSeenRecategorizationChangeAt,
+  );
+}
+
+function getRecentProductNormalizationChanges(
+  changes: ShoppingProductNormalizationChange[],
+  now: () => number = () => Date.now(),
+) {
+  const cutoff = now() - 30 * 24 * 60 * 60 * 1000;
+
+  return [...changes]
+    .filter((change) => change.createdAt >= cutoff)
+    .sort(
+      (firstChange, secondChange) =>
+        secondChange.createdAt - firstChange.createdAt,
+    );
+}
+
+function getUnseenProductNormalizationChanges(
+  changes: ShoppingProductNormalizationChange[],
+  lastSeenProductNormalizationChangeAt: number,
+  now: () => number = () => Date.now(),
+) {
+  return getRecentProductNormalizationChanges(changes, now).filter(
+    (change) => change.createdAt > lastSeenProductNormalizationChangeAt,
   );
 }
 
@@ -792,6 +891,12 @@ export function App() {
   const [productCatalogEntries, setProductCatalogEntries] = useState<
     ShoppingProductCatalogEntry[]
   >(defaultShoppingProductCatalogEntries);
+  const [canonicalProducts, setCanonicalProducts] = useState<
+    ShoppingCanonicalProduct[]
+  >([]);
+  const [canonicalProductAliases, setCanonicalProductAliases] = useState<
+    ShoppingCanonicalProductAlias[]
+  >([]);
   const [historyEvents, setHistoryEvents] = useState<ShoppingHistoryEvent[]>(
     [],
   );
@@ -801,10 +906,23 @@ export function App() {
   const [recategorizationChanges, setRecategorizationChanges] = useState<
     ShoppingRecategorizationChange[]
   >([]);
+  const [productNormalizationRuns, setProductNormalizationRuns] = useState<
+    ShoppingProductNormalizationRun[]
+  >([]);
+  const [productNormalizationChanges, setProductNormalizationChanges] =
+    useState<ShoppingProductNormalizationChange[]>([]);
   const [historyClientId] = useState(getInitialHistoryClientId);
   const [lastSeenHistoryEventAt, setLastSeenHistoryEventAt] = useState(
     getInitialLastSeenHistoryEventAt,
   );
+  const [
+    lastSeenRecategorizationChangeAt,
+    setLastSeenRecategorizationChangeAt,
+  ] = useState(getInitialLastSeenRecategorizationChangeAt);
+  const [
+    lastSeenProductNormalizationChangeAt,
+    setLastSeenProductNormalizationChangeAt,
+  ] = useState(getInitialLastSeenProductNormalizationChangeAt);
   const [showUnseenHistoryOnly, setShowUnseenHistoryOnly] = useState(false);
   const [historyTab, setHistoryTab] = useState<HistoryTab>("changes");
   const [unseenHistoryEventsForView, setUnseenHistoryEventsForView] = useState<
@@ -814,6 +932,10 @@ export function App() {
     unseenRecategorizationChangesForView,
     setUnseenRecategorizationChangesForView,
   ] = useState<ShoppingRecategorizationChange[]>([]);
+  const [
+    unseenProductNormalizationChangesForView,
+    setUnseenProductNormalizationChangesForView,
+  ] = useState<ShoppingProductNormalizationChange[]>([]);
   const [itemName, setItemName] = useState("");
   const [freezerItemName, setFreezerItemName] = useState("");
   const [freezerItemQuantity, setFreezerItemQuantity] = useState("");
@@ -1019,31 +1141,44 @@ export function App() {
   );
   const unseenRecategorizationChanges = getUnseenRecategorizationChanges(
     recategorizationChanges,
-    lastSeenHistoryEventAt,
+    lastSeenRecategorizationChangeAt,
   );
-  const unseenChangeCount =
-    unseenRemoteHistoryEvents.length + unseenRecategorizationChanges.length;
+  const recentProductNormalizationChanges =
+    getRecentProductNormalizationChanges(productNormalizationChanges);
+  const unseenProductNormalizationChanges =
+    getUnseenProductNormalizationChanges(
+      productNormalizationChanges,
+      lastSeenProductNormalizationChangeAt,
+    );
   const displayedHistoryEvents = showUnseenHistoryOnly
     ? unseenHistoryEventsForView
     : recentHistoryEvents;
   const displayedRecategorizationChanges = showUnseenHistoryOnly
     ? unseenRecategorizationChangesForView
     : recentRecategorizationChanges;
+  const displayedProductNormalizationChanges = showUnseenHistoryOnly
+    ? unseenProductNormalizationChangesForView
+    : recentProductNormalizationChanges;
   const recategorizationRunsById = new Map(
     recategorizationRuns.map((run) => [run.id, run]),
   );
+  const productNormalizationRunsById = new Map(
+    productNormalizationRuns.map((run) => [run.id, run]),
+  );
   const displayedHistoryCount =
-    historyTab === "categories"
-      ? displayedRecategorizationChanges.length
-      : displayedHistoryEvents.length;
+    historyTab === "normalizations"
+      ? displayedProductNormalizationChanges.length
+      : historyTab === "categories"
+        ? displayedRecategorizationChanges.length
+        : displayedHistoryEvents.length;
   const removePurchasedButtonText =
     selectedPurchasedCount === 1
       ? "Borrar 1 producto"
       : `Borrar ${selectedPurchasedCount} productos`;
   const clearPurchasedDescription =
     selectedPurchasedCount === 1
-      ? `Se borrará 1 producto comprado de ${selectedSectionName}. Podrás deshacerlo después.`
-      : `Se borrarán ${selectedPurchasedCount} productos comprados de ${selectedSectionName}. Podrás deshacerlo después.`;
+      ? `Se borrará 1 producto comprado de ${selectedSectionName}. Podrás deshacerlo después. Si no queda asociado a un producto canónico, dejará de contar para el análisis de precios.`
+      : `Se borrarán ${selectedPurchasedCount} productos comprados de ${selectedSectionName}. Podrás deshacerlo después. Si no quedan asociados a un producto canónico, dejarán de contar para el análisis de precios.`;
   const isPushInviteVisible =
     isLoaded &&
     shouldShowPushNotificationInvite(
@@ -1128,9 +1263,17 @@ export function App() {
             storedData.productCatalogEntries ??
               defaultShoppingProductCatalogEntries,
           );
+          setCanonicalProducts(storedData.canonicalProducts ?? []);
+          setCanonicalProductAliases(storedData.canonicalProductAliases ?? []);
           setHistoryEvents(nextHistoryEvents);
           setRecategorizationRuns(storedData.recategorizationRuns ?? []);
           setRecategorizationChanges(storedData.recategorizationChanges ?? []);
+          setProductNormalizationRuns(
+            storedData.productNormalizationRuns ?? [],
+          );
+          setProductNormalizationChanges(
+            storedData.productNormalizationChanges ?? [],
+          );
           setSelectedSectionId((currentSectionId) =>
             isShoppingSectionId(currentSectionId, storedData.sections)
               ? currentSectionId
@@ -1187,6 +1330,10 @@ export function App() {
           productCatalogEntries,
           recategorizationRuns,
           recategorizationChanges,
+          canonicalProducts,
+          canonicalProductAliases,
+          productNormalizationRuns,
+          productNormalizationChanges,
         });
         pendingAddDraftRef.current = null;
         setStorageError(null);
@@ -1225,15 +1372,19 @@ export function App() {
     void storeItems();
   }, [
     beginRemoteRequest,
+    canonicalProductAliases,
+    canonicalProducts,
     categories,
     freezerItems,
+    historyEvents,
     isLoaded,
     items,
     productCatalogEntries,
+    productNormalizationChanges,
+    productNormalizationRuns,
     recategorizationChanges,
     recategorizationRuns,
     sections,
-    historyEvents,
   ]);
 
   useEffect(() => {
@@ -1278,10 +1429,20 @@ export function App() {
           nextStoredData.productCatalogEntries ??
             defaultShoppingProductCatalogEntries,
         );
+        setCanonicalProducts(nextStoredData.canonicalProducts ?? []);
+        setCanonicalProductAliases(
+          nextStoredData.canonicalProductAliases ?? [],
+        );
         setHistoryEvents(nextStoredData.historyEvents);
         setRecategorizationRuns(nextStoredData.recategorizationRuns ?? []);
         setRecategorizationChanges(
           nextStoredData.recategorizationChanges ?? [],
+        );
+        setProductNormalizationRuns(
+          nextStoredData.productNormalizationRuns ?? [],
+        );
+        setProductNormalizationChanges(
+          nextStoredData.productNormalizationChanges ?? [],
         );
         setSelectedSectionId((currentSectionId) =>
           isShoppingSectionId(currentSectionId, nextStoredData.sections)
@@ -1393,6 +1554,28 @@ export function App() {
       return;
     }
   }, [lastSeenHistoryEventAt]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        lastSeenRecategorizationChangeAtStorageKey,
+        String(lastSeenRecategorizationChangeAt),
+      );
+    } catch {
+      return;
+    }
+  }, [lastSeenRecategorizationChangeAt]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        lastSeenProductNormalizationChangeAtStorageKey,
+        String(lastSeenProductNormalizationChangeAt),
+      );
+    } catch {
+      return;
+    }
+  }, [lastSeenProductNormalizationChangeAt]);
 
   useEffect(() => {
     sectionsRef.current = sections;
@@ -2281,6 +2464,8 @@ export function App() {
       items,
       rawName,
       selectedSectionId,
+      canonicalProductAliases,
+      canonicalProducts,
     );
 
     if (duplicateItem) {
@@ -2298,6 +2483,9 @@ export function App() {
       rawName,
       selectedSectionId,
       rawQuantity,
+      undefined,
+      canonicalProductAliases,
+      canonicalProducts,
     );
 
     if (reactivatedItems !== items) {
@@ -2336,6 +2524,8 @@ export function App() {
       undefined,
       rawQuantity,
       productCatalogEntries,
+      canonicalProductAliases,
+      canonicalProducts,
     );
 
     if (nextItems !== items) {
@@ -2606,6 +2796,14 @@ export function App() {
     const removedItem = items.find((item) => item.id === itemId);
 
     if (!removedItem) {
+      return;
+    }
+
+    const shouldRemove = window.confirm(
+      `"${removedItem.name}" se borrará de la lista. Si no queda asociado a un producto canónico, se perderá su uso en el análisis de precios.`,
+    );
+
+    if (!shouldRemove) {
       return;
     }
 
@@ -2930,6 +3128,7 @@ export function App() {
     setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
     setUnseenRecategorizationChangesForView([]);
+    setUnseenProductNormalizationChangesForView([]);
     runHapticFeedback("light");
   }
 
@@ -2939,6 +3138,7 @@ export function App() {
     setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
     setUnseenRecategorizationChangesForView([]);
+    setUnseenProductNormalizationChangesForView([]);
     runHapticFeedback("light");
   }
 
@@ -2948,6 +3148,7 @@ export function App() {
     setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
     setUnseenRecategorizationChangesForView([]);
+    setUnseenProductNormalizationChangesForView([]);
     runHapticFeedback("light");
   }
 
@@ -2957,6 +3158,15 @@ export function App() {
     setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
     setUnseenRecategorizationChangesForView([]);
+    setUnseenProductNormalizationChangesForView([]);
+    if (recentHistoryEvents.length > 0) {
+      setLastSeenHistoryEventAt(
+        Math.max(
+          ...recentHistoryEvents.map((event) => event.createdAt),
+          lastSeenHistoryEventAt,
+        ),
+      );
+    }
     runHapticFeedback("light");
   }
 
@@ -2966,6 +3176,7 @@ export function App() {
     setHistoryTab("changes");
     setUnseenHistoryEventsForView([]);
     setUnseenRecategorizationChangesForView([]);
+    setUnseenProductNormalizationChangesForView([]);
     void refreshDeveloperBackupRun();
     runHapticFeedback("light");
   }
@@ -2973,22 +3184,87 @@ export function App() {
   function showUnseenHistoryView() {
     const latestUnseenEventAt = Math.max(
       ...unseenRemoteHistoryEvents.map((event) => event.createdAt),
-      ...unseenRecategorizationChanges.map((change) => change.createdAt),
       lastSeenHistoryEventAt,
     );
 
     setLastSeenHistoryEventAt(latestUnseenEventAt);
     setUnseenHistoryEventsForView(unseenRemoteHistoryEvents);
-    setUnseenRecategorizationChangesForView(unseenRecategorizationChanges);
+    setUnseenRecategorizationChangesForView([]);
+    setUnseenProductNormalizationChangesForView([]);
     setShowUnseenHistoryOnly(true);
-    setHistoryTab(
-      unseenRemoteHistoryEvents.length === 0 &&
-        unseenRecategorizationChanges.length > 0
-        ? "categories"
-        : "changes",
-    );
+    setHistoryTab("changes");
     setActiveView("history");
     runHapticFeedback("light");
+  }
+
+  function showUnseenRecategorizationView() {
+    const latestUnseenEventAt = Math.max(
+      ...unseenRecategorizationChanges.map((change) => change.createdAt),
+      lastSeenRecategorizationChangeAt,
+    );
+
+    setLastSeenRecategorizationChangeAt(latestUnseenEventAt);
+    setUnseenHistoryEventsForView([]);
+    setUnseenRecategorizationChangesForView(unseenRecategorizationChanges);
+    setUnseenProductNormalizationChangesForView([]);
+    setShowUnseenHistoryOnly(true);
+    setHistoryTab("categories");
+    setActiveView("history");
+    runHapticFeedback("light");
+  }
+
+  function showUnseenProductNormalizationView() {
+    const latestUnseenEventAt = Math.max(
+      ...unseenProductNormalizationChanges.map((change) => change.createdAt),
+      lastSeenProductNormalizationChangeAt,
+    );
+
+    setLastSeenProductNormalizationChangeAt(latestUnseenEventAt);
+    setUnseenHistoryEventsForView([]);
+    setUnseenRecategorizationChangesForView([]);
+    setUnseenProductNormalizationChangesForView(
+      unseenProductNormalizationChanges,
+    );
+    setShowUnseenHistoryOnly(true);
+    setHistoryTab("normalizations");
+    setActiveView("history");
+    runHapticFeedback("light");
+  }
+
+  function handleHistoryTabClick(nextTab: HistoryTab) {
+    setHistoryTab(nextTab);
+
+    if (nextTab === "changes" && recentHistoryEvents.length > 0) {
+      setLastSeenHistoryEventAt(
+        Math.max(
+          ...recentHistoryEvents.map((event) => event.createdAt),
+          lastSeenHistoryEventAt,
+        ),
+      );
+    }
+
+    if (nextTab === "categories" && recentRecategorizationChanges.length > 0) {
+      setLastSeenRecategorizationChangeAt(
+        Math.max(
+          ...recentRecategorizationChanges.map((change) => change.createdAt),
+          lastSeenRecategorizationChangeAt,
+        ),
+      );
+    }
+
+    if (
+      nextTab === "normalizations" &&
+      recentProductNormalizationChanges.length > 0
+    ) {
+      setLastSeenProductNormalizationChangeAt(
+        Math.max(
+          ...recentProductNormalizationChanges.map(
+            (change) => change.createdAt,
+          ),
+          lastSeenProductNormalizationChangeAt,
+        ),
+      );
+    }
   }
 
   function handleSectionNameChange(
@@ -3610,6 +3886,60 @@ export function App() {
                 <p className={styles.historyMeta}>
                   Catálogo: {change.catalogEntryId}
                 </p>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+    );
+  }
+
+  function renderProductNormalizationChanges() {
+    if (displayedProductNormalizationChanges.length === 0) {
+      return (
+        <div className={styles.historyEmpty}>
+          <p className={styles.emptyTitle}>
+            {showUnseenHistoryOnly
+              ? "No hay normalizaciones pendientes"
+              : "No hay normalizaciones"}
+          </p>
+          <p className={styles.emptyDescription}>
+            {showUnseenHistoryOnly
+              ? "Las normalizaciones ya están revisadas."
+              : "Las fusiones, renombres y aliases de Codex aparecerán aquí."}
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <ol className={styles.historyList}>
+        {displayedProductNormalizationChanges.map((change) => {
+          const run = productNormalizationRunsById.get(change.runId);
+          const runSummary = getProductNormalizationRunSummary(run);
+          const changeMeta = getProductNormalizationChangeMeta(change);
+
+          return (
+            <li className={styles.historyItem} key={change.id}>
+              <div className={styles.historyItemHeader}>
+                <span className={styles.historyAction}>
+                  {getProductNormalizationActionText(change)}
+                </span>
+                <time dateTime={new Date(change.createdAt).toISOString()}>
+                  {formatHistoryEventDate(change.createdAt)}
+                </time>
+              </div>
+              <p className={styles.historyProduct}>
+                {getProductNormalizationProductText(change)}
+              </p>
+              {changeMeta ? (
+                <p className={styles.historyMeta}>{changeMeta}</p>
+              ) : null}
+              {change.reason ? (
+                <p className={styles.historyMeta}>{change.reason}</p>
+              ) : null}
+              {runSummary ? (
+                <p className={styles.historyMeta}>{runSummary}</p>
               ) : null}
             </li>
           );
@@ -4447,12 +4777,12 @@ export function App() {
         </div>
       ) : null}
 
-      {unseenChangeCount > 0 && activeView !== "history" ? (
+      {unseenRemoteHistoryEvents.length > 0 && activeView !== "history" ? (
         <section className={styles.remoteChangesBanner} role="status">
           <span>
-            {unseenChangeCount === 1
+            {unseenRemoteHistoryEvents.length === 1
               ? "Hay 1 cambio de otro dispositivo."
-              : `Hay ${unseenChangeCount} cambios de otro dispositivo.`}
+              : `Hay ${unseenRemoteHistoryEvents.length} cambios de otro dispositivo.`}
           </span>
           <button
             className={styles.undoButton}
@@ -4461,6 +4791,43 @@ export function App() {
             onClick={showUnseenHistoryView}
           >
             Ver cambios
+          </button>
+        </section>
+      ) : null}
+
+      {unseenRecategorizationChanges.length > 0 && activeView !== "history" ? (
+        <section className={styles.remoteChangesBanner} role="status">
+          <span>
+            {unseenRecategorizationChanges.length === 1
+              ? "Hay 1 recategorización nueva."
+              : `Hay ${unseenRecategorizationChanges.length} recategorizaciones nuevas.`}
+          </span>
+          <button
+            className={styles.undoButton}
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={showUnseenRecategorizationView}
+          >
+            Ver categorías
+          </button>
+        </section>
+      ) : null}
+
+      {unseenProductNormalizationChanges.length > 0 &&
+      activeView !== "history" ? (
+        <section className={styles.remoteChangesBanner} role="status">
+          <span>
+            {unseenProductNormalizationChanges.length === 1
+              ? "Hay 1 normalización nueva."
+              : `Hay ${unseenProductNormalizationChanges.length} normalizaciones nuevas.`}
+          </span>
+          <button
+            className={styles.undoButton}
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={showUnseenProductNormalizationView}
+          >
+            Ver normalización
           </button>
         </section>
       ) : null}
@@ -4769,9 +5136,7 @@ export function App() {
               Ver historial completo
             </button>
           ) : null}
-          {!showUnseenHistoryOnly ||
-          (unseenHistoryEventsForView.length > 0 &&
-            unseenRecategorizationChangesForView.length > 0) ? (
+          {!showUnseenHistoryOnly ? (
             <div className={styles.historyTabs} role="tablist">
               <button
                 className={
@@ -4783,7 +5148,7 @@ export function App() {
                 role="tab"
                 aria-selected={historyTab === "changes"}
                 onPointerDown={handleButtonPointerDown}
-                onClick={() => setHistoryTab("changes")}
+                onClick={() => handleHistoryTabClick("changes")}
               >
                 Cambios
               </button>
@@ -4797,15 +5162,31 @@ export function App() {
                 role="tab"
                 aria-selected={historyTab === "categories"}
                 onPointerDown={handleButtonPointerDown}
-                onClick={() => setHistoryTab("categories")}
+                onClick={() => handleHistoryTabClick("categories")}
               >
                 Categorías
               </button>
+              <button
+                className={
+                  historyTab === "normalizations"
+                    ? styles.historyTabActive
+                    : styles.historyTab
+                }
+                type="button"
+                role="tab"
+                aria-selected={historyTab === "normalizations"}
+                onPointerDown={handleButtonPointerDown}
+                onClick={() => handleHistoryTabClick("normalizations")}
+              >
+                Normalización
+              </button>
             </div>
           ) : null}
-          {historyTab === "categories"
-            ? renderRecategorizationChanges()
-            : renderHistoryEvents()}
+          {historyTab === "normalizations"
+            ? renderProductNormalizationChanges()
+            : historyTab === "categories"
+              ? renderRecategorizationChanges()
+              : renderHistoryEvents()}
         </section>
       ) : null}
 

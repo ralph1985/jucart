@@ -9,6 +9,7 @@ import {
   getUnseenRemoteShoppingHistoryEvents,
   hasItemWithName,
   inferShoppingCategoryId,
+  resolveCanonicalProductForName,
   moveShoppingSection,
   normalizeItemName,
   renameShoppingSection,
@@ -195,6 +196,172 @@ describe("shopping item logic", () => {
         purchased: false,
         createdAt: 100,
         updatedAt: 100,
+      },
+    ]);
+  });
+
+  it("normalizes new products with known canonical aliases", () => {
+    const canonicalProducts = [
+      {
+        id: "canonical-platano",
+        name: "Plátanos",
+        normalizedName: "platanos",
+        comparisonUnit: "kg" as const,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ];
+    const canonicalAliases = [
+      {
+        id: "alias-platano",
+        canonicalProductId: "canonical-platano",
+        alias: "plátano",
+        normalizedAlias: "platano",
+        createdAt: 100,
+      },
+    ];
+
+    expect(
+      resolveCanonicalProductForName(
+        "Platano",
+        canonicalAliases,
+        canonicalProducts,
+      ),
+    ).toEqual(canonicalProducts[0]);
+    expect(
+      addShoppingItem(
+        [],
+        "platano",
+        "mercadona",
+        "rafa",
+        () => "item-1",
+        () => 200,
+        "2",
+        undefined,
+        canonicalAliases,
+        canonicalProducts,
+      ),
+    ).toEqual([
+      {
+        id: "item-1",
+        name: "Plátanos",
+        quantity: "2",
+        sectionId: "mercadona",
+        categoryId: "fruit",
+        canonicalProductId: "canonical-platano",
+        addedBy: "rafa",
+        purchased: false,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+    ]);
+  });
+
+  it("blocks pending duplicates by canonical product in the same list", () => {
+    const canonicalProducts = [
+      {
+        id: "canonical-platano",
+        name: "Plátanos",
+        normalizedName: "platanos",
+        comparisonUnit: "kg" as const,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ];
+    const canonicalAliases = [
+      {
+        id: "alias-platano",
+        canonicalProductId: "canonical-platano",
+        alias: "plátano",
+        normalizedAlias: "platano",
+        createdAt: 100,
+      },
+    ];
+    const existingItems: ShoppingItem[] = [
+      {
+        ...baseItem,
+        name: "Plátanos",
+        canonicalProductId: "canonical-platano",
+        purchased: false,
+      },
+    ];
+
+    expect(
+      addShoppingItem(
+        existingItems,
+        "platano",
+        "mercadona",
+        "rafa",
+        () => "item-2",
+        () => 200,
+        "1",
+        undefined,
+        canonicalAliases,
+        canonicalProducts,
+      ),
+    ).toBe(existingItems);
+    expect(
+      addShoppingItem(
+        existingItems,
+        "platano",
+        "alcampo",
+        "rafa",
+        () => "item-2",
+        () => 200,
+        "1",
+        undefined,
+        canonicalAliases,
+        canonicalProducts,
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("reactivates purchased canonical products when adding a known alias", () => {
+    const canonicalProducts = [
+      {
+        id: "canonical-platano",
+        name: "Plátanos",
+        normalizedName: "platanos",
+        comparisonUnit: "kg" as const,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+    ];
+    const canonicalAliases = [
+      {
+        id: "alias-platano",
+        canonicalProductId: "canonical-platano",
+        alias: "plátano",
+        normalizedAlias: "platano",
+        createdAt: 100,
+      },
+    ];
+
+    expect(
+      reactivatePurchasedShoppingItem(
+        [
+          {
+            ...baseItem,
+            name: "Plátanos",
+            canonicalProductId: "canonical-platano",
+            purchased: true,
+          },
+        ],
+        "platano",
+        "mercadona",
+        "3",
+        () => 300,
+        canonicalAliases,
+        canonicalProducts,
+      ),
+    ).toEqual([
+      {
+        ...baseItem,
+        name: "Plátanos",
+        quantity: "3",
+        canonicalProductId: "canonical-platano",
+        purchased: false,
+        updatedAt: 300,
       },
     ]);
   });

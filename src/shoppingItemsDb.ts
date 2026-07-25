@@ -14,8 +14,12 @@ import {
   isShoppingSectionColor,
   isShoppingUserId,
   ShoppingCategory,
+  ShoppingCanonicalProduct,
+  ShoppingCanonicalProductAlias,
   ShoppingHistoryEvent,
   ShoppingItem,
+  ShoppingProductNormalizationChange,
+  ShoppingProductNormalizationRun,
   ShoppingProductCatalogEntry,
   ShoppingRecategorizationChange,
   ShoppingRecategorizationRun,
@@ -42,6 +46,11 @@ type StoredShoppingCategory = ShoppingCategory;
 type StoredShoppingProductCatalogEntry = ShoppingProductCatalogEntry;
 type StoredShoppingRecategorizationRun = ShoppingRecategorizationRun;
 type StoredShoppingRecategorizationChange = ShoppingRecategorizationChange;
+type StoredShoppingCanonicalProduct = ShoppingCanonicalProduct;
+type StoredShoppingCanonicalProductAlias = ShoppingCanonicalProductAlias;
+type StoredShoppingProductNormalizationRun = ShoppingProductNormalizationRun;
+type StoredShoppingProductNormalizationChange =
+  ShoppingProductNormalizationChange;
 export type ShoppingItemsStorageMode = "local" | "remote" | "fallback";
 export type ShoppingData = {
   items: ShoppingItem[];
@@ -52,6 +61,10 @@ export type ShoppingData = {
   productCatalogEntries?: ShoppingProductCatalogEntry[];
   recategorizationRuns?: ShoppingRecategorizationRun[];
   recategorizationChanges?: ShoppingRecategorizationChange[];
+  canonicalProducts?: ShoppingCanonicalProduct[];
+  canonicalProductAliases?: ShoppingCanonicalProductAlias[];
+  productNormalizationRuns?: ShoppingProductNormalizationRun[];
+  productNormalizationChanges?: ShoppingProductNormalizationChange[];
 };
 
 let lastStorageMode: ShoppingItemsStorageMode = "local";
@@ -72,6 +85,19 @@ class JucartDatabase extends Dexie {
   >;
   shoppingRecategorizationChanges!: Table<
     StoredShoppingRecategorizationChange,
+    string
+  >;
+  shoppingCanonicalProducts!: Table<StoredShoppingCanonicalProduct, string>;
+  shoppingCanonicalProductAliases!: Table<
+    StoredShoppingCanonicalProductAlias,
+    string
+  >;
+  shoppingProductNormalizationRuns!: Table<
+    StoredShoppingProductNormalizationRun,
+    string
+  >;
+  shoppingProductNormalizationChanges!: Table<
+    StoredShoppingProductNormalizationChange,
     string
   >;
 
@@ -148,6 +174,24 @@ class JucartDatabase extends Dexie {
       shoppingProductCatalogEntries: "id, categoryId, normalizedName",
       shoppingRecategorizationRuns: "id, createdAt",
       shoppingRecategorizationChanges: "id, runId, itemId, createdAt",
+    });
+
+    this.version(12).stores({
+      shoppingItems:
+        "id, sectionId, categoryId, canonicalProductId, addedBy, createdAt, updatedAt, purchased",
+      shoppingSections: "id, position",
+      shoppingHistoryEvents: "id, itemId, type, actor, clientId, createdAt",
+      freezerItems: "id, drawerId, frozenAt, createdAt, updatedAt",
+      shoppingCategories: "id, position",
+      shoppingProductCatalogEntries: "id, categoryId, normalizedName",
+      shoppingRecategorizationRuns: "id, createdAt",
+      shoppingRecategorizationChanges: "id, runId, itemId, createdAt",
+      shoppingCanonicalProducts: "id, normalizedName, comparisonUnit",
+      shoppingCanonicalProductAliases:
+        "id, canonicalProductId, normalizedAlias, createdAt",
+      shoppingProductNormalizationRuns: "id, createdAt",
+      shoppingProductNormalizationChanges:
+        "id, runId, itemId, action, createdAt",
     });
   }
 }
@@ -231,6 +275,10 @@ export async function resetShoppingItemsDatabase() {
       db.shoppingProductCatalogEntries,
       db.shoppingRecategorizationRuns,
       db.shoppingRecategorizationChanges,
+      db.shoppingCanonicalProducts,
+      db.shoppingCanonicalProductAliases,
+      db.shoppingProductNormalizationRuns,
+      db.shoppingProductNormalizationChanges,
     ],
     async () => {
       await db.shoppingItems.clear();
@@ -241,6 +289,10 @@ export async function resetShoppingItemsDatabase() {
       await db.shoppingProductCatalogEntries.clear();
       await db.shoppingRecategorizationRuns.clear();
       await db.shoppingRecategorizationChanges.clear();
+      await db.shoppingCanonicalProducts.clear();
+      await db.shoppingCanonicalProductAliases.clear();
+      await db.shoppingProductNormalizationRuns.clear();
+      await db.shoppingProductNormalizationChanges.clear();
     },
   );
 }
@@ -263,11 +315,19 @@ async function getLocalShoppingData() {
     productCatalogEntries,
     recategorizationRuns,
     recategorizationChanges,
+    canonicalProducts,
+    canonicalProductAliases,
+    productNormalizationRuns,
+    productNormalizationChanges,
   ] = await Promise.all([
     getLocalShoppingCategories(),
     getLocalShoppingProductCatalogEntries(),
     getLocalShoppingRecategorizationRuns(),
     getLocalShoppingRecategorizationChanges(),
+    getLocalShoppingCanonicalProducts(),
+    getLocalShoppingCanonicalProductAliases(),
+    getLocalShoppingProductNormalizationRuns(),
+    getLocalShoppingProductNormalizationChanges(),
   ]);
 
   return {
@@ -279,6 +339,10 @@ async function getLocalShoppingData() {
     productCatalogEntries,
     recategorizationRuns,
     recategorizationChanges,
+    canonicalProducts,
+    canonicalProductAliases,
+    productNormalizationRuns,
+    productNormalizationChanges,
   };
 }
 
@@ -302,6 +366,10 @@ async function replaceLocalShoppingData(data: ShoppingData) {
       db.shoppingProductCatalogEntries,
       db.shoppingRecategorizationRuns,
       db.shoppingRecategorizationChanges,
+      db.shoppingCanonicalProducts,
+      db.shoppingCanonicalProductAliases,
+      db.shoppingProductNormalizationRuns,
+      db.shoppingProductNormalizationChanges,
     ],
     async () => {
       await db.shoppingItems.clear();
@@ -312,6 +380,10 @@ async function replaceLocalShoppingData(data: ShoppingData) {
       await db.shoppingProductCatalogEntries.clear();
       await db.shoppingRecategorizationRuns.clear();
       await db.shoppingRecategorizationChanges.clear();
+      await db.shoppingCanonicalProducts.clear();
+      await db.shoppingCanonicalProductAliases.clear();
+      await db.shoppingProductNormalizationRuns.clear();
+      await db.shoppingProductNormalizationChanges.clear();
       await db.shoppingItems.bulkAdd(data.items);
       await db.shoppingSections.bulkAdd(
         data.sections.map((section, position) => ({ ...section, position })),
@@ -329,6 +401,16 @@ async function replaceLocalShoppingData(data: ShoppingData) {
       );
       await db.shoppingRecategorizationChanges.bulkAdd(
         data.recategorizationChanges ?? [],
+      );
+      await db.shoppingCanonicalProducts.bulkAdd(data.canonicalProducts ?? []);
+      await db.shoppingCanonicalProductAliases.bulkAdd(
+        data.canonicalProductAliases ?? [],
+      );
+      await db.shoppingProductNormalizationRuns.bulkAdd(
+        data.productNormalizationRuns ?? [],
+      );
+      await db.shoppingProductNormalizationChanges.bulkAdd(
+        data.productNormalizationChanges ?? [],
       );
     },
   );
@@ -367,6 +449,30 @@ async function getLocalShoppingRecategorizationRuns() {
 
 async function getLocalShoppingRecategorizationChanges() {
   return db.shoppingRecategorizationChanges
+    .orderBy("createdAt")
+    .reverse()
+    .toArray();
+}
+
+async function getLocalShoppingCanonicalProducts() {
+  return db.shoppingCanonicalProducts.orderBy("normalizedName").toArray();
+}
+
+async function getLocalShoppingCanonicalProductAliases() {
+  return db.shoppingCanonicalProductAliases
+    .orderBy("normalizedAlias")
+    .toArray();
+}
+
+async function getLocalShoppingProductNormalizationRuns() {
+  return db.shoppingProductNormalizationRuns
+    .orderBy("createdAt")
+    .reverse()
+    .toArray();
+}
+
+async function getLocalShoppingProductNormalizationChanges() {
+  return db.shoppingProductNormalizationChanges
     .orderBy("createdAt")
     .reverse()
     .toArray();

@@ -67,6 +67,25 @@ export type ShoppingProductCatalogEntry = {
   normalizedName: string;
 };
 
+export type CanonicalProductComparisonUnit = "kg" | "l" | "unit";
+
+export type ShoppingCanonicalProduct = {
+  id: string;
+  name: string;
+  normalizedName: string;
+  comparisonUnit: CanonicalProductComparisonUnit;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type ShoppingCanonicalProductAlias = {
+  id: string;
+  canonicalProductId: string;
+  alias: string;
+  normalizedAlias: string;
+  createdAt: number;
+};
+
 export type ShoppingRecategorizationRun = {
   id: string;
   source: "codex";
@@ -88,6 +107,38 @@ export type ShoppingRecategorizationChange = {
   nextCategoryId: ShoppingCategoryId;
   reason: string | null;
   catalogEntryId: string | null;
+  createdAt: number;
+};
+
+export type ShoppingProductNormalizationRun = {
+  id: string;
+  source: "codex";
+  status: "success" | "failed";
+  summary: string | null;
+  aliasesCreated: number;
+  itemsTouched: number;
+  quantitiesMerged: number;
+  canonicalProductsMerged: number;
+  startedAt: number;
+  finishedAt: number;
+  createdAt: number;
+};
+
+export type ShoppingProductNormalizationChangeAction =
+  "renamed" | "merged" | "alias_created" | "deleted";
+
+export type ShoppingProductNormalizationChange = {
+  id: string;
+  runId: string;
+  action: ShoppingProductNormalizationChangeAction;
+  itemId: string | null;
+  previousItemName: string | null;
+  nextItemName: string | null;
+  previousCanonicalProductId: string | null;
+  nextCanonicalProductId: string | null;
+  quantityBefore: string | null;
+  quantityAfter: string | null;
+  reason: string | null;
   createdAt: number;
 };
 
@@ -235,6 +286,7 @@ export type ShoppingItem = {
   quantity?: string;
   sectionId: ShoppingSectionId;
   categoryId?: ShoppingCategoryId;
+  canonicalProductId?: string;
   addedBy: ShoppingUserId;
   purchased: boolean;
   createdAt: number;
@@ -251,6 +303,7 @@ export type ShoppingHistoryItemSnapshot = Pick<
   | "quantity"
   | "sectionId"
   | "categoryId"
+  | "canonicalProductId"
   | "addedBy"
   | "purchased"
   | "createdAt"
@@ -339,6 +392,17 @@ export function isShoppingHistoryEventType(
   );
 }
 
+export function isShoppingProductNormalizationChangeAction(
+  value: string,
+): value is ShoppingProductNormalizationChangeAction {
+  return (
+    value === "renamed" ||
+    value === "merged" ||
+    value === "alias_created" ||
+    value === "deleted"
+  );
+}
+
 export function isShoppingSectionColor(
   value: string,
 ): value is ShoppingSectionColor {
@@ -365,6 +429,34 @@ export function getShoppingItemCategoryId(
   return item.categoryId && isShoppingCategoryId(item.categoryId)
     ? item.categoryId
     : inferShoppingCategoryId(item.name, productCatalogEntries);
+}
+
+export function normalizeCanonicalProductText(value: string) {
+  return normalizeCatalogText(value);
+}
+
+export function resolveCanonicalProductForName(
+  rawName: string,
+  aliases: ShoppingCanonicalProductAlias[] = [],
+  canonicalProducts: ShoppingCanonicalProduct[] = [],
+) {
+  const normalizedName = normalizeCanonicalProductText(rawName);
+
+  if (!normalizedName) {
+    return null;
+  }
+
+  const aliasMatch = aliases.find(
+    (alias) => alias.normalizedAlias === normalizedName,
+  );
+  const canonicalProductId = aliasMatch?.canonicalProductId;
+  const canonicalProduct = canonicalProductId
+    ? canonicalProducts.find((product) => product.id === canonicalProductId)
+    : canonicalProducts.find(
+        (product) => product.normalizedName === normalizedName,
+      );
+
+  return canonicalProduct ?? null;
 }
 
 export function inferShoppingCategoryId(
@@ -512,14 +604,23 @@ export function findPendingShoppingItemByName(
   items: ShoppingItem[],
   name: string,
   sectionId: ShoppingSectionId,
+  aliases: ShoppingCanonicalProductAlias[] = [],
+  canonicalProducts: ShoppingCanonicalProduct[] = [],
 ) {
   const normalizedName = normalizeDuplicateName(name);
+  const canonicalProductId = resolveCanonicalProductForName(
+    name,
+    aliases,
+    canonicalProducts,
+  )?.id;
 
   return items.find(
     (item) =>
       !item.purchased &&
       item.sectionId === sectionId &&
-      normalizeDuplicateName(item.name) === normalizedName,
+      (canonicalProductId && item.canonicalProductId === canonicalProductId
+        ? true
+        : normalizeDuplicateName(item.name) === normalizedName),
   );
 }
 
@@ -656,15 +757,31 @@ export function addShoppingItem(
   now: () => number = () => Date.now(),
   rawQuantity?: string,
   productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
+  canonicalProductAliases: ShoppingCanonicalProductAlias[] = [],
+  canonicalProducts: ShoppingCanonicalProduct[] = [],
 ) {
   const parsedItem = parseShoppingItemNameAndQuantity(rawName);
-  const name = parsedItem.name;
+  const canonicalProduct = resolveCanonicalProductForName(
+    parsedItem.name,
+    canonicalProductAliases,
+    canonicalProducts,
+  );
+  const name = canonicalProduct?.name ?? parsedItem.name;
   const quantity =
     rawQuantity === undefined
       ? parsedItem.quantity
       : normalizeItemQuantity(rawQuantity);
 
-  if (!name || findPendingShoppingItemByName(items, name, sectionId)) {
+  if (
+    !name ||
+    findPendingShoppingItemByName(
+      items,
+      name,
+      sectionId,
+      canonicalProductAliases,
+      canonicalProducts,
+    )
+  ) {
     return items;
   }
 
@@ -678,6 +795,7 @@ export function addShoppingItem(
       quantity,
       sectionId,
       categoryId: inferShoppingCategoryId(name, productCatalogEntries),
+      canonicalProductId: canonicalProduct?.id,
       addedBy,
       purchased: false,
       createdAt,
@@ -692,9 +810,16 @@ export function reactivatePurchasedShoppingItem(
   sectionId: ShoppingSectionId,
   rawQuantity?: string,
   now: () => number = () => Date.now(),
+  aliases: ShoppingCanonicalProductAlias[] = [],
+  canonicalProducts: ShoppingCanonicalProduct[] = [],
 ) {
   const parsedItem = parseShoppingItemNameAndQuantity(rawName);
-  const name = parsedItem.name;
+  const canonicalProduct = resolveCanonicalProductForName(
+    parsedItem.name,
+    aliases,
+    canonicalProducts,
+  );
+  const name = canonicalProduct?.name ?? parsedItem.name;
   const quantity =
     rawQuantity === undefined
       ? parsedItem.quantity
@@ -705,11 +830,14 @@ export function reactivatePurchasedShoppingItem(
   }
 
   const normalizedName = normalizeDuplicateName(name);
+  const canonicalProductId = canonicalProduct?.id;
   const purchasedItem = items.find(
     (item) =>
       item.purchased &&
       item.sectionId === sectionId &&
-      normalizeDuplicateName(item.name) === normalizedName,
+      (canonicalProductId && item.canonicalProductId === canonicalProductId
+        ? true
+        : normalizeDuplicateName(item.name) === normalizedName),
   );
 
   if (!purchasedItem) {
@@ -718,7 +846,18 @@ export function reactivatePurchasedShoppingItem(
 
   return items.map((item) =>
     item.id === purchasedItem.id
-      ? { ...item, quantity, purchased: false, updatedAt: now() }
+      ? {
+          ...item,
+          name: canonicalProduct ? name : item.name,
+          quantity,
+          ...(canonicalProductId
+            ? { canonicalProductId }
+            : item.canonicalProductId
+              ? { canonicalProductId: item.canonicalProductId }
+              : {}),
+          purchased: false,
+          updatedAt: now(),
+        }
       : item,
   );
 }
@@ -833,6 +972,7 @@ function createShoppingHistoryItemSnapshot(
     sectionId: item.sectionId,
     sectionName,
     categoryId: getShoppingItemCategoryId(item),
+    canonicalProductId: item.canonicalProductId,
     addedBy: item.addedBy,
     purchased: item.purchased,
     createdAt: item.createdAt,

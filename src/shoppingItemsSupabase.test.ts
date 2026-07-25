@@ -171,8 +171,12 @@ import {
   mapRowToFreezerItem,
   mapRowToDeveloperBackupRun,
   mapRowToShoppingCategory,
+  mapRowToShoppingCanonicalProduct,
+  mapRowToShoppingCanonicalProductAlias,
   mapRowToShoppingHistoryEvent,
   mapRowToShoppingItem,
+  mapRowToShoppingProductNormalizationChange,
+  mapRowToShoppingProductNormalizationRun,
   mapRowToShoppingProductCatalogEntry,
   mapRowToShoppingRecategorizationChange,
   mapRowToShoppingRecategorizationRun,
@@ -239,6 +243,10 @@ function createReplaceShoppingData(
       },
     ],
     productCatalogEntries: [],
+    canonicalProducts: [],
+    canonicalProductAliases: [],
+    productNormalizationChanges: [],
+    productNormalizationRuns: [],
     recategorizationChanges: [],
     recategorizationRuns: [],
     sections: [
@@ -271,6 +279,7 @@ describe("shopping items Supabase adapter", () => {
           quantity: "2",
           section_id: "mercadona",
           category_id: "dairy",
+          canonical_product_id: "canonical-leche",
           added_by: "begona",
           purchased: false,
           created_at: "2026-07-14T10:00:00.000Z",
@@ -389,6 +398,76 @@ describe("shopping items Supabase adapter", () => {
       ],
       error: null,
     });
+    supabaseMocks.setResult("shopping_canonical_products", "select", {
+      data: [
+        {
+          id: "canonical-leche",
+          list_id: configuredSupabase.listId,
+          name: "Leche",
+          normalized_name: "leche",
+          comparison_unit: "l",
+          created_at: "2026-07-21T01:00:05.000Z",
+          updated_at: "2026-07-21T01:00:05.000Z",
+        },
+      ],
+      error: null,
+    });
+    supabaseMocks.setResult("shopping_canonical_product_aliases", "select", {
+      data: [
+        {
+          id: "alias-leche",
+          list_id: configuredSupabase.listId,
+          canonical_product_id: "canonical-leche",
+          alias: "leches",
+          normalized_alias: "leches",
+          created_at: "2026-07-21T01:00:05.000Z",
+        },
+      ],
+      error: null,
+    });
+    supabaseMocks.setResult("shopping_product_normalization_runs", "select", {
+      data: [
+        {
+          id: "normalization-run-1",
+          list_id: configuredSupabase.listId,
+          source: "codex",
+          status: "success",
+          summary: "Normalizada leche.",
+          aliases_created: 1,
+          items_touched: 1,
+          quantities_merged: 0,
+          canonical_products_merged: 0,
+          started_at: "2026-07-22T01:00:00.000Z",
+          finished_at: "2026-07-22T01:00:05.000Z",
+          created_at: "2026-07-22T01:00:05.000Z",
+        },
+      ],
+      error: null,
+    });
+    supabaseMocks.setResult(
+      "shopping_product_normalization_changes",
+      "select",
+      {
+        data: [
+          {
+            id: "normalization-change-1",
+            run_id: "normalization-run-1",
+            list_id: configuredSupabase.listId,
+            action: "alias_created",
+            item_id: "item-1",
+            previous_item_name: "leches",
+            next_item_name: "Leche",
+            previous_canonical_product_id: null,
+            next_canonical_product_id: "canonical-leche",
+            quantity_before: null,
+            quantity_after: null,
+            reason: "Alias frecuente.",
+            created_at: "2026-07-22T01:00:05.000Z",
+          },
+        ],
+        error: null,
+      },
+    );
 
     const data = await getSupabaseShoppingData();
 
@@ -396,8 +475,25 @@ describe("shopping items Supabase adapter", () => {
       categories: [{ id: "dairy", name: "Lácteos", position: 1 }],
       freezerItems: [{ drawerId: "middle", name: "Caldo" }],
       historyEvents: [{ id: "history-1", type: "initial" }],
-      items: [{ categoryId: "dairy", name: "Leche", quantity: "2" }],
+      items: [
+        {
+          canonicalProductId: "canonical-leche",
+          categoryId: "dairy",
+          name: "Leche",
+          quantity: "2",
+        },
+      ],
+      canonicalProductAliases: [
+        { id: "alias-leche", canonicalProductId: "canonical-leche" },
+      ],
+      canonicalProducts: [{ id: "canonical-leche", comparisonUnit: "l" }],
       productCatalogEntries: [{ id: "dairy-leche", categoryId: "dairy" }],
+      productNormalizationChanges: [
+        { id: "normalization-change-1", action: "alias_created" },
+      ],
+      productNormalizationRuns: [
+        { id: "normalization-run-1", aliasesCreated: 1 },
+      ],
       recategorizationChanges: [{ id: "change-1", nextCategoryId: "dairy" }],
       recategorizationRuns: [{ id: "run-1", status: "failed" }],
       sections: [{ color: "mint", id: "mercadona" }],
@@ -447,6 +543,22 @@ describe("shopping items Supabase adapter", () => {
     supabaseMocks.setResult("shopping_recategorization_changes", "select", {
       error: missingRelationError,
     });
+    supabaseMocks.setResult("shopping_canonical_products", "select", {
+      error: missingRelationError,
+    });
+    supabaseMocks.setResult("shopping_canonical_product_aliases", "select", {
+      error: missingRelationError,
+    });
+    supabaseMocks.setResult("shopping_product_normalization_runs", "select", {
+      error: missingRelationError,
+    });
+    supabaseMocks.setResult(
+      "shopping_product_normalization_changes",
+      "select",
+      {
+        error: missingRelationError,
+      },
+    );
 
     const data = await getSupabaseShoppingData();
 
@@ -455,6 +567,10 @@ describe("shopping items Supabase adapter", () => {
     expect(data?.productCatalogEntries ?? []).not.toHaveLength(0);
     expect(data?.recategorizationChanges).toEqual([]);
     expect(data?.recategorizationRuns).toEqual([]);
+    expect(data?.canonicalProducts).toEqual([]);
+    expect(data?.canonicalProductAliases).toEqual([]);
+    expect(data?.productNormalizationChanges).toEqual([]);
+    expect(data?.productNormalizationRuns).toEqual([]);
     expect(data?.sections.length).toBeGreaterThan(0);
   });
 
@@ -482,6 +598,10 @@ describe("shopping items Supabase adapter", () => {
     ["shopping_product_catalog_entries", "catalog failed"],
     ["shopping_recategorization_runs", "runs failed"],
     ["shopping_recategorization_changes", "changes failed"],
+    ["shopping_canonical_products", "canonical failed"],
+    ["shopping_canonical_product_aliases", "aliases failed"],
+    ["shopping_product_normalization_runs", "normalization runs failed"],
+    ["shopping_product_normalization_changes", "normalization changes failed"],
   ] as const)(
     "throws non-missing optional Supabase read errors from %s",
     async (table, message) => {
@@ -682,7 +802,7 @@ describe("shopping items Supabase adapter", () => {
     expect(supabaseMocks.client.channel).toHaveBeenCalledWith(
       `shopping_items:${configuredSupabase.listId}`,
     );
-    expect(supabaseMocks.channel.on).toHaveBeenCalledTimes(8);
+    expect(supabaseMocks.channel.on).toHaveBeenCalledTimes(12);
     expect(supabaseMocks.channel.on).toHaveBeenCalledWith(
       "postgres_changes",
       expect.objectContaining({
@@ -915,6 +1035,7 @@ describe("shopping items Supabase adapter", () => {
       quantity: "1 kg",
       section_id: "alcampo",
       category_id: "bakery",
+      canonical_product_id: null,
       added_by: "rafa",
       purchased: false,
       created_at: "2026-07-14T10:00:00.000Z",
@@ -1035,6 +1156,86 @@ describe("shopping items Supabase adapter", () => {
       reason: "Cebollas pertenece a verdura.",
       catalogEntryId: "vegetables-cebollas",
       createdAt: Date.parse("2026-07-21T01:00:05.000Z"),
+    });
+  });
+
+  it("maps Supabase canonical product and normalization rows", () => {
+    expect(
+      mapRowToShoppingCanonicalProduct({
+        id: "canonical-1",
+        list_id: configuredSupabase.listId,
+        name: "Plátanos",
+        normalized_name: "platanos",
+        comparison_unit: "kg",
+        created_at: "2026-07-22T01:00:00.000Z",
+        updated_at: "2026-07-22T01:00:05.000Z",
+      }),
+    ).toEqual({
+      id: "canonical-1",
+      name: "Plátanos",
+      normalizedName: "platanos",
+      comparisonUnit: "kg",
+      createdAt: Date.parse("2026-07-22T01:00:00.000Z"),
+      updatedAt: Date.parse("2026-07-22T01:00:05.000Z"),
+    });
+    expect(
+      mapRowToShoppingCanonicalProductAlias({
+        id: "alias-1",
+        list_id: configuredSupabase.listId,
+        canonical_product_id: "canonical-1",
+        alias: "plátano",
+        normalized_alias: "platano",
+        created_at: "2026-07-22T01:00:05.000Z",
+      }),
+    ).toEqual({
+      id: "alias-1",
+      canonicalProductId: "canonical-1",
+      alias: "plátano",
+      normalizedAlias: "platano",
+      createdAt: Date.parse("2026-07-22T01:00:05.000Z"),
+    });
+    expect(
+      mapRowToShoppingProductNormalizationRun({
+        id: "normalization-run-1",
+        list_id: configuredSupabase.listId,
+        source: "codex",
+        status: "failed",
+        summary: "Error.",
+        aliases_created: 1,
+        items_touched: 2,
+        quantities_merged: 1,
+        canonical_products_merged: 0,
+        started_at: "2026-07-22T01:00:00.000Z",
+        finished_at: "2026-07-22T01:00:05.000Z",
+        created_at: "2026-07-22T01:00:05.000Z",
+      }),
+    ).toMatchObject({
+      id: "normalization-run-1",
+      status: "failed",
+      aliasesCreated: 1,
+      itemsTouched: 2,
+      quantitiesMerged: 1,
+    });
+    expect(
+      mapRowToShoppingProductNormalizationChange({
+        id: "normalization-change-1",
+        run_id: "normalization-run-1",
+        list_id: configuredSupabase.listId,
+        action: "alias_created",
+        item_id: "item-1",
+        previous_item_name: "plátano",
+        next_item_name: "Plátanos",
+        previous_canonical_product_id: null,
+        next_canonical_product_id: "canonical-1",
+        quantity_before: null,
+        quantity_after: null,
+        reason: "Alias frecuente.",
+        created_at: "2026-07-22T01:00:05.000Z",
+      }),
+    ).toMatchObject({
+      id: "normalization-change-1",
+      action: "alias_created",
+      nextCanonicalProductId: "canonical-1",
     });
   });
 

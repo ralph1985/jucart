@@ -10,15 +10,20 @@ import {
   defaultShoppingProductCatalogEntries,
   defaultShoppingSections,
   inferShoppingCategoryId,
+  isShoppingProductNormalizationChangeAction,
   isShoppingCategoryId,
   isShoppingHistoryEventType,
   isShoppingSectionColor,
   isShoppingUserId,
   ShoppingCategory,
+  ShoppingCanonicalProduct,
+  ShoppingCanonicalProductAlias,
   ShoppingProductCatalogEntry,
   ShoppingHistoryEvent,
   ShoppingHistoryItemSnapshot,
   ShoppingItem,
+  ShoppingProductNormalizationChange,
+  ShoppingProductNormalizationRun,
   ShoppingSection,
   ShoppingSectionId,
   ShoppingRecategorizationChange,
@@ -36,6 +41,7 @@ type ShoppingItemRow = {
   quantity?: string | null;
   section_id: string;
   category_id?: string;
+  canonical_product_id?: string | null;
   added_by: string;
   purchased: boolean;
   created_at: string;
@@ -104,6 +110,56 @@ type ShoppingRecategorizationChangeRow = {
   next_category_id: string;
   reason: string | null;
   catalog_entry_id: string | null;
+  created_at: string;
+};
+
+type ShoppingCanonicalProductRow = {
+  id: string;
+  list_id: string;
+  name: string;
+  normalized_name: string;
+  comparison_unit: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type ShoppingCanonicalProductAliasRow = {
+  id: string;
+  list_id: string;
+  canonical_product_id: string;
+  alias: string;
+  normalized_alias: string;
+  created_at: string;
+};
+
+type ShoppingProductNormalizationRunRow = {
+  id: string;
+  list_id: string;
+  source: string;
+  status: string;
+  summary: string | null;
+  aliases_created: number;
+  items_touched: number;
+  quantities_merged: number;
+  canonical_products_merged: number;
+  started_at: string;
+  finished_at: string;
+  created_at: string;
+};
+
+type ShoppingProductNormalizationChangeRow = {
+  id: string;
+  run_id: string;
+  list_id: string;
+  action: string;
+  item_id: string | null;
+  previous_item_name: string | null;
+  next_item_name: string | null;
+  previous_canonical_product_id: string | null;
+  next_canonical_product_id: string | null;
+  quantity_before: string | null;
+  quantity_after: string | null;
+  reason: string | null;
   created_at: string;
 };
 
@@ -186,6 +242,10 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
     catalogResult,
     recategorizationRunsResult,
     recategorizationChangesResult,
+    canonicalProductsResult,
+    canonicalProductAliasesResult,
+    normalizationRunsResult,
+    normalizationChangesResult,
   ] = await Promise.all([
     client
       .from("shopping_items")
@@ -223,6 +283,28 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
       .limit(30),
     client
       .from("shopping_recategorization_changes")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("created_at", { ascending: false })
+      .limit(100),
+    client
+      .from("shopping_canonical_products")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("normalized_name", { ascending: true }),
+    client
+      .from("shopping_canonical_product_aliases")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("normalized_alias", { ascending: true }),
+    client
+      .from("shopping_product_normalization_runs")
+      .select("*")
+      .eq("list_id", config.listId)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    client
+      .from("shopping_product_normalization_changes")
       .select("*")
       .eq("list_id", config.listId)
       .order("created_at", { ascending: false })
@@ -270,6 +352,34 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
     throw recategorizationChangesResult.error;
   }
 
+  if (
+    canonicalProductsResult.error &&
+    !isMissingRelationError(canonicalProductsResult.error)
+  ) {
+    throw canonicalProductsResult.error;
+  }
+
+  if (
+    canonicalProductAliasesResult.error &&
+    !isMissingRelationError(canonicalProductAliasesResult.error)
+  ) {
+    throw canonicalProductAliasesResult.error;
+  }
+
+  if (
+    normalizationRunsResult.error &&
+    !isMissingRelationError(normalizationRunsResult.error)
+  ) {
+    throw normalizationRunsResult.error;
+  }
+
+  if (
+    normalizationChangesResult.error &&
+    !isMissingRelationError(normalizationChangesResult.error)
+  ) {
+    throw normalizationChangesResult.error;
+  }
+
   const productCatalogEntries =
     !catalogResult.error && catalogResult.data && catalogResult.data.length > 0
       ? catalogResult.data.map(mapRowToShoppingProductCatalogEntry)
@@ -302,6 +412,28 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
       !recategorizationChangesResult.error && recategorizationChangesResult.data
         ? recategorizationChangesResult.data.map(
             mapRowToShoppingRecategorizationChange,
+          )
+        : [],
+    canonicalProducts:
+      !canonicalProductsResult.error && canonicalProductsResult.data
+        ? canonicalProductsResult.data.map(mapRowToShoppingCanonicalProduct)
+        : [],
+    canonicalProductAliases:
+      !canonicalProductAliasesResult.error && canonicalProductAliasesResult.data
+        ? canonicalProductAliasesResult.data.map(
+            mapRowToShoppingCanonicalProductAlias,
+          )
+        : [],
+    productNormalizationRuns:
+      !normalizationRunsResult.error && normalizationRunsResult.data
+        ? normalizationRunsResult.data.map(
+            mapRowToShoppingProductNormalizationRun,
+          )
+        : [],
+    productNormalizationChanges:
+      !normalizationChangesResult.error && normalizationChangesResult.data
+        ? normalizationChangesResult.data.map(
+            mapRowToShoppingProductNormalizationChange,
           )
         : [],
   };
@@ -530,6 +662,46 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
       },
       onChange,
     )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_canonical_products",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_canonical_product_aliases",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_product_normalization_runs",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "shopping_product_normalization_changes",
+        filter: `list_id=eq.${config.listId}`,
+      },
+      onChange,
+    )
     .subscribe();
 
   return () => {
@@ -608,10 +780,39 @@ export function mapRowToShoppingItem(
       row.name,
       productCatalogEntries,
     ),
+    canonicalProductId: row.canonical_product_id?.trim() || undefined,
     addedBy: normalizeUserId(row.added_by),
     purchased: row.purchased,
     createdAt: Date.parse(row.created_at),
     updatedAt: Date.parse(row.updated_at),
+  };
+}
+
+export function mapRowToShoppingCanonicalProduct(
+  row: ShoppingCanonicalProductRow,
+): ShoppingCanonicalProduct {
+  return {
+    id: row.id,
+    name: row.name,
+    normalizedName: row.normalized_name,
+    comparisonUnit:
+      row.comparison_unit === "kg" || row.comparison_unit === "l"
+        ? row.comparison_unit
+        : "unit",
+    createdAt: Date.parse(row.created_at),
+    updatedAt: Date.parse(row.updated_at),
+  };
+}
+
+export function mapRowToShoppingCanonicalProductAlias(
+  row: ShoppingCanonicalProductAliasRow,
+): ShoppingCanonicalProductAlias {
+  return {
+    id: row.id,
+    canonicalProductId: row.canonical_product_id,
+    alias: row.alias,
+    normalizedAlias: row.normalized_alias,
+    createdAt: Date.parse(row.created_at),
   };
 }
 
@@ -668,6 +869,45 @@ export function mapRowToShoppingRecategorizationChange(
   };
 }
 
+export function mapRowToShoppingProductNormalizationRun(
+  row: ShoppingProductNormalizationRunRow,
+): ShoppingProductNormalizationRun {
+  return {
+    id: row.id,
+    source: "codex",
+    status: row.status === "failed" ? "failed" : "success",
+    summary: row.summary,
+    aliasesCreated: row.aliases_created,
+    itemsTouched: row.items_touched,
+    quantitiesMerged: row.quantities_merged,
+    canonicalProductsMerged: row.canonical_products_merged,
+    startedAt: Date.parse(row.started_at),
+    finishedAt: Date.parse(row.finished_at),
+    createdAt: Date.parse(row.created_at),
+  };
+}
+
+export function mapRowToShoppingProductNormalizationChange(
+  row: ShoppingProductNormalizationChangeRow,
+): ShoppingProductNormalizationChange {
+  return {
+    id: row.id,
+    runId: row.run_id,
+    action: isShoppingProductNormalizationChangeAction(row.action)
+      ? row.action
+      : "renamed",
+    itemId: row.item_id,
+    previousItemName: row.previous_item_name,
+    nextItemName: row.next_item_name,
+    previousCanonicalProductId: row.previous_canonical_product_id,
+    nextCanonicalProductId: row.next_canonical_product_id,
+    quantityBefore: row.quantity_before,
+    quantityAfter: row.quantity_after,
+    reason: row.reason,
+    createdAt: Date.parse(row.created_at),
+  };
+}
+
 export function mapRowToShoppingSection(
   row: Pick<ShoppingSectionRow, "id" | "name"> &
     Partial<Pick<ShoppingSectionRow, "color">>,
@@ -690,6 +930,7 @@ export function mapShoppingItemToRow(
     quantity: item.quantity ?? null,
     section_id: item.sectionId,
     category_id: item.categoryId ?? inferShoppingCategoryId(item.name),
+    canonical_product_id: item.canonicalProductId ?? null,
     added_by: item.addedBy,
     purchased: item.purchased,
     created_at: new Date(item.createdAt).toISOString(),
@@ -740,6 +981,7 @@ export function mapRowToShoppingHistoryEvent(
         itemSnapshot.categoryId,
         itemSnapshot.name,
       ),
+      canonicalProductId: itemSnapshot.canonicalProductId,
       addedBy: normalizeUserId(itemSnapshot.addedBy),
       purchased: itemSnapshot.purchased,
       createdAt: itemSnapshot.createdAt,
@@ -825,6 +1067,7 @@ function mapSnapshotToShoppingHistoryItemSnapshot(
     sectionId: normalizeSectionId(itemSnapshot.sectionId),
     sectionName: itemSnapshot.sectionName ?? itemSnapshot.sectionId,
     categoryId: normalizeCategoryId(itemSnapshot.categoryId, itemSnapshot.name),
+    canonicalProductId: itemSnapshot.canonicalProductId,
     addedBy: normalizeUserId(itemSnapshot.addedBy),
     purchased: itemSnapshot.purchased,
     createdAt: itemSnapshot.createdAt,

@@ -129,6 +129,8 @@ describe("shopping items database", () => {
     });
 
     await expect(getStoredShoppingData()).resolves.toMatchObject({
+      canonicalProductAliases: [],
+      canonicalProducts: [],
       items: [],
       sections: [
         { id: "mercadona", name: "Mercadona", color: "mint" },
@@ -145,6 +147,78 @@ describe("shopping items database", () => {
           createdAt: 90,
           updatedAt: 100,
         },
+      ],
+    });
+  });
+
+  it("stores and reads canonical products and normalization history", async () => {
+    await replaceStoredShoppingData({
+      items: [],
+      sections: [{ id: "mercadona", name: "Mercadona", color: "mint" }],
+      historyEvents: [],
+      freezerItems: [],
+      canonicalProducts: [
+        {
+          id: "canonical-platano",
+          name: "Plátanos",
+          normalizedName: "platanos",
+          comparisonUnit: "kg",
+          createdAt: 100,
+          updatedAt: 200,
+        },
+      ],
+      canonicalProductAliases: [
+        {
+          id: "alias-platano",
+          canonicalProductId: "canonical-platano",
+          alias: "plátano",
+          normalizedAlias: "platano",
+          createdAt: 150,
+        },
+      ],
+      productNormalizationRuns: [
+        {
+          id: "normalization-run-1",
+          source: "codex",
+          status: "success",
+          summary: "Unificado plátano.",
+          aliasesCreated: 1,
+          itemsTouched: 1,
+          quantitiesMerged: 0,
+          canonicalProductsMerged: 0,
+          startedAt: 300,
+          finishedAt: 400,
+          createdAt: 400,
+        },
+      ],
+      productNormalizationChanges: [
+        {
+          id: "normalization-change-1",
+          runId: "normalization-run-1",
+          action: "alias_created",
+          itemId: "item-1",
+          previousItemName: "plátano",
+          nextItemName: "Plátanos",
+          previousCanonicalProductId: null,
+          nextCanonicalProductId: "canonical-platano",
+          quantityBefore: null,
+          quantityAfter: null,
+          reason: "Alias frecuente.",
+          createdAt: 400,
+        },
+      ],
+    });
+
+    await expect(getStoredShoppingData()).resolves.toMatchObject({
+      canonicalProductAliases: [
+        { id: "alias-platano", normalizedAlias: "platano" },
+      ],
+      canonicalProducts: [{ id: "canonical-platano", comparisonUnit: "kg" }],
+      productNormalizationChanges: [
+        { id: "normalization-change-1", action: "alias_created" },
+      ],
+      productNormalizationRuns: [
+        { id: "normalization-run-1", aliasesCreated: 1 },
       ],
     });
   });

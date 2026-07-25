@@ -679,6 +679,8 @@ describe("App", () => {
   });
 
   it("adds, toggles and removes products", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
     render(<App />);
 
     const dialog = await openAddSheet();
@@ -1337,6 +1339,8 @@ describe("App", () => {
   });
 
   it("undoes a removed product", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
     await replaceStoredShoppingItems([
       {
         id: "item-1",
@@ -1400,6 +1404,8 @@ describe("App", () => {
   });
 
   it("hides the removed product message after five seconds", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
     await replaceStoredShoppingItems([
       {
         id: "item-1",
@@ -1563,7 +1569,7 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
-  it("notifies unseen recategorization changes like remote shopping changes", async () => {
+  it("notifies unseen recategorization changes separately", async () => {
     await replaceStoredShoppingData({
       items: [],
       sections: [{ id: "mercadona", name: "Mercadona", color: "mint" }],
@@ -1602,10 +1608,10 @@ describe("App", () => {
     await waitForAddFab();
 
     expect(
-      screen.getByText("Hay 1 cambio de otro dispositivo."),
+      screen.getByText("Hay 1 recategorización nueva."),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Ver cambios" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver categorías" }));
 
     expect(
       screen.getByRole("heading", { name: "Cambios nuevos" }),
@@ -1613,7 +1619,64 @@ describe("App", () => {
     expect(screen.getByText("Categoría actualizada")).toBeInTheDocument();
     expect(screen.getByText("Cebollas")).toBeInTheDocument();
     expect(
-      screen.queryByText("Hay 1 cambio de otro dispositivo."),
+      screen.queryByText("Hay 1 recategorización nueva."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows product normalization changes in their history tab", async () => {
+    await replaceStoredShoppingData({
+      items: [],
+      sections: [{ id: "mercadona", name: "Mercadona", color: "mint" }],
+      historyEvents: [],
+      freezerItems: [],
+      productNormalizationRuns: [
+        {
+          id: "normalization-run-1",
+          source: "codex",
+          status: "success",
+          summary: "Unificado plátano.",
+          aliasesCreated: 1,
+          itemsTouched: 1,
+          quantitiesMerged: 0,
+          canonicalProductsMerged: 0,
+          startedAt: Date.now() - 2000,
+          finishedAt: Date.now() - 1000,
+          createdAt: Date.now() - 1000,
+        },
+      ],
+      productNormalizationChanges: [
+        {
+          id: "normalization-change-1",
+          runId: "normalization-run-1",
+          action: "alias_created",
+          itemId: "item-1",
+          previousItemName: "plátano",
+          nextItemName: "Plátanos",
+          previousCanonicalProductId: null,
+          nextCanonicalProductId: "canonical-platano",
+          quantityBefore: null,
+          quantityAfter: null,
+          reason: "Alias frecuente detectado por Codex.",
+          createdAt: Date.now(),
+        },
+      ],
+    });
+
+    render(<App />);
+
+    await waitForAddFab();
+
+    expect(screen.getByText("Hay 1 normalización nueva.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver normalización" }));
+
+    expect(screen.getByText("Alias creado")).toBeInTheDocument();
+    expect(screen.getByText("plátano → Plátanos")).toBeInTheDocument();
+    expect(
+      screen.getByText("Alias frecuente detectado por Codex."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Hay 1 normalización nueva."),
     ).not.toBeInTheDocument();
   });
 
@@ -1766,6 +1829,8 @@ describe("App", () => {
   });
 
   it("uses haptic feedback for high-intent actions", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
     const vibrate = vi.fn();
 
     Object.defineProperty(navigator, "vibrate", {
@@ -1941,7 +2006,7 @@ describe("App", () => {
 
     expect(
       within(dialog).getByText(
-        "Se borrará 1 producto comprado de Mercadona. Podrás deshacerlo después.",
+        "Se borrará 1 producto comprado de Mercadona. Podrás deshacerlo después. Si no queda asociado a un producto canónico, dejará de contar para el análisis de precios.",
       ),
     ).toBeInTheDocument();
     expect(

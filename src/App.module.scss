@@ -1732,9 +1732,9 @@ h2 {
 
 .ticketReviewList li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(13rem, 18rem);
-  align-items: center;
-  gap: 0.55rem;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0.48rem;
   border: 1px solid rgb(217 119 6 / 24%);
   border-radius: 0.46rem;
   padding: 0.52rem;
@@ -1766,26 +1766,31 @@ h2 {
 
 .ticketReviewActions {
   display: grid;
+  grid-template-columns: minmax(7.5rem, 10.5rem) minmax(0, 1fr);
+  align-items: center;
   gap: 0.36rem;
   min-width: 0;
 }
 
 .ticketReviewActions select {
   width: 100%;
-  min-height: 2.35rem;
-  font-size: 0.78rem;
+  min-height: 2.05rem;
+  padding: 0.28rem 1.7rem 0.28rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 780;
 }
 
 .ticketReviewActionButtons {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.28rem;
+  gap: 0.22rem;
+  min-width: 0;
 }
 
 .ticketReviewActionButtons button {
-  min-height: 2.15rem;
-  padding: 0 0.34rem;
-  font-size: 0.72rem;
+  min-height: 2.05rem;
+  padding: 0 0.24rem;
+  font-size: 0.66rem;
 }
 
 .ticketLines {
@@ -2790,6 +2795,10 @@ h2 {
 
   .ticketReviewList li {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ticketReviewActions {
+    grid-template-columns: minmax(7rem, 9rem) minmax(0, 1fr);
   }
 
   .ticketReviewActionButtons {

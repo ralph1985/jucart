@@ -460,12 +460,15 @@ Objetivo: analizar tickets pendientes por la noche desde la máquina local y con
 
 Objetivo: hacer visible el histórico de precios sin convertir Jucart en una aplicación pesada.
 
-- [ ] Mostrar en la lista de compra información de último precio y precio medio cuando exista histórico suficiente.
-- [ ] Añadir una pestaña de precios dentro de la vista Historial o una vista interna equivalente si la navegación actual lo pide.
-- [ ] Mostrar por producto canónico el último precio, supermercado, fecha y tendencia básica.
-- [ ] Mostrar el detalle de observaciones recientes por producto.
-- [ ] Añadir una cola de revisión para líneas dudosas y aliases nuevos propuestos por Codex.
-- [ ] Permitir aceptar una asociación, crear un alias o dejar la línea fuera del análisis.
+- [ ] Mostrar en cada tarjeta de la lista de compra el último precio global y precio medio global en formato pequeño cuando exista histórico suficiente.
+- [ ] Añadir en la tarjeta un botón para abrir el detalle ampliado de precios del producto en bottom sheet.
+- [ ] Mostrar por producto canónico el último precio, supermercado, fecha y diferencia exacta en euros frente al precio anterior.
+- [ ] Mostrar en el bottom sheet desglose por supermercado/lista, como Mercadona frente a Alcampo.
+- [ ] Mostrar todas las observaciones históricas disponibles por producto.
+- [ ] Añadir en la vista Tickets la cola de revisión para líneas dudosas y aliases nuevos propuestos por Codex.
+- [ ] Permitir desde Tickets aceptar una asociación, crear un alias o dejar la línea fuera del análisis.
+- [ ] Crear automáticamente un alias cuando se acepte manualmente una asociación de línea con producto canónico.
+- [ ] Conservar visibles como `Excluida` las líneas que se dejen fuera del análisis.
 - [ ] Mantener los PDFs fuera de la interfaz una vez procesados; la app trabaja con metadatos y líneas extraídas.
 - [ ] Añadir tests razonables de interfaz, estados vacíos, revisión y cálculo de tendencias.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
@@ -474,6 +477,7 @@ Objetivo: hacer visible el histórico de precios sin convertir Jucart en una apl
 
 Objetivo: precargar precios iniciales desde fuentes externas solo cuando aporten datos claros sin convertirse en dependencia crítica.
 
+- [ ] Diseñar una vista global de Precios como v2, separada de la primera integración en tarjetas.
 - [ ] Investigar y elegir explícitamente fuentes por supermercado antes de implementar conectores.
 - [ ] Tratar Mercadona como fuente no oficial salvo que exista una API pública estable.
 - [ ] Guardar observaciones externas con origen diferenciado de los tickets reales.

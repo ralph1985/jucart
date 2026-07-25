@@ -1186,7 +1186,7 @@ function getShoppingCategoryOrder(
   return categoryIndex >= 0 ? categoryIndex : categories.length;
 }
 
-function normalizeCatalogText(value: string) {
+export function normalizeCatalogText(value: string) {
   return normalizeItemName(value)
     .toLocaleLowerCase("es-ES")
     .normalize("NFD")

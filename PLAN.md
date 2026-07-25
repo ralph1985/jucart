@@ -466,9 +466,9 @@ Objetivo: hacer visible el histórico de precios sin convertir Jucart en una apl
 - [x] Mostrar en el bottom sheet desglose por supermercado/lista, como Mercadona frente a Alcampo.
 - [x] Mostrar todas las observaciones históricas disponibles por producto.
 - [x] Añadir en la vista Tickets la cola de revisión para líneas dudosas y aliases nuevos propuestos por Codex.
-- [ ] Permitir desde Tickets aceptar una asociación, crear un alias o dejar la línea fuera del análisis.
-- [ ] Crear automáticamente un alias cuando se acepte manualmente una asociación de línea con producto canónico.
-- [ ] Conservar visibles como `Excluida` las líneas que se dejen fuera del análisis.
+- [x] Permitir desde Tickets aceptar una asociación, crear un alias o dejar la línea fuera del análisis.
+- [x] Crear automáticamente un alias cuando se acepte manualmente una asociación de línea con producto canónico.
+- [x] Conservar visibles como `Excluida` las líneas que se dejen fuera del análisis.
 - [ ] Mantener los PDFs fuera de la interfaz una vez procesados; la app trabaja con metadatos y líneas extraídas.
 - [ ] Añadir tests razonables de interfaz, estados vacíos, revisión y cálculo de tendencias.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.

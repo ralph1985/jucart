@@ -191,6 +191,7 @@ import {
   getSupabaseShoppingTickets,
   createSupabaseTicketFileUrl,
   disableSupabasePushSubscription,
+  excludeSupabaseTicketLine,
   mapFreezerItemToRow,
   mapRowToFreezerItem,
   mapRowToDeveloperBackupRun,
@@ -211,6 +212,7 @@ import {
   mapShoppingSectionToRow,
   registerSupabasePushSubscription,
   replaceSupabaseShoppingData,
+  resolveSupabaseTicketLine,
   subscribeToSupabaseShoppingItems,
   uploadSupabaseShoppingTicket,
 } from "./shoppingItemsSupabase";
@@ -948,6 +950,256 @@ describe("shopping items Supabase adapter", () => {
       args: ["observed_at", { ascending: false }],
       operation: "order",
       table: "shopping_price_observations",
+    });
+  });
+
+  it("resolves a reviewed ticket line and creates alias and price observation", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-4111-8111-111111111111",
+    );
+    supabaseMocks.setResult("shopping_ticket_lines", "select", {
+      data: [{ needs_review: false }],
+    });
+
+    await resolveSupabaseTicketLine({
+      ticket: {
+        id: "ticket-1",
+        sectionId: "mercadona",
+        uploadedBy: "rafa",
+        status: "needs_review",
+        fileCount: 1,
+        uploadedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        processedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        errorMessage: null,
+        createdAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        files: [],
+        lines: [],
+      },
+      line: {
+        id: "line-1",
+        ticketId: "ticket-1",
+        lineIndex: 0,
+        rawText: "PLATANOS 1.20",
+        productName: "Plátanos",
+        canonicalProductId: null,
+        quantity: "1 kg",
+        unitPrice: 1.2,
+        totalPrice: 1.2,
+        originalTotalPrice: null,
+        discountTotal: null,
+        status: "needs_review",
+        needsReview: true,
+        reviewReason: "Alias no confirmado",
+        createdAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+      },
+      canonicalProduct: {
+        id: "canonical-platanos",
+        name: "Plátanos",
+        normalizedName: "platanos",
+        comparisonUnit: "kg",
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      createAlias: true,
+      alias: "Plátanos",
+    });
+
+    expect(supabaseMocks.operations).toContainEqual({
+      args: [
+        {
+          canonical_product_id: "canonical-platanos",
+          needs_review: false,
+          review_reason: null,
+          status: "processed",
+        },
+      ],
+      operation: "update",
+      table: "shopping_ticket_lines",
+    });
+    expect(supabaseMocks.operations).toContainEqual(
+      expect.objectContaining({
+        args: [
+          expect.objectContaining({
+            alias: "Plátanos",
+            canonical_product_id: "canonical-platanos",
+            normalized_alias: "platanos",
+          }),
+          { onConflict: "list_id,normalized_alias" },
+        ],
+        operation: "upsert",
+        table: "shopping_canonical_product_aliases",
+      }),
+    );
+    expect(supabaseMocks.operations).toContainEqual(
+      expect.objectContaining({
+        args: [
+          expect.objectContaining({
+            canonical_product_id: "canonical-platanos",
+            observed_price: 1.2,
+            ticket_line_id: "line-1",
+          }),
+          { onConflict: "ticket_line_id" },
+        ],
+        operation: "upsert",
+        table: "shopping_price_observations",
+      }),
+    );
+    expect(supabaseMocks.operations).toContainEqual({
+      args: [
+        {
+          error_message: null,
+          status: "processed",
+        },
+      ],
+      operation: "update",
+      table: "shopping_tickets",
+    });
+  });
+
+  it("keeps the ticket in review when resolving one line leaves another pending", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.setResult("shopping_ticket_lines", "select", {
+      data: [{ needs_review: true }],
+    });
+
+    await resolveSupabaseTicketLine({
+      ticket: {
+        id: "ticket-1",
+        sectionId: "mercadona",
+        uploadedBy: "rafa",
+        status: "needs_review",
+        fileCount: 1,
+        uploadedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        processedAt: null,
+        errorMessage: null,
+        createdAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        files: [],
+        lines: [],
+      },
+      line: {
+        id: "line-1",
+        ticketId: "ticket-1",
+        lineIndex: 0,
+        rawText: "QUESO 10%",
+        productName: "Queso",
+        canonicalProductId: null,
+        quantity: "1 ud",
+        unitPrice: 2,
+        totalPrice: 2,
+        originalTotalPrice: 2.5,
+        discountTotal: 0.5,
+        status: "needs_review",
+        needsReview: true,
+        reviewReason: "Precio con descuento",
+        createdAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+      },
+      canonicalProduct: {
+        id: "canonical-queso",
+        name: "Queso",
+        normalizedName: "queso",
+        comparisonUnit: "unit",
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      createAlias: false,
+      alias: "",
+    });
+
+    expect(supabaseMocks.operations).not.toContainEqual(
+      expect.objectContaining({
+        operation: "upsert",
+        table: "shopping_canonical_product_aliases",
+      }),
+    );
+    expect(supabaseMocks.operations).toContainEqual(
+      expect.objectContaining({
+        args: [
+          expect.objectContaining({
+            observed_at: "2026-07-25T18:00:00.000Z",
+            observed_price: 2.5,
+            ticket_line_id: "line-1",
+          }),
+          { onConflict: "ticket_line_id" },
+        ],
+        operation: "upsert",
+        table: "shopping_price_observations",
+      }),
+    );
+    expect(supabaseMocks.operations).toContainEqual({
+      args: [
+        {
+          error_message: null,
+          status: "needs_review",
+        },
+      ],
+      operation: "update",
+      table: "shopping_tickets",
+    });
+  });
+
+  it("excludes a reviewed ticket line", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.setResult("shopping_ticket_lines", "select", {
+      data: [{ needs_review: false }],
+    });
+
+    await excludeSupabaseTicketLine(
+      {
+        id: "ticket-1",
+        sectionId: "mercadona",
+        uploadedBy: "rafa",
+        status: "needs_review",
+        fileCount: 1,
+        uploadedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        processedAt: null,
+        errorMessage: null,
+        createdAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        files: [],
+        lines: [],
+      },
+      {
+        id: "line-1",
+        ticketId: "ticket-1",
+        lineIndex: 0,
+        rawText: null,
+        productName: "Cupón",
+        canonicalProductId: null,
+        quantity: null,
+        unitPrice: null,
+        totalPrice: null,
+        originalTotalPrice: null,
+        discountTotal: null,
+        status: "needs_review",
+        needsReview: true,
+        reviewReason: null,
+        createdAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+      },
+    );
+
+    expect(supabaseMocks.operations).toContainEqual({
+      args: [
+        {
+          canonical_product_id: null,
+          needs_review: false,
+          review_reason: null,
+          status: "excluded",
+        },
+      ],
+      operation: "update",
+      table: "shopping_ticket_lines",
     });
   });
 

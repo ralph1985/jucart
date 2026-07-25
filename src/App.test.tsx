@@ -262,6 +262,23 @@ describe("App", () => {
         screen.queryByRole("dialog", { name: "Editar Lentejas" }),
       ).not.toBeInTheDocument(),
     );
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Editar Lentejas" })[0],
+    );
+    const keyboardEditFreezerDialog = screen.getByRole("dialog", {
+      name: "Editar Lentejas",
+    });
+    fireEvent.keyDown(
+      within(keyboardEditFreezerDialog).getByRole("button", {
+        name: "Cerrar panel de edición",
+      }),
+      { key: "Enter" },
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Editar Lentejas" }),
+      ).not.toBeInTheDocument(),
+    );
 
     fireEvent.click(screen.getAllByRole("button", { name: "Usado" })[0]);
 
@@ -1968,8 +1985,10 @@ describe("App", () => {
 
     expect(await screen.findByText("Cola de revisión")).toBeInTheDocument();
     expect(await screen.findByText("Necesita revisión")).toBeInTheDocument();
-    expect(screen.getByText("Alias no confirmado")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Ver ticket" }));
+    expect(screen.getAllByText("Alias no confirmado").length).toBeGreaterThan(
+      0,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Ver" }));
     expect(screen.getByRole("button", { name: /Mercadona/i })).toHaveAttribute(
       "aria-expanded",
       "true",
@@ -1983,6 +2002,117 @@ describe("App", () => {
     ).toBeGreaterThan(0);
     expect(screen.getAllByText("Alias no confirmado").length).toBeGreaterThan(
       0,
+    );
+  });
+
+  it("resolves reviewed ticket lines from the queue", async () => {
+    const ticket = {
+      id: "ticket-review",
+      sectionId: "mercadona" as const,
+      uploadedBy: "rafa" as const,
+      status: "needs_review" as const,
+      fileCount: 1,
+      uploadedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+      processedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+      errorMessage: null,
+      createdAt: Date.parse("2026-07-25T18:00:00.000Z"),
+      updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+      files: [],
+      lines: [
+        {
+          id: "line-review",
+          ticketId: "ticket-review",
+          lineIndex: 0,
+          rawText: "PLATANOS 1.20",
+          productName: "Plátanos",
+          canonicalProductId: null,
+          quantity: "1 kg",
+          unitPrice: 1.2,
+          totalPrice: 1.2,
+          originalTotalPrice: null,
+          discountTotal: null,
+          status: "needs_review" as const,
+          needsReview: true,
+          reviewReason: "Alias no confirmado",
+          createdAt: Date.parse("2026-07-25T18:05:00.000Z"),
+          updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        },
+      ],
+    };
+    const resolveLine = vi
+      .spyOn(shoppingItemsSupabase, "resolveSupabaseTicketLine")
+      .mockResolvedValue();
+    const excludeLine = vi
+      .spyOn(shoppingItemsSupabase, "excludeSupabaseTicketLine")
+      .mockResolvedValue();
+
+    await replaceStoredShoppingData({
+      items: [],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+      canonicalProducts: [
+        {
+          id: "canonical-platanos",
+          name: "Plátanos",
+          normalizedName: "platanos",
+          comparisonUnit: "kg",
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+      canonicalProductAliases: [],
+    });
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabaseShoppingTickets",
+    ).mockResolvedValue([ticket]);
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
+
+    const productSelect = (await screen.findByLabelText(
+      "Producto canónico",
+    )) as HTMLSelectElement;
+    fireEvent.change(productSelect, {
+      target: { value: "canonical-platanos" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Asociar" }));
+
+    await waitFor(() => expect(resolveLine).toHaveBeenCalledOnce());
+    expect(resolveLine).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        alias: "Plátanos",
+        canonicalProduct: expect.objectContaining({ id: "canonical-platanos" }),
+        createAlias: false,
+        line: expect.objectContaining({ id: "line-review" }),
+        ticket: expect.objectContaining({ id: "ticket-review" }),
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText("Producto canónico"), {
+      target: { value: "canonical-platanos" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Alias" }));
+
+    await waitFor(() => expect(resolveLine).toHaveBeenCalledTimes(2));
+    expect(resolveLine).toHaveBeenLastCalledWith(
+      expect.objectContaining({ createAlias: true }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Excluir" }));
+
+    await waitFor(() => expect(excludeLine).toHaveBeenCalledOnce());
+    expect(excludeLine).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "ticket-review" }),
+      expect.objectContaining({ id: "line-review" }),
     );
   });
 
@@ -2041,6 +2171,24 @@ describe("App", () => {
             createdAt: Date.parse("2026-07-25T18:35:00.000Z"),
             updatedAt: Date.parse("2026-07-25T18:35:00.000Z"),
           },
+          {
+            id: "line-excluded",
+            ticketId: "ticket-processed",
+            lineIndex: 1,
+            rawText: "CUPON",
+            productName: "Cupón",
+            canonicalProductId: null,
+            quantity: null,
+            unitPrice: null,
+            totalPrice: null,
+            originalTotalPrice: null,
+            discountTotal: null,
+            status: "excluded",
+            needsReview: false,
+            reviewReason: null,
+            createdAt: Date.parse("2026-07-25T18:35:00.000Z"),
+            updatedAt: Date.parse("2026-07-25T18:35:00.000Z"),
+          },
         ],
       },
     ]);
@@ -2056,6 +2204,8 @@ describe("App", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Farmacia/i }));
 
     expect(screen.getByText("GASAS")).toBeInTheDocument();
+    expect(screen.getByText("Cupón")).toBeInTheDocument();
+    expect(screen.getByText("Excluida")).toBeInTheDocument();
   });
 
   it("shows ticket fallback texts for unknown sections and review reasons", async () => {

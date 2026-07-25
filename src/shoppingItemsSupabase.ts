@@ -16,6 +16,7 @@ import {
   isShoppingHistoryEventType,
   isShoppingSectionColor,
   isShoppingUserId,
+  normalizeCatalogText,
   ShoppingCategory,
   ShoppingCanonicalProduct,
   ShoppingCanonicalProductAlias,
@@ -241,6 +242,14 @@ type ShoppingPriceObservationRow = {
   discount_total: number | null;
   created_at: string;
   updated_at: string;
+};
+
+type ShoppingTicketLineResolutionInput = {
+  ticket: ShoppingTicket;
+  line: ShoppingTicketLine;
+  canonicalProduct: ShoppingCanonicalProduct;
+  createAlias: boolean;
+  alias: string;
 };
 
 type FreezerItemRow = {
@@ -481,6 +490,107 @@ export async function createSupabaseTicketFileUrl(file: ShoppingTicketFile) {
   }
 
   return data.signedUrl;
+}
+
+export async function resolveSupabaseTicketLine({
+  ticket,
+  line,
+  canonicalProduct,
+  createAlias,
+  alias,
+}: ShoppingTicketLineResolutionInput) {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return;
+  }
+
+  const client = getSupabaseClient(config);
+  const lineUpdate = await client
+    .from("shopping_ticket_lines")
+    .update({
+      canonical_product_id: canonicalProduct.id,
+      needs_review: false,
+      review_reason: null,
+      status: "processed",
+    })
+    .eq("id", line.id)
+    .eq("ticket_id", ticket.id)
+    .eq("list_id", config.listId);
+
+  if (lineUpdate.error) {
+    throw lineUpdate.error;
+  }
+
+  const normalizedAlias = normalizeCatalogText(alias);
+
+  if (createAlias && normalizedAlias) {
+    const aliasResult = await client
+      .from("shopping_canonical_product_aliases")
+      .upsert(
+        {
+          id: crypto.randomUUID(),
+          list_id: config.listId,
+          canonical_product_id: canonicalProduct.id,
+          alias: alias.trim(),
+          normalized_alias: normalizedAlias,
+        },
+        { onConflict: "list_id,normalized_alias" },
+      );
+
+    if (aliasResult.error) {
+      throw aliasResult.error;
+    }
+  }
+
+  const priceObservationRow = mapResolvedLineToPriceObservationRow(
+    config.listId,
+    ticket,
+    line,
+    canonicalProduct,
+  );
+
+  if (priceObservationRow) {
+    const observationResult = await client
+      .from("shopping_price_observations")
+      .upsert(priceObservationRow, { onConflict: "ticket_line_id" });
+
+    if (observationResult.error) {
+      throw observationResult.error;
+    }
+  }
+
+  await updateSupabaseTicketStatusFromLines(client, config.listId, ticket.id);
+}
+
+export async function excludeSupabaseTicketLine(
+  ticket: ShoppingTicket,
+  line: ShoppingTicketLine,
+) {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return;
+  }
+
+  const client = getSupabaseClient(config);
+  const lineUpdate = await client
+    .from("shopping_ticket_lines")
+    .update({
+      canonical_product_id: null,
+      needs_review: false,
+      review_reason: null,
+      status: "excluded",
+    })
+    .eq("id", line.id)
+    .eq("ticket_id", ticket.id)
+    .eq("list_id", config.listId);
+
+  if (lineUpdate.error) {
+    throw lineUpdate.error;
+  }
+
+  await updateSupabaseTicketStatusFromLines(client, config.listId, ticket.id);
 }
 
 export async function getSupabasePriceObservations(): Promise<
@@ -1471,6 +1581,90 @@ function mapSnapshotToShoppingHistoryItemSnapshot(
     createdAt: itemSnapshot.createdAt,
     updatedAt: itemSnapshot.updatedAt,
   };
+}
+
+function mapResolvedLineToPriceObservationRow(
+  listId: string,
+  ticket: ShoppingTicket,
+  line: ShoppingTicketLine,
+  canonicalProduct: ShoppingCanonicalProduct,
+) {
+  const observedPrice = getResolvedLineObservedPrice(line);
+
+  if (observedPrice === null) {
+    return null;
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    list_id: listId,
+    source: "ticket",
+    ticket_id: ticket.id,
+    ticket_line_id: line.id,
+    canonical_product_id: canonicalProduct.id,
+    section_id: ticket.sectionId,
+    observed_at: new Date(
+      ticket.processedAt ?? ticket.uploadedAt,
+    ).toISOString(),
+    product_name: line.productName ?? line.rawText,
+    quantity: line.quantity,
+    comparison_unit: canonicalProduct.comparisonUnit,
+    price_kind: line.unitPrice !== null ? "unit" : "total",
+    observed_price: observedPrice,
+    unit_price: line.unitPrice,
+    total_price: line.totalPrice,
+    original_total_price: line.originalTotalPrice,
+    discount_total: line.discountTotal,
+  };
+}
+
+function getResolvedLineObservedPrice(line: ShoppingTicketLine) {
+  if (
+    line.unitPrice !== null &&
+    line.originalTotalPrice !== null &&
+    line.totalPrice !== null &&
+    line.totalPrice > 0
+  ) {
+    return (
+      Math.round(
+        ((line.unitPrice * line.originalTotalPrice) / line.totalPrice) * 10_000,
+      ) / 10_000
+    );
+  }
+
+  return line.unitPrice ?? line.originalTotalPrice ?? line.totalPrice;
+}
+
+async function updateSupabaseTicketStatusFromLines(
+  client: SupabaseClient,
+  listId: string,
+  ticketId: string,
+) {
+  const linesResult = await client
+    .from("shopping_ticket_lines")
+    .select("needs_review")
+    .eq("ticket_id", ticketId)
+    .eq("list_id", listId);
+
+  if (linesResult.error) {
+    throw linesResult.error;
+  }
+
+  const hasReviewLines = (linesResult.data ?? []).some(
+    (line) => line.needs_review,
+  );
+  const ticketUpdate = await client
+    .from("shopping_tickets")
+    .update({
+      error_message: null,
+      status: hasReviewLines ? "needs_review" : "processed",
+    })
+    .eq("id", ticketId)
+    .eq("list_id", listId);
+
+  if (ticketUpdate.error) {
+    throw ticketUpdate.error;
+  }
 }
 
 function getSupabaseClient(config: SupabaseConfig) {

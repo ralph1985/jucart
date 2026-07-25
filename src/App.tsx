@@ -1231,6 +1231,12 @@ export function App() {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [isTicketsLoading, setIsTicketsLoading] = useState(false);
   const [ticketError, setTicketError] = useState<string | null>(null);
+  const [ticketReviewProductIds, setTicketReviewProductIds] = useState<
+    Record<string, string>
+  >({});
+  const [pendingTicketReviewLineId, setPendingTicketReviewLineId] = useState<
+    string | null
+  >(null);
   const [ticketUploadNotice, setTicketUploadNotice] = useState<string | null>(
     null,
   );
@@ -3815,6 +3821,103 @@ export function App() {
     }
   }
 
+  async function refreshTicketsAfterReviewAction() {
+    const { getSupabasePriceObservations, getSupabaseShoppingTickets } =
+      await import("./shoppingItemsSupabase");
+    const [nextTickets, nextPriceObservations] = await Promise.all([
+      getSupabaseShoppingTickets(),
+      getSupabasePriceObservations(),
+    ]);
+
+    setTickets(nextTickets ?? []);
+    setPriceObservations(nextPriceObservations ?? []);
+  }
+
+  function handleTicketReviewProductChange(lineId: string, productId: string) {
+    setTicketReviewProductIds((currentProductIds) => ({
+      ...currentProductIds,
+      [lineId]: productId,
+    }));
+  }
+
+  async function handleResolveTicketLine(
+    ticket: ShoppingTicket,
+    line: ShoppingTicket["lines"][number],
+    createAlias: boolean,
+  ) {
+    const canonicalProductId = ticketReviewProductIds[line.id];
+    const canonicalProduct = canonicalProducts.find(
+      (product) => product.id === canonicalProductId,
+    );
+
+    if (!canonicalProduct || pendingTicketReviewLineId) {
+      return;
+    }
+
+    setPendingTicketReviewLineId(line.id);
+    setTicketError(null);
+
+    try {
+      const { resolveSupabaseTicketLine } =
+        await import("./shoppingItemsSupabase");
+      await resolveSupabaseTicketLine({
+        ticket,
+        line,
+        canonicalProduct,
+        createAlias,
+        alias: line.productName ?? line.rawText ?? "",
+      });
+      await refreshTicketsAfterReviewAction();
+      setTicketReviewProductIds((currentProductIds) => {
+        const nextProductIds = { ...currentProductIds };
+        delete nextProductIds[line.id];
+
+        return nextProductIds;
+      });
+      setTicketUploadNotice(
+        createAlias ? "Línea asociada y alias creado." : "Línea asociada.",
+      );
+      runHapticFeedback("success");
+    } catch {
+      setTicketError("No se pudo resolver la línea del ticket.");
+      runHapticFeedback("warning");
+    } finally {
+      setPendingTicketReviewLineId(null);
+    }
+  }
+
+  async function handleExcludeTicketLine(
+    ticket: ShoppingTicket,
+    line: ShoppingTicket["lines"][number],
+  ) {
+    if (pendingTicketReviewLineId) {
+      return;
+    }
+
+    setPendingTicketReviewLineId(line.id);
+    setTicketError(null);
+
+    try {
+      const { excludeSupabaseTicketLine } =
+        await import("./shoppingItemsSupabase");
+      await excludeSupabaseTicketLine(ticket, line);
+      await refreshTicketsAfterReviewAction();
+      setTicketReviewProductIds((currentProductIds) => {
+        const nextProductIds = { ...currentProductIds };
+        delete nextProductIds[line.id];
+
+        return nextProductIds;
+      });
+      setTicketUploadNotice("Línea excluida del análisis.");
+      runHapticFeedback("success");
+    } catch {
+      setTicketError("No se pudo excluir la línea del ticket.");
+      runHapticFeedback("warning");
+    } finally {
+      setPendingTicketReviewLineId(null);
+    }
+  }
+
   async function handleOpenTicketFile(file: ShoppingTicketFile) {
     try {
       const { createSupabaseTicketFileUrl } =
@@ -6091,17 +6194,89 @@ export function App() {
                           {line.reviewReason ?? "Necesita revisión"}
                         </small>
                       </div>
-                      <button
-                        className={styles.secondaryButton}
-                        type="button"
-                        onPointerDown={handleButtonPointerDown}
-                        onClick={() => {
-                          setTicketFilter("all");
-                          setSelectedTicketId(ticket.id);
-                        }}
-                      >
-                        Ver ticket
-                      </button>
+                      <div className={styles.ticketReviewActions}>
+                        <label
+                          className={styles.visuallyHidden}
+                          htmlFor={`ticket-line-product-${line.id}`}
+                        >
+                          Producto canónico
+                        </label>
+                        <select
+                          id={`ticket-line-product-${line.id}`}
+                          className={styles.select}
+                          value={ticketReviewProductIds[line.id] ?? ""}
+                          onChange={(event) =>
+                            handleTicketReviewProductChange(
+                              line.id,
+                              event.target.value,
+                            )
+                          }
+                          disabled={
+                            pendingTicketReviewLineId === line.id ||
+                            canonicalProducts.length === 0
+                          }
+                        >
+                          <option value="">Producto</option>
+                          {canonicalProducts.map((product) => (
+                            <option key={product.id} value={product.id}>
+                              {product.name}
+                            </option>
+                          ))}
+                        </select>
+                        <div className={styles.ticketReviewActionButtons}>
+                          <button
+                            className={styles.secondaryButton}
+                            type="button"
+                            onPointerDown={handleButtonPointerDown}
+                            onClick={() => {
+                              setTicketFilter("all");
+                              setSelectedTicketId(ticket.id);
+                            }}
+                          >
+                            Ver
+                          </button>
+                          <button
+                            className={styles.secondaryButton}
+                            type="button"
+                            onPointerDown={handleButtonPointerDown}
+                            onClick={() =>
+                              void handleResolveTicketLine(ticket, line, false)
+                            }
+                            disabled={
+                              pendingTicketReviewLineId === line.id ||
+                              !ticketReviewProductIds[line.id]
+                            }
+                          >
+                            Asociar
+                          </button>
+                          <button
+                            className={styles.secondaryButton}
+                            type="button"
+                            onPointerDown={handleButtonPointerDown}
+                            onClick={() =>
+                              void handleResolveTicketLine(ticket, line, true)
+                            }
+                            disabled={
+                              pendingTicketReviewLineId === line.id ||
+                              !ticketReviewProductIds[line.id] ||
+                              !(line.productName ?? line.rawText)?.trim()
+                            }
+                          >
+                            Alias
+                          </button>
+                          <button
+                            className={styles.dangerButton}
+                            type="button"
+                            onPointerDown={handleButtonPointerDown}
+                            onClick={() =>
+                              void handleExcludeTicketLine(ticket, line)
+                            }
+                            disabled={pendingTicketReviewLineId === line.id}
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                      </div>
                     </li>
                   );
                 })}
@@ -6220,7 +6395,9 @@ export function App() {
                                 className={
                                   line.needsReview
                                     ? styles.ticketLineNeedsReview
-                                    : styles.ticketLine
+                                    : line.status === "excluded"
+                                      ? styles.ticketLineExcluded
+                                      : styles.ticketLine
                                 }
                               >
                                 <strong>{getTicketLineName(line)}</strong>
@@ -6229,6 +6406,9 @@ export function App() {
                                   <small>
                                     {line.reviewReason ?? "Necesita revisión"}
                                   </small>
+                                ) : null}
+                                {line.status === "excluded" ? (
+                                  <small>Excluida</small>
                                 ) : null}
                               </li>
                             ))}

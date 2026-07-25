@@ -1732,7 +1732,7 @@ h2 {
 
 .ticketReviewList li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(13rem, 18rem);
   align-items: center;
   gap: 0.55rem;
   border: 1px solid rgb(217 119 6 / 24%);
@@ -1762,6 +1762,30 @@ h2 {
   color: #536b7c;
   font-size: 0.73rem;
   font-weight: 760;
+}
+
+.ticketReviewActions {
+  display: grid;
+  gap: 0.36rem;
+  min-width: 0;
+}
+
+.ticketReviewActions select {
+  width: 100%;
+  min-height: 2.35rem;
+  font-size: 0.78rem;
+}
+
+.ticketReviewActionButtons {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.28rem;
+}
+
+.ticketReviewActionButtons button {
+  min-height: 2.15rem;
+  padding: 0 0.34rem;
+  font-size: 0.72rem;
 }
 
 .ticketLines {
@@ -1812,7 +1836,8 @@ h2 {
 }
 
 .ticketLine,
-.ticketLineNeedsReview {
+.ticketLineNeedsReview,
+.ticketLineExcluded {
   display: grid;
   gap: 0.12rem;
   border-radius: 0.42rem;
@@ -1825,8 +1850,14 @@ h2 {
   background: #fffbeb;
 }
 
+.ticketLineExcluded {
+  border: 1px solid rgb(100 116 139 / 24%);
+  background: #f1f5f9;
+}
+
 .ticketLine strong,
-.ticketLineNeedsReview strong {
+.ticketLineNeedsReview strong,
+.ticketLineExcluded strong {
   color: #102033;
   font-size: 0.88rem;
   font-weight: 900;
@@ -1834,7 +1865,9 @@ h2 {
 
 .ticketLine span,
 .ticketLineNeedsReview span,
-.ticketLineNeedsReview small {
+.ticketLineNeedsReview small,
+.ticketLineExcluded span,
+.ticketLineExcluded small {
   color: #536b7c;
   font-size: 0.74rem;
   font-weight: 760;
@@ -2759,8 +2792,8 @@ h2 {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .ticketReviewList button {
-    width: 100%;
+  .ticketReviewActionButtons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .itemActions {

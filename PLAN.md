@@ -477,6 +477,8 @@ Objetivo: hacer visible el histórico de precios sin convertir Jucart en una apl
 
 Objetivo: precargar precios iniciales desde fuentes externas solo cuando aporten datos claros sin convertirse en dependencia crítica.
 
+Estado: pendiente de refinar antes de implementarlo.
+
 - [ ] Diseñar una vista global de Precios como v2, separada de la primera integración en tarjetas.
 - [ ] Investigar y elegir explícitamente fuentes por supermercado antes de implementar conectores.
 - [ ] Tratar Mercadona como fuente no oficial salvo que exista una API pública estable.

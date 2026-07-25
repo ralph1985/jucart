@@ -6225,19 +6225,23 @@ export function App() {
                         </select>
                         <div className={styles.ticketReviewActionButtons}>
                           <button
-                            className={styles.secondaryButton}
+                            className={styles.iconButton}
                             type="button"
+                            aria-label="Ver"
+                            title="Ver ticket"
                             onPointerDown={handleButtonPointerDown}
                             onClick={() => {
                               setTicketFilter("all");
                               setSelectedTicketId(ticket.id);
                             }}
                           >
-                            Ver
+                            <Icon name="file" />
                           </button>
                           <button
-                            className={styles.secondaryButton}
+                            className={styles.iconButton}
                             type="button"
+                            aria-label="Asociar"
+                            title="Asociar producto"
                             onPointerDown={handleButtonPointerDown}
                             onClick={() =>
                               void handleResolveTicketLine(ticket, line, false)
@@ -6247,11 +6251,13 @@ export function App() {
                               !ticketReviewProductIds[line.id]
                             }
                           >
-                            Asociar
+                            <Icon name="check" />
                           </button>
                           <button
-                            className={styles.secondaryButton}
+                            className={styles.iconButton}
                             type="button"
+                            aria-label="Alias"
+                            title="Crear alias"
                             onPointerDown={handleButtonPointerDown}
                             onClick={() =>
                               void handleResolveTicketLine(ticket, line, true)
@@ -6262,18 +6268,20 @@ export function App() {
                               !(line.productName ?? line.rawText)?.trim()
                             }
                           >
-                            Alias
+                            <Icon name="plus" />
                           </button>
                           <button
-                            className={styles.dangerButton}
+                            className={styles.iconButtonDanger}
                             type="button"
+                            aria-label="Excluir"
+                            title="Excluir línea"
                             onPointerDown={handleButtonPointerDown}
                             onClick={() =>
                               void handleExcludeTicketLine(ticket, line)
                             }
                             disabled={pendingTicketReviewLineId === line.id}
                           >
-                            Excluir
+                            <Icon name="trash" />
                           </button>
                         </div>
                       </div>

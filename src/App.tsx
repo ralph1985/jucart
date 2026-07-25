@@ -67,6 +67,7 @@ import {
   ShoppingSection,
   ShoppingSectionId,
   ShoppingTicket,
+  ShoppingTicketFile,
   ShoppingTicketStatus,
   ShoppingUserId,
   shoppingUsers,
@@ -3510,13 +3511,7 @@ export function App() {
     }
   }
 
-  async function handleOpenTicketFile(ticket: ShoppingTicket) {
-    const [file] = ticket.files;
-
-    if (!file) {
-      return;
-    }
-
+  async function handleOpenTicketFile(file: ShoppingTicketFile) {
     try {
       const { createSupabaseTicketFileUrl } =
         await import("./shoppingItemsSupabase");
@@ -5596,17 +5591,31 @@ export function App() {
                     </button>
                     {isSelected ? (
                       <div className={styles.ticketDetail}>
-                        <div className={styles.ticketDetailActions}>
-                          <button
-                            className={styles.secondaryButton}
-                            type="button"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() => void handleOpenTicketFile(ticket)}
-                            disabled={ticket.files.length === 0}
+                        {ticket.files.length > 0 ? (
+                          <ol
+                            className={styles.ticketFileActions}
+                            aria-label="Archivos del ticket"
                           >
-                            Abrir archivo
-                          </button>
-                        </div>
+                            {ticket.files.map((file) => (
+                              <li key={file.id}>
+                                <button
+                                  className={styles.ticketFileButton}
+                                  type="button"
+                                  onPointerDown={handleButtonPointerDown}
+                                  onClick={() =>
+                                    void handleOpenTicketFile(file)
+                                  }
+                                >
+                                  <Icon name="file" />
+                                  <span>{file.fileName}</span>
+                                  <small>
+                                    {formatFileSize(file.sizeBytes)}
+                                  </small>
+                                </button>
+                              </li>
+                            ))}
+                          </ol>
+                        ) : null}
                         {ticket.errorMessage ? (
                           <p className={styles.historyMeta}>
                             {ticket.errorMessage}

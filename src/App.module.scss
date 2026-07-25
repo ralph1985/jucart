@@ -1501,18 +1501,51 @@ h2 {
   padding-top: 0.55rem;
 }
 
-.ticketDetailActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
 .ticketLines {
   display: grid;
   gap: 0.42rem;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.ticketFileActions {
+  display: grid;
+  gap: 0.42rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ticketFileButton {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-height: 2.4rem;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 0.5rem;
+  padding: 0.42rem 0.52rem;
+  background: #eef6ff;
+  color: #1d4f91;
+  cursor: pointer;
+}
+
+.ticketFileButton span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ticketFileButton small {
+  color: #536b7c;
+  font-size: 0.7rem;
+  font-weight: 850;
 }
 
 .ticketLine,

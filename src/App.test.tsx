@@ -1830,7 +1830,9 @@ describe("App", () => {
     vi.spyOn(
       shoppingItemsSupabase,
       "createSupabaseTicketFileUrl",
-    ).mockResolvedValue("https://signed.example/ticket.pdf");
+    ).mockImplementation((file) =>
+      Promise.resolve(`https://signed.example/${file.fileName}`),
+    );
     vi.spyOn(
       shoppingItemsSupabase,
       "getSupabaseShoppingTickets",
@@ -1840,7 +1842,7 @@ describe("App", () => {
         sectionId: "alcampo",
         uploadedBy: "rafa",
         status: "pending",
-        fileCount: 1,
+        fileCount: 2,
         uploadedAt: Date.parse("2026-07-25T17:00:00.000Z"),
         processedAt: null,
         errorMessage: null,
@@ -1858,6 +1860,19 @@ describe("App", () => {
             sha256:
               "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             position: 0,
+            uploadedAt: Date.parse("2026-07-25T17:00:00.000Z"),
+          },
+          {
+            id: "file-pending-2",
+            ticketId: "ticket-pending",
+            storageBucket: "shopping-tickets",
+            storagePath: "list/ticket-pending/01-ticket-2.jpg",
+            fileName: "ticket-2.jpg",
+            contentType: "image/jpeg",
+            sizeBytes: 2400,
+            sha256:
+              "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            position: 1,
             uploadedAt: Date.parse("2026-07-25T17:00:00.000Z"),
           },
         ],
@@ -1896,11 +1911,20 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Pendientes" }));
     fireEvent.click(await screen.findByRole("button", { name: /Alcampo/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Abrir archivo" }));
+    fireEvent.click(screen.getByRole("button", { name: /ticket.pdf/i }));
 
     await waitFor(() =>
       expect(openSpy).toHaveBeenCalledWith(
         "https://signed.example/ticket.pdf",
+        "_blank",
+        "noopener,noreferrer",
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /ticket-2.jpg/i }));
+
+    await waitFor(() =>
+      expect(openSpy).toHaveBeenCalledWith(
+        "https://signed.example/ticket-2.jpg",
         "_blank",
         "noopener,noreferrer",
       ),

@@ -377,6 +377,13 @@ async function applyChanges(rawChanges) {
     );
     const nextName = merge.name || keepItem.name;
     const nextQuantity = merge.quantity || keepItem.quantity || null;
+    const conflictingItem = items.find(
+      (item) =>
+        item.id !== keepItem.id &&
+        item.id !== removeItem.id &&
+        item.section_id === keepItem.section_id &&
+        normalizeDuplicateName(item.name) === normalizeDuplicateName(nextName),
+    );
 
     if (keepItem.section_id !== removeItem.section_id) {
       fail(
@@ -390,20 +397,32 @@ async function applyChanges(rawChanges) {
       );
     }
 
-    await patchRows(
-      "shopping_items",
-      `id=eq.${encodeURIComponent(keepItem.id)}&list_id=eq.${config.listId}`,
-      {
-        canonical_product_id: canonicalProductId,
-        name: nextName,
-        quantity: nextQuantity,
-        purchased: Boolean(merge.purchased ?? keepItem.purchased),
-      },
-    );
-    await deleteRows(
-      "shopping_items",
-      `id=eq.${encodeURIComponent(removeItem.id)}&list_id=eq.${config.listId}`,
-    );
+    if (conflictingItem) {
+      fail(
+        `Cannot merge ${keepItem.id}: "${nextName}" already exists in the same section as ${conflictingItem.id}.`,
+      );
+    }
+
+    const mergePatch = {
+      canonical_product_id: canonicalProductId,
+      name: nextName,
+      quantity: nextQuantity,
+      purchased: Boolean(merge.purchased ?? keepItem.purchased),
+    };
+    const keepItemQuery = `id=eq.${encodeURIComponent(keepItem.id)}&list_id=eq.${config.listId}`;
+    const removeItemQuery = `id=eq.${encodeURIComponent(removeItem.id)}&list_id=eq.${config.listId}`;
+    const nameConflictsWithRemovedItem =
+      normalizeDuplicateName(removeItem.name) ===
+      normalizeDuplicateName(nextName);
+
+    if (nameConflictsWithRemovedItem) {
+      await deleteRows("shopping_items", removeItemQuery);
+      await patchRows("shopping_items", keepItemQuery, mergePatch);
+    } else {
+      await patchRows("shopping_items", keepItemQuery, mergePatch);
+      await deleteRows("shopping_items", removeItemQuery);
+    }
+
     effectiveItemMerges.push({
       ...merge,
       canonical_product_id: canonicalProductId,
@@ -815,6 +834,10 @@ function normalizeCatalogText(value) {
     .replace(/\p{Diacritic}/gu, "")
     .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
     .trim();
+}
+
+function normalizeDuplicateName(value) {
+  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("es-ES");
 }
 
 function fail(message) {

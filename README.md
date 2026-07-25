@@ -44,6 +44,8 @@ pnpm backup:supabase
 pnpm backup:supabase:cron:install
 pnpm recategorize:codex
 pnpm recategorize:codex:cron:install
+pnpm normalize:codex
+pnpm normalize:codex:cron:install
 pnpm supabase:login
 pnpm supabase:link
 pnpm supabase:db:push
@@ -152,6 +154,22 @@ Instalar el cron diario a las 03:00:
 
 ```bash
 pnpm recategorize:codex:cron:install
+```
+
+## Normalización diaria de productos con Codex
+
+Los productos canónicos y aliases viven en Supabase. Ejecutar una revisión manual:
+
+```bash
+pnpm normalize:codex
+```
+
+El script exporta productos, listas, canónicos y aliases, lanza `codex exec` con instrucciones acotadas y permite aplicar cambios directos solo mediante el helper de normalización. Cada ejecución y cada cambio quedan registrados en Supabase para verse en la pestaña `Normalización` de Historial. Los informes y logs se guardan en `var/log/`.
+
+Instalar el cron diario independiente a las 03:30:
+
+```bash
+pnpm normalize:codex:cron:install
 ```
 
 ## Estado

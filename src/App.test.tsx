@@ -1485,7 +1485,7 @@ describe("App", () => {
       within(navigation)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Lista", "Congelador", "Tickets", "Listas", "Historial", "Dev"]);
+    ).toEqual(["Lista", "Tickets", "Congelador", "Listas", "Historial", "Dev"]);
     expect(navigation.className).not.toContain("bottomNavHidden");
     expect(
       within(navigation).getByRole("button", { name: "Lista" }),
@@ -1536,6 +1536,7 @@ describe("App", () => {
     render(<App />);
 
     await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
     fireEvent.click(screen.getByRole("button", { name: "Subir ticket" }));
 
     const dialog = screen.getByRole("dialog", { name: "Subir ticket" });
@@ -1567,6 +1568,7 @@ describe("App", () => {
     render(<App />);
 
     await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
     fireEvent.click(screen.getByRole("button", { name: "Subir ticket" }));
 
     const dialog = screen.getByRole("dialog", { name: "Subir ticket" });

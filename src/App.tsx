@@ -138,7 +138,9 @@ type IconName =
   | "search"
   | "ticket"
   | "upload"
-  | "file";
+  | "file"
+  | "clock"
+  | "alert";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 
 type TimestampedItem = {
@@ -239,6 +241,12 @@ function Icon({ name }: { name: IconName }) {
     ],
     upload: ["M12 16V4", "M7 9l5-5 5 5", "M5 20h14"],
     file: ["M14 3H6v18h12V7z", "M14 3v4h4", "M8 13h8", "M8 17h5"],
+    clock: ["M12 8v5l3 2", "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"],
+    alert: [
+      "M10.3 4.2 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z",
+      "M12 9v4",
+      "M12 17h.01",
+    ],
   };
 
   return (
@@ -796,6 +804,54 @@ function getTicketFilterText(filter: TicketFilter) {
   }
 
   return "Procesando";
+}
+
+function getTicketFilterShortText(filter: TicketFilter) {
+  if (filter === "needs_review") {
+    return "Revisión";
+  }
+
+  if (filter === "processed") {
+    return "OK";
+  }
+
+  if (filter === "failed") {
+    return "Error";
+  }
+
+  if (filter === "pending") {
+    return "Pend.";
+  }
+
+  if (filter === "processing") {
+    return "Proc.";
+  }
+
+  return "Todos";
+}
+
+function getTicketFilterIcon(filter: TicketFilter): IconName {
+  if (filter === "pending") {
+    return "clock";
+  }
+
+  if (filter === "processed") {
+    return "check";
+  }
+
+  if (filter === "failed") {
+    return "close";
+  }
+
+  if (filter === "needs_review") {
+    return "alert";
+  }
+
+  if (filter === "processing") {
+    return "sync";
+  }
+
+  return "list";
 }
 
 function formatDuration(durationMs: number) {
@@ -4620,32 +4676,33 @@ export function App() {
       ) : null}
 
       {activeView === "shopping" && !isAddSheetOpen ? (
-        <div className={styles.floatingActions}>
-          <button
-            ref={ticketUploadFabRef}
-            className={styles.floatingSecondaryButton}
-            type="button"
-            aria-label="Subir ticket"
-            title="Subir ticket"
-            onPointerDown={handleButtonPointerDown}
-            onClick={openTicketUploadSheet}
-            disabled={!isLoaded}
-          >
-            <Icon name="ticket" />
-          </button>
-          <button
-            ref={addFabRef}
-            className={styles.floatingAddButton}
-            type="button"
-            aria-label="Añadir producto"
-            title="Añadir producto"
-            onPointerDown={handleButtonPointerDown}
-            onClick={openAddSheet}
-            disabled={!isLoaded}
-          >
-            <Icon name="plus" />
-          </button>
-        </div>
+        <button
+          ref={addFabRef}
+          className={styles.floatingAddButton}
+          type="button"
+          aria-label="Añadir producto"
+          title="Añadir producto"
+          onPointerDown={handleButtonPointerDown}
+          onClick={openAddSheet}
+          disabled={!isLoaded}
+        >
+          <Icon name="plus" />
+        </button>
+      ) : null}
+
+      {activeView === "tickets" && !isTicketUploadSheetOpen ? (
+        <button
+          ref={ticketUploadFabRef}
+          className={styles.floatingAddButton}
+          type="button"
+          aria-label="Subir ticket"
+          title="Subir ticket"
+          onPointerDown={handleButtonPointerDown}
+          onClick={openTicketUploadSheet}
+          disabled={!isLoaded}
+        >
+          <Icon name="upload" />
+        </button>
       ) : null}
 
       {activeView === "freezer" &&
@@ -4855,7 +4912,7 @@ export function App() {
         </div>
       ) : null}
 
-      {activeView === "shopping" && isTicketUploadSheetOpen ? (
+      {activeView === "tickets" && isTicketUploadSheetOpen ? (
         <div
           ref={ticketUploadSheetBackdropRef}
           className={styles.addSheetBackdrop}
@@ -5479,16 +5536,19 @@ export function App() {
                 key={filter}
                 className={
                   ticketFilter === filter
-                    ? styles.historyTabActive
-                    : styles.historyTab
+                    ? styles.ticketFilterButtonActive
+                    : styles.ticketFilterButton
                 }
                 type="button"
                 role="tab"
                 aria-selected={ticketFilter === filter}
+                aria-label={getTicketFilterText(filter)}
+                title={getTicketFilterText(filter)}
                 onPointerDown={handleButtonPointerDown}
                 onClick={() => setTicketFilter(filter)}
               >
-                {getTicketFilterText(filter)}
+                <Icon name={getTicketFilterIcon(filter)} />
+                <span>{getTicketFilterShortText(filter)}</span>
               </button>
             ))}
           </div>
@@ -5861,20 +5921,6 @@ export function App() {
         </button>
         <button
           className={
-            activeView === "freezer"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={showFreezerView}
-          disabled={!isLoaded}
-        >
-          <Icon name="freezer" />
-          <span>Congelador</span>
-        </button>
-        <button
-          className={
             activeView === "tickets"
               ? styles.bottomNavItemActive
               : styles.bottomNavItem
@@ -5886,6 +5932,20 @@ export function App() {
         >
           <Icon name="ticket" />
           <span>Tickets</span>
+        </button>
+        <button
+          className={
+            activeView === "freezer"
+              ? styles.bottomNavItemActive
+              : styles.bottomNavItem
+          }
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={showFreezerView}
+          disabled={!isLoaded}
+        >
+          <Icon name="freezer" />
+          <span>Congelador</span>
         </button>
         <button
           className={

@@ -1061,6 +1061,120 @@ describe("shopping items Supabase adapter", () => {
     });
   });
 
+  it("corrects a resolved ticket line and removes the previous alias", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.setResult("shopping_ticket_lines", "select", {
+      data: [{ needs_review: false }],
+    });
+
+    await resolveSupabaseTicketLine({
+      ticket: {
+        id: "ticket-1",
+        sectionId: "mercadona",
+        uploadedBy: "rafa",
+        status: "processed",
+        fileCount: 1,
+        uploadedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        processedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        errorMessage: null,
+        createdAt: Date.parse("2026-07-25T18:00:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        files: [],
+        lines: [],
+      },
+      line: {
+        id: "line-1",
+        ticketId: "ticket-1",
+        lineIndex: 0,
+        rawText: "2 E. POLLO 1,60 3,20",
+        productName: "E. pollo",
+        canonicalProductId: "canonical-pavo",
+        quantity: "2 unit",
+        unitPrice: 1.6,
+        totalPrice: 3.2,
+        originalTotalPrice: null,
+        discountTotal: null,
+        status: "processed",
+        needsReview: false,
+        reviewReason: null,
+        createdAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+      },
+      canonicalProduct: {
+        id: "canonical-empanadillas",
+        name: "Empanadillas de pollo",
+        normalizedName: "empanadillas de pollo",
+        comparisonUnit: "unit",
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      createAlias: true,
+      alias: "E. pollo",
+      removeExistingAlias: true,
+      replaceProductName: true,
+    });
+
+    expect(supabaseMocks.operations).toContainEqual({
+      args: [
+        {
+          canonical_product_id: "canonical-empanadillas",
+          needs_review: false,
+          product_name: "Empanadillas de pollo",
+          review_reason: null,
+          status: "processed",
+        },
+      ],
+      operation: "update",
+      table: "shopping_ticket_lines",
+    });
+    expect(supabaseMocks.operations).toEqual(
+      expect.arrayContaining([
+        {
+          args: ["canonical_product_id", "canonical-pavo"],
+          operation: "eq",
+          table: "shopping_canonical_product_aliases",
+        },
+        {
+          args: ["normalized_alias", "e pollo"],
+          operation: "eq",
+          table: "shopping_canonical_product_aliases",
+        },
+      ]),
+    );
+    expect(supabaseMocks.operations).toContainEqual(
+      expect.objectContaining({
+        args: [
+          expect.objectContaining({
+            alias: "E. pollo",
+            canonical_product_id: "canonical-empanadillas",
+            normalized_alias: "e pollo",
+          }),
+          { onConflict: "list_id,normalized_alias" },
+        ],
+        operation: "upsert",
+        table: "shopping_canonical_product_aliases",
+      }),
+    );
+    expect(supabaseMocks.operations).toContainEqual(
+      expect.objectContaining({
+        args: [
+          expect.objectContaining({
+            canonical_product_id: "canonical-empanadillas",
+            comparison_unit: "unit",
+            observed_price: 1.6,
+            product_name: "Empanadillas de pollo",
+            ticket_line_id: "line-1",
+          }),
+          { onConflict: "ticket_line_id" },
+        ],
+        operation: "upsert",
+        table: "shopping_price_observations",
+      }),
+    );
+  });
+
   it("keeps the ticket in review when resolving one line leaves another pending", async () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,

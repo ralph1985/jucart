@@ -1885,6 +1885,36 @@ h2 {
   font-weight: 760;
 }
 
+.ticketLineCorrection {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 1fr) auto;
+  align-items: center;
+  gap: 0.34rem;
+  margin-top: 0.3rem;
+  min-width: 0;
+}
+
+.ticketLineCorrection select {
+  min-height: 2.05rem;
+  padding: 0.28rem 1.7rem 0.28rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 780;
+}
+
+.ticketLineCorrectionButtons {
+  display: grid;
+  grid-template-columns: repeat(2, 2.05rem);
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.ticketLineCorrectionButtons button {
+  width: 2.05rem;
+  min-width: 2.05rem;
+  min-height: 2.05rem;
+  padding: 0 0.24rem;
+}
+
 .developerPanel {
   display: grid;
   gap: 0.75rem;

@@ -2116,6 +2116,114 @@ describe("App", () => {
     );
   });
 
+  it("corrects resolved ticket line associations from ticket details", async () => {
+    const ticket = {
+      id: "ticket-processed",
+      sectionId: "mercadona" as const,
+      uploadedBy: "rafa" as const,
+      status: "processed" as const,
+      fileCount: 1,
+      uploadedAt: Date.parse("2026-07-25T18:00:00.000Z"),
+      processedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+      errorMessage: null,
+      createdAt: Date.parse("2026-07-25T18:00:00.000Z"),
+      updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+      files: [],
+      lines: [
+        {
+          id: "line-processed",
+          ticketId: "ticket-processed",
+          lineIndex: 0,
+          rawText: "2 E. POLLO 1,60 3,20",
+          productName: "E. pollo",
+          canonicalProductId: "canonical-pavo",
+          quantity: "2 unit",
+          unitPrice: 1.6,
+          totalPrice: 3.2,
+          originalTotalPrice: null,
+          discountTotal: null,
+          status: "processed" as const,
+          needsReview: false,
+          reviewReason: null,
+          createdAt: Date.parse("2026-07-25T18:05:00.000Z"),
+          updatedAt: Date.parse("2026-07-25T18:05:00.000Z"),
+        },
+      ],
+    };
+    const resolveLine = vi
+      .spyOn(shoppingItemsSupabase, "resolveSupabaseTicketLine")
+      .mockResolvedValue();
+
+    await replaceStoredShoppingData({
+      items: [],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+      canonicalProducts: [
+        {
+          id: "canonical-pavo",
+          name: "Solomillo de pavo",
+          normalizedName: "solomillo de pavo",
+          comparisonUnit: "kg",
+          createdAt: 100,
+          updatedAt: 100,
+        },
+        {
+          id: "canonical-empanadillas",
+          name: "Empanadillas de pollo",
+          normalizedName: "empanadillas de pollo",
+          comparisonUnit: "unit",
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+      canonicalProductAliases: [],
+    });
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabaseShoppingTickets",
+    ).mockResolvedValue([ticket]);
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Mercadona/i }));
+
+    const correctionSelect = screen.getByLabelText(
+      "Corregir producto canónico",
+    ) as HTMLSelectElement;
+    expect(correctionSelect.value).toBe("canonical-pavo");
+
+    fireEvent.change(correctionSelect, {
+      target: { value: "canonical-empanadillas" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Corregir alias" }));
+
+    await waitFor(() => expect(resolveLine).toHaveBeenCalledOnce());
+    expect(resolveLine).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        alias: "E. pollo",
+        canonicalProduct: expect.objectContaining({
+          id: "canonical-empanadillas",
+        }),
+        createAlias: true,
+        line: expect.objectContaining({
+          canonicalProductId: "canonical-pavo",
+          id: "line-processed",
+        }),
+        removeExistingAlias: true,
+        replaceProductName: true,
+        ticket: expect.objectContaining({ id: "ticket-processed" }),
+      }),
+    );
+  });
+
   it("shows processing and processed ticket states", async () => {
     vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
     vi.spyOn(

@@ -250,6 +250,8 @@ type ShoppingTicketLineResolutionInput = {
   canonicalProduct: ShoppingCanonicalProduct;
   createAlias: boolean;
   alias: string;
+  removeExistingAlias?: boolean;
+  replaceProductName?: boolean;
 };
 
 type FreezerItemRow = {
@@ -498,6 +500,8 @@ export async function resolveSupabaseTicketLine({
   canonicalProduct,
   createAlias,
   alias,
+  removeExistingAlias = false,
+  replaceProductName = false,
 }: ShoppingTicketLineResolutionInput) {
   const config = getSupabaseConfig();
 
@@ -506,11 +510,13 @@ export async function resolveSupabaseTicketLine({
   }
 
   const client = getSupabaseClient(config);
+  const nextProductName = replaceProductName ? canonicalProduct.name : null;
   const lineUpdate = await client
     .from("shopping_ticket_lines")
     .update({
       canonical_product_id: canonicalProduct.id,
       needs_review: false,
+      ...(nextProductName ? { product_name: nextProductName } : {}),
       review_reason: null,
       status: "processed",
     })
@@ -523,6 +529,19 @@ export async function resolveSupabaseTicketLine({
   }
 
   const normalizedAlias = normalizeCatalogText(alias);
+
+  if (removeExistingAlias && line.canonicalProductId && normalizedAlias) {
+    const aliasDeleteResult = await client
+      .from("shopping_canonical_product_aliases")
+      .delete()
+      .eq("list_id", config.listId)
+      .eq("canonical_product_id", line.canonicalProductId)
+      .eq("normalized_alias", normalizedAlias);
+
+    if (aliasDeleteResult.error) {
+      throw aliasDeleteResult.error;
+    }
+  }
 
   if (createAlias && normalizedAlias) {
     const aliasResult = await client
@@ -546,7 +565,10 @@ export async function resolveSupabaseTicketLine({
   const priceObservationRow = mapResolvedLineToPriceObservationRow(
     config.listId,
     ticket,
-    line,
+    {
+      ...line,
+      productName: nextProductName ?? line.productName,
+    },
     canonicalProduct,
   );
 

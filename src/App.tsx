@@ -1234,6 +1234,9 @@ export function App() {
   const [ticketReviewProductIds, setTicketReviewProductIds] = useState<
     Record<string, string>
   >({});
+  const [ticketCorrectionProductIds, setTicketCorrectionProductIds] = useState<
+    Record<string, string>
+  >({});
   const [pendingTicketReviewLineId, setPendingTicketReviewLineId] = useState<
     string | null
   >(null);
@@ -3840,6 +3843,16 @@ export function App() {
     }));
   }
 
+  function handleTicketCorrectionProductChange(
+    line: ShoppingTicket["lines"][number],
+    productId: string,
+  ) {
+    setTicketCorrectionProductIds((currentProductIds) => ({
+      ...currentProductIds,
+      [line.id]: productId,
+    }));
+  }
+
   async function handleResolveTicketLine(
     ticket: ShoppingTicket,
     line: ShoppingTicket["lines"][number],
@@ -3880,6 +3893,57 @@ export function App() {
       runHapticFeedback("success");
     } catch {
       setTicketError("No se pudo resolver la línea del ticket.");
+      runHapticFeedback("warning");
+    } finally {
+      setPendingTicketReviewLineId(null);
+    }
+  }
+
+  async function handleCorrectTicketLine(
+    ticket: ShoppingTicket,
+    line: ShoppingTicket["lines"][number],
+    createAlias: boolean,
+  ) {
+    const canonicalProductId =
+      ticketCorrectionProductIds[line.id] ?? line.canonicalProductId ?? "";
+    const canonicalProduct = canonicalProducts.find(
+      (product) => product.id === canonicalProductId,
+    );
+
+    if (!canonicalProduct || pendingTicketReviewLineId) {
+      return;
+    }
+
+    setPendingTicketReviewLineId(line.id);
+    setTicketError(null);
+
+    try {
+      const { resolveSupabaseTicketLine } =
+        await import("./shoppingItemsSupabase");
+      await resolveSupabaseTicketLine({
+        ticket,
+        line,
+        canonicalProduct,
+        createAlias,
+        alias: line.productName ?? line.rawText ?? "",
+        removeExistingAlias: true,
+        replaceProductName: true,
+      });
+      await refreshTicketsAfterReviewAction();
+      setTicketCorrectionProductIds((currentProductIds) => {
+        const nextProductIds = { ...currentProductIds };
+        delete nextProductIds[line.id];
+
+        return nextProductIds;
+      });
+      setTicketUploadNotice(
+        createAlias
+          ? "Asociación corregida y alias actualizado."
+          : "Asociación corregida.",
+      );
+      runHapticFeedback("success");
+    } catch {
+      setTicketError("No se pudo corregir la línea del ticket.");
       runHapticFeedback("warning");
     } finally {
       setPendingTicketReviewLineId(null);
@@ -6397,29 +6461,133 @@ export function App() {
                         ) : null}
                         {ticket.lines.length > 0 ? (
                           <ol className={styles.ticketLines}>
-                            {ticket.lines.map((line) => (
-                              <li
-                                key={line.id}
-                                className={
-                                  line.needsReview
-                                    ? styles.ticketLineNeedsReview
-                                    : line.status === "excluded"
-                                      ? styles.ticketLineExcluded
-                                      : styles.ticketLine
-                                }
-                              >
-                                <strong>{getTicketLineName(line)}</strong>
-                                <span>{getTicketLinePriceText(line)}</span>
-                                {line.needsReview ? (
-                                  <small>
-                                    {line.reviewReason ?? "Necesita revisión"}
-                                  </small>
-                                ) : null}
-                                {line.status === "excluded" ? (
-                                  <small>Excluida</small>
-                                ) : null}
-                              </li>
-                            ))}
+                            {ticket.lines.map((line) => {
+                              const selectedCorrectionProductId =
+                                ticketCorrectionProductIds[line.id] ??
+                                line.canonicalProductId ??
+                                "";
+                              const canCorrectLine = !line.needsReview;
+                              const canCreateCorrectionAlias =
+                                canCorrectLine &&
+                                Boolean(selectedCorrectionProductId) &&
+                                Boolean(
+                                  (line.productName ?? line.rawText)?.trim(),
+                                );
+
+                              return (
+                                <li
+                                  key={line.id}
+                                  className={
+                                    line.needsReview
+                                      ? styles.ticketLineNeedsReview
+                                      : line.status === "excluded"
+                                        ? styles.ticketLineExcluded
+                                        : styles.ticketLine
+                                  }
+                                >
+                                  <strong>{getTicketLineName(line)}</strong>
+                                  <span>{getTicketLinePriceText(line)}</span>
+                                  {line.needsReview ? (
+                                    <small>
+                                      {line.reviewReason ?? "Necesita revisión"}
+                                    </small>
+                                  ) : null}
+                                  {line.status === "excluded" ? (
+                                    <small>Excluida</small>
+                                  ) : null}
+                                  {canCorrectLine ? (
+                                    <div
+                                      className={styles.ticketLineCorrection}
+                                    >
+                                      <label
+                                        className={styles.visuallyHidden}
+                                        htmlFor={`ticket-line-correction-${line.id}`}
+                                      >
+                                        Corregir producto canónico
+                                      </label>
+                                      <select
+                                        id={`ticket-line-correction-${line.id}`}
+                                        className={styles.select}
+                                        value={selectedCorrectionProductId}
+                                        onChange={(event) =>
+                                          handleTicketCorrectionProductChange(
+                                            line,
+                                            event.target.value,
+                                          )
+                                        }
+                                        disabled={
+                                          pendingTicketReviewLineId ===
+                                            line.id ||
+                                          canonicalProducts.length === 0
+                                        }
+                                      >
+                                        <option value="">Producto</option>
+                                        {canonicalProducts.map((product) => (
+                                          <option
+                                            key={product.id}
+                                            value={product.id}
+                                          >
+                                            {product.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <div
+                                        className={
+                                          styles.ticketLineCorrectionButtons
+                                        }
+                                      >
+                                        <button
+                                          className={styles.iconButton}
+                                          type="button"
+                                          aria-label="Corregir asociación"
+                                          title="Corregir asociación"
+                                          onPointerDown={
+                                            handleButtonPointerDown
+                                          }
+                                          onClick={() =>
+                                            void handleCorrectTicketLine(
+                                              ticket,
+                                              line,
+                                              false,
+                                            )
+                                          }
+                                          disabled={
+                                            pendingTicketReviewLineId ===
+                                              line.id ||
+                                            !selectedCorrectionProductId
+                                          }
+                                        >
+                                          <Icon name="check" />
+                                        </button>
+                                        <button
+                                          className={styles.iconButton}
+                                          type="button"
+                                          aria-label="Corregir alias"
+                                          title="Corregir y crear alias"
+                                          onPointerDown={
+                                            handleButtonPointerDown
+                                          }
+                                          onClick={() =>
+                                            void handleCorrectTicketLine(
+                                              ticket,
+                                              line,
+                                              true,
+                                            )
+                                          }
+                                          disabled={
+                                            pendingTicketReviewLineId ===
+                                              line.id ||
+                                            !canCreateCorrectionAlias
+                                          }
+                                        >
+                                          <Icon name="plus" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </li>
+                              );
+                            })}
                           </ol>
                         ) : (
                           <p className={styles.historyMeta}>

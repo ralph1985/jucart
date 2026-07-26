@@ -429,8 +429,8 @@ Objetivo: permitir que la PWA desplegada en Vercel deje tickets pendientes en Su
 - [x] Definir retención: conservar el PDF privado tras procesarlo para poder revisar extracciones incorrectas.
 - [x] Permitir abrir el PDF conservado desde la app mediante acceso privado.
 - [x] No permitir borrar tickets subidos desde la interfaz.
-- [ ] Añadir tests razonables del adaptador Supabase, estados de UI y errores de subida.
-- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+- [x] Añadir tests razonables del adaptador Supabase, estados de UI y errores de subida.
+- [x] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 
 ## Hito 33 — Procesamiento nocturno de tickets con Codex
 

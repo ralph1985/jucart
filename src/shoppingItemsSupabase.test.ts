@@ -111,14 +111,18 @@ const supabaseMocks = vi.hoisted(() => {
   };
   channel.on.mockReturnValue(channel);
   channel.subscribe.mockReturnValue(channel);
+  type StorageResult = { data: unknown; error: unknown };
+
   const storageBucket = {
-    createSignedUrl: vi.fn((path: string) =>
+    createSignedUrl: vi.fn((path: string): Promise<StorageResult> =>
       Promise.resolve({
         data: { signedUrl: `https://signed.example/${path}` },
         error: null,
       }),
     ),
-    upload: vi.fn(() => Promise.resolve({ data: {}, error: null })),
+    upload: vi.fn((): Promise<StorageResult> =>
+      Promise.resolve({ data: {}, error: null }),
+    ),
   };
 
   const client = {
@@ -164,11 +168,12 @@ const supabaseMocks = vi.hoisted(() => {
       channel.subscribe.mockReturnValue(channel);
       client.storage.from.mockClear();
       storageBucket.createSignedUrl.mockClear();
-      storageBucket.createSignedUrl.mockImplementation((path: string) =>
-        Promise.resolve({
-          data: { signedUrl: `https://signed.example/${path}` },
-          error: null,
-        }),
+      storageBucket.createSignedUrl.mockImplementation(
+        (path: string): Promise<StorageResult> =>
+          Promise.resolve({
+            data: { signedUrl: `https://signed.example/${path}` },
+            error: null,
+          }),
       );
       storageBucket.upload.mockClear();
       storageBucket.upload.mockResolvedValue({ data: {}, error: null });
@@ -902,6 +907,152 @@ describe("shopping items Supabase adapter", () => {
     });
   });
 
+  it("groups all ticket files and lines under their matching ticket", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.setResult("shopping_tickets", "select", {
+      data: [
+        {
+          id: "ticket-1",
+          list_id: configuredSupabase.listId,
+          section_id: "mercadona",
+          uploaded_by: "rafa",
+          status: "processed",
+          file_count: 2,
+          uploaded_at: "2026-07-25T18:00:00.000Z",
+          processed_at: "2026-07-25T18:05:00.000Z",
+          error_message: null,
+          created_at: "2026-07-25T18:00:00.000Z",
+          updated_at: "2026-07-25T18:05:00.000Z",
+        },
+        {
+          id: "ticket-2",
+          list_id: configuredSupabase.listId,
+          section_id: "alcampo",
+          uploaded_by: "begona",
+          status: "pending",
+          file_count: 1,
+          uploaded_at: "2026-07-25T17:00:00.000Z",
+          processed_at: null,
+          error_message: null,
+          created_at: "2026-07-25T17:00:00.000Z",
+          updated_at: "2026-07-25T17:00:00.000Z",
+        },
+      ],
+    });
+    supabaseMocks.setResult("shopping_ticket_files", "select", {
+      data: [
+        {
+          id: "file-1",
+          ticket_id: "ticket-1",
+          list_id: configuredSupabase.listId,
+          storage_bucket: "shopping-tickets",
+          storage_path: `${configuredSupabase.listId}/ticket-1/00-ticket.jpg`,
+          file_name: "ticket.jpg",
+          content_type: "image/jpeg",
+          size_bytes: 1200,
+          sha256:
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          position: 0,
+          uploaded_at: "2026-07-25T18:00:00.000Z",
+          created_at: "2026-07-25T18:00:00.000Z",
+        },
+        {
+          id: "file-2",
+          ticket_id: "ticket-1",
+          list_id: configuredSupabase.listId,
+          storage_bucket: "shopping-tickets",
+          storage_path: `${configuredSupabase.listId}/ticket-1/01-ticket.jpg`,
+          file_name: "ticket-2.jpg",
+          content_type: "image/jpeg",
+          size_bytes: 1300,
+          sha256:
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          position: 1,
+          uploaded_at: "2026-07-25T18:00:00.000Z",
+          created_at: "2026-07-25T18:00:00.000Z",
+        },
+        {
+          id: "file-3",
+          ticket_id: "ticket-2",
+          list_id: configuredSupabase.listId,
+          storage_bucket: "shopping-tickets",
+          storage_path: `${configuredSupabase.listId}/ticket-2/00-ticket.pdf`,
+          file_name: "ticket.pdf",
+          content_type: "application/pdf",
+          size_bytes: 1400,
+          sha256:
+            "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          position: 0,
+          uploaded_at: "2026-07-25T17:00:00.000Z",
+          created_at: "2026-07-25T17:00:00.000Z",
+        },
+      ],
+    });
+    supabaseMocks.setResult("shopping_ticket_lines", "select", {
+      data: [
+        {
+          id: "line-1",
+          ticket_id: "ticket-1",
+          list_id: configuredSupabase.listId,
+          line_index: 0,
+          raw_text: "PAN 1.10",
+          product_name: "Pan",
+          canonical_product_id: "canonical-pan",
+          quantity: "1 ud",
+          unit_price: 1.1,
+          total_price: 1.1,
+          original_total_price: null,
+          discount_total: null,
+          status: "processed",
+          needs_review: false,
+          review_reason: null,
+          created_at: "2026-07-25T18:05:00.000Z",
+          updated_at: "2026-07-25T18:05:00.000Z",
+        },
+        {
+          id: "line-2",
+          ticket_id: "ticket-1",
+          list_id: configuredSupabase.listId,
+          line_index: 1,
+          raw_text: "LECHE 0.95",
+          product_name: "Leche",
+          canonical_product_id: "canonical-leche",
+          quantity: "1 L",
+          unit_price: 0.95,
+          total_price: 0.95,
+          original_total_price: null,
+          discount_total: null,
+          status: "processed",
+          needs_review: false,
+          review_reason: null,
+          created_at: "2026-07-25T18:05:00.000Z",
+          updated_at: "2026-07-25T18:05:00.000Z",
+        },
+      ],
+    });
+
+    const tickets = await getSupabaseShoppingTickets();
+
+    expect(tickets?.map((ticket) => ticket.id)).toEqual([
+      "ticket-1",
+      "ticket-2",
+    ]);
+    expect(tickets?.[0]?.files.map((file) => file.fileName)).toEqual([
+      "ticket.jpg",
+      "ticket-2.jpg",
+    ]);
+    expect(tickets?.[0]?.lines.map((line) => line.productName)).toEqual([
+      "Pan",
+      "Leche",
+    ]);
+    expect(tickets?.[1]?.files.map((file) => file.fileName)).toEqual([
+      "ticket.pdf",
+    ]);
+    expect(tickets?.[1]?.lines).toEqual([]);
+  });
+
   it("loads Supabase price observations for the configured list", async () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
@@ -1398,6 +1549,46 @@ describe("shopping items Supabase adapter", () => {
         uploadedBy: "rafa",
       }),
     ).rejects.toThrow("Ticket files are required.");
+  });
+
+  it("does not create ticket metadata when one uploaded file fails", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-4111-8111-111111111111",
+    );
+    supabaseMocks.storageBucket.upload
+      .mockResolvedValueOnce({ data: {}, error: null })
+      .mockResolvedValueOnce({
+        data: null,
+        error: new Error("storage upload failed"),
+      });
+
+    await expect(
+      uploadSupabaseShoppingTicket({
+        files: [
+          new File(["ticket-page-1"], "ticket-1.jpg", { type: "image/jpeg" }),
+          new File(["ticket-page-2"], "ticket-2.jpg", { type: "image/jpeg" }),
+        ],
+        sectionId: "mercadona",
+        uploadedBy: "rafa",
+      }),
+    ).rejects.toThrow("storage upload failed");
+
+    expect(supabaseMocks.storageBucket.upload).toHaveBeenCalledTimes(2);
+    expect(supabaseMocks.operations).not.toContainEqual(
+      expect.objectContaining({
+        operation: "insert",
+        table: "shopping_tickets",
+      }),
+    );
+    expect(supabaseMocks.operations).not.toContainEqual(
+      expect.objectContaining({
+        operation: "insert",
+        table: "shopping_ticket_files",
+      }),
+    );
   });
 
   it("returns null when uploading tickets without Supabase config", async () => {

@@ -439,7 +439,7 @@ Objetivo: analizar tickets pendientes por la noche desde la máquina local y con
 - [x] Crear un script local que descargue tickets `pending` desde Supabase.
 - [x] Procesar todos los tickets pendientes en cada ejecución nocturna; revisar límites si la aplicación crece en usuarios o volumen.
 - [x] Procesar cada archivo con Codex para extraer supermercado, fecha, líneas, cantidades, precios unitarios, totales, precio original y descuentos cuando aparezcan.
-- [ ] Ejecutar la generación y mantenimiento nocturno de productos canónicos y aliases.
+- [x] Ejecutar la generación y mantenimiento nocturno de productos canónicos y aliases.
 - [x] Asociar cada línea a un producto canónico existente o dejarla como `needs_review` si la confianza es baja.
 - [x] Marcar el ticket como `needs_review` si alguna línea queda en revisión, manteniendo marcadas las líneas afectadas.
 - [x] Generar observaciones de precio para las líneas válidas aunque el ticket completo quede `needs_review`.
@@ -449,9 +449,9 @@ Objetivo: analizar tickets pendientes por la noche desde la máquina local y con
 - [x] Guardar líneas de ticket y observaciones de precio en Supabase de forma idempotente por ticket y línea.
 - [ ] Registrar ejecuciones con estado, resumen, errores y número de líneas aceptadas o pendientes de revisión.
 - [x] Dejar los tickets con error en estado `failed` sin reintento automático nocturno.
-- [ ] No añadir botón de reintento en la interfaz; reintentar tickets fallidos queda como tarea técnica.
+- [x] No añadir botón de reintento en la interfaz; reintentar tickets fallidos queda como tarea técnica.
 - [x] Añadir un comando manual local para ejecutar el mismo procesamiento sin esperar al cron.
-- [ ] Crear un instalador de cron nocturno a las 03:30 siguiendo el patrón de backups y recategorización.
+- [x] Crear un instalador de cron nocturno a las 03:30 siguiendo el patrón de backups y recategorización.
 - [x] Guardar logs duraderos en `var/log/` y datos transitorios en `/tmp`.
 - [ ] Añadir tests razonables del parser de salida, normalización, idempotencia y errores parciales.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.

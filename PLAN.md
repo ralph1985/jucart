@@ -473,7 +473,7 @@ Objetivo: hacer visible el histórico de precios sin convertir Jucart en una apl
 - [x] Paginar observaciones de precio y tickets antiguos sin borrar datos históricos; el límite de visualización no debe implicar retención limitada.
 - [x] Conservar visible el acceso a PDFs y fotos originales desde Tickets, incluso tras procesarlos, priorizando metadatos y líneas extraídas como superficie principal.
 - [x] Añadir tests razonables de interfaz, estados vacíos, revisión y cálculo de tendencias.
-- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+- [x] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 
 ## Hito 35 — Semillas externas de precios
 

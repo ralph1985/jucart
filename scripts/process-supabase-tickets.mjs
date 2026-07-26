@@ -36,7 +36,10 @@ if (command === "apply") {
     fail("Usage: process-supabase-tickets.mjs apply <extraction-json>");
   }
 
-  await applyExtraction(JSON.parse(await readFile(extractionPath, "utf8")));
+  await applyExtraction(
+    JSON.parse(await readFile(extractionPath, "utf8")),
+    new Date().toISOString(),
+  );
   process.exit(0);
 }
 
@@ -50,6 +53,7 @@ if (command === "fail") {
   await markContextTicketsFailed(
     JSON.parse(await readFile(contextPath, "utf8")),
     messageParts.join(" ") || "No se pudo procesar el ticket.",
+    new Date().toISOString(),
   );
   process.exit(0);
 }
@@ -168,7 +172,7 @@ async function exportContext(filesDir) {
   };
 }
 
-async function applyExtraction(rawExtraction) {
+async function applyExtraction(rawExtraction, startedAt) {
   const extractionTickets = normalizeExtraction(rawExtraction);
   const [tickets, canonicalProducts, canonicalProductAliases] =
     await Promise.all([
@@ -222,6 +226,8 @@ async function applyExtraction(rawExtraction) {
   }
 
   let insertedLineCount = 0;
+  let acceptedLineCount = 0;
+  let reviewLineCount = 0;
 
   for (const ticket of extractionTickets) {
     const currentTicket = ticketsById.get(ticket.id);
@@ -329,6 +335,8 @@ async function applyExtraction(rawExtraction) {
     );
 
     insertedLineCount += lineRows.length;
+    acceptedLineCount += lineRows.filter((line) => !line.needs_review).length;
+    reviewLineCount += lineRows.filter((line) => line.needs_review).length;
 
     const hasReview = lineRows.some((line) => line.needs_review);
     const status = hasReview ? "needs_review" : "processed";
@@ -344,8 +352,20 @@ async function applyExtraction(rawExtraction) {
     );
   }
 
+  await recordTicketProcessingRun({
+    errorMessage: null,
+    finishedAt: new Date().toISOString(),
+    linesAccepted: acceptedLineCount,
+    linesNeedingReview: reviewLineCount,
+    startedAt,
+    status: "success",
+    summary: `Processed ${extractionTickets.length} ticket(s), ${acceptedLineCount} accepted line(s), ${reviewLineCount} review line(s).`,
+    ticketsFailed: 0,
+    ticketsProcessed: extractionTickets.length,
+  });
+
   console.log(
-    `Processed ${extractionTickets.length} ticket(s) and ${insertedLineCount} line(s).`,
+    `Processed ${extractionTickets.length} ticket(s), ${insertedLineCount} line(s), ${reviewLineCount} needing review.`,
   );
 }
 
@@ -435,7 +455,7 @@ function roundPrice(value, decimals) {
   return Math.round(value * factor) / factor;
 }
 
-async function markContextTicketsFailed(context, message) {
+async function markContextTicketsFailed(context, message, startedAt) {
   const tickets = Array.isArray(context?.tickets) ? context.tickets : [];
   const trimmedMessage = message.trim().slice(0, 500);
 
@@ -455,7 +475,47 @@ async function markContextTicketsFailed(context, message) {
     );
   }
 
+  await recordTicketProcessingRun({
+    errorMessage: trimmedMessage || "No se pudo procesar el ticket.",
+    finishedAt: new Date().toISOString(),
+    linesAccepted: 0,
+    linesNeedingReview: 0,
+    startedAt,
+    status: "failed",
+    summary: `Marked ${tickets.length} ticket(s) as failed.`,
+    ticketsFailed: tickets.length,
+    ticketsProcessed: 0,
+  });
+
   console.log(`Marked ${tickets.length} ticket(s) as failed.`);
+}
+
+async function recordTicketProcessingRun({
+  errorMessage,
+  finishedAt,
+  linesAccepted,
+  linesNeedingReview,
+  startedAt,
+  status,
+  summary,
+  ticketsFailed,
+  ticketsProcessed,
+}) {
+  await insertRowsReturning("shopping_ticket_processing_runs", [
+    {
+      list_id: config.listId,
+      source: "codex",
+      status,
+      summary,
+      tickets_processed: ticketsProcessed,
+      lines_accepted: linesAccepted,
+      lines_needing_review: linesNeedingReview,
+      tickets_failed: ticketsFailed,
+      error_message: errorMessage,
+      started_at: startedAt,
+      finished_at: finishedAt,
+    },
+  ]);
 }
 
 function normalizeExtraction(rawExtraction) {

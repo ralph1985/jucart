@@ -195,6 +195,22 @@ erDiagram
     text review_reason
   }
 
+  SHOPPING_TICKET_PROCESSING_RUNS {
+    uuid id PK
+    uuid list_id
+    text source "codex"
+    text status "success|failed"
+    text summary
+    integer tickets_processed
+    integer lines_accepted
+    integer lines_needing_review
+    integer tickets_failed
+    text error_message
+    timestamptz started_at
+    timestamptz finished_at
+    timestamptz created_at
+  }
+
   SHOPPING_PRICE_OBSERVATIONS {
     uuid id PK
     uuid list_id
@@ -304,6 +320,10 @@ VITE_SUPABASE_LIST_ID
   |     - líneas extraídas por el procesamiento nocturno
   |     - puede asociar producto canónico o quedar marcada como needs_review
   |
+  +-- shopping_ticket_processing_runs
+  |     - ejecuciones técnicas del procesamiento local de tickets con Codex
+  |     - conserva estado, resumen, errores y recuentos de líneas aceptadas o en revisión
+  |
   +-- shopping_price_observations
   |     - observaciones históricas de precio por producto canónico
   |     - source distingue tickets reales de futuras fuentes externas
@@ -395,3 +415,4 @@ Al cargar, si Supabase está disponible, la aplicación lee datos remotos, categ
 - `supabase/migrations/20260725120000_create_canonical_products.sql`: crea productos canónicos, aliases, enlace desde productos y el historial de normalizaciones nocturnas.
 - `supabase/migrations/20260725180000_create_shopping_tickets.sql`: crea el bucket privado `shopping-tickets`, la bandeja remota de tickets, archivos asociados y líneas extraídas para el procesamiento nocturno.
 - `supabase/migrations/20260725211500_create_price_observations.sql`: crea observaciones históricas de precio por producto canónico, supermercado/lista y fuente, con backfill desde líneas de ticket ya procesadas.
+- `supabase/migrations/20260726110000_create_ticket_processing_runs.sql`: crea el historial técnico de ejecuciones del procesamiento local de tickets con Codex.

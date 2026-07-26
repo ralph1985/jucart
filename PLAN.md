@@ -447,7 +447,7 @@ Objetivo: analizar tickets pendientes por la noche desde la máquina local y con
 - [x] Usar el precio final como observación normal cuando el ticket no muestre un precio original claro.
 - [x] Fechar observaciones con la fecha detectada en el ticket y usar la fecha de subida si no se puede leer.
 - [x] Guardar líneas de ticket y observaciones de precio en Supabase de forma idempotente por ticket y línea.
-- [ ] Registrar ejecuciones con estado, resumen, errores y número de líneas aceptadas o pendientes de revisión.
+- [x] Registrar ejecuciones con estado, resumen, errores y número de líneas aceptadas o pendientes de revisión.
 - [x] Dejar los tickets con error en estado `failed` sin reintento automático nocturno.
 - [x] No añadir botón de reintento en la interfaz; reintentar tickets fallidos queda como tarea técnica.
 - [x] Añadir un comando manual local para ejecutar el mismo procesamiento sin esperar al cron.

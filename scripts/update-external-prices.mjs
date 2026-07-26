@@ -159,25 +159,21 @@ function createMercadonaProvider(env) {
   const catalogUrl =
     env.JUCART_MERCADONA_CATALOG_URL ??
     "https://tienda.mercadona.es/api/categories/";
+  let cachedCandidates = null;
 
   return {
     enabled: true,
     id: "mercadona",
     sectionId: "mercadona",
     async search(product, fetchImpl) {
-      const response = await fetchImpl(catalogUrl, {
-        headers: { Accept: "application/json" },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Mercadona returned ${response.status}`);
+      if (!cachedCandidates) {
+        cachedCandidates = await fetchMercadonaCandidates(
+          catalogUrl,
+          fetchImpl,
+        );
       }
 
-      const catalog = await response.json();
-
-      return flattenMercadonaProducts(catalog).map((item) =>
-        mapMercadonaProductToCandidate(item),
-      );
+      return cachedCandidates;
     },
   };
 }
@@ -257,7 +253,9 @@ function selectActiveCanonicalProducts(items, canonicalProducts) {
 }
 
 function chooseBestCandidate(product, candidates) {
-  const normalizedProductName = normalizeCatalogText(product.name);
+  const normalizedProductNames = getExternalSearchNames(product);
+  const isBroadProductName =
+    normalizeCatalogText(product.name).split(" ").length === 1;
 
   return candidates
     .filter(
@@ -269,9 +267,15 @@ function chooseBestCandidate(product, candidates) {
     )
     .map((candidate) => ({
       candidate,
-      score: getCandidateScore(normalizedProductName, candidate.normalizedName),
+      score: Math.max(
+        ...normalizedProductNames.map((normalizedProductName) =>
+          getCandidateScore(normalizedProductName, candidate.normalizedName),
+        ),
+      ),
     }))
-    .filter((match) => match.score >= 2)
+    .filter(
+      (match) => match.score >= 2 && (!isBroadProductName || match.score >= 4),
+    )
     .sort(
       (firstMatch, secondMatch) =>
         secondMatch.score - firstMatch.score ||
@@ -282,18 +286,39 @@ function chooseBestCandidate(product, candidates) {
 
 function getCandidateScore(normalizedProductName, normalizedCandidateName) {
   if (normalizedCandidateName === normalizedProductName) {
+    return 5;
+  }
+
+  if (normalizedCandidateName.startsWith(`${normalizedProductName} `)) {
     return 4;
   }
 
-  if (normalizedCandidateName.includes(normalizedProductName)) {
+  if (containsAllTokens(normalizedCandidateName, normalizedProductName)) {
     return 3;
   }
 
-  if (normalizedProductName.includes(normalizedCandidateName)) {
+  if (containsAllTokens(normalizedProductName, normalizedCandidateName)) {
     return 2;
   }
 
   return 0;
+}
+
+function containsAllTokens(normalizedCandidateName, normalizedProductName) {
+  const candidateTokens = new Set(normalizedCandidateName.split(" "));
+  const productTokens = normalizedProductName.split(" ");
+
+  return productTokens.every((token) => candidateTokens.has(token));
+}
+
+function getExternalSearchNames(product) {
+  const normalizedName = normalizeCatalogText(product.name);
+  const aliasesByName = {
+    platanos: ["banana"],
+    platano: ["banana"],
+  };
+
+  return [normalizedName, ...(aliasesByName[normalizedName] ?? [])];
 }
 
 function buildExternalObservationRow({
@@ -378,23 +403,118 @@ function flattenMercadonaProducts(catalog) {
   return products;
 }
 
+async function fetchMercadonaCandidates(catalogUrl, fetchImpl) {
+  const catalog = await fetchMercadonaJson(catalogUrl, fetchImpl);
+  const categoryIds = extractMercadonaCategoryIds(catalog);
+  const categoryPayloads = [];
+
+  for (const categoryId of categoryIds) {
+    try {
+      categoryPayloads.push(
+        await fetchMercadonaJson(
+          new URL(String(categoryId), ensureTrailingSlash(catalogUrl)).href,
+          fetchImpl,
+        ),
+      );
+    } catch (error) {
+      if (!isSkippableMercadonaCategoryError(error)) {
+        throw error;
+      }
+    }
+  }
+  const products = [
+    ...flattenMercadonaProducts(catalog),
+    ...categoryPayloads.flatMap(flattenMercadonaProducts),
+  ];
+  const productsById = new Map(
+    products
+      .filter((product) => product?.id)
+      .map((product) => [String(product.id), product]),
+  );
+
+  return [...productsById.values()].map(mapMercadonaProductToCandidate);
+}
+
+async function fetchMercadonaJson(url, fetchImpl) {
+  const response = await fetchImpl(url, {
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Mercadona returned ${response.status}`);
+  }
+
+  return response.json();
+}
+
+function isSkippableMercadonaCategoryError(error) {
+  return (
+    error instanceof Error &&
+    (error.message.includes("Mercadona returned 403") ||
+      error.message.includes("Mercadona returned 404"))
+  );
+}
+
+function extractMercadonaCategoryIds(catalog) {
+  const ids = new Set();
+  const stack = Array.isArray(catalog)
+    ? [...catalog]
+    : Array.isArray(catalog?.results)
+      ? [...catalog.results]
+      : [catalog];
+
+  while (stack.length > 0) {
+    const entry = stack.pop();
+
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+
+    if (
+      typeof entry.id !== "undefined" &&
+      entry.published === true &&
+      !Array.isArray(entry.products)
+    ) {
+      ids.add(entry.id);
+    }
+
+    for (const key of ["categories", "subcategories", "children"]) {
+      if (Array.isArray(entry[key])) {
+        stack.push(...entry[key]);
+      }
+    }
+  }
+
+  return [...ids];
+}
+
+function ensureTrailingSlash(value) {
+  return value.endsWith("/") ? value : `${value}/`;
+}
+
 function mapMercadonaProductToCandidate(product) {
   const priceInstructions = product.price_instructions ?? {};
   const productName = String(
     product.display_name ?? product.name ?? product.slug ?? "",
   ).trim();
-  const unitName = String(
-    priceInstructions.unit_name ?? priceInstructions.bulk_unit ?? "",
+  const referenceFormat = String(
+    priceInstructions.reference_format ??
+      priceInstructions.size_format ??
+      priceInstructions.unit_name ??
+      "",
   );
   const observedPrice = parsePrice(
-    priceInstructions.bulk_price ??
+    priceInstructions.reference_price ??
+      priceInstructions.bulk_price ??
       priceInstructions.unit_price ??
       product.price ??
       product.unit_price,
   );
 
   return {
-    comparisonUnit: normalizeComparisonUnitFromText(unitName || productName),
+    comparisonUnit: normalizeComparisonUnitFromText(
+      referenceFormat || productName,
+    ),
     externalProductId: String(product.id ?? product.slug ?? productName),
     externalProductUrl:
       product.share_url ??
@@ -404,9 +524,26 @@ function mapMercadonaProductToCandidate(product) {
     observedPrice,
     priceKind: "unit",
     productName,
-    quantity: unitName || null,
+    quantity: formatMercadonaQuantity(priceInstructions),
     totalPrice: parsePrice(priceInstructions.unit_price ?? product.price),
   };
+}
+
+function formatMercadonaQuantity(priceInstructions) {
+  const unitSize = priceInstructions.unit_size;
+  const sizeFormat = priceInstructions.size_format;
+  const unitName = priceInstructions.unit_name;
+  const totalUnits = priceInstructions.total_units;
+
+  if (totalUnits && unitName) {
+    return `${totalUnits} ${unitName}`;
+  }
+
+  if (unitSize && sizeFormat) {
+    return `${unitSize} ${sizeFormat}`;
+  }
+
+  return unitName ?? null;
 }
 
 function flattenGenericProducts(payload) {
@@ -463,7 +600,7 @@ function normalizeComparisonUnitFromText(value) {
     return "kg";
   }
 
-  if (/\bl\b|litro/.test(normalizedValue)) {
+  if (/^l$|\bl\b|litro/.test(normalizedValue)) {
     return "l";
   }
 
@@ -625,6 +762,7 @@ export {
   buildExternalObservationRow,
   chooseBestCandidate,
   createExternalPriceProviders,
+  fetchMercadonaCandidates,
   flattenMercadonaProducts,
   mapMercadonaProductToCandidate,
   normalizeCatalogText,

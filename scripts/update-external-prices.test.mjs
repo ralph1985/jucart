@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildExternalObservationRow,
   chooseBestCandidate,
+  fetchMercadonaCandidates,
   flattenMercadonaProducts,
   mapMercadonaProductToCandidate,
   selectActiveCanonicalProducts,
@@ -119,8 +120,8 @@ describe("external price update helpers", () => {
               id: 123,
               display_name: "Plátanos",
               price_instructions: {
-                bulk_price: "1.95",
-                bulk_unit: "kg",
+                reference_format: "kg",
+                reference_price: "1.95",
                 unit_price: "1.95",
               },
             },
@@ -135,6 +136,126 @@ describe("external price update helpers", () => {
       normalizedName: "platanos",
       observedPrice: 1.95,
     });
+  });
+
+  it("loads Mercadona products from subcategories and maps reference units", async () => {
+    const fetchImpl = vi.fn(async (url) => {
+      if (url === "https://tienda.mercadona.es/api/categories/") {
+        return createJsonResponse({
+          results: [
+            {
+              id: 12,
+              name: "Aceite",
+              categories: [
+                { id: 112, name: "Aceite, vinagre y sal", published: true },
+              ],
+            },
+          ],
+        });
+      }
+
+      if (url === "https://tienda.mercadona.es/api/categories/112") {
+        return createJsonResponse({
+          id: 112,
+          categories: [
+            {
+              id: 420,
+              products: [
+                {
+                  id: "69586",
+                  display_name: "Zanahorias",
+                  price_instructions: {
+                    reference_format: "kg",
+                    reference_price: "1.200",
+                    size_format: "kg",
+                    unit_price: "1.20",
+                    unit_size: 1,
+                  },
+                  share_url:
+                    "https://tienda.mercadona.es/product/69586/zanahorias-paquete",
+                },
+              ],
+            },
+          ],
+        });
+      }
+
+      if (url === "https://tienda.mercadona.es/api/categories/12") {
+        return createJsonResponse({ id: 12, categories: [] });
+      }
+
+      throw new Error(`Unexpected Mercadona URL: ${url}`);
+    });
+
+    const candidates = await fetchMercadonaCandidates(
+      "https://tienda.mercadona.es/api/categories/",
+      fetchImpl,
+    );
+
+    expect(candidates).toEqual([
+      expect.objectContaining({
+        comparisonUnit: "kg",
+        externalProductId: "69586",
+        observedPrice: 1.2,
+        productName: "Zanahorias",
+        quantity: "1 kg",
+      }),
+    ]);
+  });
+
+  it("uses conservative external aliases for Mercadona names", () => {
+    expect(
+      chooseBestCandidate(
+        {
+          id: "canonical-platanos",
+          name: "Plátanos",
+          normalized_name: "platanos",
+          comparison_unit: "kg",
+        },
+        [
+          {
+            comparisonUnit: "kg",
+            externalProductId: "3824",
+            externalProductUrl: "https://tienda.mercadona.es/product/3824",
+            normalizedName: "banana",
+            observedPrice: 1.55,
+            priceKind: "unit",
+            productName: "Banana",
+            quantity: "0.19 kg",
+            totalPrice: 0.29,
+          },
+        ],
+      ),
+    ).toMatchObject({
+      externalProductId: "3824",
+      observedPrice: 1.55,
+    });
+  });
+
+  it("does not match broad one-word products by partial substrings", () => {
+    expect(
+      chooseBestCandidate(
+        {
+          id: "canonical-agua",
+          name: "Agua",
+          normalized_name: "agua",
+          comparison_unit: "l",
+        },
+        [
+          {
+            comparisonUnit: "l",
+            externalProductId: "smoothie-aguacate",
+            externalProductUrl: null,
+            normalizedName: "smoothie veggie aguacate mango espinaca",
+            observedPrice: 7.2,
+            priceKind: "unit",
+            productName: "Smoothie veggie aguacate",
+            quantity: "0.25 l",
+            totalPrice: 1.8,
+          },
+        ],
+      ),
+    ).toBeUndefined();
   });
 
   it("inserts external observations only when provider price changes", async () => {

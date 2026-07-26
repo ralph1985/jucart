@@ -5421,16 +5421,6 @@ export function App() {
             ) : null}
             {getSyncStatusText(syncStatus)}
           </p>
-          <button
-            className={styles.syncRefreshButton}
-            type="button"
-            aria-label="Actualizar datos"
-            title="Actualizar datos"
-            onClick={() => void refreshCurrentView()}
-            disabled={!isLoaded || isPullRefreshing}
-          >
-            <Icon name="sync" />
-          </button>
           <div className={styles.headerUserField}>
             <label className={styles.headerUserLabel} htmlFor="user-id">
               Añadido por

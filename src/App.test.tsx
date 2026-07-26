@@ -175,42 +175,6 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
-  it("recarga la caché local desde la acción accesible de actualizar", async () => {
-    const initialData: ShoppingData = {
-      items: [],
-      sections: defaultShoppingSections,
-      historyEvents: [],
-      freezerItems: [],
-    };
-    const refreshedData: ShoppingData = {
-      ...initialData,
-      items: [
-        {
-          id: "item-refresh",
-          name: "Pan",
-          sectionId: "mercadona",
-          addedBy: "rafa",
-          purchased: false,
-          createdAt: 100,
-          updatedAt: 100,
-        },
-      ],
-    };
-
-    vi.spyOn(shoppingItemsDb, "getCachedShoppingData")
-      .mockResolvedValueOnce(initialData)
-      .mockResolvedValueOnce(refreshedData);
-
-    render(<App />);
-
-    await waitForAddFab();
-    fireEvent.click(screen.getByRole("button", { name: "Actualizar datos" }));
-
-    expect(await screen.findByText("Pan")).toBeInTheDocument();
-    expect(shoppingItemsDb.getCachedShoppingData).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole("status")).toHaveTextContent("Actualizado");
-  });
-
   it("recarga la caché local al completar el gesto pull-to-refresh", async () => {
     const initialData: ShoppingData = {
       items: [],

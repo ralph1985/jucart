@@ -453,8 +453,8 @@ Objetivo: analizar tickets pendientes por la noche desde la máquina local y con
 - [x] Añadir un comando manual local para ejecutar el mismo procesamiento sin esperar al cron.
 - [x] Crear un instalador de cron nocturno a las 03:30 siguiendo el patrón de backups y recategorización.
 - [x] Guardar logs duraderos en `var/log/` y datos transitorios en `/tmp`.
-- [ ] Añadir tests razonables del parser de salida, normalización, idempotencia y errores parciales.
-- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+- [x] Añadir tests razonables del parser de salida, normalización, idempotencia y errores parciales.
+- [x] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 
 ## Hito 34 — Revisión y vista de historial de precios
 

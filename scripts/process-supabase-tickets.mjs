@@ -2,63 +2,78 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { createClient } from "@supabase/supabase-js";
-
-const [, , command, ...args] = process.argv;
 
 const scriptDir = path.dirname(new URL(import.meta.url).pathname);
 const repoRoot = path.resolve(scriptDir, "..");
-const config = await readSupabaseConfig();
-const supabase = createClient(config.url, config.anonKey, {
-  auth: { persistSession: false },
-});
+let config;
+let supabase;
 
-if (command === "export") {
-  const [contextPath, filesDir] = args;
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+) {
+  main().catch((error) => {
+    fail(error instanceof Error ? error.message : String(error));
+  });
+}
 
-  if (!contextPath || !filesDir) {
-    fail(
-      "Usage: process-supabase-tickets.mjs export <context-json> <files-dir>",
+async function main() {
+  const [, , command, ...args] = process.argv;
+
+  config = await readSupabaseConfig();
+  supabase = createClient(config.url, config.anonKey, {
+    auth: { persistSession: false },
+  });
+
+  if (command === "export") {
+    const [contextPath, filesDir] = args;
+
+    if (!contextPath || !filesDir) {
+      fail(
+        "Usage: process-supabase-tickets.mjs export <context-json> <files-dir>",
+      );
+    }
+
+    await writeFile(
+      contextPath,
+      JSON.stringify(await exportContext(filesDir), null, 2),
     );
+    return;
   }
 
-  await writeFile(
-    contextPath,
-    JSON.stringify(await exportContext(filesDir), null, 2),
-  );
-  process.exit(0);
-}
+  if (command === "apply") {
+    const [extractionPath] = args;
 
-if (command === "apply") {
-  const [extractionPath] = args;
+    if (!extractionPath) {
+      fail("Usage: process-supabase-tickets.mjs apply <extraction-json>");
+    }
 
-  if (!extractionPath) {
-    fail("Usage: process-supabase-tickets.mjs apply <extraction-json>");
+    await applyExtraction(
+      JSON.parse(await readFile(extractionPath, "utf8")),
+      new Date().toISOString(),
+    );
+    return;
   }
 
-  await applyExtraction(
-    JSON.parse(await readFile(extractionPath, "utf8")),
-    new Date().toISOString(),
-  );
-  process.exit(0);
-}
+  if (command === "fail") {
+    const [contextPath, ...messageParts] = args;
 
-if (command === "fail") {
-  const [contextPath, ...messageParts] = args;
+    if (!contextPath) {
+      fail("Usage: process-supabase-tickets.mjs fail <context-json> [message]");
+    }
 
-  if (!contextPath) {
-    fail("Usage: process-supabase-tickets.mjs fail <context-json> [message]");
+    await markContextTicketsFailed(
+      JSON.parse(await readFile(contextPath, "utf8")),
+      messageParts.join(" ") || "No se pudo procesar el ticket.",
+      new Date().toISOString(),
+    );
+    return;
   }
 
-  await markContextTicketsFailed(
-    JSON.parse(await readFile(contextPath, "utf8")),
-    messageParts.join(" ") || "No se pudo procesar el ticket.",
-    new Date().toISOString(),
-  );
-  process.exit(0);
+  fail("Usage: process-supabase-tickets.mjs <export|apply|fail> <args...>");
 }
-
-fail("Usage: process-supabase-tickets.mjs <export|apply|fail> <args...>");
 
 async function exportContext(filesDir) {
   const [sections, tickets, files, canonicalProducts, canonicalProductAliases] =
@@ -430,7 +445,7 @@ async function buildPriceObservationRows({
   return observationRows;
 }
 
-function calculateObservedPrice(line) {
+export function calculateObservedPrice(line) {
   if (line.unit_price !== null) {
     if (
       line.original_total_price !== null &&
@@ -518,7 +533,7 @@ async function recordTicketProcessingRun({
   ]);
 }
 
-function normalizeExtraction(rawExtraction) {
+export function normalizeExtraction(rawExtraction) {
   return (Array.isArray(rawExtraction?.tickets) ? rawExtraction.tickets : [])
     .map((ticket) => ({
       id: typeof ticket.id === "string" ? ticket.id.trim() : "",

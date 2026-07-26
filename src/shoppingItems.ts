@@ -203,6 +203,9 @@ export type ShoppingPriceObservation = {
   source: ShoppingPriceObservationSource;
   ticketId: string | null;
   ticketLineId: string | null;
+  externalProvider?: string | null;
+  externalProductId?: string | null;
+  externalProductUrl?: string | null;
   canonicalProductId: string;
   sectionId: ShoppingSectionId;
   observedAt: number;

@@ -326,7 +326,8 @@ VITE_SUPABASE_LIST_ID
   |
   +-- shopping_price_observations
   |     - observaciones históricas de precio por producto canónico
-  |     - source distingue tickets reales de futuras fuentes externas
+  |     - source distingue tickets reales de fuentes externas
+  |     - las fuentes externas conservan proveedor, identificador y URL cuando existan
   |     - observed_price es el precio comparable para medias y tendencias
   |
   +-- storage.objects / bucket shopping-tickets
@@ -416,3 +417,4 @@ Al cargar, si Supabase está disponible, la aplicación lee datos remotos, categ
 - `supabase/migrations/20260725180000_create_shopping_tickets.sql`: crea el bucket privado `shopping-tickets`, la bandeja remota de tickets, archivos asociados y líneas extraídas para el procesamiento nocturno.
 - `supabase/migrations/20260725211500_create_price_observations.sql`: crea observaciones históricas de precio por producto canónico, supermercado/lista y fuente, con backfill desde líneas de ticket ya procesadas.
 - `supabase/migrations/20260726110000_create_ticket_processing_runs.sql`: crea el historial técnico de ejecuciones del procesamiento local de tickets con Codex.
+- `supabase/migrations/20260726123000_add_external_price_observation_metadata.sql`: añade proveedor, identificador externo y URL a las observaciones externas de precio.

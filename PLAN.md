@@ -479,17 +479,17 @@ Objetivo: hacer visible el histórico de precios sin convertir Jucart en una apl
 
 Objetivo: precargar precios iniciales desde fuentes externas solo cuando aporten datos claros sin convertirse en dependencia crítica.
 
-- [ ] Crear una arquitectura común de proveedores externos de precios, preparada para varias fuentes.
-- [ ] Añadir un script manual de actualización externa, sin cron ni botón en la app.
-- [ ] Consultar solo productos canónicos presentes en productos pendientes o comprados de la lista activa.
-- [ ] Probar todas las fuentes externas disponibles para cada producto canónico activo, no solo la lista donde esté.
-- [ ] Insertar observaciones con `source = external` en `shopping_price_observations`, separadas de `source = ticket`.
-- [ ] Guardar nuevas observaciones externas solo cuando cambie el precio respecto a la última observación de esa fuente, producto y unidad.
-- [ ] Mostrar en las tarjetas tanto el precio real de tickets como el mejor precio externo cuando existan ambos.
-- [ ] Comparar y calcular medias separando precios reales de tickets y precios externos.
-- [ ] Implementar Mercadona con adaptador propio no oficial, documentando la falta de API pública estable.
-- [ ] Investigar Alcampo con adaptador propio primero y dejar un proveedor externo con clave como fallback configurable si no hay endpoint limpio.
-- [ ] Omitir coincidencias externas dudosas o sin unidad canónica clara, dejándolas en reporte técnico sin crear observación.
-- [ ] Mantener la vista global de Precios como v2, fuera de esta primera integración en tarjetas.
-- [ ] Añadir tests razonables de importación, procedencia y conflictos con productos canónicos.
-- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+- [x] Crear una arquitectura común de proveedores externos de precios, preparada para varias fuentes.
+- [x] Añadir un script manual de actualización externa, sin cron ni botón en la app.
+- [x] Consultar solo productos canónicos presentes en productos pendientes o comprados de la lista activa.
+- [x] Probar todas las fuentes externas disponibles para cada producto canónico activo, no solo la lista donde esté.
+- [x] Insertar observaciones con `source = external` en `shopping_price_observations`, separadas de `source = ticket`.
+- [x] Guardar nuevas observaciones externas solo cuando cambie el precio respecto a la última observación de esa fuente, producto y unidad.
+- [x] Mostrar en las tarjetas tanto el precio real de tickets como el mejor precio externo cuando existan ambos.
+- [x] Comparar y calcular medias separando precios reales de tickets y precios externos.
+- [x] Implementar Mercadona con adaptador propio no oficial, documentando la falta de API pública estable.
+- [x] Investigar Alcampo con adaptador propio primero y dejar un proveedor externo con clave como fallback configurable si no hay endpoint limpio.
+- [x] Omitir coincidencias externas dudosas o sin unidad canónica clara, dejándolas en reporte técnico sin crear observación.
+- [x] Mantener la vista global de Precios como v2, fuera de esta primera integración en tarjetas.
+- [x] Añadir tests razonables de importación, procedencia y conflictos con productos canónicos.
+- [x] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.

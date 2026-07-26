@@ -2682,6 +2682,11 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.itemPriceSummary .itemExternalPrice {
+  color: #7a4f01;
+  font-weight: 900;
+}
+
 .itemPriceDetailButton {
   display: inline-grid;
   width: 1.18rem;

@@ -228,6 +228,9 @@ type ShoppingPriceObservationRow = {
   source: string;
   ticket_id: string | null;
   ticket_line_id: string | null;
+  external_provider?: string | null;
+  external_product_id?: string | null;
+  external_product_url?: string | null;
   canonical_product_id: string;
   section_id: string;
   observed_at: string;
@@ -1421,6 +1424,9 @@ export function mapRowToShoppingPriceObservation(
     source: normalizePriceObservationSource(row.source),
     ticketId: row.ticket_id,
     ticketLineId: row.ticket_line_id,
+    externalProvider: row.external_provider,
+    externalProductId: row.external_product_id,
+    externalProductUrl: row.external_product_url,
     canonicalProductId: row.canonical_product_id,
     sectionId: row.section_id,
     observedAt: Date.parse(row.observed_at),

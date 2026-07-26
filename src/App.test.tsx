@@ -1209,6 +1209,29 @@ describe("App", () => {
         updatedAt: Date.parse("2026-07-24T20:05:00.000Z"),
       },
       {
+        id: "price-observation-external",
+        source: "external",
+        ticketId: null,
+        ticketLineId: null,
+        externalProvider: "mercadona",
+        externalProductId: "123",
+        externalProductUrl: "https://tienda.mercadona.es/product/123",
+        canonicalProductId: "canonical-platanos",
+        sectionId: "mercadona",
+        observedAt: Date.parse("2026-07-26T10:00:00.000Z"),
+        productName: "Plátanos",
+        quantity: "kg",
+        comparisonUnit: "kg",
+        priceKind: "unit",
+        observedPrice: 1.7,
+        unitPrice: 1.7,
+        totalPrice: null,
+        originalTotalPrice: null,
+        discountTotal: null,
+        createdAt: Date.parse("2026-07-26T10:05:00.000Z"),
+        updatedAt: Date.parse("2026-07-26T10:05:00.000Z"),
+      },
+      {
         id: "price-observation-gasas",
         source: "ticket",
         ticketId: "ticket-3",
@@ -1315,6 +1338,7 @@ describe("App", () => {
     expect(await screen.findByText("Plátanos")).toBeInTheDocument();
     expect(await screen.findByText("Últ. 1,80 €/kg")).toBeInTheDocument();
     expect(screen.getByText("Media 2,00 €/kg")).toBeInTheDocument();
+    expect(screen.getByText("Ext. 1,70 €/kg")).toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Ver precios de Plátanos" }),
@@ -1330,6 +1354,11 @@ describe("App", () => {
     expect(within(dialog).getByText("-0,40 €/kg")).toBeInTheDocument();
     expect(within(dialog).getAllByText("Mercadona").length).toBeGreaterThan(0);
     expect(within(dialog).getByText("Alcampo")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        "26/07/2026, 12:00 · Mercadona · Externo: mercadona",
+      ),
+    ).toBeInTheDocument();
 
     fireEvent.click(
       within(dialog).getByRole("button", { name: "Cerrar precios" }),

@@ -397,6 +397,11 @@ type ProductPriceSummary = {
   observationCount: number;
 };
 
+type ProductPriceCardSummary = {
+  ticketSummary: ProductPriceSummary | null;
+  bestExternalObservation: ShoppingPriceObservation | null;
+};
+
 type ProductPriceSectionSummary = ProductPriceSummary & {
   sectionId: ShoppingSectionId;
 };
@@ -409,7 +414,10 @@ type TicketReviewEntry = {
 function getProductPriceSummaries(
   priceObservations: ShoppingPriceObservation[],
 ) {
-  const observationsByProductId = priceObservations.reduce(
+  const ticketObservations = priceObservations.filter(
+    (observation) => observation.source === "ticket",
+  );
+  const observationsByProductId = ticketObservations.reduce(
     (groups, observation) => {
       const currentObservations =
         groups.get(observation.canonicalProductId) ?? [];
@@ -448,10 +456,50 @@ function getProductPriceSummaries(
   return priceSummaries;
 }
 
+function getProductPriceCardSummaries(
+  priceObservations: ShoppingPriceObservation[],
+) {
+  const ticketSummaries = getProductPriceSummaries(priceObservations);
+  const externalObservations = priceObservations.filter(
+    (observation) => observation.source === "external",
+  );
+  const summaries = new Map<string, ProductPriceCardSummary>();
+
+  ticketSummaries.forEach((ticketSummary, canonicalProductId) => {
+    summaries.set(canonicalProductId, {
+      bestExternalObservation: null,
+      ticketSummary,
+    });
+  });
+
+  for (const observation of externalObservations) {
+    const currentSummary = summaries.get(observation.canonicalProductId) ?? {
+      bestExternalObservation: null,
+      ticketSummary: null,
+    };
+    const currentExternal = currentSummary.bestExternalObservation;
+
+    if (
+      !currentExternal ||
+      observation.observedPrice < currentExternal.observedPrice
+    ) {
+      summaries.set(observation.canonicalProductId, {
+        ...currentSummary,
+        bestExternalObservation: observation,
+      });
+    }
+  }
+
+  return summaries;
+}
+
 function getPriceSectionSummaries(
   priceObservations: ShoppingPriceObservation[],
 ) {
-  const observationsBySectionId = priceObservations.reduce(
+  const ticketObservations = priceObservations.filter(
+    (observation) => observation.source === "ticket",
+  );
+  const observationsBySectionId = ticketObservations.reduce(
     (groups, observation) => {
       const currentObservations = groups.get(observation.sectionId) ?? [];
       currentObservations.push(observation);
@@ -1483,7 +1531,8 @@ export function App() {
       .filter((line) => line.needsReview)
       .map((line) => ({ ticket, line })),
   );
-  const productPriceSummaries = getProductPriceSummaries(priceObservations);
+  const productPriceCardSummaries =
+    getProductPriceCardSummaries(priceObservations);
   const selectedPriceProduct = selectedPriceProductId
     ? canonicalProducts.find((product) => product.id === selectedPriceProductId)
     : null;
@@ -1502,18 +1551,24 @@ export function App() {
     0,
     visiblePriceObservationCount,
   );
+  const selectedTicketPriceObservations = selectedPriceObservations.filter(
+    (observation) => observation.source === "ticket",
+  );
   const hiddenSelectedPriceObservationCount = Math.max(
     selectedPriceObservations.length - visibleSelectedPriceObservations.length,
     0,
   );
   const selectedPriceSummary = selectedPriceProductId
-    ? productPriceSummaries.get(selectedPriceProductId)
+    ? (productPriceCardSummaries.get(selectedPriceProductId)?.ticketSummary ??
+      null)
     : null;
   const selectedPriceSectionSummaries = getPriceSectionSummaries(
     selectedPriceObservations,
   );
-  const selectedLatestPriceObservation = selectedPriceObservations[0] ?? null;
-  const selectedPreviousPriceObservation = selectedPriceObservations[1] ?? null;
+  const selectedLatestPriceObservation =
+    selectedTicketPriceObservations[0] ?? null;
+  const selectedPreviousPriceObservation =
+    selectedTicketPriceObservations[1] ?? null;
   const selectedPriceDifference =
     selectedLatestPriceObservation && selectedPreviousPriceObservation
       ? selectedLatestPriceObservation.observedPrice -
@@ -4465,8 +4520,11 @@ export function App() {
         item.purchased &&
         !visibleItems[index - 1]?.purchased;
       const itemPriceSummary = item.canonicalProductId
-        ? productPriceSummaries.get(item.canonicalProductId)
+        ? productPriceCardSummaries.get(item.canonicalProductId)
         : null;
+      const itemTicketPriceSummary = itemPriceSummary?.ticketSummary ?? null;
+      const itemBestExternalPrice =
+        itemPriceSummary?.bestExternalObservation ?? null;
       const itemContent = (
         <li
           ref={(itemElement) => {
@@ -4519,36 +4577,65 @@ export function App() {
               </span>
             ) : null}
           </span>
-          {itemPriceSummary ? (
+          {itemTicketPriceSummary || itemBestExternalPrice ? (
             <span
               className={styles.itemPriceSummary}
-              aria-label={`Último precio ${formatPriceSummaryValue(
-                itemPriceSummary.latestPrice,
-                itemPriceSummary.comparisonUnit,
-              )}, media ${formatPriceSummaryValue(
-                itemPriceSummary.averagePrice,
-                itemPriceSummary.comparisonUnit,
-              )}`}
-              title={`${itemPriceSummary.observationCount} ${
-                itemPriceSummary.observationCount === 1
-                  ? "observación"
-                  : "observaciones"
-              }`}
+              aria-label={[
+                itemTicketPriceSummary
+                  ? `Último precio real ${formatPriceSummaryValue(
+                      itemTicketPriceSummary.latestPrice,
+                      itemTicketPriceSummary.comparisonUnit,
+                    )}, media real ${formatPriceSummaryValue(
+                      itemTicketPriceSummary.averagePrice,
+                      itemTicketPriceSummary.comparisonUnit,
+                    )}`
+                  : null,
+                itemBestExternalPrice
+                  ? `Mejor precio externo ${formatPriceSummaryValue(
+                      itemBestExternalPrice.observedPrice,
+                      itemBestExternalPrice.comparisonUnit,
+                    )}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+              title={
+                itemTicketPriceSummary
+                  ? `${itemTicketPriceSummary.observationCount} ${
+                      itemTicketPriceSummary.observationCount === 1
+                        ? "observación real"
+                        : "observaciones reales"
+                    }`
+                  : "Solo precio externo"
+              }
             >
-              <span>
-                Últ.{" "}
-                {formatPriceSummaryValue(
-                  itemPriceSummary.latestPrice,
-                  itemPriceSummary.comparisonUnit,
-                )}
-              </span>
-              <span>
-                Media{" "}
-                {formatPriceSummaryValue(
-                  itemPriceSummary.averagePrice,
-                  itemPriceSummary.comparisonUnit,
-                )}
-              </span>
+              {itemTicketPriceSummary ? (
+                <>
+                  <span>
+                    Últ.{" "}
+                    {formatPriceSummaryValue(
+                      itemTicketPriceSummary.latestPrice,
+                      itemTicketPriceSummary.comparisonUnit,
+                    )}
+                  </span>
+                  <span>
+                    Media{" "}
+                    {formatPriceSummaryValue(
+                      itemTicketPriceSummary.averagePrice,
+                      itemTicketPriceSummary.comparisonUnit,
+                    )}
+                  </span>
+                </>
+              ) : null}
+              {itemBestExternalPrice ? (
+                <span className={styles.itemExternalPrice}>
+                  Ext.{" "}
+                  {formatPriceSummaryValue(
+                    itemBestExternalPrice.observedPrice,
+                    itemBestExternalPrice.comparisonUnit,
+                  )}
+                </span>
+              ) : null}
               <button
                 className={styles.itemPriceDetailButton}
                 type="button"
@@ -5635,6 +5722,13 @@ export function App() {
                           {sections.find(
                             (section) => section.id === observation.sectionId,
                           )?.name ?? observation.sectionId}
+                          {observation.source === "external"
+                            ? ` · Externo${
+                                observation.externalProvider
+                                  ? `: ${observation.externalProvider}`
+                                  : ""
+                              }`
+                            : ""}
                         </span>
                         <strong>
                           {formatPriceSummaryValue(

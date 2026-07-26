@@ -1390,6 +1390,91 @@ describe("App", () => {
     );
   });
 
+  it("paginates price observations in the price detail sheet", async () => {
+    const shoppingData: ShoppingData = {
+      items: [
+        {
+          id: "item-platanos",
+          name: "Plátanos",
+          sectionId: "mercadona",
+          canonicalProductId: "canonical-platanos",
+          addedBy: "rafa",
+          purchased: false,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+    };
+    const observations = Array.from({ length: 11 }, (_, index) => ({
+      id: `price-observation-${index + 1}`,
+      source: "ticket" as const,
+      ticketId: `ticket-${index + 1}`,
+      ticketLineId: `line-${index + 1}`,
+      canonicalProductId: "canonical-platanos",
+      sectionId: "mercadona" as const,
+      observedAt: Date.parse("2026-07-25T20:00:00.000Z") - index * 86_400_000,
+      productName: "Plátanos",
+      quantity: `observación ${index + 1}`,
+      comparisonUnit: "kg" as const,
+      priceKind: "unit" as const,
+      observedPrice: 1 + index / 10,
+      unitPrice: 1 + index / 10,
+      totalPrice: 1 + index / 10,
+      originalTotalPrice: null,
+      discountTotal: null,
+      createdAt: Date.parse("2026-07-25T20:05:00.000Z"),
+      updatedAt: Date.parse("2026-07-25T20:05:00.000Z"),
+    }));
+
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(shoppingItemsDb, "getShoppingItemsStorageMode").mockReturnValue(
+      "remote",
+    );
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockResolvedValue(
+      shoppingData,
+    );
+    vi.spyOn(shoppingItemsDb, "getStoredShoppingData").mockResolvedValue(
+      shoppingData,
+    );
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabasePriceObservations",
+    ).mockResolvedValue(observations);
+
+    render(<App />);
+
+    expect(await screen.findByText("Plátanos")).toBeInTheDocument();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Ver precios de Plátanos" }),
+    );
+
+    const dialog = await screen.findByRole("dialog", { name: "Plátanos" });
+    expect(within(dialog).getByText("observación 10")).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText("observación 11"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: "Ver 1 observaciones más",
+      }),
+    );
+
+    expect(within(dialog).getByText("observación 11")).toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("button", {
+        name: "Ver 1 observaciones más",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps a purchased item stable while its Supabase echo arrives during save", async () => {
     let onSupabaseChange: (() => void) | undefined;
     let resolveStoreData: () => void = () => {};
@@ -2314,6 +2399,54 @@ describe("App", () => {
     expect(screen.getByText("GASAS")).toBeInTheDocument();
     expect(screen.getByText("Cupón")).toBeInTheDocument();
     expect(screen.getByText("Excluida")).toBeInTheDocument();
+  });
+
+  it("paginates older tickets in the tickets view", async () => {
+    const tickets = Array.from({ length: 11 }, (_, index) => ({
+      id: `ticket-${index + 1}`,
+      sectionId: "mercadona" as const,
+      uploadedBy: "rafa" as const,
+      status: "processed" as const,
+      fileCount: index + 1,
+      uploadedAt: Date.parse("2026-07-25T18:00:00.000Z") - index * 60_000,
+      processedAt: Date.parse("2026-07-25T18:05:00.000Z") - index * 60_000,
+      errorMessage: null,
+      createdAt: Date.parse("2026-07-25T18:00:00.000Z") - index * 60_000,
+      updatedAt: Date.parse("2026-07-25T18:05:00.000Z") - index * 60_000,
+      files: [],
+      lines: [],
+    }));
+
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabaseShoppingTickets",
+    ).mockResolvedValue(tickets);
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Tickets" }));
+
+    expect(
+      await screen.findByRole("button", { name: /10 archivos/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /11 archivos/ }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver 1 tickets más" }));
+
+    expect(
+      screen.getByRole("button", { name: /11 archivos/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Ver 1 tickets más" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows ticket fallback texts for unknown sections and review reasons", async () => {

@@ -110,6 +110,8 @@ const lastSeenRecategorizationChangeAtStorageKey =
 const lastSeenProductNormalizationChangeAtStorageKey =
   "jucart:last-seen-product-normalizations-at";
 const pushInviteDismissedStorageKey = "jucart:push-invite-dismissed";
+const ticketPageSize = 10;
+const priceObservationPageSize = 10;
 const backupStaleThresholdMs = 6 * 60 * 60 * 1000;
 const initialPushNotificationSnapshot: PushNotificationSnapshot = {
   status: "syncing",
@@ -1227,8 +1229,11 @@ export function App() {
   const [selectedPriceProductId, setSelectedPriceProductId] = useState<
     string | null
   >(null);
+  const [visiblePriceObservationCount, setVisiblePriceObservationCount] =
+    useState(priceObservationPageSize);
   const [ticketFilter, setTicketFilter] = useState<TicketFilter>("all");
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [visibleTicketCount, setVisibleTicketCount] = useState(ticketPageSize);
   const [isTicketsLoading, setIsTicketsLoading] = useState(false);
   const [ticketError, setTicketError] = useState<string | null>(null);
   const [ticketReviewProductIds, setTicketReviewProductIds] = useState<
@@ -1468,6 +1473,11 @@ export function App() {
     ticketFilter === "all"
       ? tickets
       : tickets.filter((ticket) => ticket.status === ticketFilter);
+  const visibleTickets = filteredTickets.slice(0, visibleTicketCount);
+  const hiddenTicketCount = Math.max(
+    filteredTickets.length - visibleTickets.length,
+    0,
+  );
   const ticketReviewEntries = tickets.flatMap<TicketReviewEntry>((ticket) =>
     ticket.lines
       .filter((line) => line.needsReview)
@@ -1488,6 +1498,14 @@ export function App() {
             secondObservation.observedAt - firstObservation.observedAt,
         )
     : [];
+  const visibleSelectedPriceObservations = selectedPriceObservations.slice(
+    0,
+    visiblePriceObservationCount,
+  );
+  const hiddenSelectedPriceObservationCount = Math.max(
+    selectedPriceObservations.length - visibleSelectedPriceObservations.length,
+    0,
+  );
   const selectedPriceSummary = selectedPriceProductId
     ? productPriceSummaries.get(selectedPriceProductId)
     : null;
@@ -2892,6 +2910,7 @@ export function App() {
 
     pushOverlayHistory("price-detail-sheet");
     setSelectedPriceProductId(item.canonicalProductId);
+    setVisiblePriceObservationCount(priceObservationPageSize);
     runHapticFeedback("light");
   }
 
@@ -3841,6 +3860,22 @@ export function App() {
       ...currentProductIds,
       [lineId]: productId,
     }));
+  }
+
+  function handleTicketFilterChange(filter: TicketFilter) {
+    setTicketFilter(filter);
+    setSelectedTicketId(null);
+    setVisibleTicketCount(ticketPageSize);
+  }
+
+  function showMoreTickets() {
+    setVisibleTicketCount((currentCount) => currentCount + ticketPageSize);
+  }
+
+  function showMorePriceObservations() {
+    setVisiblePriceObservationCount(
+      (currentCount) => currentCount + priceObservationPageSize,
+    );
   }
 
   function handleTicketCorrectionProductChange(
@@ -5593,7 +5628,7 @@ export function App() {
                 >
                   <h3 id="price-observations-title">Observaciones</h3>
                   <ol className={styles.priceObservationList}>
-                    {selectedPriceObservations.map((observation) => (
+                    {visibleSelectedPriceObservations.map((observation) => (
                       <li key={observation.id}>
                         <span>
                           {formatTicketDate(observation.observedAt)} ·{" "}
@@ -5613,6 +5648,21 @@ export function App() {
                       </li>
                     ))}
                   </ol>
+                  {hiddenSelectedPriceObservationCount > 0 ? (
+                    <button
+                      className={styles.paginationButton}
+                      type="button"
+                      onPointerDown={handleButtonPointerDown}
+                      onClick={showMorePriceObservations}
+                    >
+                      Ver{" "}
+                      {Math.min(
+                        hiddenSelectedPriceObservationCount,
+                        priceObservationPageSize,
+                      )}{" "}
+                      observaciones más
+                    </button>
+                  ) : null}
                 </section>
               ) : null}
             </div>
@@ -6378,7 +6428,7 @@ export function App() {
                 aria-label={getTicketFilterText(filter)}
                 title={getTicketFilterText(filter)}
                 onPointerDown={handleButtonPointerDown}
-                onClick={() => setTicketFilter(filter)}
+                onClick={() => handleTicketFilterChange(filter)}
               >
                 <Icon name={getTicketFilterIcon(filter)} />
                 <span>{getTicketFilterShortText(filter)}</span>
@@ -6398,209 +6448,222 @@ export function App() {
               </p>
             </div>
           ) : (
-            <ol className={styles.ticketList}>
-              {filteredTickets.map((ticket) => {
-                const sectionName =
-                  sections.find((section) => section.id === ticket.sectionId)
-                    ?.name ?? ticket.sectionId;
-                const isSelected = selectedTicketId === ticket.id;
+            <>
+              <ol className={styles.ticketList}>
+                {visibleTickets.map((ticket) => {
+                  const sectionName =
+                    sections.find((section) => section.id === ticket.sectionId)
+                      ?.name ?? ticket.sectionId;
+                  const isSelected = selectedTicketId === ticket.id;
 
-                return (
-                  <li className={styles.ticketItem} key={ticket.id}>
-                    <button
-                      className={styles.ticketItemButton}
-                      type="button"
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={() =>
-                        setSelectedTicketId(isSelected ? null : ticket.id)
-                      }
-                      aria-expanded={isSelected}
-                    >
-                      <span className={styles.ticketStatus}>
-                        {getTicketStatusText(ticket.status)}
-                      </span>
-                      <strong>{sectionName}</strong>
-                      <span>
-                        {formatTicketDate(ticket.uploadedAt)} ·{" "}
-                        {getShoppingUserName(ticket.uploadedBy)} ·{" "}
-                        {ticket.fileCount}{" "}
-                        {ticket.fileCount === 1 ? "archivo" : "archivos"}
-                      </span>
-                    </button>
-                    {isSelected ? (
-                      <div className={styles.ticketDetail}>
-                        {ticket.files.length > 0 ? (
-                          <ol
-                            className={styles.ticketFileActions}
-                            aria-label="Archivos del ticket"
-                          >
-                            {ticket.files.map((file) => (
-                              <li key={file.id}>
-                                <button
-                                  className={styles.ticketFileButton}
-                                  type="button"
-                                  onPointerDown={handleButtonPointerDown}
-                                  onClick={() =>
-                                    void handleOpenTicketFile(file)
-                                  }
-                                >
-                                  <Icon name="file" />
-                                  <span>{file.fileName}</span>
-                                  <small>
-                                    {formatFileSize(file.sizeBytes)}
-                                  </small>
-                                </button>
-                              </li>
-                            ))}
-                          </ol>
-                        ) : null}
-                        {ticket.errorMessage ? (
-                          <p className={styles.historyMeta}>
-                            {ticket.errorMessage}
-                          </p>
-                        ) : null}
-                        {ticket.lines.length > 0 ? (
-                          <ol className={styles.ticketLines}>
-                            {ticket.lines.map((line) => {
-                              const selectedCorrectionProductId =
-                                ticketCorrectionProductIds[line.id] ??
-                                line.canonicalProductId ??
-                                "";
-                              const canCorrectLine = !line.needsReview;
-                              const canCreateCorrectionAlias =
-                                canCorrectLine &&
-                                Boolean(selectedCorrectionProductId) &&
-                                Boolean(
-                                  (line.productName ?? line.rawText)?.trim(),
-                                );
-
-                              return (
-                                <li
-                                  key={line.id}
-                                  className={
-                                    line.needsReview
-                                      ? styles.ticketLineNeedsReview
-                                      : line.status === "excluded"
-                                        ? styles.ticketLineExcluded
-                                        : styles.ticketLine
-                                  }
-                                >
-                                  <strong>{getTicketLineName(line)}</strong>
-                                  <span>{getTicketLinePriceText(line)}</span>
-                                  {line.needsReview ? (
+                  return (
+                    <li className={styles.ticketItem} key={ticket.id}>
+                      <button
+                        className={styles.ticketItemButton}
+                        type="button"
+                        onPointerDown={handleButtonPointerDown}
+                        onClick={() =>
+                          setSelectedTicketId(isSelected ? null : ticket.id)
+                        }
+                        aria-expanded={isSelected}
+                      >
+                        <span className={styles.ticketStatus}>
+                          {getTicketStatusText(ticket.status)}
+                        </span>
+                        <strong>{sectionName}</strong>
+                        <span>
+                          {formatTicketDate(ticket.uploadedAt)} ·{" "}
+                          {getShoppingUserName(ticket.uploadedBy)} ·{" "}
+                          {ticket.fileCount}{" "}
+                          {ticket.fileCount === 1 ? "archivo" : "archivos"}
+                        </span>
+                      </button>
+                      {isSelected ? (
+                        <div className={styles.ticketDetail}>
+                          {ticket.files.length > 0 ? (
+                            <ol
+                              className={styles.ticketFileActions}
+                              aria-label="Archivos del ticket"
+                            >
+                              {ticket.files.map((file) => (
+                                <li key={file.id}>
+                                  <button
+                                    className={styles.ticketFileButton}
+                                    type="button"
+                                    onPointerDown={handleButtonPointerDown}
+                                    onClick={() =>
+                                      void handleOpenTicketFile(file)
+                                    }
+                                  >
+                                    <Icon name="file" />
+                                    <span>{file.fileName}</span>
                                     <small>
-                                      {line.reviewReason ?? "Necesita revisión"}
+                                      {formatFileSize(file.sizeBytes)}
                                     </small>
-                                  ) : null}
-                                  {line.status === "excluded" ? (
-                                    <small>Excluida</small>
-                                  ) : null}
-                                  {canCorrectLine ? (
-                                    <div
-                                      className={styles.ticketLineCorrection}
-                                    >
-                                      <label
-                                        className={styles.visuallyHidden}
-                                        htmlFor={`ticket-line-correction-${line.id}`}
-                                      >
-                                        Corregir producto canónico
-                                      </label>
-                                      <select
-                                        id={`ticket-line-correction-${line.id}`}
-                                        className={styles.select}
-                                        value={selectedCorrectionProductId}
-                                        onChange={(event) =>
-                                          handleTicketCorrectionProductChange(
-                                            line,
-                                            event.target.value,
-                                          )
-                                        }
-                                        disabled={
-                                          pendingTicketReviewLineId ===
-                                            line.id ||
-                                          canonicalProducts.length === 0
-                                        }
-                                      >
-                                        <option value="">Producto</option>
-                                        {canonicalProducts.map((product) => (
-                                          <option
-                                            key={product.id}
-                                            value={product.id}
-                                          >
-                                            {product.name}
-                                          </option>
-                                        ))}
-                                      </select>
-                                      <div
-                                        className={
-                                          styles.ticketLineCorrectionButtons
-                                        }
-                                      >
-                                        <button
-                                          className={styles.iconButton}
-                                          type="button"
-                                          aria-label="Corregir asociación"
-                                          title="Corregir asociación"
-                                          onPointerDown={
-                                            handleButtonPointerDown
-                                          }
-                                          onClick={() =>
-                                            void handleCorrectTicketLine(
-                                              ticket,
-                                              line,
-                                              false,
-                                            )
-                                          }
-                                          disabled={
-                                            pendingTicketReviewLineId ===
-                                              line.id ||
-                                            !selectedCorrectionProductId
-                                          }
-                                        >
-                                          <Icon name="check" />
-                                        </button>
-                                        <button
-                                          className={styles.iconButton}
-                                          type="button"
-                                          aria-label="Corregir alias"
-                                          title="Corregir y crear alias"
-                                          onPointerDown={
-                                            handleButtonPointerDown
-                                          }
-                                          onClick={() =>
-                                            void handleCorrectTicketLine(
-                                              ticket,
-                                              line,
-                                              true,
-                                            )
-                                          }
-                                          disabled={
-                                            pendingTicketReviewLineId ===
-                                              line.id ||
-                                            !canCreateCorrectionAlias
-                                          }
-                                        >
-                                          <Icon name="plus" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : null}
+                                  </button>
                                 </li>
-                              );
-                            })}
-                          </ol>
-                        ) : (
-                          <p className={styles.historyMeta}>
-                            Las líneas aparecerán tras el procesamiento
-                            nocturno.
-                          </p>
-                        )}
-                      </div>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ol>
+                              ))}
+                            </ol>
+                          ) : null}
+                          {ticket.errorMessage ? (
+                            <p className={styles.historyMeta}>
+                              {ticket.errorMessage}
+                            </p>
+                          ) : null}
+                          {ticket.lines.length > 0 ? (
+                            <ol className={styles.ticketLines}>
+                              {ticket.lines.map((line) => {
+                                const selectedCorrectionProductId =
+                                  ticketCorrectionProductIds[line.id] ??
+                                  line.canonicalProductId ??
+                                  "";
+                                const canCorrectLine = !line.needsReview;
+                                const canCreateCorrectionAlias =
+                                  canCorrectLine &&
+                                  Boolean(selectedCorrectionProductId) &&
+                                  Boolean(
+                                    (line.productName ?? line.rawText)?.trim(),
+                                  );
+
+                                return (
+                                  <li
+                                    key={line.id}
+                                    className={
+                                      line.needsReview
+                                        ? styles.ticketLineNeedsReview
+                                        : line.status === "excluded"
+                                          ? styles.ticketLineExcluded
+                                          : styles.ticketLine
+                                    }
+                                  >
+                                    <strong>{getTicketLineName(line)}</strong>
+                                    <span>{getTicketLinePriceText(line)}</span>
+                                    {line.needsReview ? (
+                                      <small>
+                                        {line.reviewReason ??
+                                          "Necesita revisión"}
+                                      </small>
+                                    ) : null}
+                                    {line.status === "excluded" ? (
+                                      <small>Excluida</small>
+                                    ) : null}
+                                    {canCorrectLine ? (
+                                      <div
+                                        className={styles.ticketLineCorrection}
+                                      >
+                                        <label
+                                          className={styles.visuallyHidden}
+                                          htmlFor={`ticket-line-correction-${line.id}`}
+                                        >
+                                          Corregir producto canónico
+                                        </label>
+                                        <select
+                                          id={`ticket-line-correction-${line.id}`}
+                                          className={styles.select}
+                                          value={selectedCorrectionProductId}
+                                          onChange={(event) =>
+                                            handleTicketCorrectionProductChange(
+                                              line,
+                                              event.target.value,
+                                            )
+                                          }
+                                          disabled={
+                                            pendingTicketReviewLineId ===
+                                              line.id ||
+                                            canonicalProducts.length === 0
+                                          }
+                                        >
+                                          <option value="">Producto</option>
+                                          {canonicalProducts.map((product) => (
+                                            <option
+                                              key={product.id}
+                                              value={product.id}
+                                            >
+                                              {product.name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                        <div
+                                          className={
+                                            styles.ticketLineCorrectionButtons
+                                          }
+                                        >
+                                          <button
+                                            className={styles.iconButton}
+                                            type="button"
+                                            aria-label="Corregir asociación"
+                                            title="Corregir asociación"
+                                            onPointerDown={
+                                              handleButtonPointerDown
+                                            }
+                                            onClick={() =>
+                                              void handleCorrectTicketLine(
+                                                ticket,
+                                                line,
+                                                false,
+                                              )
+                                            }
+                                            disabled={
+                                              pendingTicketReviewLineId ===
+                                                line.id ||
+                                              !selectedCorrectionProductId
+                                            }
+                                          >
+                                            <Icon name="check" />
+                                          </button>
+                                          <button
+                                            className={styles.iconButton}
+                                            type="button"
+                                            aria-label="Corregir alias"
+                                            title="Corregir y crear alias"
+                                            onPointerDown={
+                                              handleButtonPointerDown
+                                            }
+                                            onClick={() =>
+                                              void handleCorrectTicketLine(
+                                                ticket,
+                                                line,
+                                                true,
+                                              )
+                                            }
+                                            disabled={
+                                              pendingTicketReviewLineId ===
+                                                line.id ||
+                                              !canCreateCorrectionAlias
+                                            }
+                                          >
+                                            <Icon name="plus" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </li>
+                                );
+                              })}
+                            </ol>
+                          ) : (
+                            <p className={styles.historyMeta}>
+                              Las líneas aparecerán tras el procesamiento
+                              nocturno.
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ol>
+              {hiddenTicketCount > 0 ? (
+                <button
+                  className={styles.paginationButton}
+                  type="button"
+                  onPointerDown={handleButtonPointerDown}
+                  onClick={showMoreTickets}
+                >
+                  Ver {Math.min(hiddenTicketCount, ticketPageSize)} tickets más
+                </button>
+              ) : null}
+            </>
           )}
         </section>
       ) : null}

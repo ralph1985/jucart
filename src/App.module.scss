@@ -880,6 +880,25 @@ h2 {
   font-weight: 760;
 }
 
+.paginationButton {
+  width: 100%;
+  min-height: 2.35rem;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 0.5rem;
+  padding: 0 0.75rem;
+  background: #ffffff;
+  color: #2f4858;
+  font-size: 0.82rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.paginationButton:focus-visible {
+  border-color: #2f80ed;
+  outline: 3px solid rgb(47 128 237 / 22%);
+  outline-offset: 1px;
+}
+
 .ticketUploadFields {
   display: grid;
   gap: 0.5rem;

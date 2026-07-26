@@ -470,7 +470,7 @@ Objetivo: hacer visible el histórico de precios sin convertir Jucart en una apl
 - [x] Crear automáticamente un alias cuando se acepte manualmente una asociación de línea con producto canónico.
 - [x] Conservar visibles como `Excluida` las líneas que se dejen fuera del análisis.
 - [x] Permitir corregir asociaciones manuales ya resueltas, actualizando la observación de precio y pudiendo retirar aliases creados por error.
-- [ ] Paginar observaciones de precio y tickets antiguos sin borrar datos históricos; el límite de visualización no debe implicar retención limitada.
+- [x] Paginar observaciones de precio y tickets antiguos sin borrar datos históricos; el límite de visualización no debe implicar retención limitada.
 - [ ] Mantener los PDFs fuera de la interfaz una vez procesados; la app trabaja con metadatos y líneas extraídas.
 - [ ] Añadir tests razonables de interfaz, estados vacíos, revisión y cálculo de tendencias.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.

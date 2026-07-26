@@ -147,6 +147,11 @@ type IconName =
   | "clock"
   | "alert";
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
+type PullRefreshGesture = {
+  pointerId: number;
+  startY: number;
+  scrollContainer: HTMLElement | null;
+};
 
 type TimestampedItem = {
   id: string;
@@ -1368,6 +1373,11 @@ export function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isSupabaseConfigured() ? "syncing" : "local",
   );
+  const [pullRefreshDistance, setPullRefreshDistance] = useState(0);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [pullRefreshMessage, setPullRefreshMessage] = useState<string | null>(
+    null,
+  );
   const [, setPendingRemoteRequests] = useState(0);
   const [developerBackupRun, setDeveloperBackupRun] =
     useState<DeveloperBackupRun | null>(null);
@@ -1470,7 +1480,9 @@ export function App() {
   const localDataRevisionRef = useRef(0);
   const pendingLocalStoresRef = useRef(0);
   const queuedRemoteRefreshRef = useRef(false);
-  const refreshRemoteDataRef = useRef<(() => void) | null>(null);
+  const refreshRemoteDataRef = useRef<(() => Promise<void>) | null>(null);
+  const pullRefreshGestureRef = useRef<PullRefreshGesture | null>(null);
+  const pullRefreshMessageTimeoutRef = useRef<number | null>(null);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
   const useFirstFreezerItems = sortFreezerItemsByUseFirst(freezerItems).slice(
@@ -1684,6 +1696,9 @@ export function App() {
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
+      if (pullRefreshMessageTimeoutRef.current !== null) {
+        window.clearTimeout(pullRefreshMessageTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -1934,7 +1949,7 @@ export function App() {
     }
 
     refreshRemoteDataRef.current = () => {
-      void refreshItemsFromSupabase();
+      return refreshItemsFromSupabase();
     };
 
     let unsubscribe: () => void = () => undefined;
@@ -3690,6 +3705,174 @@ export function App() {
     }
   }
 
+  function getPullRefreshScrollContainer(target: EventTarget | null) {
+    let element = target instanceof HTMLElement ? target : null;
+
+    while (element && element !== document.body) {
+      const computedStyle = window.getComputedStyle(element);
+      const canScrollVertically =
+        (computedStyle.overflowY === "auto" ||
+          computedStyle.overflowY === "scroll") &&
+        element.scrollHeight > element.clientHeight;
+
+      if (canScrollVertically) {
+        return element;
+      }
+
+      element = element.parentElement;
+    }
+
+    return document.scrollingElement instanceof HTMLElement
+      ? document.scrollingElement
+      : null;
+  }
+
+  function isPullRefreshExcludedTarget(target: EventTarget | null) {
+    return (
+      target instanceof HTMLElement &&
+      Boolean(
+        target.closest(
+          "button, input, select, textarea, [role=dialog], [data-pull-refresh-ignore]",
+        ),
+      )
+    );
+  }
+
+  function handlePullRefreshPointerDown(event: PointerEvent<HTMLElement>) {
+    if (
+      event.pointerType === "mouse" ||
+      event.button !== 0 ||
+      !isLoaded ||
+      isPullRefreshing ||
+      isBottomSheetOpen ||
+      isPullRefreshExcludedTarget(event.target)
+    ) {
+      return;
+    }
+
+    const scrollContainer = getPullRefreshScrollContainer(event.target);
+
+    if (!scrollContainer || scrollContainer.scrollTop > 0) {
+      return;
+    }
+
+    pullRefreshGestureRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      scrollContainer,
+    };
+  }
+
+  function handlePullRefreshPointerMove(event: PointerEvent<HTMLElement>) {
+    const gesture = pullRefreshGestureRef.current;
+
+    if (!gesture || gesture.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (!gesture.scrollContainer || gesture.scrollContainer.scrollTop > 0) {
+      pullRefreshGestureRef.current = null;
+      setPullRefreshDistance(0);
+      return;
+    }
+
+    const distance = Math.max(0, event.clientY - gesture.startY);
+
+    if (distance === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    setPullRefreshDistance(Math.min(96, distance * 0.48));
+  }
+
+  function finishPullRefreshGesture() {
+    pullRefreshGestureRef.current = null;
+    setPullRefreshDistance(0);
+  }
+
+  async function refreshLocalShoppingData() {
+    const storedData = await getCachedShoppingData();
+
+    skipNextStoreRef.current = true;
+    setItems(storedData.items);
+    setFreezerItems(storedData.freezerItems ?? []);
+    setSections(storedData.sections);
+    setCategories(storedData.categories ?? defaultShoppingCategories);
+    setProductCatalogEntries(
+      storedData.productCatalogEntries ?? defaultShoppingProductCatalogEntries,
+    );
+    setCanonicalProducts(storedData.canonicalProducts ?? []);
+    setCanonicalProductAliases(storedData.canonicalProductAliases ?? []);
+    setHistoryEvents(storedData.historyEvents);
+    setRecategorizationRuns(storedData.recategorizationRuns ?? []);
+    setRecategorizationChanges(storedData.recategorizationChanges ?? []);
+    setProductNormalizationRuns(storedData.productNormalizationRuns ?? []);
+    setProductNormalizationChanges(
+      storedData.productNormalizationChanges ?? [],
+    );
+    setSelectedSectionId((currentSectionId) =>
+      isShoppingSectionId(currentSectionId, storedData.sections)
+        ? currentSectionId
+        : storedData.sections[0]?.id || "general",
+    );
+    setStorageError(null);
+    setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
+  }
+
+  async function refreshCurrentView() {
+    if (!isLoaded || isPullRefreshing) {
+      return;
+    }
+
+    setIsPullRefreshing(true);
+    setPullRefreshMessage("Actualizando…");
+
+    try {
+      if (activeView === "tickets" && isSupabaseConfigured()) {
+        await refreshTicketsAfterReviewAction();
+      } else if (activeView === "developer" && isSupabaseConfigured()) {
+        await refreshDeveloperBackupRun();
+      } else if (isSupabaseConfigured()) {
+        await refreshRemoteDataRef.current?.();
+      } else {
+        await refreshLocalShoppingData();
+      }
+
+      setPullRefreshMessage("Actualizado");
+      runHapticFeedback("success");
+    } catch {
+      setPullRefreshMessage("No se pudo actualizar");
+      runHapticFeedback("warning");
+    } finally {
+      setIsPullRefreshing(false);
+
+      if (pullRefreshMessageTimeoutRef.current !== null) {
+        window.clearTimeout(pullRefreshMessageTimeoutRef.current);
+      }
+
+      pullRefreshMessageTimeoutRef.current = window.setTimeout(() => {
+        setPullRefreshMessage(null);
+        pullRefreshMessageTimeoutRef.current = null;
+      }, 1800);
+    }
+  }
+
+  function handlePullRefreshPointerUp(event: PointerEvent<HTMLElement>) {
+    const gesture = pullRefreshGestureRef.current;
+
+    if (!gesture || gesture.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const shouldRefresh = pullRefreshDistance >= 30;
+    finishPullRefreshGesture();
+
+    if (shouldRefresh) {
+      void refreshCurrentView();
+    }
+  }
+
   function selectSection(sectionId: ShoppingSectionId) {
     if (sectionId === selectedSectionId) {
       return;
@@ -5148,6 +5331,10 @@ export function App() {
 
   return (
     <main
+      onPointerDown={handlePullRefreshPointerDown}
+      onPointerMove={handlePullRefreshPointerMove}
+      onPointerUp={handlePullRefreshPointerUp}
+      onPointerCancel={finishPullRefreshGesture}
       className={
         activeView === "shopping"
           ? `${styles.app} ${styles.appShopping} ${
@@ -5156,6 +5343,25 @@ export function App() {
           : styles.app
       }
     >
+      {pullRefreshDistance > 0 || isPullRefreshing || pullRefreshMessage ? (
+        <div
+          className={styles.pullRefreshIndicator}
+          style={{
+            transform: `translate(-50%, ${isPullRefreshing ? 0 : pullRefreshDistance - 3}px)`,
+          }}
+          role="status"
+          aria-live="polite"
+          aria-busy={isPullRefreshing}
+        >
+          <Icon name="sync" />
+          <span>
+            {pullRefreshMessage ??
+              (pullRefreshDistance >= 30
+                ? "Suelta para actualizar"
+                : "Desliza para actualizar")}
+          </span>
+        </div>
+      ) : null}
       {isSplashVisible ? (
         <div
           ref={splashScreenRef}
@@ -5215,6 +5421,16 @@ export function App() {
             ) : null}
             {getSyncStatusText(syncStatus)}
           </p>
+          <button
+            className={styles.syncRefreshButton}
+            type="button"
+            aria-label="Actualizar datos"
+            title="Actualizar datos"
+            onClick={() => void refreshCurrentView()}
+            disabled={!isLoaded || isPullRefreshing}
+          >
+            <Icon name="sync" />
+          </button>
           <div className={styles.headerUserField}>
             <label className={styles.headerUserLabel} htmlFor="user-id">
               Añadido por

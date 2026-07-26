@@ -175,6 +175,106 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("recarga la caché local desde la acción accesible de actualizar", async () => {
+    const initialData: ShoppingData = {
+      items: [],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+    };
+    const refreshedData: ShoppingData = {
+      ...initialData,
+      items: [
+        {
+          id: "item-refresh",
+          name: "Pan",
+          sectionId: "mercadona",
+          addedBy: "rafa",
+          purchased: false,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+    };
+
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData")
+      .mockResolvedValueOnce(initialData)
+      .mockResolvedValueOnce(refreshedData);
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Actualizar datos" }));
+
+    expect(await screen.findByText("Pan")).toBeInTheDocument();
+    expect(shoppingItemsDb.getCachedShoppingData).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("status")).toHaveTextContent("Actualizado");
+  });
+
+  it("recarga la caché local al completar el gesto pull-to-refresh", async () => {
+    const initialData: ShoppingData = {
+      items: [],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+    };
+    const refreshedData: ShoppingData = {
+      ...initialData,
+      items: [
+        {
+          id: "item-pull-refresh",
+          name: "Leche",
+          sectionId: "mercadona",
+          addedBy: "rafa",
+          purchased: false,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+    };
+
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData")
+      .mockResolvedValueOnce(initialData)
+      .mockResolvedValueOnce(refreshedData);
+
+    render(<App />);
+
+    await waitForAddFab();
+    const main = screen.getByRole("main");
+    Object.defineProperty(document, "scrollingElement", {
+      configurable: true,
+      value: main,
+    });
+    Object.defineProperty(main, "scrollHeight", {
+      configurable: true,
+      value: 200,
+    });
+    Object.defineProperty(main, "clientHeight", {
+      configurable: true,
+      value: 100,
+    });
+
+    fireEvent.pointerDown(main, {
+      button: 0,
+      clientY: 10,
+      pointerId: 1,
+      pointerType: "touch",
+    });
+    fireEvent.pointerMove(main, {
+      clientY: 100,
+      pointerId: 1,
+      pointerType: "touch",
+    });
+    fireEvent.pointerUp(main, {
+      clientY: 100,
+      pointerId: 1,
+      pointerType: "touch",
+    });
+
+    expect(await screen.findByText("Leche")).toBeInTheDocument();
+    expect(shoppingItemsDb.getCachedShoppingData).toHaveBeenCalledTimes(2);
+  });
+
   it("adds, uses and restores freezer items", async () => {
     render(<App />);
 

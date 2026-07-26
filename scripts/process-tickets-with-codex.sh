@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="${JUCART_TICKETS_LOG_DIR:-$REPO_ROOT/var/log}"
 CODEX_BIN="${CODEX_BIN:-codex}"
+CODEX_REASONING_EFFORT="${CODEX_REASONING_EFFORT:-low}"
 STAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
 FILES_DIR="${JUCART_TICKETS_FILES_DIR:-/tmp/jucart-tickets-files-$STAMP}"
 CONTEXT_PATH="$LOG_DIR/jucart-tickets-context-$STAMP.json"
@@ -98,6 +99,7 @@ PROMPT
 if ! "$CODEX_BIN" exec \
   -C "$REPO_ROOT" \
   -s workspace-write \
+  -c "model_reasoning_effort=$CODEX_REASONING_EFFORT" \
   -o "$REPORT_PATH" \
   - < "$PROMPT_PATH"; then
   node "$SCRIPT_DIR/process-supabase-tickets.mjs" fail "$CONTEXT_PATH" "Codex no pudo procesar el ticket."

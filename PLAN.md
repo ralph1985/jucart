@@ -402,7 +402,7 @@ Objetivo: crear una base estable para que el historial de precios no duplique pr
 - [x] Añadir siempre un aviso antes de borrar productos indicando que se perderá su uso en el análisis de precios si no queda asociado a un producto canónico.
 - [x] Mantener la lista de la compra rápida: el producto canónico no debe añadir fricción al alta normal.
 - [x] Añadir tests razonables de normalización, aliases, borrado y compatibilidad con el flujo actual.
-- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+- [x] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 
 ## Hito 32 — Bandeja privada de tickets
 

@@ -149,6 +149,7 @@ type IconName =
 type SyncStatus = "local" | "syncing" | "synced" | "offline";
 type PullRefreshGesture = {
   pointerId: number;
+  startX: number;
   startY: number;
   scrollContainer: HTMLElement | null;
 };
@@ -1482,6 +1483,7 @@ export function App() {
   const queuedRemoteRefreshRef = useRef(false);
   const refreshRemoteDataRef = useRef<(() => Promise<void>) | null>(null);
   const pullRefreshGestureRef = useRef<PullRefreshGesture | null>(null);
+  const pullRefreshRawDistanceRef = useRef(0);
   const pullRefreshMessageTimeoutRef = useRef<number | null>(null);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
@@ -3758,6 +3760,7 @@ export function App() {
 
     pullRefreshGestureRef.current = {
       pointerId: event.pointerId,
+      startX: event.clientX,
       startY: event.clientY,
       scrollContainer,
     };
@@ -3777,17 +3780,25 @@ export function App() {
     }
 
     const distance = Math.max(0, event.clientY - gesture.startY);
+    const horizontalDistance = Math.abs(event.clientX - gesture.startX);
 
-    if (distance === 0) {
+    if (distance < 12) {
+      return;
+    }
+
+    if (horizontalDistance > distance) {
+      finishPullRefreshGesture();
       return;
     }
 
     event.preventDefault();
+    pullRefreshRawDistanceRef.current = distance;
     setPullRefreshDistance(Math.min(96, distance * 0.48));
   }
 
   function finishPullRefreshGesture() {
     pullRefreshGestureRef.current = null;
+    pullRefreshRawDistanceRef.current = 0;
     setPullRefreshDistance(0);
   }
 
@@ -3865,7 +3876,7 @@ export function App() {
       return;
     }
 
-    const shouldRefresh = pullRefreshDistance >= 30;
+    const shouldRefresh = pullRefreshRawDistanceRef.current >= 72;
     finishPullRefreshGesture();
 
     if (shouldRefresh) {

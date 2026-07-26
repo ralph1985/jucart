@@ -220,6 +220,46 @@ describe("App", () => {
 
     fireEvent.pointerDown(main, {
       button: 0,
+      clientX: 0,
+      clientY: 10,
+      pointerId: 2,
+      pointerType: "touch",
+    });
+    fireEvent.pointerMove(main, {
+      clientX: 0,
+      clientY: 15,
+      pointerId: 2,
+      pointerType: "touch",
+    });
+    fireEvent.pointerUp(main, {
+      clientX: 0,
+      clientY: 15,
+      pointerId: 2,
+      pointerType: "touch",
+    });
+
+    fireEvent.pointerDown(main, {
+      button: 0,
+      clientX: 10,
+      clientY: 10,
+      pointerId: 3,
+      pointerType: "touch",
+    });
+    fireEvent.pointerMove(main, {
+      clientX: 80,
+      clientY: 30,
+      pointerId: 3,
+      pointerType: "touch",
+    });
+    fireEvent.pointerUp(main, {
+      clientX: 80,
+      clientY: 30,
+      pointerId: 3,
+      pointerType: "touch",
+    });
+
+    fireEvent.pointerDown(main, {
+      button: 0,
       clientY: 10,
       pointerId: 1,
       pointerType: "touch",

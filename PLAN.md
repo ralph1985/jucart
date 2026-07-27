@@ -493,3 +493,86 @@ Objetivo: precargar precios iniciales desde fuentes externas solo cuando aporten
 - [x] Mantener la vista global de Precios como v2, fuera de esta primera integración en tarjetas.
 - [x] Añadir tests razonables de importación, procedencia y conflictos con productos canónicos.
 - [x] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+
+## Estrategia de evolución para usuarios y permisos
+
+Las fases 36 a 41 se harán de forma incremental y compatible con la aplicación actual. Cada fase debe poder desplegarse sin dejar la lista inutilizable ni exigir que todas las sesiones existentes se actualicen a la vez. La autenticación y las tablas nuevas se introducirán primero en modo compatible; el acceso anónimo y el `list_id` actual se mantendrán como fallback durante la migración. El login obligatorio, el aislamiento estricto por RLS y la retirada del acceso antiguo solo se activarán en el último paso, después de verificar la migración y la recuperación de datos.
+
+## Hito 36 — Cuentas y autenticación
+
+Objetivo: añadir cuentas individuales sin cambiar todavía el flujo operativo actual.
+
+- [ ] Añadir Supabase Auth mediante enlace mágico por email.
+- [ ] Permitir iniciar sesión sin exigirlo todavía para la lista actual.
+- [ ] Persistir la sesión y permitir cerrar sesión.
+- [ ] Crear el perfil de aplicación asociado a cada cuenta.
+- [ ] Preparar la migración de la lista actual conservando sus datos, con Rafa como propietario.
+- [ ] Mantener operativo el acceso actual mientras se valida la migración.
+- [ ] Mantener la compatibilidad de los autores históricos de productos, tickets e historial.
+- [ ] Mantener el selector manual hasta que exista una identidad autenticada equivalente.
+- [ ] Añadir tests de inicio de sesión, callback, sesión expirada y logout.
+
+## Hito 37 — Listas y códigos de unión
+
+Objetivo: permitir que cada usuario cree listas independientes y se una a otras mediante un código compartible.
+
+- [ ] Permitir crear y consultar las listas del usuario.
+- [ ] Asociar cada lista a su propietario y a sus miembros.
+- [ ] Permitir que las filas actuales sigan resolviéndose mediante su `list_id` durante la transición.
+- [ ] Generar un código único reutilizable para cada lista.
+- [ ] Permitir al propietario regenerar el código; el anterior dejará de aceptar nuevas entradas.
+- [ ] Permitir introducir un código válido desde la sección de listas.
+- [ ] Incorporar automáticamente al usuario que introduce un código válido.
+- [ ] Permitir que un miembro abandone una lista.
+- [ ] Añadir la selección de lista activa sin introducir todavía rutas nuevas.
+- [ ] Añadir tests de creación, unión, regeneración, abandono y cambio de lista.
+
+## Hito 38 — Roles y permisos de lista
+
+Objetivo: aplicar permisos reales a la administración de cada lista.
+
+- [ ] Crear los roles `owner` y `member`.
+- [ ] Permitir a propietario y miembros leer y modificar el contenido de la lista.
+- [ ] Permitir al propietario expulsar miembros.
+- [ ] Permitir al propietario transferir la propiedad.
+- [ ] Permitir eliminar una lista únicamente a su propietario.
+- [ ] Añadir pantallas de administración de miembros y acciones de propietario.
+- [ ] Preparar políticas y comprobaciones de pertenencia sin activarlas de forma incompatible con clientes antiguos.
+- [ ] Añadir tests de autorización para propietario, miembro y usuario ajeno.
+
+## Hito 39 — Aislamiento de todos los datos
+
+Objetivo: garantizar que todo el contenido de una lista queda aislado de las demás.
+
+- [ ] Asociar a la lista los productos, congelador, categorías, historial, tickets, precios y notificaciones.
+- [ ] Revisar consultas, Realtime, Storage y RPC para exigir pertenencia a la lista.
+- [ ] Validar el aislamiento en paralelo con el flujo actual antes de activar el bloqueo estricto.
+- [ ] Evitar lecturas o escrituras de datos de otras listas cuando la sesión autenticada ya esté activa.
+- [ ] Mantener las operaciones técnicas de servidor separadas de los permisos del navegador.
+- [ ] Añadir tests de aislamiento por tabla y por Storage.
+- [ ] Ejecutar la validación completa del repositorio antes de cerrar el hito.
+
+## Hito 40 — Offline autenticado y sincronización
+
+Objetivo: conservar la utilidad offline de la PWA sin conceder acceso a datos no autorizados.
+
+- [ ] Permitir trabajar offline con las listas autorizadas y previamente cacheadas.
+- [ ] Guardar cambios offline en Dexie y sincronizarlos al recuperar conexión.
+- [ ] Rechazar o poner en cola cambios cuya pertenencia ya no sea válida.
+- [ ] Invalidar el acceso local a datos privados al cerrar sesión.
+- [ ] Gestionar sesiones caducadas y recuperación de acceso al volver a tener red.
+- [ ] Añadir tests de lectura, escritura, cola y reconciliación offline.
+
+## Hito 41 — Ciclo de vida y eliminación de listas
+
+Objetivo: cerrar los casos de mantenimiento y borrado sin pérdida accidental inmediata.
+
+- [ ] Implementar borrado lógico de listas por parte del propietario.
+- [ ] Ocultar inmediatamente la lista eliminada a todos sus miembros.
+- [ ] Mantener una ventana técnica de recuperación de 30 días.
+- [ ] Ejecutar después el borrado definitivo de la lista, miembros y datos asociados.
+- [ ] Añadir confirmación explícita y estados de lista eliminada.
+- [ ] Verificar que la migración, las sesiones y los clientes antiguos ya no necesitan el acceso anónimo.
+- [ ] Activar como paso final el login obligatorio, el RLS estricto y la retirada del selector manual.
+- [ ] Añadir tests de transferencia, expulsión, abandono, recuperación y borrado definitivo.
+- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.

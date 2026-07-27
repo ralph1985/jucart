@@ -181,7 +181,7 @@ La persistencia offline sigue dependiendo de IndexedDB mediante Dexie. Cuando no
 
 La aplicación evolucionará desde una lista compartida identificada por `list_id` y un selector manual de persona hacia cuentas individuales gestionadas con Supabase Auth. El cambio será progresivo: durante la migración, el acceso actual seguirá funcionando mientras se validan las cuentas, la pertenencia y la recuperación de datos. Solo al completar la migración se hará obligatorio iniciar sesión antes de mostrar datos remotos. El acceso anónimo y el selector manual no se retirarán antes de ese corte validado. El acceso autenticado se realizará mediante enlace mágico por email; no se añadirá un proveedor OAuth ni un sistema de contraseñas en esta fase.
 
-Cada usuario podrá crear listas y pertenecer a varias listas independientes. No existirá el concepto de casa. La pertenencia se asociará a una cuenta y tendrá uno de dos roles: `owner` o `member`. Ambos roles podrán leer y modificar el contenido de la lista; solo el propietario podrá gestionar miembros, regenerar el código de unión, transferir la propiedad o eliminar la lista. Cualquier miembro podrá abandonar la lista.
+Cada usuario podrá crear listas y pertenecer a varias listas independientes. No existirá el concepto de casa. Una cuenta nueva empezará sin listas y verá un estado inicial que le invitará a crear la primera; si ha recibido un código, podrá introducirlo para unirse a una lista existente. La pertenencia se asociará a una cuenta y tendrá uno de dos roles: `owner` o `member`. Ambos roles podrán leer y modificar el contenido de la lista; solo el propietario podrá gestionar miembros, regenerar el código de unión, transferir la propiedad o eliminar la lista. Cualquier miembro podrá abandonar la lista.
 
 Cada lista tendrá un código único reutilizable. Introducir un código válido incorporará automáticamente al usuario a la lista. El propietario podrá regenerarlo para impedir nuevas entradas con el código anterior, sin expulsar a miembros actuales.
 
@@ -190,6 +190,10 @@ Los permisos cubrirán todo el contenido asociado a la lista: productos, congela
 La PWA mantendrá el uso offline para listas previamente autorizadas. Dexie conservará los datos locales y los cambios pendientes hasta recuperar conexión. El cierre de sesión invalidará el acceso local a datos privados y una sesión no autenticada no podrá abrir datos remotos.
 
 La lista actual se migrará conservando sus datos y con Rafa como propietario. Begoña se incorporará como miembro cuando cree su cuenta. La eliminación de una lista será lógica, ocultará sus datos inmediatamente y permitirá recuperación técnica durante 30 días antes del borrado definitivo.
+
+## Actualización de la PWA
+
+Las actualizaciones del shell de la PWA no deben exigir a las personas borrar datos del navegador, desinstalar la aplicación ni limpiar manualmente la caché. El Service Worker seguirá usando recursos versionados y la aplicación detectará cuando haya una versión nueva esperando. En ese caso mostrará un aviso con una acción `Actualizar`, que activará la nueva versión y recargará la pestaña conservando IndexedDB/Dexie. La aplicación también comprobará actualizaciones al iniciar y al volver a primer plano para resolver el caso de una pestaña que llevaba tiempo abierta.
 
 ## Notificaciones push
 

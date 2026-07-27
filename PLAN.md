@@ -519,6 +519,8 @@ Objetivo: permitir que cada usuario cree listas independientes y se una a otras 
 - [ ] Permitir crear y consultar las listas del usuario.
 - [ ] Asociar cada lista a su propietario y a sus miembros.
 - [ ] Permitir que las filas actuales sigan resolviéndose mediante su `list_id` durante la transición.
+- [ ] Mostrar un estado inicial para usuarios autenticados sin listas, invitándoles a crear la primera.
+- [ ] Ofrecer desde ese estado la entrada mediante código cuando hayan sido invitados a otra lista.
 - [ ] Generar un código único reutilizable para cada lista.
 - [ ] Permitir al propietario regenerar el código; el anterior dejará de aceptar nuevas entradas.
 - [ ] Permitir introducir un código válido desde la sección de listas.
@@ -575,4 +577,18 @@ Objetivo: cerrar los casos de mantenimiento y borrado sin pérdida accidental in
 - [ ] Verificar que la migración, las sesiones y los clientes antiguos ya no necesitan el acceso anónimo.
 - [ ] Activar como paso final el login obligatorio, el RLS estricto y la retirada del selector manual.
 - [ ] Añadir tests de transferencia, expulsión, abandono, recuperación y borrado definitivo.
+- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+
+## Hito 42 — Actualización controlada de la PWA
+
+Objetivo: permitir que las personas reciban versiones nuevas sin borrar manualmente los datos del navegador ni reinstalar la aplicación.
+
+- [ ] Detectar desde la aplicación que existe una nueva versión del Service Worker.
+- [ ] Mostrar un aviso discreto cuando haya una actualización disponible.
+- [ ] Añadir una acción `Actualizar` que active la nueva versión y recargue la aplicación.
+- [ ] Mantener la caché local y los datos de Dexie intactos durante la actualización.
+- [ ] Comprobar actualizaciones al iniciar y al volver a primer plano.
+- [ ] Gestionar correctamente una pestaña abierta con un bundle antiguo.
+- [ ] Añadir tests del aviso, activación, recarga y estados sin conexión.
+- [ ] Verificar el comportamiento en escritorio, móvil y PWA instalada.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.

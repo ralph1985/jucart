@@ -19,6 +19,13 @@ import useEmblaCarousel from "embla-carousel-react";
 
 import styles from "./App.module.scss";
 import {
+  getAuthSnapshot,
+  sendMagicLink,
+  signOut,
+  subscribeToAuthState,
+} from "./auth";
+import type { AuthSnapshot } from "./auth";
+import {
   addFreezerItem,
   freezerDrawers,
   FreezerDrawerId,
@@ -1371,6 +1378,14 @@ export function App() {
   const [editingFreezerFrozenAt, setEditingFreezerFrozenAt] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSplashVisible, setIsSplashVisible] = useState(true);
+  const [authSnapshot, setAuthSnapshot] = useState<AuthSnapshot>({
+    status: isSupabaseConfigured() ? "loading" : "unconfigured",
+    user: null,
+    error: null,
+  });
+  const [authEmail, setAuthEmail] = useState("");
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [isAuthActionPending, setIsAuthActionPending] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isSupabaseConfigured() ? "syncing" : "local",
@@ -1702,6 +1717,33 @@ export function App() {
       if (pullRefreshMessageTimeoutRef.current !== null) {
         window.clearTimeout(pullRefreshMessageTimeoutRef.current);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!isSupabaseConfigured()) {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    void getAuthSnapshot().then((snapshot) => {
+      if (isActive) {
+        setAuthSnapshot(snapshot);
+      }
+    });
+
+    const unsubscribe = subscribeToAuthState((snapshot) => {
+      if (isActive) {
+        setAuthSnapshot(snapshot);
+      }
+    });
+
+    return () => {
+      isActive = false;
+      unsubscribe();
     };
   }, []);
 
@@ -3978,6 +4020,30 @@ export function App() {
     setIsPushInviteDismissed(true);
   }
 
+  async function handleMagicLinkSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsAuthActionPending(true);
+    setAuthMessage(null);
+
+    const result = await sendMagicLink(authEmail);
+
+    if (result.ok) {
+      setAuthMessage(result.message);
+    } else {
+      setAuthMessage(result.message);
+    }
+
+    setIsAuthActionPending(false);
+  }
+
+  async function handleSignOut() {
+    setIsAuthActionPending(true);
+    setAuthMessage(null);
+    const result = await signOut();
+    setAuthMessage(result.message);
+    setIsAuthActionPending(false);
+  }
+
   async function handlePushNotificationDiagnostic() {
     setIsPushDiagnosticPending(true);
     setPushNotificationDiagnostic({
@@ -5387,6 +5453,79 @@ export function App() {
     );
   }
 
+  function renderAuthCard() {
+    if (!isSupabaseConfigured()) {
+      return null;
+    }
+
+    if (authSnapshot.status === "loading") {
+      return (
+        <section className={styles.authCard} aria-label="Acceso">
+          <span className={styles.authStatus}>Comprobando sesión…</span>
+        </section>
+      );
+    }
+
+    if (authSnapshot.status === "signed_in" && authSnapshot.user) {
+      return (
+        <section className={styles.authCard} aria-label="Sesión">
+          <span className={styles.authStatus}>
+            {authSnapshot.user.email ?? "Sesión iniciada"}
+          </span>
+          <button
+            className={styles.authButton}
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={handleSignOut}
+            disabled={isAuthActionPending}
+          >
+            Cerrar sesión
+          </button>
+        </section>
+      );
+    }
+
+    return (
+      <form
+        className={styles.authCard}
+        aria-label="Acceso"
+        onSubmit={handleMagicLinkSubmit}
+      >
+        <label className={styles.authLabel} htmlFor="auth-email">
+          Acceso
+        </label>
+        <input
+          id="auth-email"
+          className={styles.authInput}
+          type="email"
+          autoComplete="email"
+          placeholder="Tu email"
+          value={authEmail}
+          onChange={(event) => setAuthEmail(event.target.value)}
+          disabled={isAuthActionPending}
+        />
+        <button
+          className={styles.authButton}
+          type="submit"
+          onPointerDown={handleButtonPointerDown}
+          disabled={isAuthActionPending}
+        >
+          {isAuthActionPending ? "Enviando…" : "Enviar enlace"}
+        </button>
+        {authMessage ? (
+          <p className={styles.authMessage} role="status">
+            {authMessage}
+          </p>
+        ) : null}
+        {authSnapshot.error ? (
+          <p className={styles.authMessage} role="alert">
+            {authSnapshot.error}
+          </p>
+        ) : null}
+      </form>
+    );
+  }
+
   return (
     <main
       onTouchStart={handlePullRefreshTouchStart}
@@ -5479,6 +5618,7 @@ export function App() {
             ) : null}
             {getSyncStatusText(syncStatus)}
           </p>
+          {renderAuthCard()}
           <div className={styles.headerUserField}>
             <label className={styles.headerUserLabel} htmlFor="user-id">
               Añadido por

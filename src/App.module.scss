@@ -1,5 +1,5 @@
 .app {
-  --header-height: calc(4.1rem + env(safe-area-inset-top, 0px));
+  --header-height: calc(5.55rem + env(safe-area-inset-top, 0px));
   --command-height: 3.45rem;
   --bottom-nav-height: calc(4.75rem + env(safe-area-inset-bottom, 0px));
   --app-bg-start: #eef3f1;
@@ -121,7 +121,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.7rem;
-  min-height: 4.1rem;
+  min-height: 5.55rem;
   border-bottom: 1px solid rgb(148 163 184 / 24%);
   padding: calc(0.38rem + env(safe-area-inset-top, 0px))
     max(0.85rem, env(safe-area-inset-right, 0px)) 0.38rem
@@ -162,6 +162,67 @@
   grid-template-columns: auto auto;
   align-items: center;
   gap: 0.35rem 0.5rem;
+}
+
+.authCard {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(8rem, 13rem) auto;
+  align-items: center;
+  gap: 0.28rem 0.38rem;
+  min-width: 0;
+  color: #526171;
+  font-size: 0.68rem;
+}
+
+.authLabel {
+  color: #526171;
+  font-size: 0.64rem;
+  font-weight: 760;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.authInput {
+  min-width: 0;
+  min-height: 1.7rem;
+  border: 1px solid rgb(148 163 184 / 42%);
+  border-radius: 0.45rem;
+  padding: 0.22rem 0.45rem;
+  background: rgb(255 255 255 / 72%);
+  color: #17212b;
+  font: inherit;
+}
+
+.authButton {
+  min-height: 1.7rem;
+  border: 1px solid rgb(22 124 90 / 28%);
+  border-radius: 0.45rem;
+  padding: 0.22rem 0.48rem;
+  background: rgb(22 124 90 / 10%);
+  color: #126448;
+  font-size: 0.68rem;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.authButton:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.authStatus {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.authMessage {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #126448;
+  font-size: 0.66rem;
 }
 
 .commandPanel {
@@ -2791,6 +2852,16 @@ h2 {
     grid-column: 1;
     width: 5.2rem;
     min-width: 0;
+  }
+
+  .authCard {
+    grid-column: 1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: min(13rem, 100%);
+  }
+
+  .authLabel {
+    grid-column: 1 / -1;
   }
 
   .headerUserSelect {

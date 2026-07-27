@@ -502,15 +502,15 @@ Las fases 36 a 41 se harán de forma incremental y compatible con la aplicación
 
 Objetivo: añadir cuentas individuales sin cambiar todavía el flujo operativo actual.
 
-- [ ] Añadir Supabase Auth mediante enlace mágico por email.
-- [ ] Permitir iniciar sesión sin exigirlo todavía para la lista actual.
-- [ ] Persistir la sesión y permitir cerrar sesión.
-- [ ] Crear el perfil de aplicación asociado a cada cuenta.
+- [x] Añadir Supabase Auth mediante enlace mágico por email.
+- [x] Permitir iniciar sesión sin exigirlo todavía para la lista actual.
+- [x] Persistir la sesión y permitir cerrar sesión.
+- [x] Crear el perfil de aplicación asociado a cada cuenta mediante trigger de Supabase.
 - [ ] Preparar la migración de la lista actual conservando sus datos, con Rafa como propietario.
-- [ ] Mantener operativo el acceso actual mientras se valida la migración.
-- [ ] Mantener la compatibilidad de los autores históricos de productos, tickets e historial.
-- [ ] Mantener el selector manual hasta que exista una identidad autenticada equivalente.
-- [ ] Añadir tests de inicio de sesión, callback, sesión expirada y logout.
+- [x] Mantener operativo el acceso actual mientras se valida la migración.
+- [x] Mantener la compatibilidad de los autores históricos de productos, tickets e historial.
+- [x] Mantener el selector manual hasta que exista una identidad autenticada equivalente.
+- [x] Añadir tests de inicio de sesión, callback, sesión expirada y logout.
 
 ## Hito 37 — Listas y códigos de unión
 

@@ -103,6 +103,19 @@ describe("auth", () => {
     });
   });
 
+  it("devuelve un error al no poder leer la sesión", async () => {
+    authMocks.auth.getSession.mockResolvedValueOnce({
+      data: { session: null },
+      error: new Error("Sesión inaccesible"),
+    });
+
+    await expect(getAuthSnapshot()).resolves.toEqual({
+      status: "error",
+      user: null,
+      error: "Sesión inaccesible",
+    });
+  });
+
   it("notifica cambios de sesión y permite cancelar la suscripción", async () => {
     const listener = vi.fn();
     const unsubscribe = subscribeToAuthState(listener);
@@ -117,8 +130,32 @@ describe("auth", () => {
       error: null,
     });
 
+    authMocks.emit("SIGNED_OUT", null);
+    expect(listener).toHaveBeenCalledWith({
+      status: "signed_out",
+      user: null,
+      error: null,
+    });
+
     unsubscribe();
     expect(authMocks.auth.onAuthStateChange).toHaveBeenCalledOnce();
+  });
+
+  it("ignora la sesión inicial si se cancela antes de recibirla", async () => {
+    let resolveSession: ((value: unknown) => void) | undefined;
+    authMocks.auth.getSession.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSession = resolve;
+      }),
+    );
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAuthState(listener);
+
+    unsubscribe();
+    resolveSession?.({ data: { session: null }, error: null });
+    await Promise.resolve();
+
+    expect(listener).not.toHaveBeenCalled();
   });
 
   it("cierra la sesión", async () => {
@@ -127,5 +164,21 @@ describe("auth", () => {
       message: "Sesión cerrada.",
     });
     expect(authMocks.auth.signOut).toHaveBeenCalledOnce();
+  });
+
+  it("muestra los errores de envío y cierre de sesión", async () => {
+    authMocks.auth.signInWithOtp.mockResolvedValueOnce({
+      error: new Error("Email rechazado"),
+    });
+    await expect(sendMagicLink("rafa@example.com")).resolves.toEqual({
+      ok: false,
+      message: "Email rechazado",
+    });
+
+    authMocks.auth.signOut.mockResolvedValueOnce({ error: {} });
+    await expect(signOut()).resolves.toEqual({
+      ok: false,
+      message: "No se pudo completar la operación de acceso.",
+    });
   });
 });

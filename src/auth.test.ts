@@ -38,16 +38,16 @@ const authMocks = vi.hoisted(() => {
   };
 });
 
+const supabaseConfigMock = vi.hoisted(() => ({
+  getSupabaseConfig: vi.fn(),
+}));
+
 vi.mock("@supabase/supabase-js", () => ({
   createClient: authMocks.createClient,
 }));
 
 vi.mock("./supabaseConfig", () => ({
-  getSupabaseConfig: () => ({
-    url: "https://example.supabase.co",
-    anonKey: "anon-key",
-    listId: "list-1",
-  }),
+  getSupabaseConfig: supabaseConfigMock.getSupabaseConfig,
 }));
 
 import {
@@ -60,6 +60,11 @@ import {
 describe("auth", () => {
   beforeEach(() => {
     authMocks.reset();
+    supabaseConfigMock.getSupabaseConfig.mockReturnValue({
+      url: "https://example.supabase.co",
+      anonKey: "anon-key",
+      listId: "list-1",
+    });
     authMocks.auth.getSession.mockResolvedValue({
       data: { session: null },
       error: null,
@@ -121,7 +126,7 @@ describe("auth", () => {
     const unsubscribe = subscribeToAuthState(listener);
     const user = { id: "user-1", email: "rafa@example.com" };
 
-    await Promise.resolve();
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
     authMocks.emit("SIGNED_IN", { user });
 
     expect(listener).toHaveBeenCalledWith({
@@ -153,7 +158,7 @@ describe("auth", () => {
 
     unsubscribe();
     resolveSession?.({ data: { session: null }, error: null });
-    await Promise.resolve();
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
 
     expect(listener).not.toHaveBeenCalled();
   });
@@ -180,5 +185,27 @@ describe("auth", () => {
       ok: false,
       message: "No se pudo completar la operación de acceso.",
     });
+  });
+
+  it("mantiene un fallback claro cuando Supabase no está configurado", async () => {
+    supabaseConfigMock.getSupabaseConfig.mockReturnValue(null);
+
+    await expect(sendMagicLink("rafa@example.com")).resolves.toEqual({
+      ok: false,
+      message: "El acceso por email no está configurado.",
+    });
+    await expect(signOut()).resolves.toEqual({
+      ok: false,
+      message: "El acceso por email no está configurado.",
+    });
+
+    const listener = vi.fn();
+    const unsubscribe = subscribeToAuthState(listener);
+    expect(listener).toHaveBeenCalledWith({
+      status: "unconfigured",
+      user: null,
+      error: null,
+    });
+    unsubscribe();
   });
 });

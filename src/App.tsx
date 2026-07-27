@@ -5453,76 +5453,94 @@ export function App() {
     );
   }
 
-  function renderAuthCard() {
+  function renderDeveloperAuthCard() {
     if (!isSupabaseConfigured()) {
       return null;
     }
 
     if (authSnapshot.status === "loading") {
       return (
-        <section className={styles.authCard} aria-label="Acceso">
-          <span className={styles.authStatus}>Comprobando sesión…</span>
+        <section className={styles.developerPanel} aria-label="Autenticación">
+          <div className={styles.developerPanelHeader}>
+            <h3>Autenticación</h3>
+            <span className={styles.developerStatusFailed}>
+              Comprobando sesión…
+            </span>
+          </div>
         </section>
       );
     }
 
     if (authSnapshot.status === "signed_in" && authSnapshot.user) {
       return (
-        <section className={styles.authCard} aria-label="Sesión">
-          <span className={styles.authStatus}>
-            {authSnapshot.user.email ?? "Sesión iniciada"}
-          </span>
-          <button
-            className={styles.authButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handleSignOut}
-            disabled={isAuthActionPending}
-          >
-            Cerrar sesión
-          </button>
+        <section className={styles.developerPanel} aria-label="Autenticación">
+          <div className={styles.developerPanelHeader}>
+            <h3>Autenticación</h3>
+            <span className={styles.developerStatusSuccess}>Sesión activa</span>
+          </div>
+          <div className={styles.developerAuthRow}>
+            <span className={styles.authStatus}>
+              {authSnapshot.user.email ?? "Sesión iniciada"}
+            </span>
+            <button
+              className={styles.authButton}
+              type="button"
+              onPointerDown={handleButtonPointerDown}
+              onClick={handleSignOut}
+              disabled={isAuthActionPending}
+            >
+              Cerrar sesión
+            </button>
+          </div>
         </section>
       );
     }
 
     return (
-      <form
-        className={styles.authCard}
-        aria-label="Acceso"
-        onSubmit={handleMagicLinkSubmit}
-      >
-        <label className={styles.authLabel} htmlFor="auth-email">
-          Acceso
-        </label>
-        <input
-          id="auth-email"
-          className={styles.authInput}
-          type="email"
-          autoComplete="email"
-          placeholder="Tu email"
-          value={authEmail}
-          onChange={(event) => setAuthEmail(event.target.value)}
-          disabled={isAuthActionPending}
-        />
-        <button
-          className={styles.authButton}
-          type="submit"
-          onPointerDown={handleButtonPointerDown}
-          disabled={isAuthActionPending}
+      <section className={styles.developerPanel} aria-label="Autenticación">
+        <div className={styles.developerPanelHeader}>
+          <h3>Autenticación</h3>
+          <span className={styles.developerStatusFailed}>Sin sesión</span>
+        </div>
+        <form
+          className={styles.developerAuthForm}
+          onSubmit={handleMagicLinkSubmit}
         >
-          {isAuthActionPending ? "Enviando…" : "Enviar enlace"}
-        </button>
-        {authMessage ? (
-          <p className={styles.authMessage} role="status">
-            {authMessage}
-          </p>
-        ) : null}
-        {authSnapshot.error ? (
-          <p className={styles.authMessage} role="alert">
-            {authSnapshot.error}
-          </p>
-        ) : null}
-      </form>
+          <label className={styles.authLabel} htmlFor="auth-email">
+            Email de prueba
+          </label>
+          <div className={styles.developerAuthRow}>
+            <input
+              id="auth-email"
+              className={styles.authInput}
+              type="email"
+              autoComplete="email"
+              placeholder="Tu email"
+              value={authEmail}
+              onChange={(event) => setAuthEmail(event.target.value)}
+              disabled={isAuthActionPending}
+            />
+            <button
+              className={styles.authButton}
+              type="submit"
+              onPointerDown={handleButtonPointerDown}
+              disabled={isAuthActionPending}
+            >
+              {isAuthActionPending ? "Enviando…" : "Enviar enlace"}
+            </button>
+          </div>
+          {authMessage ? (
+            <p className={styles.authMessage} role="status">
+              {authMessage}
+            </p>
+          ) : null}
+          {authSnapshot.error ? (
+            <p className={styles.authMessage} role="alert">
+              {authSnapshot.error}
+            </p>
+          ) : null}
+        </form>
+      </section>
     );
   }
 
@@ -5618,7 +5636,6 @@ export function App() {
             ) : null}
             {getSyncStatusText(syncStatus)}
           </p>
-          {renderAuthCard()}
           <div className={styles.headerUserField}>
             <label className={styles.headerUserLabel} htmlFor="user-id">
               Añadido por
@@ -7361,6 +7378,7 @@ export function App() {
             <h2 id="developer-title">Dev</h2>
             <span className={styles.count}>Rafa</span>
           </div>
+          {renderDeveloperAuthCard()}
           {renderDeveloperBackupCard()}
           {renderDeveloperPushNotificationCard()}
           <section

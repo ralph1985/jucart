@@ -27,7 +27,13 @@ describe("main", () => {
     await import("./main");
     const { registerSW } = await import("virtual:pwa-register");
 
-    expect(registerSW).toHaveBeenCalledWith({ immediate: true });
+    expect(registerSW).toHaveBeenCalledWith(
+      expect.objectContaining({
+        immediate: true,
+        onNeedRefresh: expect.any(Function),
+        onRegisteredSW: expect.any(Function),
+      }),
+    );
     expect(mainMocks.createRoot).toHaveBeenCalledWith(rootElement);
     expect(mainMocks.render).toHaveBeenCalledOnce();
   });

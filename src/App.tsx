@@ -106,6 +106,10 @@ import type {
 } from "./pushNotifications";
 import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
 import { isSupabaseConfigured } from "./supabaseConfig";
+import {
+  pwaUpdateApplyEvent,
+  pwaUpdateAvailableEvent,
+} from "./pwaUpdateEvents";
 import { updateBadge } from "./services/badgeService";
 
 const selectedSectionStorageKey = "jucart:selected-section-id";
@@ -1386,6 +1390,8 @@ export function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [isAuthActionPending, setIsAuthActionPending] = useState(false);
+  const [isPwaUpdateAvailable, setIsPwaUpdateAvailable] = useState(false);
+  const [isPwaUpdateApplying, setIsPwaUpdateApplying] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isSupabaseConfigured() ? "syncing" : "local",
@@ -1744,6 +1750,19 @@ export function App() {
     return () => {
       isActive = false;
       unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleUpdateAvailable = () => setIsPwaUpdateAvailable(true);
+
+    window.addEventListener(pwaUpdateAvailableEvent, handleUpdateAvailable);
+
+    return () => {
+      window.removeEventListener(
+        pwaUpdateAvailableEvent,
+        handleUpdateAvailable,
+      );
     };
   }, []);
 
@@ -4044,6 +4063,11 @@ export function App() {
     setIsAuthActionPending(false);
   }
 
+  function handlePwaUpdate() {
+    setIsPwaUpdateApplying(true);
+    window.dispatchEvent(new Event(pwaUpdateApplyEvent));
+  }
+
   async function handlePushNotificationDiagnostic() {
     setIsPushDiagnosticPending(true);
     setPushNotificationDiagnostic({
@@ -5544,6 +5568,32 @@ export function App() {
     );
   }
 
+  function renderPwaUpdateBanner() {
+    if (!isPwaUpdateAvailable) {
+      return null;
+    }
+
+    return (
+      <aside className={styles.pwaUpdateBanner} aria-label="Actualización">
+        <div className={styles.pwaUpdateText}>
+          <strong>Hay una versión nueva</strong>
+          <span>
+            Actualiza Jucart para seguir usando la versión más reciente.
+          </span>
+        </div>
+        <button
+          className={styles.primaryButton}
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={handlePwaUpdate}
+          disabled={isPwaUpdateApplying}
+        >
+          {isPwaUpdateApplying ? "Actualizando…" : "Actualizar"}
+        </button>
+      </aside>
+    );
+  }
+
   return (
     <main
       onTouchStart={handlePullRefreshTouchStart}
@@ -5593,6 +5643,7 @@ export function App() {
           </p>
         </div>
       ) : null}
+      {renderPwaUpdateBanner()}
       <section className={styles.header} aria-labelledby="app-title">
         <div className={styles.brand}>
           <span className={styles.logo} aria-hidden="true">

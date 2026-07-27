@@ -11,6 +11,7 @@ import { afterEach, vi } from "vitest";
 
 import { App } from "./App";
 import { defaultShoppingSections } from "./shoppingItems";
+import { pwaUpdateAvailableEvent } from "./pwaUpdateEvents";
 import * as shoppingItemsDb from "./shoppingItemsDb";
 import {
   replaceStoredShoppingData,
@@ -173,6 +174,25 @@ describe("App", () => {
     expect(
       screen.getByRole("navigation", { name: "Navegación principal" }),
     ).toBeInTheDocument();
+  });
+
+  it("muestra y aplica el aviso de actualización de la PWA", async () => {
+    render(<App />);
+
+    await waitForAddFab();
+    act(() => {
+      window.dispatchEvent(new Event(pwaUpdateAvailableEvent));
+    });
+
+    expect(
+      await screen.findByRole("complementary", { name: "Actualización" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Actualizar" }));
+
+    expect(
+      screen.getByRole("button", { name: "Actualizando…" }),
+    ).toBeDisabled();
   });
 
   it("recarga la caché local al completar el gesto pull-to-refresh", async () => {

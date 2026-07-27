@@ -193,7 +193,7 @@ La lista actual se migrará conservando sus datos y con Rafa como propietario. B
 
 ## Actualización de la PWA
 
-Las actualizaciones del shell de la PWA no deben exigir a las personas borrar datos del navegador, desinstalar la aplicación ni limpiar manualmente la caché. El Service Worker seguirá usando recursos versionados y la aplicación detectará cuando haya una versión nueva esperando. En ese caso mostrará un aviso con una acción `Actualizar`, que activará la nueva versión y recargará la pestaña conservando IndexedDB/Dexie. La aplicación también comprobará actualizaciones al iniciar y al volver a primer plano para resolver el caso de una pestaña que llevaba tiempo abierta.
+Las actualizaciones del shell de la PWA no deben exigir a las personas borrar datos del navegador, desinstalar la aplicación ni limpiar manualmente la caché. El Service Worker seguirá usando recursos versionados y la aplicación detectará cuando haya una versión nueva esperando. En ese caso mostrará un aviso con una acción `Actualizar`, que activará la nueva versión y recargará la pestaña conservando IndexedDB/Dexie. La aplicación también comprobará actualizaciones al iniciar y al volver a primer plano para resolver el caso de una pestaña que llevaba tiempo abierta. La primera versión que incluye este mecanismo ejecutará además una migración única: al activarse, recargará los clientes antiguos que ya estuvieran controlados y guardará una marca para no repetir esa recarga en futuras actualizaciones.
 
 ## Notificaciones push
 

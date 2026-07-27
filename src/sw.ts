@@ -35,6 +35,7 @@ type FetchEventLike = Event & {
 
 type WindowClientLike = {
   focus?: () => Promise<unknown> | unknown;
+  navigate?: (url: string) => Promise<unknown> | unknown;
   url: string;
 };
 
@@ -76,6 +77,8 @@ const precacheCacheName = `jucart-precache-${hashPrecacheManifest(precacheManife
 const defaultNotificationTitle = "Cambios en Jucart";
 const defaultNotificationBody = "Hay cambios nuevos en la lista";
 const defaultNotificationUrl = "/";
+const legacyRefreshCacheName = "jucart-migrations";
+const legacyRefreshMarker = "pwa-update-v1";
 
 serviceWorker.addEventListener("install", (event) => {
   (event as ExtendableEventLike).waitUntil(handleInstallEvent(serviceWorker));
@@ -116,6 +119,32 @@ export async function handleActivateEvent(env: ServiceWorkerEnvironment) {
     oldPrecacheNames.map((cacheName) => env.caches.delete(cacheName)),
   );
   await env.clients.claim?.();
+  await refreshLegacyClients(env);
+}
+
+async function refreshLegacyClients(env: ServiceWorkerEnvironment) {
+  const migrationCache = await env.caches.open(legacyRefreshCacheName);
+
+  if (await migrationCache.match(legacyRefreshMarker)) {
+    return;
+  }
+
+  await migrationCache.put(legacyRefreshMarker, new Response("done"));
+
+  const windowClients = await env.clients.matchAll({
+    includeUncontrolled: true,
+    type: "window",
+  });
+
+  await Promise.all(
+    windowClients.map(async (client) => {
+      try {
+        await client.navigate?.(client.url);
+      } catch {
+        // A client can disappear while the new service worker activates.
+      }
+    }),
+  );
 }
 
 export function handleFetchEvent(

@@ -589,6 +589,8 @@ Objetivo: permitir que las personas reciban versiones nuevas sin borrar manualme
 - [ ] Mantener la caché local y los datos de Dexie intactos durante la actualización.
 - [ ] Comprobar actualizaciones al iniciar y al volver a primer plano.
 - [ ] Gestionar correctamente una pestaña abierta con un bundle antiguo.
+- [ ] Añadir una migración única del Service Worker que recargue clientes antiguos ya controlados.
+- [ ] Guardar una marca de migración para no repetir esa recarga en futuras actualizaciones.
 - [ ] Añadir tests del aviso, activación, recarga y estados sin conexión.
 - [ ] Verificar el comportamiento en escritorio, móvil y PWA instalada.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.

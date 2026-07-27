@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createNotification,
   getNotificationTargetUrl,
+  handleActivateEvent,
   handleNotificationClickEvent,
   handlePushEvent,
   parsePushPayload,
@@ -10,22 +11,35 @@ import {
 
 type TestWindowClient = {
   focus?: () => Promise<unknown>;
+  navigate?: (url: string) => Promise<unknown>;
   url: string;
 };
 
 function createEnvironment() {
+  const cache = {
+    match: vi.fn(() => Promise.resolve(undefined as Response | undefined)),
+    put: vi.fn(() => Promise.resolve()),
+  };
+  const clients = {
+    matchAll: vi.fn<() => Promise<TestWindowClient[]>>(() =>
+      Promise.resolve([]),
+    ),
+    openWindow: vi.fn(() => Promise.resolve(null)),
+    claim: vi.fn(() => Promise.resolve()),
+  };
+
   return {
-    caches: {} as CacheStorage,
-    clients: {
-      matchAll: vi.fn<() => Promise<TestWindowClient[]>>(() =>
-        Promise.resolve([]),
-      ),
-      openWindow: vi.fn(() => Promise.resolve(null)),
-    },
+    caches: {
+      open: vi.fn(() => Promise.resolve(cache)),
+      keys: vi.fn(() => Promise.resolve([])),
+      delete: vi.fn(() => Promise.resolve(true)),
+    } as unknown as CacheStorage,
+    clients,
     location: new URL("https://jucart.example/") as unknown as Location,
     registration: {
       showNotification: vi.fn(() => Promise.resolve()),
     },
+    cache,
   };
 }
 
@@ -168,5 +182,38 @@ describe("service worker push notifications", () => {
     expect(env.clients.openWindow).toHaveBeenCalledWith(
       "https://jucart.example/",
     );
+  });
+
+  it("recarga una vez los clientes antiguos al activar una migración", async () => {
+    const env = createEnvironment();
+    const navigate = vi.fn(() => Promise.resolve());
+    env.clients.matchAll.mockResolvedValue([
+      { navigate, url: "https://jucart.example/" },
+    ]);
+    const claim = vi.fn(() => Promise.resolve());
+    env.clients.claim = claim;
+
+    await handleActivateEvent(env);
+
+    expect(claim).toHaveBeenCalledOnce();
+    expect(env.cache.put).toHaveBeenCalledWith(
+      "pwa-update-v1",
+      expect.any(Response),
+    );
+    expect(navigate).toHaveBeenCalledWith("https://jucart.example/");
+  });
+
+  it("no repite la recarga si la migración ya está marcada", async () => {
+    const env = createEnvironment();
+    env.cache.match.mockResolvedValue(new Response("done"));
+    const navigate = vi.fn(() => Promise.resolve());
+    env.clients.matchAll.mockResolvedValue([
+      { navigate, url: "https://jucart.example/" },
+    ]);
+
+    await handleActivateEvent(env);
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(env.cache.put).not.toHaveBeenCalled();
   });
 });

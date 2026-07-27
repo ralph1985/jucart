@@ -218,61 +218,34 @@ describe("App", () => {
       value: 100,
     });
 
-    fireEvent.pointerDown(main, {
-      button: 0,
-      clientX: 0,
-      clientY: 10,
-      pointerId: 2,
-      pointerType: "touch",
+    fireEvent.touchStart(main, {
+      touches: [{ clientX: 0, clientY: 10, identifier: 2 }],
     });
-    fireEvent.pointerMove(main, {
-      clientX: 0,
-      clientY: 15,
-      pointerId: 2,
-      pointerType: "touch",
+    fireEvent.touchMove(main, {
+      touches: [{ clientX: 0, clientY: 15, identifier: 2 }],
     });
-    fireEvent.pointerUp(main, {
-      clientX: 0,
-      clientY: 15,
-      pointerId: 2,
-      pointerType: "touch",
+    fireEvent.touchEnd(main, {
+      changedTouches: [{ clientX: 0, clientY: 15, identifier: 2 }],
     });
 
-    fireEvent.pointerDown(main, {
-      button: 0,
-      clientX: 10,
-      clientY: 10,
-      pointerId: 3,
-      pointerType: "touch",
+    fireEvent.touchStart(main, {
+      touches: [{ clientX: 10, clientY: 10, identifier: 3 }],
     });
-    fireEvent.pointerMove(main, {
-      clientX: 80,
-      clientY: 30,
-      pointerId: 3,
-      pointerType: "touch",
+    fireEvent.touchMove(main, {
+      touches: [{ clientX: 80, clientY: 30, identifier: 3 }],
     });
-    fireEvent.pointerUp(main, {
-      clientX: 80,
-      clientY: 30,
-      pointerId: 3,
-      pointerType: "touch",
+    fireEvent.touchEnd(main, {
+      changedTouches: [{ clientX: 80, clientY: 30, identifier: 3 }],
     });
 
-    fireEvent.pointerDown(main, {
-      button: 0,
-      clientY: 10,
-      pointerId: 1,
-      pointerType: "touch",
+    fireEvent.touchStart(main, {
+      touches: [{ clientX: 0, clientY: 10, identifier: 1 }],
     });
-    fireEvent.pointerMove(main, {
-      clientY: 100,
-      pointerId: 1,
-      pointerType: "touch",
+    fireEvent.touchMove(main, {
+      touches: [{ clientX: 0, clientY: 100, identifier: 1 }],
     });
-    fireEvent.pointerUp(main, {
-      clientY: 100,
-      pointerId: 1,
-      pointerType: "touch",
+    fireEvent.touchEnd(main, {
+      changedTouches: [{ clientX: 0, clientY: 100, identifier: 1 }],
     });
 
     expect(await screen.findByText("Leche")).toBeInTheDocument();

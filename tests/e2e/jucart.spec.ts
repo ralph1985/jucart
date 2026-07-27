@@ -70,6 +70,48 @@ async function waitForStoredShoppingProduct(page: Page, name: string) {
   }, name);
 }
 
+async function pullToRefresh(page: Page) {
+  await page.evaluate(() => {
+    const target = document.querySelector("main");
+
+    if (!target) {
+      throw new Error("No se encontró el contenedor principal de Jucart.");
+    }
+
+    const createTouch = (clientY: number) =>
+      new Touch({
+        identifier: 1,
+        target,
+        clientX: 160,
+        clientY,
+      });
+
+    target.dispatchEvent(
+      new TouchEvent("touchstart", {
+        bubbles: true,
+        cancelable: true,
+        touches: [createTouch(20)],
+      }),
+    );
+    target.dispatchEvent(
+      new TouchEvent("touchmove", {
+        bubbles: true,
+        cancelable: true,
+        touches: [createTouch(110)],
+      }),
+    );
+    target.dispatchEvent(
+      new TouchEvent("touchend", {
+        bubbles: true,
+        cancelable: true,
+        changedTouches: [createTouch(110)],
+      }),
+    );
+  });
+
+  await expect(page.getByText("Actualizado", { exact: true })).toBeVisible();
+}
+
 test.beforeEach(async ({ page }) => {
   await resetJucartStorage(page);
 });
@@ -84,6 +126,21 @@ test("loads the local app shell", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "Gestionar listas" }),
   ).toBeVisible();
+});
+
+test("refreshes every mobile view with pull-to-refresh", async ({ page }) => {
+  const views = [
+    "Tickets",
+    "Congelador",
+    "Gestionar listas",
+    "Historial",
+    "Vista de desarrollador",
+  ];
+
+  for (const view of views) {
+    await page.getByRole("button", { name: view }).click();
+    await pullToRefresh(page);
+  }
 });
 
 test("adds, purchases and restores a shopping product", async ({ page }) => {

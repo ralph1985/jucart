@@ -6,6 +6,7 @@ import {
   KeyboardEvent,
   MouseEvent,
   PointerEvent,
+  TouchEvent,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -3740,36 +3741,44 @@ export function App() {
     );
   }
 
-  function handlePullRefreshPointerDown(event: PointerEvent<HTMLElement>) {
+  function startPullRefreshGesture(
+    pointerId: number,
+    startX: number,
+    startY: number,
+    target: EventTarget | null,
+  ) {
     if (
-      event.pointerType === "mouse" ||
-      event.button !== 0 ||
       !isLoaded ||
       isPullRefreshing ||
       isBottomSheetOpen ||
-      isPullRefreshExcludedTarget(event.target)
+      isPullRefreshExcludedTarget(target)
     ) {
       return;
     }
 
-    const scrollContainer = getPullRefreshScrollContainer(event.target);
+    const scrollContainer = getPullRefreshScrollContainer(target);
 
     if (!scrollContainer || scrollContainer.scrollTop > 0) {
       return;
     }
 
     pullRefreshGestureRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
+      pointerId,
+      startX,
+      startY,
       scrollContainer,
     };
   }
 
-  function handlePullRefreshPointerMove(event: PointerEvent<HTMLElement>) {
+  function updatePullRefreshGesture(
+    pointerId: number,
+    clientX: number,
+    clientY: number,
+    event: { preventDefault: () => void },
+  ) {
     const gesture = pullRefreshGestureRef.current;
 
-    if (!gesture || gesture.pointerId !== event.pointerId) {
+    if (!gesture || gesture.pointerId !== pointerId) {
       return;
     }
 
@@ -3779,8 +3788,8 @@ export function App() {
       return;
     }
 
-    const distance = Math.max(0, event.clientY - gesture.startY);
-    const horizontalDistance = Math.abs(event.clientX - gesture.startX);
+    const distance = Math.max(0, clientY - gesture.startY);
+    const horizontalDistance = Math.abs(clientX - gesture.startX);
 
     if (distance < 12) {
       return;
@@ -3794,6 +3803,36 @@ export function App() {
     event.preventDefault();
     pullRefreshRawDistanceRef.current = distance;
     setPullRefreshDistance(Math.min(96, distance * 0.48));
+  }
+
+  function handlePullRefreshTouchStart(event: TouchEvent<HTMLElement>) {
+    const touch = event.touches[0];
+
+    if (!touch) {
+      return;
+    }
+
+    startPullRefreshGesture(
+      touch.identifier,
+      touch.clientX,
+      touch.clientY,
+      event.target,
+    );
+  }
+
+  function handlePullRefreshTouchMove(event: TouchEvent<HTMLElement>) {
+    const touch = event.touches[0];
+
+    if (!touch) {
+      return;
+    }
+
+    updatePullRefreshGesture(
+      touch.identifier,
+      touch.clientX,
+      touch.clientY,
+      event,
+    );
   }
 
   function finishPullRefreshGesture() {
@@ -3869,10 +3908,10 @@ export function App() {
     }
   }
 
-  function handlePullRefreshPointerUp(event: PointerEvent<HTMLElement>) {
+  function finishPullRefresh(pointerId: number) {
     const gesture = pullRefreshGestureRef.current;
 
-    if (!gesture || gesture.pointerId !== event.pointerId) {
+    if (!gesture || gesture.pointerId !== pointerId) {
       return;
     }
 
@@ -3881,6 +3920,14 @@ export function App() {
 
     if (shouldRefresh) {
       void refreshCurrentView();
+    }
+  }
+
+  function handlePullRefreshTouchEnd(event: TouchEvent<HTMLElement>) {
+    const touch = event.changedTouches[0];
+
+    if (touch) {
+      finishPullRefresh(touch.identifier);
     }
   }
 
@@ -5342,10 +5389,10 @@ export function App() {
 
   return (
     <main
-      onPointerDown={handlePullRefreshPointerDown}
-      onPointerMove={handlePullRefreshPointerMove}
-      onPointerUp={handlePullRefreshPointerUp}
-      onPointerCancel={finishPullRefreshGesture}
+      onTouchStart={handlePullRefreshTouchStart}
+      onTouchMove={handlePullRefreshTouchMove}
+      onTouchEnd={handlePullRefreshTouchEnd}
+      onTouchCancel={finishPullRefreshGesture}
       className={
         activeView === "shopping"
           ? `${styles.app} ${styles.appShopping} ${

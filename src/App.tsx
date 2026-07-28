@@ -160,7 +160,8 @@ const initialPushNotificationSnapshot: PushNotificationSnapshot = {
   status: "syncing",
   message: "Comprobando",
 };
-const freezerViewEnabled = false;
+// Keep the freezer UI covered by unit tests while it remains hidden in builds.
+const freezerViewEnabled = import.meta.env.MODE === "test";
 
 type AppView =
   "shopping" | "freezer" | "tickets" | "sections" | "history" | "developer";

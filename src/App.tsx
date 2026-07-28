@@ -105,7 +105,19 @@ import type {
   PushNotificationSnapshot,
 } from "./pushNotifications";
 import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
-import { isSupabaseConfigured } from "./supabaseConfig";
+import {
+  activeSupabaseListStorageKey,
+  getSupabaseConfig,
+  isSupabaseConfigured,
+} from "./supabaseConfig";
+import {
+  createShoppingList,
+  getShoppingLists,
+  joinShoppingList,
+  leaveShoppingList,
+  regenerateShoppingListCode,
+} from "./shoppingLists";
+import type { ShoppingList } from "./shoppingLists";
 import {
   pwaUpdateApplyEvent,
   pwaUpdateAvailableEvent,
@@ -1390,6 +1402,14 @@ export function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [isAuthActionPending, setIsAuthActionPending] = useState(false);
+  const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>([]);
+  const [shoppingListName, setShoppingListName] = useState("");
+  const [shoppingListJoinCode, setShoppingListJoinCode] = useState("");
+  const [shoppingListMessage, setShoppingListMessage] = useState<string | null>(
+    null,
+  );
+  const [isShoppingListActionPending, setIsShoppingListActionPending] =
+    useState(false);
   const [isPwaUpdateAvailable, setIsPwaUpdateAvailable] = useState(false);
   const [isPwaUpdateApplying, setIsPwaUpdateApplying] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
@@ -1725,6 +1745,33 @@ export function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (authSnapshot.status !== "signed_in") {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    void getShoppingLists()
+      .then((lists) => {
+        if (isActive) {
+          setShoppingLists(lists);
+          setShoppingListMessage(null);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setShoppingListMessage("No se pudieron cargar tus listas.");
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [authSnapshot.status, authSnapshot.user?.id]);
 
   useEffect(() => {
     let isActive = true;
@@ -4059,8 +4106,94 @@ export function App() {
     setIsAuthActionPending(true);
     setAuthMessage(null);
     const result = await signOut();
+    window.localStorage.removeItem(activeSupabaseListStorageKey);
     setAuthMessage(result.message);
     setIsAuthActionPending(false);
+  }
+
+  async function handleCreateShoppingList(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsShoppingListActionPending(true);
+    setShoppingListMessage(null);
+
+    try {
+      const list = await createShoppingList(shoppingListName);
+      window.localStorage.setItem(activeSupabaseListStorageKey, list.id);
+      setShoppingListName("");
+      setShoppingListMessage(`Lista creada. Código: ${list.joinCode}`);
+      setShoppingLists((currentLists) => [...currentLists, list]);
+      window.location.reload();
+    } catch {
+      setShoppingListMessage("No se pudo crear la lista.");
+    } finally {
+      setIsShoppingListActionPending(false);
+    }
+  }
+
+  async function handleJoinShoppingList(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsShoppingListActionPending(true);
+    setShoppingListMessage(null);
+
+    try {
+      const list = await joinShoppingList(shoppingListJoinCode);
+      window.localStorage.setItem(activeSupabaseListStorageKey, list.id);
+      setShoppingListJoinCode("");
+      setShoppingListMessage(`Te has unido a «${list.name}».`);
+      setShoppingLists((currentLists) =>
+        currentLists.some((currentList) => currentList.id === list.id)
+          ? currentLists
+          : [...currentLists, list],
+      );
+      window.location.reload();
+    } catch {
+      setShoppingListMessage("El código no es válido o no se pudo usar.");
+    } finally {
+      setIsShoppingListActionPending(false);
+    }
+  }
+
+  function handleSelectShoppingList(listId: string) {
+    window.localStorage.setItem(activeSupabaseListStorageKey, listId);
+    window.location.reload();
+  }
+
+  async function handleRegenerateShoppingListCode(listId: string) {
+    setIsShoppingListActionPending(true);
+    setShoppingListMessage(null);
+
+    try {
+      const list = await regenerateShoppingListCode(listId);
+      setShoppingLists((currentLists) =>
+        currentLists.map((currentList) =>
+          currentList.id === list.id ? list : currentList,
+        ),
+      );
+      setShoppingListMessage(`Nuevo código: ${list.joinCode}`);
+    } catch {
+      setShoppingListMessage("No se pudo regenerar el código.");
+    } finally {
+      setIsShoppingListActionPending(false);
+    }
+  }
+
+  async function handleLeaveShoppingList(listId: string) {
+    setIsShoppingListActionPending(true);
+    setShoppingListMessage(null);
+
+    try {
+      await leaveShoppingList(listId);
+      const nextLists = shoppingLists.filter((list) => list.id !== listId);
+      setShoppingLists(nextLists);
+      if (getSupabaseConfig()?.listId === listId) {
+        window.localStorage.removeItem(activeSupabaseListStorageKey);
+        window.location.reload();
+      }
+    } catch {
+      setShoppingListMessage("No se pudo abandonar la lista.");
+    } finally {
+      setIsShoppingListActionPending(false);
+    }
   }
 
   function handlePwaUpdate() {
@@ -5564,6 +5697,147 @@ export function App() {
             </p>
           ) : null}
         </form>
+      </section>
+    );
+  }
+
+  function renderShoppingListsCard() {
+    if (authSnapshot.status !== "signed_in" || !authSnapshot.user) {
+      return null;
+    }
+
+    const activeListId = getSupabaseConfig()?.listId;
+
+    return (
+      <section className={styles.developerPanel} aria-label="Listas">
+        <div className={styles.developerPanelHeader}>
+          <h3>Listas</h3>
+          <span className={styles.developerStatusSuccess}>
+            {shoppingLists.length}
+          </span>
+        </div>
+        {shoppingLists.length > 0 ? (
+          <ul className={styles.shoppingListManager}>
+            {shoppingLists.map((list) => {
+              const isOwner = list.ownerId === authSnapshot.user?.id;
+              const isActive = list.id === activeListId;
+
+              return (
+                <li key={list.id} className={styles.shoppingListManagerItem}>
+                  <button
+                    className={
+                      isActive
+                        ? styles.shoppingListActiveButton
+                        : styles.shoppingListButton
+                    }
+                    type="button"
+                    onPointerDown={handleButtonPointerDown}
+                    onClick={() => handleSelectShoppingList(list.id)}
+                    disabled={isActive || isShoppingListActionPending}
+                  >
+                    <strong>{list.name}</strong>
+                    <small>{isActive ? "Activa" : "Usar esta lista"}</small>
+                  </button>
+                  <div className={styles.shoppingListManagerActions}>
+                    {isOwner ? (
+                      <>
+                        <code>{list.joinCode}</code>
+                        <button
+                          className={styles.authButton}
+                          type="button"
+                          onPointerDown={handleButtonPointerDown}
+                          onClick={() =>
+                            void handleRegenerateShoppingListCode(list.id)
+                          }
+                          disabled={isShoppingListActionPending}
+                        >
+                          Regenerar
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className={styles.authButton}
+                        type="button"
+                        onPointerDown={handleButtonPointerDown}
+                        onClick={() => void handleLeaveShoppingList(list.id)}
+                        disabled={isShoppingListActionPending}
+                      >
+                        Abandonar
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className={styles.authMessage}>
+            No tienes listas todavía. Crea una o usa un código de invitación.
+          </p>
+        )}
+        <form
+          className={styles.developerAuthForm}
+          onSubmit={(event) => void handleCreateShoppingList(event)}
+        >
+          <label className={styles.authLabel} htmlFor="shopping-list-name">
+            Crear lista
+          </label>
+          <div className={styles.developerAuthRow}>
+            <input
+              id="shopping-list-name"
+              className={styles.authInput}
+              type="text"
+              placeholder="Nombre de la lista"
+              value={shoppingListName}
+              onChange={(event) => setShoppingListName(event.target.value)}
+              disabled={isShoppingListActionPending}
+            />
+            <button
+              className={styles.authButton}
+              type="submit"
+              onPointerDown={handleButtonPointerDown}
+              disabled={isShoppingListActionPending || !shoppingListName.trim()}
+            >
+              Crear
+            </button>
+          </div>
+        </form>
+        <form
+          className={styles.developerAuthForm}
+          onSubmit={(event) => void handleJoinShoppingList(event)}
+        >
+          <label className={styles.authLabel} htmlFor="shopping-list-code">
+            Unirse con código
+          </label>
+          <div className={styles.developerAuthRow}>
+            <input
+              id="shopping-list-code"
+              className={styles.authInput}
+              type="text"
+              inputMode="text"
+              autoCapitalize="characters"
+              placeholder="AB12CD34"
+              value={shoppingListJoinCode}
+              onChange={(event) => setShoppingListJoinCode(event.target.value)}
+              disabled={isShoppingListActionPending}
+            />
+            <button
+              className={styles.authButton}
+              type="submit"
+              onPointerDown={handleButtonPointerDown}
+              disabled={
+                isShoppingListActionPending || !shoppingListJoinCode.trim()
+              }
+            >
+              Unirse
+            </button>
+          </div>
+        </form>
+        {shoppingListMessage ? (
+          <p className={styles.authMessage} role="status">
+            {shoppingListMessage}
+          </p>
+        ) : null}
       </section>
     );
   }
@@ -7430,6 +7704,7 @@ export function App() {
             <span className={styles.count}>Rafa</span>
           </div>
           {renderDeveloperAuthCard()}
+          {renderShoppingListsCard()}
           {renderDeveloperBackupCard()}
           {renderDeveloperPushNotificationCard()}
           <section

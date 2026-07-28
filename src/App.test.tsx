@@ -7,7 +7,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 
 import { App } from "./App";
 import { defaultShoppingSections } from "./shoppingItems";
@@ -21,6 +21,45 @@ import {
 import * as shoppingItemsSupabase from "./shoppingItemsSupabase";
 import * as supabaseConfig from "./supabaseConfig";
 import type { ShoppingData } from "./shoppingItemsDb";
+
+const authMocks = vi.hoisted(() => ({
+  status: "signed_out" as "signed_in" | "signed_out",
+  getAuthSnapshot: vi.fn(),
+  subscribeToAuthState: vi.fn(),
+  sendMagicLink: vi.fn(),
+  signOut: vi.fn(),
+}));
+
+const shoppingListMocks = vi.hoisted(() => ({
+  lists: [] as Array<{
+    id: string;
+    name: string;
+    ownerId: string;
+    joinCode: string;
+    createdAt: string;
+    updatedAt: string;
+  }>,
+  getShoppingLists: vi.fn(),
+  createShoppingList: vi.fn(),
+  joinShoppingList: vi.fn(),
+  regenerateShoppingListCode: vi.fn(),
+  leaveShoppingList: vi.fn(),
+}));
+
+vi.mock("./auth", () => ({
+  getAuthSnapshot: authMocks.getAuthSnapshot,
+  subscribeToAuthState: authMocks.subscribeToAuthState,
+  sendMagicLink: authMocks.sendMagicLink,
+  signOut: authMocks.signOut,
+}));
+
+vi.mock("./shoppingLists", () => ({
+  getShoppingLists: shoppingListMocks.getShoppingLists,
+  createShoppingList: shoppingListMocks.createShoppingList,
+  joinShoppingList: shoppingListMocks.joinShoppingList,
+  regenerateShoppingListCode: shoppingListMocks.regenerateShoppingListCode,
+  leaveShoppingList: shoppingListMocks.leaveShoppingList,
+}));
 
 const emblaCarouselMock = vi.hoisted(() => {
   const listeners = new Map<string, Set<() => void>>();
@@ -144,9 +183,46 @@ afterEach(async () => {
   delete (Element.prototype as Partial<Element>).scrollIntoView;
   await resetShoppingItemsDatabase();
   window.localStorage.clear();
+  authMocks.status = "signed_out";
+  authMocks.getAuthSnapshot.mockReset();
+  authMocks.subscribeToAuthState.mockReset();
+  authMocks.sendMagicLink.mockReset();
+  authMocks.signOut.mockReset();
+  shoppingListMocks.lists = [];
+  shoppingListMocks.getShoppingLists.mockReset();
+  shoppingListMocks.createShoppingList.mockReset();
+  shoppingListMocks.joinShoppingList.mockReset();
+  shoppingListMocks.regenerateShoppingListCode.mockReset();
+  shoppingListMocks.leaveShoppingList.mockReset();
 });
 
+function configureAuthMocks() {
+  authMocks.getAuthSnapshot.mockImplementation(() =>
+    Promise.resolve({
+      status: authMocks.status,
+      user:
+        authMocks.status === "signed_in"
+          ? {
+              id: "user-1",
+              email: "rafa@example.com",
+            }
+          : null,
+      error: null,
+    }),
+  );
+  authMocks.subscribeToAuthState.mockImplementation((listener) => {
+    void authMocks.getAuthSnapshot().then(listener);
+    return () => undefined;
+  });
+}
+
 describe("App", () => {
+  beforeEach(() => {
+    authMocks.status = "signed_out";
+    configureAuthMocks();
+    shoppingListMocks.getShoppingLists.mockResolvedValue([]);
+  });
+
   async function waitForAddFab() {
     const addFab = screen.getByRole("button", { name: "Añadir producto" });
 
@@ -489,6 +565,80 @@ describe("App", () => {
     expect(
       screen.queryByRole("heading", { level: 2, name: "Dev" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("gestiona listas autenticadas desde Dev", async () => {
+    authMocks.status = "signed_in";
+    configureAuthMocks();
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    shoppingListMocks.lists = [
+      {
+        id: "list-1",
+        name: "Casa",
+        ownerId: "user-1",
+        joinCode: "AB12CD34",
+        createdAt: "2026-07-27T12:00:00.000Z",
+        updatedAt: "2026-07-27T12:00:00.000Z",
+      },
+      {
+        id: "list-2",
+        name: "Begoña",
+        ownerId: "user-2",
+        joinCode: "EF56GH78",
+        createdAt: "2026-07-27T13:00:00.000Z",
+        updatedAt: "2026-07-27T13:00:00.000Z",
+      },
+    ];
+    shoppingListMocks.getShoppingLists.mockResolvedValue(
+      shoppingListMocks.lists,
+    );
+    shoppingListMocks.regenerateShoppingListCode.mockResolvedValue({
+      ...shoppingListMocks.lists[0],
+      joinCode: "ZX90YU12",
+    });
+    shoppingListMocks.leaveShoppingList.mockResolvedValue(undefined);
+    shoppingListMocks.createShoppingList.mockRejectedValue(new Error("create"));
+    shoppingListMocks.joinShoppingList.mockRejectedValue(new Error("join"));
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Vista de desarrollador" }),
+    );
+
+    expect(
+      await screen.findByRole("region", { name: "Listas" }),
+    ).toHaveTextContent("Casa");
+    expect(screen.getByText("AB12CD34")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Regenerar" }));
+    expect(
+      await screen.findByText("Nuevo código: ZX90YU12"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Abandonar" }));
+    await waitFor(() =>
+      expect(shoppingListMocks.leaveShoppingList).toHaveBeenCalledWith(
+        "list-2",
+      ),
+    );
+
+    fireEvent.change(screen.getByLabelText("Crear lista"), {
+      target: { value: "Nueva" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Crear" }));
+    expect(
+      await screen.findByText("No se pudo crear la lista."),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Unirse con código"), {
+      target: { value: "EF56GH78" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Unirse" }));
+    expect(
+      await screen.findByText("El código no es válido o no se pudo usar."),
+    ).toBeInTheDocument();
   });
 
   it("warns when the latest successful backup is older than six hours", async () => {

@@ -506,7 +506,7 @@ Objetivo: añadir cuentas individuales sin cambiar todavía el flujo operativo a
 - [x] Permitir iniciar sesión sin exigirlo todavía para la lista actual.
 - [x] Persistir la sesión y permitir cerrar sesión.
 - [x] Crear el perfil de aplicación asociado a cada cuenta mediante trigger de Supabase.
-- [ ] Preparar la migración de la lista actual conservando sus datos, con Rafa como propietario.
+- [x] Preparar la migración de la lista actual conservando sus datos, con Rafa como propietario.
 - [x] Mantener operativo el acceso actual mientras se valida la migración.
 - [x] Mantener la compatibilidad de los autores históricos de productos, tickets e historial.
 - [x] Mantener el selector manual hasta que exista una identidad autenticada equivalente.
@@ -516,18 +516,18 @@ Objetivo: añadir cuentas individuales sin cambiar todavía el flujo operativo a
 
 Objetivo: permitir que cada usuario cree listas independientes y se una a otras mediante un código compartible.
 
-- [ ] Permitir crear y consultar las listas del usuario.
-- [ ] Asociar cada lista a su propietario y a sus miembros.
+- [x] Permitir crear y consultar las listas del usuario mediante tablas y funciones seguras.
+- [x] Asociar cada lista a su propietario y a sus miembros.
 - [ ] Permitir que las filas actuales sigan resolviéndose mediante su `list_id` durante la transición.
-- [ ] Mostrar un estado inicial para usuarios autenticados sin listas, invitándoles a crear la primera.
-- [ ] Ofrecer desde ese estado la entrada mediante código cuando hayan sido invitados a otra lista.
-- [ ] Generar un código único reutilizable para cada lista.
-- [ ] Permitir al propietario regenerar el código; el anterior dejará de aceptar nuevas entradas.
-- [ ] Permitir introducir un código válido desde la sección de listas.
-- [ ] Incorporar automáticamente al usuario que introduce un código válido.
-- [ ] Permitir que un miembro abandone una lista.
-- [ ] Añadir la selección de lista activa sin introducir todavía rutas nuevas.
-- [ ] Añadir tests de creación, unión, regeneración, abandono y cambio de lista.
+- [x] Mostrar un estado inicial para usuarios autenticados sin listas, invitándoles a crear la primera.
+- [x] Ofrecer desde ese estado la entrada mediante código cuando hayan sido invitados a otra lista.
+- [x] Generar un código único reutilizable para cada lista.
+- [x] Permitir al propietario regenerar el código; el anterior dejará de aceptar nuevas entradas.
+- [x] Permitir introducir un código válido mediante RPC.
+- [x] Incorporar automáticamente al usuario que introduce un código válido.
+- [x] Permitir que un miembro abandone una lista mediante RPC.
+- [x] Añadir la selección de lista activa sin introducir todavía rutas nuevas.
+- [x] Añadir tests de creación, unión, regeneración, abandono y cambio de lista.
 
 ## Hito 38 — Roles y permisos de lista
 

@@ -4,6 +4,14 @@ export type SupabaseConfig = {
   listId: string;
 };
 
+export const activeSupabaseListStorageKey = "jucart:active-list-id";
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 type SupabaseEnv = Record<string, string | undefined>;
 
 export function resolveSupabaseConfig(
@@ -32,7 +40,19 @@ export function resolveSupabaseConfig(
 }
 
 export function getSupabaseConfig(): SupabaseConfig | null {
-  return resolveSupabaseConfig(import.meta.env, import.meta.env.MODE);
+  const config = resolveSupabaseConfig(import.meta.env, import.meta.env.MODE);
+
+  if (!config || typeof window === "undefined") {
+    return config;
+  }
+
+  const activeListId = window.localStorage
+    .getItem(activeSupabaseListStorageKey)
+    ?.trim();
+
+  return activeListId && isUuid(activeListId)
+    ? { ...config, listId: activeListId }
+    : config;
 }
 
 export function isSupabaseConfigured() {

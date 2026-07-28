@@ -226,6 +226,66 @@
   font-size: 0.66rem;
 }
 
+.shoppingListManager {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shoppingListManagerItem {
+  display: grid;
+  gap: 0.4rem;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  background: rgb(248 250 252 / 72%);
+}
+
+.shoppingListButton,
+.shoppingListActiveButton {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+  border: 0;
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.45rem;
+  text-align: left;
+  color: #102033;
+  font: inherit;
+}
+
+.shoppingListButton {
+  background: rgb(226 232 240 / 46%);
+}
+
+.shoppingListActiveButton {
+  background: rgb(220 252 231 / 82%);
+  color: #166534;
+}
+
+.shoppingListButton small,
+.shoppingListActiveButton small {
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.shoppingListManagerActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.shoppingListManagerActions code {
+  margin-right: auto;
+  color: #526171;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
 .commandPanel {
   position: fixed;
   z-index: 7;

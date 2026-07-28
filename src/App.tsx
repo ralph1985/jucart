@@ -2327,11 +2327,30 @@ export function App() {
   }, [isLoaded, sections]);
 
   useEffect(() => {
-    const splashScreen = splashScreenRef.current;
-
-    if (!isLoaded || !splashScreen) {
+    if (!isLoaded) {
       return;
     }
+
+    const splashScreen = splashScreenRef.current;
+    const hideSplash = () => setIsSplashVisible(false);
+
+    if (!splashScreen || document.visibilityState !== "visible") {
+      hideSplash();
+      return;
+    }
+
+    const fallbackTimeout = window.setTimeout(hideSplash, 1000);
+    const completeSplash = () => {
+      window.clearTimeout(fallbackTimeout);
+      hideSplash();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") {
+        completeSplash();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     runAnimationWithCompletion(
       splashScreen,
@@ -2341,8 +2360,13 @@ export function App() {
         duration: 260,
         ease: "outCubic",
       },
-      () => setIsSplashVisible(false),
+      completeSplash,
     );
+
+    return () => {
+      window.clearTimeout(fallbackTimeout);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [isLoaded]);
 
   useLayoutEffect(() => {

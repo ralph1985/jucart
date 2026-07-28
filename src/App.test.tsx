@@ -530,6 +530,31 @@ describe("App", () => {
     await waitForAddFab();
   });
 
+  it("removes the splash if loading finishes while the page is hidden", async () => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockResolvedValue({
+      items: [],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+    });
+
+    render(<App />);
+
+    await waitForAddFab();
+
+    expect(screen.queryByText("Cargando lista...")).not.toBeInTheDocument();
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+  });
+
   it("shows the login screen when Supabase has no active session", async () => {
     authMocks.status = "signed_out";
     configureAuthMocks();

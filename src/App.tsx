@@ -5688,7 +5688,10 @@ export function App() {
     const activeListId = getSupabaseConfig()?.listId;
 
     return (
-      <section className={styles.developerPanel} aria-label="Listas">
+      <section
+        className={styles.developerPanel}
+        aria-label="Listas disponibles"
+      >
         <div className={styles.developerPanelHeader}>
           <h3>Listas</h3>
           <span className={styles.developerStatusSuccess}>
@@ -7447,8 +7450,11 @@ export function App() {
         >
           <div className={styles.sectionsHeader}>
             <h2 id="sections-title">Listas</h2>
-            <span className={styles.count}>{sections.length}</span>
+            <span className={styles.count}>
+              {isSupabaseConfigured() ? shoppingLists.length : sections.length}
+            </span>
           </div>
+          {isSupabaseConfigured() ? renderShoppingListsCard() : null}
           {sectionActionMessage ? (
             <p className={styles.sectionActionMessage} role="status">
               {sectionActionMessage}
@@ -7636,7 +7642,6 @@ export function App() {
             <span className={styles.count}>Sesión activa</span>
           </div>
           {renderDeveloperAuthCard()}
-          {renderShoppingListsCard()}
           {renderDeveloperBackupCard()}
           {renderDeveloperPushNotificationCard()}
           <section

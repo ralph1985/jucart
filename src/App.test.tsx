@@ -547,7 +547,7 @@ describe("App", () => {
     expect(screen.getByText("Sin copias registradas")).toBeInTheDocument();
   });
 
-  it("gestiona listas autenticadas desde Dev", async () => {
+  it("gestiona listas autenticadas desde Listas", async () => {
     authMocks.status = "signed_in";
     configureAuthMocks();
     vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
@@ -583,12 +583,10 @@ describe("App", () => {
     render(<App />);
 
     await waitForAddFab();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Vista de desarrollador" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
 
     expect(
-      await screen.findByRole("region", { name: "Listas" }),
+      await screen.findByRole("region", { name: "Listas disponibles" }),
     ).toHaveTextContent("Casa");
     expect(screen.getByText("AB12CD34")).toBeInTheDocument();
 

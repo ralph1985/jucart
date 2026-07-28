@@ -95,13 +95,13 @@ export function subscribeToAuthState(listener: AuthStateListener) {
   };
 }
 
-export async function sendMagicLink(email: string) {
+export async function signInWithPassword(email: string, password: string) {
   const client = getAuthClient();
 
   if (!client) {
     return {
       ok: false,
-      message: "El acceso por email no está configurado.",
+      message: "El acceso no está configurado.",
     };
   }
 
@@ -111,9 +111,13 @@ export async function sendMagicLink(email: string) {
     return { ok: false, message: "Escribe tu email." };
   }
 
-  const { error } = await client.auth.signInWithOtp({
+  if (!password) {
+    return { ok: false, message: "Escribe tu contraseña." };
+  }
+
+  const { error } = await client.auth.signInWithPassword({
     email: normalizedEmail,
-    options: { emailRedirectTo: window.location.origin },
+    password,
   });
 
   if (error) {
@@ -122,7 +126,7 @@ export async function sendMagicLink(email: string) {
 
   return {
     ok: true,
-    message: "Te hemos enviado un enlace para entrar.",
+    message: "Sesión iniciada.",
   };
 }
 
@@ -130,7 +134,7 @@ export async function signOut() {
   const client = getAuthClient();
 
   if (!client) {
-    return { ok: false, message: "El acceso por email no está configurado." };
+    return { ok: false, message: "El acceso no está configurado." };
   }
 
   const { error } = await client.auth.signOut();

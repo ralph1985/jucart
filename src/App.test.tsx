@@ -26,7 +26,7 @@ const authMocks = vi.hoisted(() => ({
   status: "signed_out" as "signed_in" | "signed_out",
   getAuthSnapshot: vi.fn(),
   subscribeToAuthState: vi.fn(),
-  sendMagicLink: vi.fn(),
+  signInWithPassword: vi.fn(),
   signOut: vi.fn(),
 }));
 
@@ -50,7 +50,7 @@ const shoppingListMocks = vi.hoisted(() => ({
 vi.mock("./auth", () => ({
   getAuthSnapshot: authMocks.getAuthSnapshot,
   subscribeToAuthState: authMocks.subscribeToAuthState,
-  sendMagicLink: authMocks.sendMagicLink,
+  signInWithPassword: authMocks.signInWithPassword,
   signOut: authMocks.signOut,
 }));
 
@@ -187,7 +187,7 @@ afterEach(async () => {
   authMocks.status = "signed_out";
   authMocks.getAuthSnapshot.mockReset();
   authMocks.subscribeToAuthState.mockReset();
-  authMocks.sendMagicLink.mockReset();
+  authMocks.signInWithPassword.mockReset();
   authMocks.signOut.mockReset();
   shoppingListMocks.lists = [];
   shoppingListMocks.getShoppingLists.mockReset();
@@ -212,14 +212,21 @@ function configureAuthMocks() {
     }),
   );
   authMocks.subscribeToAuthState.mockImplementation((listener) => {
-    void authMocks.getAuthSnapshot().then(listener);
+    listener({
+      status: authMocks.status,
+      user:
+        authMocks.status === "signed_in"
+          ? { id: "user-1", email: "rafa@example.com" }
+          : null,
+      error: null,
+    });
     return () => undefined;
   });
 }
 
 describe("App", () => {
   beforeEach(() => {
-    authMocks.status = "signed_out";
+    authMocks.status = "signed_in";
     configureAuthMocks();
     shoppingListMocks.getShoppingLists.mockResolvedValue([]);
   });
@@ -512,36 +519,19 @@ describe("App", () => {
     await waitForAddFab();
   });
 
-  it("shows Supabase in the loading message when remote storage is configured", async () => {
-    let resolveStoredData: (data: ShoppingData) => void = () => {};
-    const storedDataPromise = new Promise<ShoppingData>((resolve) => {
-      resolveStoredData = resolve;
-    });
-
+  it("shows the login screen when Supabase has no active session", async () => {
+    authMocks.status = "signed_out";
+    configureAuthMocks();
     vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
-    vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockReturnValue(
-      storedDataPromise,
-    );
 
     render(<App />);
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Cargando lista de Supabase...",
-    );
-
-    await act(async () => {
-      resolveStoredData({
-        items: [],
-        sections: defaultShoppingSections,
-        historyEvents: [],
-        freezerItems: [],
-      });
-
-      await storedDataPromise;
-    });
+    expect(await screen.findByLabelText("Iniciar sesión")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Contraseña")).toBeInTheDocument();
   });
 
-  it("shows the developer view only when Rafa is selected", async () => {
+  it("shows the developer view for an authenticated user", async () => {
     render(<App />);
 
     await waitForAddFab();
@@ -555,17 +545,6 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Backup Supabase")).toBeInTheDocument();
     expect(screen.getByText("Sin copias registradas")).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("Añadido por"), {
-      target: { value: "begona" },
-    });
-
-    expect(
-      screen.queryByRole("button", { name: "Vista de desarrollador" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { level: 2, name: "Dev" }),
-    ).not.toBeInTheDocument();
   });
 
   it("gestiona listas autenticadas desde Dev", async () => {
@@ -600,8 +579,6 @@ describe("App", () => {
       joinCode: "ZX90YU12",
     });
     shoppingListMocks.leaveShoppingList.mockResolvedValue(undefined);
-    shoppingListMocks.createShoppingList.mockRejectedValue(new Error("create"));
-    shoppingListMocks.joinShoppingList.mockRejectedValue(new Error("join"));
 
     render(<App />);
 
@@ -616,9 +593,11 @@ describe("App", () => {
     expect(screen.getByText("AB12CD34")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Regenerar" }));
-    expect(
-      await screen.findByText("Nuevo código: ZX90YU12"),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(shoppingListMocks.regenerateShoppingListCode).toHaveBeenCalledWith(
+        "list-1",
+      ),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Abandonar" }));
     await waitFor(() =>
@@ -626,22 +605,6 @@ describe("App", () => {
         "list-2",
       ),
     );
-
-    fireEvent.change(screen.getByLabelText("Crear lista"), {
-      target: { value: "Nueva" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Crear" }));
-    expect(
-      await screen.findByText("No se pudo crear la lista."),
-    ).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("Unirse con código"), {
-      target: { value: "EF56GH78" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Unirse" }));
-    expect(
-      await screen.findByText("El código no es válido o no se pudo usar."),
-    ).toBeInTheDocument();
   });
 
   it("warns when the latest successful backup is older than six hours", async () => {
@@ -899,18 +862,6 @@ describe("App", () => {
     await waitFor(() =>
       expect(pushNotificationMocks.enablePushNotifications).toHaveBeenCalled(),
     );
-  });
-
-  it("keeps the developer view hidden when Begoña is restored", async () => {
-    window.localStorage.setItem("jucart:selected-user-id", "begona");
-
-    render(<App />);
-
-    await waitForAddFab();
-
-    expect(
-      screen.queryByRole("button", { name: "Vista de desarrollador" }),
-    ).not.toBeInTheDocument();
   });
 
   it("updates the app badge with the visible pending product count", async () => {

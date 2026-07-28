@@ -496,37 +496,35 @@ Objetivo: precargar precios iniciales desde fuentes externas solo cuando aporten
 
 ## Estrategia de evolución para usuarios y permisos
 
-Las fases 36 a 41 se harán de forma incremental y compatible con la aplicación actual. Cada fase debe poder desplegarse sin dejar la lista inutilizable ni exigir que todas las sesiones existentes se actualicen a la vez. La autenticación y las tablas nuevas se introducirán primero en modo compatible; el acceso anónimo y el `list_id` actual se mantendrán como fallback durante la migración. El login obligatorio, el aislamiento estricto por RLS y la retirada del acceso antiguo solo se activarán en el último paso, después de verificar la migración y la recuperación de datos.
+Las fases 36 a 41 se harán de forma incremental y compatible con la aplicación actual. Cada fase debe poder desplegarse sin perder productos, listas ni sesiones válidas. La migración mantiene el `list_id` activo y la caché local, pero desde el Hito 36 el cliente configurado exige una sesión de contraseña antes de mostrar datos y Supabase deja de conceder acceso anónimo. No se pide a las personas borrar datos del navegador: las actualizaciones conservan IndexedDB y el Service Worker ofrece la recarga controlada.
 
 ## Hito 36 — Cuentas y autenticación
 
-Objetivo: añadir cuentas individuales sin cambiar todavía el flujo operativo actual.
+Objetivo: convertir el acceso en obligatorio y dejar preparadas las dos cuentas iniciales sin depender del email transaccional de Supabase.
 
-- [x] Añadir Supabase Auth mediante enlace mágico por email.
-- [x] Permitir iniciar sesión sin exigirlo todavía para la lista actual.
+- [x] Añadir Supabase Auth mediante email y contraseña.
+- [x] Mostrar una pantalla de login antes de cargar la aplicación configurada.
+- [x] Crear o actualizar las cuentas iniciales de Rafa y Begoña con contraseña almacenada mediante hash de Supabase Auth.
 - [x] Persistir la sesión y permitir cerrar sesión.
 - [x] Crear el perfil de aplicación asociado a cada cuenta mediante trigger de Supabase.
 - [x] Preparar la migración de la lista actual conservando sus datos, con Rafa como propietario.
-- [x] Mantener operativo el acceso actual mientras se valida la migración.
+- [x] Mantener la caché local y el `list_id` durante el cambio para no romper clientes existentes.
 - [x] Mantener la compatibilidad de los autores históricos de productos, tickets e historial.
-- [x] Mantener el selector manual hasta que exista una identidad autenticada equivalente.
-- [x] Añadir tests de inicio de sesión, callback, sesión expirada y logout.
+- [x] Mantener el selector histórico de autor para no reescribir los productos antiguos durante la transición.
+- [x] Añadir tests de inicio de sesión por contraseña, sesión expirada y logout.
 
 ## Hito 37 — Listas y códigos de unión
 
-Objetivo: permitir que cada usuario cree listas independientes y se una a otras mediante un código compartible.
+Objetivo: transformar las listas antiguas por supermercado en listas compartidas de Rafa, visibles también para Begoña, sin crear listas adicionales.
 
-- [x] Permitir crear y consultar las listas del usuario mediante tablas y funciones seguras.
+- [x] Consultar las listas del usuario mediante tablas y funciones seguras.
 - [x] Asociar cada lista a su propietario y a sus miembros.
 - [x] Mostrar durante la transición el email del propietario junto a cada lista.
-- [ ] Permitir que las filas actuales sigan resolviéndose mediante su `list_id` durante la transición.
-- [x] Mostrar un estado inicial para usuarios autenticados sin listas, invitándoles a crear la primera.
-- [x] Ofrecer desde ese estado la entrada mediante código cuando hayan sido invitados a otra lista.
+- [x] Mantener el `list_id` activo de cada lista migrada sin perder sus filas actuales.
+- [x] Asociar las siete listas antiguas con productos a Rafa como propietario y Begoña como miembro.
 - [x] Generar un código único reutilizable para cada lista.
 - [x] Permitir al propietario regenerar el código; el anterior dejará de aceptar nuevas entradas.
-- [x] Permitir introducir un código válido mediante RPC.
-- [x] Incorporar automáticamente al usuario que introduce un código válido.
-- [x] Permitir que un miembro abandone una lista mediante RPC.
+- [x] Mantener las operaciones RPC existentes para la transición, sin ofrecer crear o unirse a nuevas listas en la interfaz.
 - [x] Añadir la selección de lista activa sin introducir todavía rutas nuevas.
 - [x] Añadir tests de creación, unión, regeneración, abandono y cambio de lista.
 
@@ -540,17 +538,17 @@ Objetivo: aplicar permisos reales a la administración de cada lista.
 - [ ] Permitir al propietario transferir la propiedad.
 - [ ] Permitir eliminar una lista únicamente a su propietario.
 - [ ] Añadir pantallas de administración de miembros y acciones de propietario.
-- [ ] Preparar políticas y comprobaciones de pertenencia sin activarlas de forma incompatible con clientes antiguos.
+- [x] Activar políticas y comprobaciones de pertenencia para clientes autenticados.
 - [ ] Añadir tests de autorización para propietario, miembro y usuario ajeno.
 
 ## Hito 39 — Aislamiento de todos los datos
 
-Objetivo: garantizar que todo el contenido de una lista queda aislado de las demás.
+Objetivo: garantizar que todo el contenido de una lista queda aislado de las demás y que nunca vuelve a estar disponible para `anon`.
 
 - [ ] Asociar a la lista los productos, congelador, categorías, historial, tickets, precios y notificaciones.
 - [ ] Revisar consultas, Realtime, Storage y RPC para exigir pertenencia a la lista.
-- [ ] Validar el aislamiento en paralelo con el flujo actual antes de activar el bloqueo estricto.
-- [ ] Evitar lecturas o escrituras de datos de otras listas cuando la sesión autenticada ya esté activa.
+- [x] Activar el bloqueo estricto después de migrar las siete listas y las dos cuentas.
+- [x] Evitar lecturas o escrituras de datos de otras listas cuando la sesión autenticada ya esté activa.
 - [ ] Mantener las operaciones técnicas de servidor separadas de los permisos del navegador.
 - [ ] Añadir tests de aislamiento por tabla y por Storage.
 - [ ] Ejecutar la validación completa del repositorio antes de cerrar el hito.
@@ -575,8 +573,8 @@ Objetivo: cerrar los casos de mantenimiento y borrado sin pérdida accidental in
 - [ ] Mantener una ventana técnica de recuperación de 30 días.
 - [ ] Ejecutar después el borrado definitivo de la lista, miembros y datos asociados.
 - [ ] Añadir confirmación explícita y estados de lista eliminada.
-- [ ] Verificar que la migración, las sesiones y los clientes antiguos ya no necesitan el acceso anónimo.
-- [ ] Activar como paso final el login obligatorio, el RLS estricto y la retirada del selector manual.
+- [x] Verificar que la migración y las sesiones iniciales ya no necesitan el acceso anónimo.
+- [ ] Retirar el selector manual de autor cuando todos los productos nuevos puedan atribuirse a `auth.uid()` sin perder el histórico.
 - [ ] Añadir tests de transferencia, expulsión, abandono, recuperación y borrado definitivo.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 

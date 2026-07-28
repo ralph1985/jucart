@@ -8,6 +8,8 @@ export type ShoppingList = {
   ownerId: string;
   joinCode: string;
   ownerEmail: string;
+  memberCount: number;
+  productCount: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -20,6 +22,8 @@ type ShoppingListRow = {
   created_at: string;
   updated_at: string;
   owner_email: string;
+  member_count: number;
+  product_count: number;
 };
 
 let client: SupabaseClient | null = null;
@@ -42,6 +46,8 @@ function mapShoppingList(row: ShoppingListRow): ShoppingList {
     ownerId: row.owner_id,
     joinCode: row.join_code,
     ownerEmail: row.owner_email,
+    memberCount: Number(row.member_count ?? 0),
+    productCount: Number(row.product_count ?? 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -129,6 +135,22 @@ export async function leaveShoppingList(listId: string) {
   }
 
   const { error } = await supabase.rpc("leave_shopping_list", {
+    p_list_id: listId,
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function deleteShoppingList(listId: string) {
+  const supabase = getClient();
+
+  if (!supabase) {
+    throw getUnavailableMessage();
+  }
+
+  const { error } = await supabase.rpc("delete_shopping_list", {
     p_list_id: listId,
   });
 

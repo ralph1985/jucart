@@ -43,6 +43,7 @@ const shoppingListMocks = vi.hoisted(() => ({
   }>,
   getShoppingLists: vi.fn(),
   createShoppingList: vi.fn(),
+  deleteShoppingList: vi.fn(),
   joinShoppingList: vi.fn(),
   regenerateShoppingListCode: vi.fn(),
   leaveShoppingList: vi.fn(),
@@ -58,6 +59,7 @@ vi.mock("./auth", () => ({
 vi.mock("./shoppingLists", () => ({
   getShoppingLists: shoppingListMocks.getShoppingLists,
   createShoppingList: shoppingListMocks.createShoppingList,
+  deleteShoppingList: shoppingListMocks.deleteShoppingList,
   joinShoppingList: shoppingListMocks.joinShoppingList,
   regenerateShoppingListCode: shoppingListMocks.regenerateShoppingListCode,
   leaveShoppingList: shoppingListMocks.leaveShoppingList,
@@ -194,6 +196,7 @@ afterEach(async () => {
   shoppingListMocks.lists = [];
   shoppingListMocks.getShoppingLists.mockReset();
   shoppingListMocks.createShoppingList.mockReset();
+  shoppingListMocks.deleteShoppingList.mockReset();
   shoppingListMocks.joinShoppingList.mockReset();
   shoppingListMocks.regenerateShoppingListCode.mockReset();
   shoppingListMocks.leaveShoppingList.mockReset();

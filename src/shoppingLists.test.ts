@@ -57,6 +57,7 @@ vi.mock("./supabaseConfig", () => configMock);
 
 import {
   createShoppingList,
+  deleteShoppingList,
   getShoppingLists,
   joinShoppingList,
   leaveShoppingList,
@@ -84,6 +85,8 @@ describe("shoppingLists", () => {
         name: "Casa",
         ownerId: "user-1",
         ownerEmail: "rafa@example.com",
+        memberCount: 0,
+        productCount: 0,
         updatedAt: "2026-07-27T12:00:00.000Z",
       },
     ]);
@@ -114,6 +117,7 @@ describe("shoppingLists", () => {
       id: "list-1",
     });
     await expect(leaveShoppingList("list-1")).resolves.toBeUndefined();
+    await expect(deleteShoppingList("list-1")).resolves.toBeUndefined();
 
     expect(mocks.rpc).toHaveBeenNthCalledWith(1, "create_shopping_list", {
       p_name: "Casa",
@@ -129,6 +133,9 @@ describe("shoppingLists", () => {
       },
     );
     expect(mocks.rpc).toHaveBeenNthCalledWith(4, "leave_shopping_list", {
+      p_list_id: "list-1",
+    });
+    expect(mocks.rpc).toHaveBeenNthCalledWith(5, "delete_shopping_list", {
       p_list_id: "list-1",
     });
   });

@@ -104,6 +104,7 @@ import type {
 import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
 import { isSupabaseConfigured } from "./supabaseConfig";
 import {
+  deleteShoppingList,
   getShoppingLists,
   leaveShoppingList,
   regenerateShoppingListCode,
@@ -4129,6 +4130,33 @@ export function App() {
     }
   }
 
+  async function handleDeleteShoppingList(list: ShoppingList) {
+    if (list.productCount > 0 || list.memberCount > 0) {
+      setShoppingListMessage(
+        `No se puede borrar ${list.name} porque tiene productos o usuarios suscritos.`,
+      );
+      return;
+    }
+
+    if (!window.confirm(`¿Borrar la lista ${list.name}?`)) {
+      return;
+    }
+
+    setIsShoppingListActionPending(true);
+    setShoppingListMessage(null);
+
+    try {
+      await deleteShoppingList(list.id);
+      setShoppingLists((currentLists) =>
+        currentLists.filter((currentList) => currentList.id !== list.id),
+      );
+    } catch {
+      setShoppingListMessage("No se pudo borrar la lista.");
+    } finally {
+      setIsShoppingListActionPending(false);
+    }
+  }
+
   function handlePwaUpdate() {
     setIsPwaUpdateApplying(true);
     window.dispatchEvent(new Event(pwaUpdateApplyEvent));
@@ -5682,16 +5710,34 @@ export function App() {
           <ul className={styles.shoppingListManager}>
             {shoppingLists.map((list) => {
               const isOwner = list.ownerId === authSnapshot.user?.id;
+              const memberCount = list.memberCount ?? 0;
+              const productCount = list.productCount ?? 0;
 
               return (
                 <li key={list.id} className={styles.shoppingListManagerItem}>
                   <div className={styles.shoppingListButton}>
                     <strong>{list.name}</strong>
                     <small>Propietario: {list.ownerEmail}</small>
+                    <small>
+                      {productCount} productos · {memberCount} suscritos
+                    </small>
                   </div>
                   <div className={styles.shoppingListManagerActions}>
                     {isOwner ? (
                       <>
+                        {memberCount === 0 && productCount === 0 ? (
+                          <button
+                            className={styles.iconButtonDanger}
+                            type="button"
+                            aria-label={`Borrar ${list.name}`}
+                            title="Borrar lista"
+                            onPointerDown={handleButtonPointerDown}
+                            onClick={() => void handleDeleteShoppingList(list)}
+                            disabled={isShoppingListActionPending}
+                          >
+                            <Icon name="trash" />
+                          </button>
+                        ) : null}
                         <code>{list.joinCode}</code>
                         <button
                           className={styles.authButton}
@@ -7401,102 +7447,108 @@ export function App() {
             </span>
           </div>
           {isSupabaseConfigured() ? renderShoppingListsCard() : null}
-          {sectionActionMessage ? (
-            <p className={styles.sectionActionMessage} role="status">
-              {sectionActionMessage}
-            </p>
-          ) : null}
-          <ol className={styles.sectionManagerList}>
-            {sections.map((section, index) => {
-              const sectionProductCount = items.filter(
-                (item) => item.sectionId === section.id,
-              ).length;
+          {!isSupabaseConfigured() ? (
+            <>
+              {sectionActionMessage ? (
+                <p className={styles.sectionActionMessage} role="status">
+                  {sectionActionMessage}
+                </p>
+              ) : null}
+              <ol className={styles.sectionManagerList}>
+                {sections.map((section, index) => {
+                  const sectionProductCount = items.filter(
+                    (item) => item.sectionId === section.id,
+                  ).length;
 
-              return (
-                <li
-                  className={`${styles.sectionManagerItem} ${styles[`sectionColor${section.color}`]}`}
-                  key={section.id}
-                >
-                  <span className={styles.sectionPosition}>{index + 1}</span>
-                  <div className={styles.sectionFields}>
-                    <input
-                      className={styles.input}
-                      aria-label={`Nombre de ${section.name}`}
-                      value={section.name}
-                      onChange={(event) =>
-                        handleSectionNameChange(section.id, event)
-                      }
-                      disabled={!isLoaded}
-                      type="text"
-                    />
-                    <div
-                      className={styles.sectionColorPicker}
-                      aria-label={`Color de ${section.name}`}
-                      role="group"
+                  return (
+                    <li
+                      className={`${styles.sectionManagerItem} ${styles[`sectionColor${section.color}`]}`}
+                      key={section.id}
                     >
-                      {shoppingSectionColors.map((color) => (
-                        <button
-                          className={
-                            section.color === color
-                              ? `${styles.sectionColorButton} ${styles.sectionColorButtonSelected} ${styles[`sectionColorSwatch${color}`]}`
-                              : `${styles.sectionColorButton} ${styles[`sectionColorSwatch${color}`]}`
-                          }
-                          type="button"
-                          aria-label={`Poner ${section.name} en color ${color}`}
-                          aria-pressed={section.color === color}
-                          key={color}
-                          onPointerDown={handleButtonPointerDown}
-                          onClick={() =>
-                            handleSectionColorChange(section.id, color)
+                      <span className={styles.sectionPosition}>
+                        {index + 1}
+                      </span>
+                      <div className={styles.sectionFields}>
+                        <input
+                          className={styles.input}
+                          aria-label={`Nombre de ${section.name}`}
+                          value={section.name}
+                          onChange={(event) =>
+                            handleSectionNameChange(section.id, event)
                           }
                           disabled={!isLoaded}
+                          type="text"
                         />
-                      ))}
-                    </div>
-                  </div>
-                  <div className={styles.sectionActions}>
-                    <button
-                      className={styles.iconButton}
-                      type="button"
-                      aria-label={`Subir ${section.name}`}
-                      title="Subir"
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={() => handleMoveSection(section.id, -1)}
-                      disabled={!isLoaded || index === 0}
-                    >
-                      <Icon name="arrowUp" />
-                    </button>
-                    <button
-                      className={styles.iconButton}
-                      type="button"
-                      aria-label={`Bajar ${section.name}`}
-                      title="Bajar"
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={() => handleMoveSection(section.id, 1)}
-                      disabled={!isLoaded || index === sections.length - 1}
-                    >
-                      <Icon name="arrowDown" />
-                    </button>
-                    <button
-                      className={styles.iconButtonDanger}
-                      type="button"
-                      aria-label={`Borrar ${section.name}`}
-                      title={
-                        sectionProductCount > 0
-                          ? "No se puede borrar una lista con productos"
-                          : "Borrar"
-                      }
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={() => handleRemoveSection(section.id)}
-                      disabled={!isLoaded}
-                    >
-                      <Icon name="trash" />
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+                        <div
+                          className={styles.sectionColorPicker}
+                          aria-label={`Color de ${section.name}`}
+                          role="group"
+                        >
+                          {shoppingSectionColors.map((color) => (
+                            <button
+                              className={
+                                section.color === color
+                                  ? `${styles.sectionColorButton} ${styles.sectionColorButtonSelected} ${styles[`sectionColorSwatch${color}`]}`
+                                  : `${styles.sectionColorButton} ${styles[`sectionColorSwatch${color}`]}`
+                              }
+                              type="button"
+                              aria-label={`Poner ${section.name} en color ${color}`}
+                              aria-pressed={section.color === color}
+                              key={color}
+                              onPointerDown={handleButtonPointerDown}
+                              onClick={() =>
+                                handleSectionColorChange(section.id, color)
+                              }
+                              disabled={!isLoaded}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className={styles.sectionActions}>
+                        <button
+                          className={styles.iconButton}
+                          type="button"
+                          aria-label={`Subir ${section.name}`}
+                          title="Subir"
+                          onPointerDown={handleButtonPointerDown}
+                          onClick={() => handleMoveSection(section.id, -1)}
+                          disabled={!isLoaded || index === 0}
+                        >
+                          <Icon name="arrowUp" />
+                        </button>
+                        <button
+                          className={styles.iconButton}
+                          type="button"
+                          aria-label={`Bajar ${section.name}`}
+                          title="Bajar"
+                          onPointerDown={handleButtonPointerDown}
+                          onClick={() => handleMoveSection(section.id, 1)}
+                          disabled={!isLoaded || index === sections.length - 1}
+                        >
+                          <Icon name="arrowDown" />
+                        </button>
+                        <button
+                          className={styles.iconButtonDanger}
+                          type="button"
+                          aria-label={`Borrar ${section.name}`}
+                          title={
+                            sectionProductCount > 0
+                              ? "No se puede borrar una lista con productos"
+                              : "Borrar"
+                          }
+                          onPointerDown={handleButtonPointerDown}
+                          onClick={() => handleRemoveSection(section.id)}
+                          disabled={!isLoaded}
+                        >
+                          <Icon name="trash" />
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </>
+          ) : null}
         </section>
       ) : null}
 

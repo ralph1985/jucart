@@ -382,6 +382,10 @@ function getAuthenticatedShoppingUserId(
     : "rafa";
 }
 
+function isAdministrator(user: AuthSnapshot["user"]) {
+  return user?.email?.trim().toLowerCase() === "rafaelgarcia1985@hotmail.com";
+}
+
 function getInitialHistoryClientId() {
   try {
     const storedClientId = window.localStorage.getItem(
@@ -1385,6 +1389,8 @@ export function App() {
   const currentShoppingUserId = getAuthenticatedShoppingUserId(
     authSnapshot.user,
   );
+  const isCurrentUserAdministrator =
+    !isSupabaseConfigured() || isAdministrator(authSnapshot.user);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState<string | null>(null);
@@ -1767,16 +1773,21 @@ export function App() {
       };
     }
 
-    void getAuthSnapshot().then((snapshot) => {
+    function applyAuthSnapshot(snapshot: AuthSnapshot) {
       if (isActive) {
         setAuthSnapshot(snapshot);
+        if (!isAdministrator(snapshot.user)) {
+          setActiveView((currentView) =>
+            currentView === "developer" ? "shopping" : currentView,
+          );
+        }
       }
-    });
+    }
+
+    void getAuthSnapshot().then(applyAuthSnapshot);
 
     const unsubscribe = subscribeToAuthState((snapshot) => {
-      if (isActive) {
-        setAuthSnapshot(snapshot);
-      }
+      applyAuthSnapshot(snapshot);
     });
 
     return () => {
@@ -2147,7 +2158,7 @@ export function App() {
     }
 
     void refreshDeveloperBackupRun();
-  }, [currentShoppingUserId, isLoaded]);
+  }, [currentShoppingUserId, isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     try {
@@ -4018,6 +4029,10 @@ export function App() {
   }
 
   async function refreshDeveloperBackupRun() {
+    if (!isCurrentUserAdministrator) {
+      return;
+    }
+
     try {
       const { getLatestDeveloperBackupRun } =
         await import("./shoppingItemsSupabase");
@@ -4469,6 +4484,10 @@ export function App() {
   }
 
   function showDeveloperView() {
+    if (!isCurrentUserAdministrator) {
+      return;
+    }
+
     setActiveView("developer");
     setShowUnseenHistoryOnly(false);
     setHistoryTab("changes");
@@ -7558,6 +7577,7 @@ export function App() {
       ) : null}
 
       {activeView === "developer" &&
+      isCurrentUserAdministrator &&
       (!isSupabaseConfigured() || authSnapshot.status === "signed_in") ? (
         <section
           ref={developerScreenRef}
@@ -7685,7 +7705,8 @@ export function App() {
           <Icon name="history" />
           <span>Historial</span>
         </button>
-        {!isSupabaseConfigured() || authSnapshot.status === "signed_in" ? (
+        {isCurrentUserAdministrator &&
+        (!isSupabaseConfigured() || authSnapshot.status === "signed_in") ? (
           <button
             className={
               activeView === "developer"

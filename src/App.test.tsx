@@ -24,6 +24,7 @@ import type { ShoppingData } from "./shoppingItemsDb";
 
 const authMocks = vi.hoisted(() => ({
   status: "signed_out" as "signed_in" | "signed_out",
+  email: "rafaelgarcia1985@hotmail.com",
   getAuthSnapshot: vi.fn(),
   subscribeToAuthState: vi.fn(),
   signInWithPassword: vi.fn(),
@@ -185,6 +186,7 @@ afterEach(async () => {
   await resetShoppingItemsDatabase();
   window.localStorage.clear();
   authMocks.status = "signed_out";
+  authMocks.email = "rafaelgarcia1985@hotmail.com";
   authMocks.getAuthSnapshot.mockReset();
   authMocks.subscribeToAuthState.mockReset();
   authMocks.signInWithPassword.mockReset();
@@ -205,7 +207,7 @@ function configureAuthMocks() {
         authMocks.status === "signed_in"
           ? {
               id: "user-1",
-              email: "rafa@example.com",
+              email: authMocks.email,
             }
           : null,
       error: null,
@@ -216,7 +218,7 @@ function configureAuthMocks() {
       status: authMocks.status,
       user:
         authMocks.status === "signed_in"
-          ? { id: "user-1", email: "rafa@example.com" }
+          ? { id: "user-1", email: authMocks.email }
           : null,
       error: null,
     });
@@ -545,6 +547,20 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Backup Supabase")).toBeInTheDocument();
     expect(screen.getByText("Sin copias registradas")).toBeInTheDocument();
+  });
+
+  it("hides the developer view from normal users", async () => {
+    authMocks.email = "bego15val@gmail.com";
+    configureAuthMocks();
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+
+    render(<App />);
+
+    await waitForAddFab();
+
+    expect(
+      screen.queryByRole("button", { name: "Vista de desarrollador" }),
+    ).not.toBeInTheDocument();
   });
 
   it("gestiona listas autenticadas desde Listas", async () => {

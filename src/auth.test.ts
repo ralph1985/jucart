@@ -13,7 +13,7 @@ const authMocks = vi.hoisted(() => {
       listeners.add(listener);
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     }),
-    signInWithOtp: vi.fn(),
+    signInWithPassword: vi.fn(),
     signOut: vi.fn(),
   };
   const client = { auth };
@@ -32,7 +32,7 @@ const authMocks = vi.hoisted(() => {
       listeners.clear();
       auth.getSession.mockReset();
       auth.onAuthStateChange.mockClear();
-      auth.signInWithOtp.mockReset();
+      auth.signInWithPassword.mockReset();
       auth.signOut.mockReset();
     },
   };
@@ -52,7 +52,7 @@ vi.mock("./supabaseConfig", () => ({
 
 import {
   getAuthSnapshot,
-  sendMagicLink,
+  signInWithPassword,
   signOut,
   subscribeToAuthState,
 } from "./auth";
@@ -69,29 +69,34 @@ describe("auth", () => {
       data: { session: null },
       error: null,
     });
-    authMocks.auth.signInWithOtp.mockResolvedValue({ error: null });
+    authMocks.auth.signInWithPassword.mockResolvedValue({ error: null });
     authMocks.auth.signOut.mockResolvedValue({ error: null });
   });
 
-  it("envía el enlace mágico con el email normalizado", async () => {
-    const result = await sendMagicLink("  RAFA@EXAMPLE.COM ");
+  it("inicia sesión con email y contraseña normalizados", async () => {
+    const result = await signInWithPassword("  RAFA@EXAMPLE.COM ", "123456");
 
     expect(result).toEqual({
       ok: true,
-      message: "Te hemos enviado un enlace para entrar.",
+      message: "Sesión iniciada.",
     });
-    expect(authMocks.auth.signInWithOtp).toHaveBeenCalledWith({
+    expect(authMocks.auth.signInWithPassword).toHaveBeenCalledWith({
       email: "rafa@example.com",
-      options: { emailRedirectTo: window.location.origin },
+      password: "123456",
     });
   });
 
-  it("rechaza un email vacío antes de llamar a Supabase", async () => {
-    const result = await sendMagicLink("   ");
+  it("rechaza email y contraseña vacíos antes de llamar a Supabase", async () => {
+    const result = await signInWithPassword("   ", "");
 
     expect(result.ok).toBe(false);
     expect(result.message).toBe("Escribe tu email.");
-    expect(authMocks.auth.signInWithOtp).not.toHaveBeenCalled();
+    expect(authMocks.auth.signInWithPassword).not.toHaveBeenCalled();
+
+    await expect(signInWithPassword("rafa@example.com", "")).resolves.toEqual({
+      ok: false,
+      message: "Escribe tu contraseña.",
+    });
   });
 
   it("lee una sesión iniciada", async () => {
@@ -172,10 +177,12 @@ describe("auth", () => {
   });
 
   it("muestra los errores de envío y cierre de sesión", async () => {
-    authMocks.auth.signInWithOtp.mockResolvedValueOnce({
+    authMocks.auth.signInWithPassword.mockResolvedValueOnce({
       error: new Error("Email rechazado"),
     });
-    await expect(sendMagicLink("rafa@example.com")).resolves.toEqual({
+    await expect(
+      signInWithPassword("rafa@example.com", "123456"),
+    ).resolves.toEqual({
       ok: false,
       message: "Email rechazado",
     });
@@ -190,13 +197,15 @@ describe("auth", () => {
   it("mantiene un fallback claro cuando Supabase no está configurado", async () => {
     supabaseConfigMock.getSupabaseConfig.mockReturnValue(null);
 
-    await expect(sendMagicLink("rafa@example.com")).resolves.toEqual({
+    await expect(
+      signInWithPassword("rafa@example.com", "123456"),
+    ).resolves.toEqual({
       ok: false,
-      message: "El acceso por email no está configurado.",
+      message: "El acceso no está configurado.",
     });
     await expect(signOut()).resolves.toEqual({
       ok: false,
-      message: "El acceso por email no está configurado.",
+      message: "El acceso no está configurado.",
     });
 
     const listener = vi.fn();

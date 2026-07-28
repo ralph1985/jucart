@@ -5,6 +5,8 @@ export type SupabaseConfig = {
 };
 
 export const activeSupabaseListStorageKey = "jucart:active-list-id";
+export const defaultSupabaseListId = "10000000-0000-4000-8000-000000000001";
+const legacySupabaseListId = "00000000-0000-4000-8000-000000000001";
 
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -50,8 +52,12 @@ export function getSupabaseConfig(): SupabaseConfig | null {
     .getItem(activeSupabaseListStorageKey)
     ?.trim();
 
-  return activeListId && isUuid(activeListId)
-    ? { ...config, listId: activeListId }
+  if (activeListId && isUuid(activeListId)) {
+    return { ...config, listId: activeListId };
+  }
+
+  return config.listId === legacySupabaseListId
+    ? { ...config, listId: defaultSupabaseListId }
     : config;
 }
 

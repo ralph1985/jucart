@@ -20,7 +20,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import styles from "./App.module.scss";
 import {
   getAuthSnapshot,
-  sendMagicLink,
+  signInWithPassword,
   signOut,
   subscribeToAuthState,
 } from "./auth";
@@ -111,9 +111,7 @@ import {
   isSupabaseConfigured,
 } from "./supabaseConfig";
 import {
-  createShoppingList,
   getShoppingLists,
-  joinShoppingList,
   leaveShoppingList,
   regenerateShoppingListCode,
 } from "./shoppingLists";
@@ -1400,11 +1398,10 @@ export function App() {
     error: null,
   });
   const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [isAuthActionPending, setIsAuthActionPending] = useState(false);
   const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>([]);
-  const [shoppingListName, setShoppingListName] = useState("");
-  const [shoppingListJoinCode, setShoppingListJoinCode] = useState("");
   const [shoppingListMessage, setShoppingListMessage] = useState<string | null>(
     null,
   );
@@ -4086,12 +4083,12 @@ export function App() {
     setIsPushInviteDismissed(true);
   }
 
-  async function handleMagicLinkSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsAuthActionPending(true);
     setAuthMessage(null);
 
-    const result = await sendMagicLink(authEmail);
+    const result = await signInWithPassword(authEmail, authPassword);
 
     if (result.ok) {
       setAuthMessage(result.message);
@@ -4109,48 +4106,6 @@ export function App() {
     window.localStorage.removeItem(activeSupabaseListStorageKey);
     setAuthMessage(result.message);
     setIsAuthActionPending(false);
-  }
-
-  async function handleCreateShoppingList(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsShoppingListActionPending(true);
-    setShoppingListMessage(null);
-
-    try {
-      const list = await createShoppingList(shoppingListName);
-      window.localStorage.setItem(activeSupabaseListStorageKey, list.id);
-      setShoppingListName("");
-      setShoppingListMessage(`Lista creada. Código: ${list.joinCode}`);
-      setShoppingLists((currentLists) => [...currentLists, list]);
-      window.location.reload();
-    } catch {
-      setShoppingListMessage("No se pudo crear la lista.");
-    } finally {
-      setIsShoppingListActionPending(false);
-    }
-  }
-
-  async function handleJoinShoppingList(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsShoppingListActionPending(true);
-    setShoppingListMessage(null);
-
-    try {
-      const list = await joinShoppingList(shoppingListJoinCode);
-      window.localStorage.setItem(activeSupabaseListStorageKey, list.id);
-      setShoppingListJoinCode("");
-      setShoppingListMessage(`Te has unido a «${list.name}».`);
-      setShoppingLists((currentLists) =>
-        currentLists.some((currentList) => currentList.id === list.id)
-          ? currentLists
-          : [...currentLists, list],
-      );
-      window.location.reload();
-    } catch {
-      setShoppingListMessage("El código no es válido o no se pudo usar.");
-    } finally {
-      setIsShoppingListActionPending(false);
-    }
   }
 
   function handleSelectShoppingList(listId: string) {
@@ -5610,82 +5565,77 @@ export function App() {
     );
   }
 
-  function renderDeveloperAuthCard() {
+  function renderLoginScreen() {
     if (!isSupabaseConfigured()) {
       return null;
     }
 
     if (authSnapshot.status === "loading") {
       return (
-        <section className={styles.developerPanel} aria-label="Autenticación">
-          <div className={styles.developerPanelHeader}>
-            <h3>Autenticación</h3>
-            <span className={styles.developerStatusFailed}>
-              Comprobando sesión…
+        <main className={styles.loginScreen} aria-label="Iniciar sesión">
+          <section className={styles.loginCard}>
+            <span className={styles.splashLogo} aria-hidden="true">
+              <HeaderLogo />
             </span>
-          </div>
-        </section>
+            <p className={styles.splashKicker}>Lista de la compra</p>
+            <h1>Jucart</h1>
+            <p className={styles.loginStatus}>Comprobando sesión…</p>
+          </section>
+        </main>
       );
     }
 
     if (authSnapshot.status === "signed_in" && authSnapshot.user) {
-      return (
-        <section className={styles.developerPanel} aria-label="Autenticación">
-          <div className={styles.developerPanelHeader}>
-            <h3>Autenticación</h3>
-            <span className={styles.developerStatusSuccess}>Sesión activa</span>
-          </div>
-          <div className={styles.developerAuthRow}>
-            <span className={styles.authStatus}>
-              {authSnapshot.user.email ?? "Sesión iniciada"}
-            </span>
-            <button
-              className={styles.authButton}
-              type="button"
-              onPointerDown={handleButtonPointerDown}
-              onClick={handleSignOut}
-              disabled={isAuthActionPending}
-            >
-              Cerrar sesión
-            </button>
-          </div>
-        </section>
-      );
+      return null;
     }
 
     return (
-      <section className={styles.developerPanel} aria-label="Autenticación">
-        <div className={styles.developerPanelHeader}>
-          <h3>Autenticación</h3>
-          <span className={styles.developerStatusFailed}>Sin sesión</span>
-        </div>
-        <form
-          className={styles.developerAuthForm}
-          onSubmit={handleMagicLinkSubmit}
-        >
-          <label className={styles.authLabel} htmlFor="auth-email">
-            Email de prueba
-          </label>
-          <div className={styles.developerAuthRow}>
+      <main className={styles.loginScreen} aria-label="Iniciar sesión">
+        <section className={styles.loginCard}>
+          <span className={styles.splashLogo} aria-hidden="true">
+            <HeaderLogo />
+          </span>
+          <p className={styles.splashKicker}>Lista de la compra</p>
+          <h1>Jucart</h1>
+          <p className={styles.loginIntro}>
+            Inicia sesión para ver tus listas.
+          </p>
+          <form className={styles.loginForm} onSubmit={handlePasswordSubmit}>
+            <label className={styles.authLabel} htmlFor="auth-email">
+              Email
+            </label>
             <input
               id="auth-email"
               className={styles.authInput}
               type="email"
-              autoComplete="email"
+              autoComplete="username"
               placeholder="Tu email"
               value={authEmail}
               onChange={(event) => setAuthEmail(event.target.value)}
               disabled={isAuthActionPending}
             />
+            <label className={styles.authLabel} htmlFor="auth-password">
+              Contraseña
+            </label>
+            <input
+              id="auth-password"
+              className={styles.authInput}
+              type="password"
+              autoComplete="current-password"
+              placeholder="Tu contraseña"
+              value={authPassword}
+              onChange={(event) => setAuthPassword(event.target.value)}
+              disabled={isAuthActionPending}
+            />
             <button
-              className={styles.authButton}
+              className={styles.primaryButton}
               type="submit"
               onPointerDown={handleButtonPointerDown}
               disabled={isAuthActionPending}
             >
-              {isAuthActionPending ? "Enviando…" : "Enviar enlace"}
+              {isAuthActionPending ? "Entrando…" : "Entrar"}
             </button>
-          </div>
+          </form>
           {authMessage ? (
             <p className={styles.authMessage} role="status">
               {authMessage}
@@ -5696,7 +5646,36 @@ export function App() {
               {authSnapshot.error}
             </p>
           ) : null}
-        </form>
+        </section>
+      </main>
+    );
+  }
+
+  function renderDeveloperAuthCard() {
+    if (authSnapshot.status !== "signed_in" || !authSnapshot.user) {
+      return null;
+    }
+
+    return (
+      <section className={styles.developerPanel} aria-label="Autenticación">
+        <div className={styles.developerPanelHeader}>
+          <h3>Autenticación</h3>
+          <span className={styles.developerStatusSuccess}>Sesión activa</span>
+        </div>
+        <div className={styles.developerAuthRow}>
+          <span className={styles.authStatus}>
+            {authSnapshot.user.email ?? "Sesión iniciada"}
+          </span>
+          <button
+            className={styles.authButton}
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={handleSignOut}
+            disabled={isAuthActionPending}
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </section>
     );
   }
@@ -5778,64 +5757,9 @@ export function App() {
             No tienes listas todavía. Crea una o usa un código de invitación.
           </p>
         )}
-        <form
-          className={styles.developerAuthForm}
-          onSubmit={(event) => void handleCreateShoppingList(event)}
-        >
-          <label className={styles.authLabel} htmlFor="shopping-list-name">
-            Crear lista
-          </label>
-          <div className={styles.developerAuthRow}>
-            <input
-              id="shopping-list-name"
-              className={styles.authInput}
-              type="text"
-              placeholder="Nombre de la lista"
-              value={shoppingListName}
-              onChange={(event) => setShoppingListName(event.target.value)}
-              disabled={isShoppingListActionPending}
-            />
-            <button
-              className={styles.authButton}
-              type="submit"
-              onPointerDown={handleButtonPointerDown}
-              disabled={isShoppingListActionPending || !shoppingListName.trim()}
-            >
-              Crear
-            </button>
-          </div>
-        </form>
-        <form
-          className={styles.developerAuthForm}
-          onSubmit={(event) => void handleJoinShoppingList(event)}
-        >
-          <label className={styles.authLabel} htmlFor="shopping-list-code">
-            Unirse con código
-          </label>
-          <div className={styles.developerAuthRow}>
-            <input
-              id="shopping-list-code"
-              className={styles.authInput}
-              type="text"
-              inputMode="text"
-              autoCapitalize="characters"
-              placeholder="AB12CD34"
-              value={shoppingListJoinCode}
-              onChange={(event) => setShoppingListJoinCode(event.target.value)}
-              disabled={isShoppingListActionPending}
-            />
-            <button
-              className={styles.authButton}
-              type="submit"
-              onPointerDown={handleButtonPointerDown}
-              disabled={
-                isShoppingListActionPending || !shoppingListJoinCode.trim()
-              }
-            >
-              Unirse
-            </button>
-          </div>
-        </form>
+        <p className={styles.authMessage}>
+          Estas son las listas compartidas disponibles durante la migración.
+        </p>
         {shoppingListMessage ? (
           <p className={styles.authMessage} role="status">
             {shoppingListMessage}
@@ -5869,6 +5793,10 @@ export function App() {
         </button>
       </aside>
     );
+  }
+
+  if (isSupabaseConfigured() && authSnapshot.status !== "signed_in") {
+    return renderLoginScreen();
   }
 
   return (
@@ -7696,7 +7624,8 @@ export function App() {
         </section>
       ) : null}
 
-      {activeView === "developer" && selectedUserId === "rafa" ? (
+      {activeView === "developer" &&
+      (!isSupabaseConfigured() || authSnapshot.status === "signed_in") ? (
         <section
           ref={developerScreenRef}
           className={styles.developerScreen}
@@ -7704,7 +7633,7 @@ export function App() {
         >
           <div className={styles.sectionsHeader}>
             <h2 id="developer-title">Dev</h2>
-            <span className={styles.count}>Rafa</span>
+            <span className={styles.count}>Sesión activa</span>
           </div>
           {renderDeveloperAuthCard()}
           {renderShoppingListsCard()}
@@ -7824,7 +7753,7 @@ export function App() {
           <Icon name="history" />
           <span>Historial</span>
         </button>
-        {selectedUserId === "rafa" ? (
+        {!isSupabaseConfigured() || authSnapshot.status === "signed_in" ? (
           <button
             className={
               activeView === "developer"

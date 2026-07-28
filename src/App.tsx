@@ -5736,7 +5736,10 @@ export function App() {
                     disabled={isActive || isShoppingListActionPending}
                   >
                     <strong>{list.name}</strong>
-                    <small>{isActive ? "Activa" : "Usar esta lista"}</small>
+                    <small>
+                      Propietario: {list.ownerEmail}
+                      {isActive ? " · Activa" : " · Usar esta lista"}
+                    </small>
                   </button>
                   <div className={styles.shoppingListManagerActions}>
                     {isOwner ? (

@@ -518,6 +518,7 @@ Objetivo: permitir que cada usuario cree listas independientes y se una a otras 
 
 - [x] Permitir crear y consultar las listas del usuario mediante tablas y funciones seguras.
 - [x] Asociar cada lista a su propietario y a sus miembros.
+- [x] Mostrar durante la transición el email del propietario junto a cada lista.
 - [ ] Permitir que las filas actuales sigan resolviéndose mediante su `list_id` durante la transición.
 - [x] Mostrar un estado inicial para usuarios autenticados sin listas, invitándoles a crear la primera.
 - [x] Ofrecer desde ese estado la entrada mediante código cuando hayan sido invitados a otra lista.

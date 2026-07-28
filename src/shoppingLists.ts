@@ -7,6 +7,7 @@ export type ShoppingList = {
   name: string;
   ownerId: string;
   joinCode: string;
+  ownerEmail: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -18,6 +19,7 @@ type ShoppingListRow = {
   join_code: string;
   created_at: string;
   updated_at: string;
+  owner_email: string;
 };
 
 let client: SupabaseClient | null = null;
@@ -39,6 +41,7 @@ function mapShoppingList(row: ShoppingListRow): ShoppingList {
     name: row.name,
     ownerId: row.owner_id,
     joinCode: row.join_code,
+    ownerEmail: row.owner_email,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -55,10 +58,7 @@ export async function getShoppingLists() {
     throw getUnavailableMessage();
   }
 
-  const { data, error } = await supabase
-    .from("shopping_lists")
-    .select("id,name,owner_id,join_code,created_at,updated_at")
-    .order("created_at", { ascending: true });
+  const { data, error } = await supabase.rpc("get_shopping_lists_for_user");
 
   if (error) {
     throw error;

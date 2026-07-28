@@ -36,6 +36,7 @@ const shoppingListMocks = vi.hoisted(() => ({
     name: string;
     ownerId: string;
     joinCode: string;
+    ownerEmail: string;
     createdAt: string;
     updatedAt: string;
   }>,
@@ -577,6 +578,7 @@ describe("App", () => {
         name: "Casa",
         ownerId: "user-1",
         joinCode: "AB12CD34",
+        ownerEmail: "rafa@example.com",
         createdAt: "2026-07-27T12:00:00.000Z",
         updatedAt: "2026-07-27T12:00:00.000Z",
       },
@@ -585,6 +587,7 @@ describe("App", () => {
         name: "Begoña",
         ownerId: "user-2",
         joinCode: "EF56GH78",
+        ownerEmail: "bego@example.com",
         createdAt: "2026-07-27T13:00:00.000Z",
         updatedAt: "2026-07-27T13:00:00.000Z",
       },

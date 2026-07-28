@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => {
       name: "Casa",
       owner_id: "user-1",
       join_code: "AB12CD34",
+      owner_email: "rafa@example.com",
       created_at: "2026-07-27T12:00:00.000Z",
       updated_at: "2026-07-27T12:00:00.000Z",
     },
@@ -73,6 +74,8 @@ describe("shoppingLists", () => {
   });
 
   it("loads and maps the authenticated user's lists", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: mocks.rows, error: null });
+
     await expect(getShoppingLists()).resolves.toEqual([
       {
         createdAt: "2026-07-27T12:00:00.000Z",
@@ -80,10 +83,11 @@ describe("shoppingLists", () => {
         joinCode: "AB12CD34",
         name: "Casa",
         ownerId: "user-1",
+        ownerEmail: "rafa@example.com",
         updatedAt: "2026-07-27T12:00:00.000Z",
       },
     ]);
-    expect(mocks.from).toHaveBeenCalledWith("shopping_lists");
+    expect(mocks.rpc).toHaveBeenCalledWith("get_shopping_lists_for_user");
   });
 
   it("uses the list RPCs for create, join, regenerate, and leave", async () => {
@@ -157,7 +161,7 @@ describe("shoppingLists", () => {
 
   it("propagates list query and RPC errors", async () => {
     const error = new Error("remote error");
-    mocks.order.mockResolvedValueOnce({
+    mocks.rpc.mockResolvedValueOnce({
       data: null as never,
       error: error as never,
     });
@@ -177,9 +181,9 @@ describe("shoppingLists", () => {
 
     await expect(createShoppingList("Casa")).rejects.toThrow("remote error");
     await expect(joinShoppingList("AB12CD34")).rejects.toThrow("remote error");
-    await expect(
-      regenerateShoppingListCode("list-1"),
-    ).rejects.toThrow("remote error");
+    await expect(regenerateShoppingListCode("list-1")).rejects.toThrow(
+      "remote error",
+    );
     await expect(leaveShoppingList("list-1")).rejects.toThrow("remote error");
   });
 });

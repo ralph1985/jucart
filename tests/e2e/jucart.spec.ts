@@ -131,7 +131,6 @@ test("loads the local app shell", async ({ page }) => {
 test("refreshes every mobile view with pull-to-refresh", async ({ page }) => {
   const views = [
     "Tickets",
-    "Congelador",
     "Gestionar listas",
     "Historial",
     "Vista de desarrollador",
@@ -174,7 +173,9 @@ test("keeps local products after reloading", async ({ page }) => {
   await expect(page.getByText("Pan e2e")).toBeVisible();
 });
 
-test("adds a freezer product from the bottom sheet", async ({ page }) => {
+test.skip("adds a freezer product from the bottom sheet while the view is hidden", async ({
+  page,
+}) => {
   await page.getByRole("button", { name: "Congelador" }).click();
   await page.getByRole("button", { name: "Añadir producto congelado" }).click();
 

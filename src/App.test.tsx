@@ -367,7 +367,7 @@ describe("App", () => {
     expect(shoppingItemsDb.getCachedShoppingData).toHaveBeenCalledTimes(2);
   });
 
-  it("adds, uses and restores freezer items", async () => {
+  it.skip("adds, uses and restores freezer items while the view is hidden", async () => {
     render(<App />);
 
     await waitForAddFab();
@@ -1829,7 +1829,7 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not apply a stale Supabase refresh over a freezer move", async () => {
+  it.skip("does not apply a stale Supabase refresh over a freezer move while the view is hidden", async () => {
     let resolveStaleRefresh: (data: ShoppingData) => void = () => {};
     const staleRefreshPromise = new Promise<ShoppingData>((resolve) => {
       resolveStaleRefresh = resolve;
@@ -1905,7 +1905,7 @@ describe("App", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps a moved freezer item stable when the post-save Supabase echo is stale", async () => {
+  it.skip("keeps a moved freezer item stable when the post-save Supabase echo is stale while the view is hidden", async () => {
     let onSupabaseChange: (() => void) | undefined;
     let resolveStoreData: () => void = () => {};
     const storeDataPromise = new Promise<void>((resolve) => {
@@ -2158,7 +2158,10 @@ describe("App", () => {
       within(navigation)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Lista", "Tickets", "Congelador", "Listas", "Historial", "Dev"]);
+    ).toEqual(["Lista", "Tickets", "Listas", "Historial", "Dev"]);
+    expect(
+      within(navigation).queryByRole("button", { name: "Congelador" }),
+    ).not.toBeInTheDocument();
     expect(navigation.className).not.toContain("bottomNavHidden");
     expect(
       within(navigation).getByRole("button", { name: "Lista" }),

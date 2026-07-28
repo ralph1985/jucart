@@ -160,6 +160,7 @@ const initialPushNotificationSnapshot: PushNotificationSnapshot = {
   status: "syncing",
   message: "Comprobando",
 };
+const freezerViewEnabled = false;
 
 type AppView =
   "shopping" | "freezer" | "tickets" | "sections" | "history" | "developer";
@@ -4270,16 +4271,6 @@ export function App() {
     runHapticFeedback("light");
   }
 
-  function showFreezerView() {
-    setActiveView("freezer");
-    setShowUnseenHistoryOnly(false);
-    setHistoryTab("changes");
-    setUnseenHistoryEventsForView([]);
-    setUnseenRecategorizationChangesForView([]);
-    setUnseenProductNormalizationChangesForView([]);
-    runHapticFeedback("light");
-  }
-
   function showTicketsView() {
     setActiveView("tickets");
     setShowUnseenHistoryOnly(false);
@@ -6168,7 +6159,8 @@ export function App() {
         </button>
       ) : null}
 
-      {activeView === "freezer" &&
+      {freezerViewEnabled &&
+      activeView === "freezer" &&
       !isFreezerAddSheetOpen &&
       !editingFreezerItem ? (
         <button
@@ -6715,7 +6707,9 @@ export function App() {
         </div>
       ) : null}
 
-      {activeView === "freezer" && isFreezerAddSheetOpen ? (
+      {freezerViewEnabled &&
+      activeView === "freezer" &&
+      isFreezerAddSheetOpen ? (
         <div
           ref={freezerAddSheetBackdropRef}
           className={styles.addSheetBackdrop}
@@ -7135,7 +7129,7 @@ export function App() {
         </>
       ) : null}
 
-      {activeView === "freezer" ? (
+      {freezerViewEnabled && activeView === "freezer" ? (
         <section
           ref={freezerScreenRef}
           className={styles.freezerScreen}
@@ -7871,20 +7865,22 @@ export function App() {
           <Icon name="ticket" />
           <span>Tickets</span>
         </button>
-        <button
-          className={
-            activeView === "freezer"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={showFreezerView}
-          disabled={!isLoaded}
-        >
-          <Icon name="freezer" />
-          <span>Congelador</span>
-        </button>
+        {freezerViewEnabled ? (
+          <button
+            className={
+              activeView === "freezer"
+                ? styles.bottomNavItemActive
+                : styles.bottomNavItem
+            }
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={() => setActiveView("freezer")}
+            disabled={!isLoaded}
+          >
+            <Icon name="freezer" />
+            <span>Congelador</span>
+          </button>
+        ) : null}
         <button
           className={
             activeView === "sections"
@@ -8096,7 +8092,7 @@ export function App() {
         </div>
       ) : null}
 
-      {editingFreezerItem ? (
+      {freezerViewEnabled && editingFreezerItem ? (
         <div
           ref={freezerEditSheetBackdropRef}
           className={styles.addSheetBackdrop}

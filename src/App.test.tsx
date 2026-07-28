@@ -488,7 +488,7 @@ describe("App", () => {
     expect(
       screen.getByRole("button", { name: "Añadir producto" }),
     ).toBeDisabled();
-    expect(screen.getByLabelText("Añadido por")).toBeDisabled();
+    expect(screen.queryByLabelText("Añadido por")).not.toBeInTheDocument();
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
 
     await act(async () => {
@@ -941,9 +941,6 @@ describe("App", () => {
     fireEvent.focus(quantityInput);
     expect(quantityInput.selectionStart).toBe(0);
     expect(quantityInput.selectionEnd).toBe(2);
-    fireEvent.change(screen.getByLabelText("Añadido por"), {
-      target: { value: "begona" },
-    });
     fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
 
     await waitFor(() => expect(productInput).toHaveFocus());
@@ -961,7 +958,7 @@ describe("App", () => {
       within(alcampoColumn as HTMLElement).getByText("x12"),
     ).toBeInTheDocument();
     expect(
-      within(alcampoColumn as HTMLElement).getByText("Begoña"),
+      within(alcampoColumn as HTMLElement).getByText("Rafa"),
     ).toBeInTheDocument();
 
     const itemCard = within(alcampoColumn as HTMLElement)
@@ -2077,9 +2074,8 @@ describe("App", () => {
     expect(screen.queryByText("Producto borrado.")).not.toBeInTheDocument();
   });
 
-  it("restores the last selected section and user", async () => {
+  it("restores the last selected section", async () => {
     window.localStorage.setItem("jucart:selected-section-id", "farmacia");
-    window.localStorage.setItem("jucart:selected-user-id", "begona");
     window.localStorage.setItem("jucart:show-purchased-items", "false");
 
     render(<App />);
@@ -2089,18 +2085,16 @@ describe("App", () => {
     expect(within(dialog).getByLabelText("Supermercado")).toHaveValue(
       "farmacia",
     );
-    expect(screen.getByLabelText("Añadido por")).toHaveValue("begona");
     expect(screen.getByLabelText("Comprados")).not.toBeChecked();
   });
 
-  it("shows sheet fields without user selector", async () => {
+  it("shows sheet fields without manual user selector", async () => {
     render(<App />);
 
     const dialog = await openAddSheet();
 
     const sectionSelect = within(dialog).getByLabelText("Supermercado");
     const quantitySelect = within(dialog).getByLabelText("Cantidad");
-    const userSelect = screen.getByLabelText("Añadido por");
     const productInput = within(dialog).getByLabelText("Producto");
 
     expect(
@@ -2111,7 +2105,7 @@ describe("App", () => {
       productInput.compareDocumentPosition(quantitySelect) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(dialog).not.toContainElement(userSelect);
+    expect(screen.queryByLabelText("Añadido por")).not.toBeInTheDocument();
   });
 
   it("shows the view selector in the main shopping view", async () => {

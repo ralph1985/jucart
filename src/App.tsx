@@ -56,7 +56,6 @@ import {
   moveShoppingSection,
   getShoppingUserName,
   isShoppingSectionId,
-  isShoppingUserId,
   removeShoppingSection,
   removeShoppingItem,
   renameShoppingSection,
@@ -79,8 +78,6 @@ import {
   ShoppingTicket,
   ShoppingTicketFile,
   ShoppingTicketStatus,
-  ShoppingUserId,
-  shoppingUsers,
   sortShoppingItemsForShopping,
   toggleShoppingItem,
   updateShoppingItemPurchasedState,
@@ -119,7 +116,6 @@ import {
 import { updateBadge } from "./services/badgeService";
 
 const selectedSectionStorageKey = "jucart:selected-section-id";
-const selectedUserStorageKey = "jucart:selected-user-id";
 const showPurchasedItemsStorageKey = "jucart:show-purchased-items";
 const historyClientIdStorageKey = "jucart:history-client-id";
 const lastSeenHistoryEventAtStorageKey = "jucart:last-seen-history-event-at";
@@ -368,18 +364,6 @@ function getInitialSelectedSectionId(): ShoppingSectionId {
   }
 }
 
-function getInitialSelectedUserId(): ShoppingUserId {
-  try {
-    const storedUserId = window.localStorage.getItem(selectedUserStorageKey);
-
-    return storedUserId && isShoppingUserId(storedUserId)
-      ? storedUserId
-      : "rafa";
-  } catch {
-    return "rafa";
-  }
-}
-
 function getInitialShowPurchasedItems() {
   try {
     return (
@@ -388,6 +372,14 @@ function getInitialShowPurchasedItems() {
   } catch {
     return true;
   }
+}
+
+function getAuthenticatedShoppingUserId(
+  user: AuthSnapshot["user"],
+): "rafa" | "begona" {
+  return user?.email?.trim().toLowerCase() === "bego15val@gmail.com"
+    ? "begona"
+    : "rafa";
 }
 
 function getInitialHistoryClientId() {
@@ -1365,9 +1357,6 @@ export function App() {
   const [selectedSectionId, setSelectedSectionId] = useState<ShoppingSectionId>(
     getInitialSelectedSectionId,
   );
-  const [selectedUserId, setSelectedUserId] = useState<ShoppingUserId>(
-    getInitialSelectedUserId,
-  );
   const [showPurchasedItems, setShowPurchasedItems] = useState(
     getInitialShowPurchasedItems,
   );
@@ -1393,6 +1382,9 @@ export function App() {
     user: null,
     error: null,
   });
+  const currentShoppingUserId = getAuthenticatedShoppingUserId(
+    authSnapshot.user,
+  );
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState<string | null>(null);
@@ -2150,20 +2142,12 @@ export function App() {
   }, [selectedSectionId]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(selectedUserStorageKey, selectedUserId);
-    } catch {
-      return;
-    }
-  }, [selectedUserId]);
-
-  useEffect(() => {
-    if (!isLoaded || selectedUserId !== "rafa") {
+    if (!isLoaded || currentShoppingUserId !== "rafa") {
       return;
     }
 
     void refreshDeveloperBackupRun();
-  }, [isLoaded, selectedUserId]);
+  }, [currentShoppingUserId, isLoaded]);
 
   useEffect(() => {
     try {
@@ -3269,7 +3253,7 @@ export function App() {
       items,
       rawName,
       selectedSectionId,
-      selectedUserId,
+      currentShoppingUserId,
       undefined,
       undefined,
       rawQuantity,
@@ -3420,7 +3404,7 @@ export function App() {
       createShoppingHistoryEvent(
         item,
         type,
-        selectedUserId,
+        currentShoppingUserId,
         historyClientId,
         sectionName,
         previousItem,
@@ -3444,7 +3428,7 @@ export function App() {
         return createShoppingHistoryEvent(
           item,
           type,
-          selectedUserId,
+          currentShoppingUserId,
           historyClientId,
           sectionName,
         );
@@ -3798,14 +3782,6 @@ export function App() {
 
     if (isVisible) {
       setLastHiddenPurchasedItem(null);
-    }
-  }
-
-  function handleSelectedUserChange(nextUserId: ShoppingUserId) {
-    setSelectedUserId(nextUserId);
-
-    if (nextUserId !== "rafa" && activeView === "developer") {
-      setActiveView("shopping");
     }
   }
 
@@ -4285,7 +4261,7 @@ export function App() {
       await uploadSupabaseShoppingTicket({
         files: ticketUploadFiles,
         sectionId: ticketUploadSectionId,
-        uploadedBy: selectedUserId,
+        uploadedBy: currentShoppingUserId,
       });
       const nextTickets = await getSupabaseShoppingTickets();
 
@@ -5864,26 +5840,6 @@ export function App() {
             ) : null}
             {getSyncStatusText(syncStatus)}
           </p>
-          <div className={styles.headerUserField}>
-            <label className={styles.headerUserLabel} htmlFor="user-id">
-              Añadido por
-            </label>
-            <select
-              id="user-id"
-              className={styles.headerUserSelect}
-              value={selectedUserId}
-              onChange={(event) =>
-                handleSelectedUserChange(event.target.value as ShoppingUserId)
-              }
-              disabled={!isLoaded}
-            >
-              {shoppingUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
       </section>
 

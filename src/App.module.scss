@@ -628,34 +628,6 @@ h2 {
   animation: syncStatusPulse 1s ease-in-out infinite;
 }
 
-.headerUserField {
-  grid-column: 2;
-  display: grid;
-  gap: 0.08rem;
-  min-width: 5.2rem;
-}
-
-.headerUserLabel {
-  color: #536b7c;
-  font-size: 0.5rem;
-  font-weight: 850;
-  line-height: 1;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.headerUserSelect {
-  width: 100%;
-  min-height: 1.65rem;
-  border: 1px solid rgb(148 163 184 / 24%);
-  border-radius: 0.4rem;
-  padding: 0 0.38rem;
-  background: rgb(255 255 255 / 58%);
-  color: #102033;
-  font-size: 0.74rem;
-  font-weight: 800;
-}
-
 .bottomNav {
   position: fixed;
   z-index: 8;
@@ -1381,7 +1353,6 @@ h2 {
 .searchField:focus-within,
 .searchClearButton:focus-visible,
 .visibilityToggle:focus-within,
-.headerUserSelect:focus-visible,
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
 .dangerButton:focus-visible,
@@ -2986,16 +2957,10 @@ h2 {
     display: none;
   }
 
-  .syncStatus,
-  .headerUserField {
+  .syncStatus {
     grid-column: 1;
     width: 5.2rem;
     min-width: 0;
-  }
-
-  .headerUserSelect {
-    min-height: 1.7rem;
-    font-size: 0.74rem;
   }
 
   .visibilityToggle {

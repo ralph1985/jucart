@@ -18,6 +18,7 @@ import { animate, stagger } from "animejs";
 import useEmblaCarousel from "embla-carousel-react";
 
 import styles from "./App.module.scss";
+import { formatAppDate, getCurrentAppRelease } from "./appVersion";
 import {
   getAuthSnapshot,
   signInWithPassword,
@@ -1289,6 +1290,7 @@ async function getStoredPriceObservations() {
 }
 
 export function App() {
+  const appRelease = useState(getCurrentAppRelease)[0];
   const [activeView, setActiveView] = useState<AppView>("shopping");
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [freezerItems, setFreezerItems] = useState<FreezerItem[]>([]);
@@ -6053,6 +6055,10 @@ export function App() {
               <span className={styles.syncStatusIndicator} aria-hidden="true" />
             ) : null}
             {getSyncStatusText(syncStatus)}
+          </p>
+          <p className={styles.appVersion} aria-label="Versión instalada">
+            v{appRelease.version} · build {formatAppDate(appRelease.buildDate)}{" "}
+            · activa {formatAppDate(appRelease.activatedAt)}
           </p>
         </div>
       </section>

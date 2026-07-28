@@ -201,6 +201,8 @@ La lista actual se migra conservando sus datos y se divide por supermercado sin 
 
 Las actualizaciones del shell de la PWA no deben exigir a las personas borrar datos del navegador, desinstalar la aplicación ni limpiar manualmente la caché. El Service Worker seguirá usando recursos versionados y la aplicación detectará cuando haya una versión nueva esperando. En ese caso mostrará un aviso con una acción `Actualizar`, que activará la nueva versión y recargará la pestaña conservando IndexedDB/Dexie. La aplicación también comprobará actualizaciones al iniciar y al volver a primer plano para resolver el caso de una pestaña que llevaba tiempo abierta. La primera versión que incluye este mecanismo ejecutará además una migración única: al activarse, recargará los clientes antiguos que ya estuvieran controlados y guardará una marca para no repetir esa recarga en futuras actualizaciones.
 
+La release visible usa SemVer desde `package.json`. La cabecera muestra la versión, la fecha de build y la fecha en que el navegador activó esa versión. El coordinador revisa periódicamente si los cambios acumulados justifican un incremento y pregunta antes de modificar la versión.
+
 ## Notificaciones push
 
 El Hito 30 planifica notificaciones push para avisar de cambios remotos relevantes en Jucart cuando la PWA no esté abierta.

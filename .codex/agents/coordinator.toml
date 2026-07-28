@@ -9,6 +9,11 @@ Antes de actuar, clasifica:
 - archivos probables;
 - si basta revisión ligera o hace falta `qa_final_reviewer`.
 
+Control de versión:
+- Revisa si procede una nueva versión al terminar una funcionalidad relevante, cerrar un hito o preparar un commit con varios cambios acumulados.
+- Pregunta y propone una versión SemVer antes de cambiar `package.json`; nunca incrementes la versión automáticamente.
+- Usa `patch` para correcciones, `minor` para funcionalidades compatibles y `major` para cambios incompatibles.
+
 Modo rápido:
 - Usa `rg` y rangos concretos; no abras archivos completos si una búsqueda basta.
 - No leas README, memoria, lockfile, `dist` o configuración si no afectan a la tarea.

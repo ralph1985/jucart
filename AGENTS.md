@@ -8,6 +8,8 @@ Jucart es una aplicación web privada para gestionar una lista de la compra pers
 - Usar ramas y commits en inglés.
 - Prioridad documental: `AGENTS.md`, `PLAN.md`, `README.md` y `docs/decisions.md`.
 - Antes de ampliar alcance, comprobar el hito activo en `PLAN.md`.
+- Revisar la versión al terminar una funcionalidad relevante, cerrar un hito o preparar un commit con varios cambios acumulados. Preguntar antes de incrementarla; no cambiarla automáticamente.
+- Usar SemVer: `patch` para correcciones, `minor` para funcionalidades compatibles y `major` para cambios incompatibles.
 
 ## Modo Rápido Por Defecto
 

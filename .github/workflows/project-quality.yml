@@ -1,0 +1,70 @@
+name: Project quality
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/dependabot.yml"
+      - ".github/workflows/project-quality.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/**"
+      - "src/**"
+      - "tsconfig.json"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/dependabot.yml"
+      - ".github/workflows/project-quality.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/**"
+      - "src/**"
+      - "tsconfig.json"
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Install, audit and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Audit dependencies
+        run: corepack pnpm audit --audit-level moderate
+
+      - name: Typecheck
+        run: corepack pnpm typecheck
+
+      - name: Lint
+        run: corepack pnpm lint
+
+      - name: Check formatting
+        run: corepack pnpm format:check
+
+      - name: Run tests
+        run: corepack pnpm test
+
+      - name: Build
+        run: corepack pnpm build
+
+      - name: Verify diff whitespace
+        run: git diff --check

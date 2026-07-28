@@ -547,7 +547,9 @@ describe("App", () => {
 
     await waitForAddFab();
 
-    expect(screen.queryByText("Cargando lista...")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText("Cargando lista...")).not.toBeInTheDocument(),
+    );
 
     Object.defineProperty(document, "visibilityState", {
       configurable: true,

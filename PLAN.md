@@ -392,7 +392,7 @@ Objetivo: crear una base estable para que el historial de precios no duplique pr
 - [x] Al fusionar productos, conservar la cantidad del producto que siga pendiente de compra para no perder la lista semanal.
 - [x] Al fusionar productos presentes en listas distintas, conservar cada pendiente en su lista para poder comparar precios por supermercado.
 - [x] Al fusionar productos pendientes en la misma lista, sumar sus cantidades cuando ambas existan, dejando que Codex resuelva también cantidades ambiguas.
-- [x] Al fusionar en la misma lista un producto pendiente con otro no pendiente, conservar el pendiente y eliminar el otro de la lista activa.
+- [x] Al fusionar en la misma lista un producto pendiente con otro no pendiente, conservar el pendiente y eliminar el otro de esa lista.
 - [x] Crear en Historial la pestaña de normalizaciones de productos canónicos.
 - [x] Preparar esa pestaña para mostrar detalle técnico de entradas tocadas, cantidades sumadas, aliases creados y criterio resumido de Codex.
 - [x] No duplicar las fusiones automáticas como eventos del historial manual de compra.
@@ -481,7 +481,7 @@ Objetivo: precargar precios iniciales desde fuentes externas solo cuando aporten
 
 - [x] Crear una arquitectura común de proveedores externos de precios, preparada para varias fuentes.
 - [x] Añadir un script manual de actualización externa, sin cron ni botón en la app.
-- [x] Consultar solo productos canónicos presentes en productos pendientes o comprados de la lista activa.
+- [x] Consultar solo productos canónicos presentes en productos pendientes o comprados de las listas consultadas.
 - [x] Probar todas las fuentes externas disponibles para cada producto canónico activo, no solo la lista donde esté.
 - [x] Insertar observaciones con `source = external` en `shopping_price_observations`, separadas de `source = ticket`.
 - [x] Guardar nuevas observaciones externas solo cuando cambie el precio respecto a la última observación de esa fuente, producto y unidad.
@@ -520,13 +520,13 @@ Objetivo: transformar las listas antiguas por supermercado en listas compartidas
 - [x] Consultar las listas del usuario mediante tablas y funciones seguras.
 - [x] Asociar cada lista a su propietario y a sus miembros.
 - [x] Mostrar durante la transición el email del propietario junto a cada lista.
-- [x] Mantener el `list_id` activo de cada lista migrada sin perder sus filas actuales.
+- [x] Mantener el `list_id` interno de cada lista migrada sin perder sus filas actuales.
 - [x] Asociar las siete listas antiguas con productos a Rafa como propietario y Begoña como miembro.
 - [x] Generar un código único reutilizable para cada lista.
 - [x] Permitir al propietario regenerar el código; el anterior dejará de aceptar nuevas entradas.
 - [x] Mantener las operaciones RPC existentes para la transición, sin ofrecer crear o unirse a nuevas listas en la interfaz.
-- [x] Añadir la selección de lista activa sin introducir todavía rutas nuevas.
-- [x] Añadir tests de creación, unión, regeneración, abandono y cambio de lista.
+- [x] Mostrar simultáneamente todas las listas a las que pertenece el usuario, como propietario o miembro, sin concepto de lista activa.
+- [x] Añadir tests de creación, unión, regeneración, abandono y carga conjunta de listas.
 
 ## Hito 38 — Roles y permisos de lista
 

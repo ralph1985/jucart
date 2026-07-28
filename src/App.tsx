@@ -105,11 +105,7 @@ import type {
   PushNotificationSnapshot,
 } from "./pushNotifications";
 import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
-import {
-  activeSupabaseListStorageKey,
-  getSupabaseConfig,
-  isSupabaseConfigured,
-} from "./supabaseConfig";
+import { isSupabaseConfigured } from "./supabaseConfig";
 import {
   getShoppingLists,
   leaveShoppingList,
@@ -4103,14 +4099,8 @@ export function App() {
     setIsAuthActionPending(true);
     setAuthMessage(null);
     const result = await signOut();
-    window.localStorage.removeItem(activeSupabaseListStorageKey);
     setAuthMessage(result.message);
     setIsAuthActionPending(false);
-  }
-
-  function handleSelectShoppingList(listId: string) {
-    window.localStorage.setItem(activeSupabaseListStorageKey, listId);
-    window.location.reload();
   }
 
   async function handleRegenerateShoppingListCode(listId: string) {
@@ -4138,12 +4128,9 @@ export function App() {
 
     try {
       await leaveShoppingList(listId);
-      const nextLists = shoppingLists.filter((list) => list.id !== listId);
-      setShoppingLists(nextLists);
-      if (getSupabaseConfig()?.listId === listId) {
-        window.localStorage.removeItem(activeSupabaseListStorageKey);
-        window.location.reload();
-      }
+      setShoppingLists((currentLists) =>
+        currentLists.filter((list) => list.id !== listId),
+      );
     } catch {
       setShoppingListMessage("No se pudo abandonar la lista.");
     } finally {
@@ -5685,8 +5672,6 @@ export function App() {
       return null;
     }
 
-    const activeListId = getSupabaseConfig()?.listId;
-
     return (
       <section
         className={styles.developerPanel}
@@ -5702,27 +5687,13 @@ export function App() {
           <ul className={styles.shoppingListManager}>
             {shoppingLists.map((list) => {
               const isOwner = list.ownerId === authSnapshot.user?.id;
-              const isActive = list.id === activeListId;
 
               return (
                 <li key={list.id} className={styles.shoppingListManagerItem}>
-                  <button
-                    className={
-                      isActive
-                        ? styles.shoppingListActiveButton
-                        : styles.shoppingListButton
-                    }
-                    type="button"
-                    onPointerDown={handleButtonPointerDown}
-                    onClick={() => handleSelectShoppingList(list.id)}
-                    disabled={isActive || isShoppingListActionPending}
-                  >
+                  <div className={styles.shoppingListButton}>
                     <strong>{list.name}</strong>
-                    <small>
-                      Propietario: {list.ownerEmail}
-                      {isActive ? " · Activa" : " · Usar esta lista"}
-                    </small>
-                  </button>
+                    <small>Propietario: {list.ownerEmail}</small>
+                  </div>
                   <div className={styles.shoppingListManagerActions}>
                     {isOwner ? (
                       <>
@@ -5756,9 +5727,7 @@ export function App() {
             })}
           </ul>
         ) : (
-          <p className={styles.authMessage}>
-            No tienes listas todavía. Crea una o usa un código de invitación.
-          </p>
+          <p className={styles.authMessage}>No tienes listas compartidas.</p>
         )}
         <p className={styles.authMessage}>
           Estas son las listas compartidas disponibles durante la migración.
@@ -6038,7 +6007,9 @@ export function App() {
         </button>
       ) : null}
 
-      {activeView === "sections" && !isSectionAddSheetOpen ? (
+      {activeView === "sections" &&
+      !isSupabaseConfigured() &&
+      !isSectionAddSheetOpen ? (
         <button
           ref={sectionAddFabRef}
           className={styles.floatingAddButton}

@@ -529,14 +529,14 @@ describe("shopping items Supabase adapter", () => {
       ],
       recategorizationChanges: [{ id: "change-1", nextCategoryId: "dairy" }],
       recategorizationRuns: [{ id: "run-1", status: "failed" }],
-      sections: [{ color: "mint", id: "mercadona" }],
+      sections: [
+        {
+          color: "mint",
+          id: `${configuredSupabase.listId}::mercadona`,
+        },
+      ],
     });
     expect(supabaseMocks.client.from).toHaveBeenCalledWith("shopping_items");
-    expect(supabaseMocks.operations).toContainEqual({
-      args: ["list_id", configuredSupabase.listId],
-      operation: "eq",
-      table: "shopping_items",
-    });
   });
 
   it("falls back to local defaults when optional Supabase tables are missing", async () => {
@@ -892,7 +892,7 @@ describe("shopping items Supabase adapter", () => {
     expect(tickets).toHaveLength(1);
     expect(tickets?.[0]).toMatchObject({
       fileCount: 1,
-      sectionId: "mercadona",
+      sectionId: `${configuredSupabase.listId}::mercadona`,
       status: "needs_review",
       uploadedBy: "begona",
     });
@@ -1090,12 +1090,7 @@ describe("shopping items Supabase adapter", () => {
       canonicalProductId: "canonical-platanos",
       comparisonUnit: "kg",
       observedPrice: 1.95,
-      sectionId: "mercadona",
-    });
-    expect(supabaseMocks.operations).toContainEqual({
-      args: ["list_id", configuredSupabase.listId],
-      operation: "eq",
-      table: "shopping_price_observations",
+      sectionId: `${configuredSupabase.listId}::mercadona`,
     });
     expect(supabaseMocks.operations).toContainEqual({
       args: ["observed_at", { ascending: false }],
@@ -1515,7 +1510,7 @@ describe("shopping items Supabase adapter", () => {
 
     const ticket = await uploadSupabaseShoppingTicket({
       files: [file],
-      sectionId: "mercadona",
+      sectionId: `${configuredSupabase.listId}::mercadona`,
       uploadedBy: "rafa",
     });
 
@@ -1533,7 +1528,7 @@ describe("shopping items Supabase adapter", () => {
     expect(ticket).toMatchObject({
       id: "11111111-1111-4111-8111-111111111111",
       fileCount: 1,
-      sectionId: "mercadona",
+      sectionId: `${configuredSupabase.listId}::mercadona`,
     });
   });
 
@@ -1680,39 +1675,17 @@ describe("shopping items Supabase adapter", () => {
     unsubscribe();
 
     expect(supabaseMocks.client.channel).toHaveBeenCalledWith(
-      `shopping_items:${configuredSupabase.listId}`,
+      "shopping_items:all-lists",
     );
     expect(supabaseMocks.channel.on).toHaveBeenCalledTimes(15);
     expect(supabaseMocks.channel.on).toHaveBeenCalledWith(
       "postgres_changes",
-      expect.objectContaining({
-        filter: `list_id=eq.${configuredSupabase.listId}`,
-        table: "shopping_items",
-      }),
+      expect.objectContaining({ table: "shopping_items" }),
       onChange,
     );
     expect(supabaseMocks.channel.on).toHaveBeenCalledWith(
       "postgres_changes",
-      expect.objectContaining({
-        filter: `list_id=eq.${configuredSupabase.listId}`,
-        table: "shopping_tickets",
-      }),
-      onChange,
-    );
-    expect(supabaseMocks.channel.on).toHaveBeenCalledWith(
-      "postgres_changes",
-      expect.objectContaining({
-        filter: `list_id=eq.${configuredSupabase.listId}`,
-        table: "shopping_ticket_files",
-      }),
-      onChange,
-    );
-    expect(supabaseMocks.channel.on).toHaveBeenCalledWith(
-      "postgres_changes",
-      expect.objectContaining({
-        filter: `list_id=eq.${configuredSupabase.listId}`,
-        table: "shopping_ticket_lines",
-      }),
+      expect.objectContaining({ table: "shopping_tickets" }),
       onChange,
     );
     expect(supabaseMocks.channel.subscribe).toHaveBeenCalledOnce();

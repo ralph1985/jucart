@@ -14,6 +14,7 @@ export type FreezerDrawerId = (typeof freezerDrawers)[number]["id"];
 
 export type FreezerItem = {
   id: string;
+  listId?: string;
   name: string;
   quantity?: string;
   drawerId: FreezerDrawerId;

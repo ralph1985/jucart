@@ -304,6 +304,26 @@ export type ShoppingTicketUploadInput = {
 
 let supabaseClient: SupabaseClient | null = null;
 
+const scopedSectionSeparator = "::";
+
+function scopeSectionId(listId: string, sectionId: string) {
+  return `${listId}${scopedSectionSeparator}${sectionId}`;
+}
+
+function getScopedListId(sectionId: string) {
+  const separatorIndex = sectionId.indexOf(scopedSectionSeparator);
+
+  return separatorIndex > 0 ? sectionId.slice(0, separatorIndex) : null;
+}
+
+function getUnscopedSectionId(sectionId: string) {
+  const separatorIndex = sectionId.indexOf(scopedSectionSeparator);
+
+  return separatorIndex > 0
+    ? sectionId.slice(separatorIndex + scopedSectionSeparator.length)
+    : sectionId;
+}
+
 export async function getLatestDeveloperBackupRun(): Promise<DeveloperBackupRun | null> {
   const config = getSupabaseConfig();
 
@@ -339,17 +359,14 @@ export async function getSupabaseShoppingTickets(): Promise<
     client
       .from("shopping_tickets")
       .select("*")
-      .eq("list_id", config.listId)
       .order("uploaded_at", { ascending: false }),
     client
       .from("shopping_ticket_files")
       .select("*")
-      .eq("list_id", config.listId)
       .order("position", { ascending: true }),
     client
       .from("shopping_ticket_lines")
       .select("*")
-      .eq("list_id", config.listId)
       .order("line_index", { ascending: true }),
   ]);
 
@@ -381,6 +398,7 @@ export async function getSupabaseShoppingTickets(): Promise<
       row,
       filesByTicketId.get(row.id) ?? [],
       linesByTicketId.get(row.id) ?? [],
+      row.list_id,
     ),
   );
 }
@@ -401,6 +419,8 @@ export async function uploadSupabaseShoppingTicket({
   }
 
   const client = getSupabaseClient(config);
+  const listId = getScopedListId(sectionId) ?? config.listId;
+  const unscopedSectionId = getUnscopedSectionId(sectionId);
   const ticketId = crypto.randomUUID();
   const uploadedAt = new Date().toISOString();
   const fileRows: Omit<ShoppingTicketFileRow, "id" | "created_at">[] = [];
@@ -408,7 +428,7 @@ export async function uploadSupabaseShoppingTicket({
   for (const [index, file] of files.entries()) {
     const sha256 = await calculateFileSha256(file);
     const storagePath = buildTicketStoragePath(
-      config.listId,
+      listId,
       ticketId,
       index,
       file.name,
@@ -426,7 +446,7 @@ export async function uploadSupabaseShoppingTicket({
 
     fileRows.push({
       ticket_id: ticketId,
-      list_id: config.listId,
+      list_id: listId,
       storage_bucket: "shopping-tickets",
       storage_path: storagePath,
       file_name: file.name,
@@ -443,8 +463,8 @@ export async function uploadSupabaseShoppingTicket({
     .insert([
       {
         id: ticketId,
-        list_id: config.listId,
-        section_id: sectionId,
+        list_id: listId,
+        section_id: unscopedSectionId,
         uploaded_by: uploadedBy,
         status: "pending",
         file_count: fileRows.length,
@@ -476,6 +496,7 @@ export async function uploadSupabaseShoppingTicket({
     ticketRow,
     (insertedFileRows ?? []).map(mapRowToShoppingTicketFile),
     [],
+    listId,
   );
 }
 
@@ -513,6 +534,7 @@ export async function resolveSupabaseTicketLine({
   }
 
   const client = getSupabaseClient(config);
+  const listId = getScopedListId(ticket.sectionId) ?? config.listId;
   const nextProductName = replaceProductName ? canonicalProduct.name : null;
   const lineUpdate = await client
     .from("shopping_ticket_lines")
@@ -525,7 +547,7 @@ export async function resolveSupabaseTicketLine({
     })
     .eq("id", line.id)
     .eq("ticket_id", ticket.id)
-    .eq("list_id", config.listId);
+    .eq("list_id", listId);
 
   if (lineUpdate.error) {
     throw lineUpdate.error;
@@ -537,7 +559,7 @@ export async function resolveSupabaseTicketLine({
     const aliasDeleteResult = await client
       .from("shopping_canonical_product_aliases")
       .delete()
-      .eq("list_id", config.listId)
+      .eq("list_id", listId)
       .eq("canonical_product_id", line.canonicalProductId)
       .eq("normalized_alias", normalizedAlias);
 
@@ -552,7 +574,7 @@ export async function resolveSupabaseTicketLine({
       .upsert(
         {
           id: crypto.randomUUID(),
-          list_id: config.listId,
+          list_id: listId,
           canonical_product_id: canonicalProduct.id,
           alias: alias.trim(),
           normalized_alias: normalizedAlias,
@@ -566,7 +588,7 @@ export async function resolveSupabaseTicketLine({
   }
 
   const priceObservationRow = mapResolvedLineToPriceObservationRow(
-    config.listId,
+    listId,
     ticket,
     {
       ...line,
@@ -585,7 +607,7 @@ export async function resolveSupabaseTicketLine({
     }
   }
 
-  await updateSupabaseTicketStatusFromLines(client, config.listId, ticket.id);
+  await updateSupabaseTicketStatusFromLines(client, listId, ticket.id);
 }
 
 export async function excludeSupabaseTicketLine(
@@ -599,6 +621,7 @@ export async function excludeSupabaseTicketLine(
   }
 
   const client = getSupabaseClient(config);
+  const listId = getScopedListId(ticket.sectionId) ?? config.listId;
   const lineUpdate = await client
     .from("shopping_ticket_lines")
     .update({
@@ -609,13 +632,13 @@ export async function excludeSupabaseTicketLine(
     })
     .eq("id", line.id)
     .eq("ticket_id", ticket.id)
-    .eq("list_id", config.listId);
+    .eq("list_id", listId);
 
   if (lineUpdate.error) {
     throw lineUpdate.error;
   }
 
-  await updateSupabaseTicketStatusFromLines(client, config.listId, ticket.id);
+  await updateSupabaseTicketStatusFromLines(client, listId, ticket.id);
 }
 
 export async function getSupabasePriceObservations(): Promise<
@@ -631,7 +654,6 @@ export async function getSupabasePriceObservations(): Promise<
   const result = await client
     .from("shopping_price_observations")
     .select("*")
-    .eq("list_id", config.listId)
     .order("observed_at", { ascending: false });
 
   if (result.error && !isMissingRelationError(result.error)) {
@@ -642,7 +664,9 @@ export async function getSupabasePriceObservations(): Promise<
     return [];
   }
 
-  return (result.data ?? []).map(mapRowToShoppingPriceObservation);
+  return (result.data ?? []).map((row) =>
+    mapRowToShoppingPriceObservation(row, row.list_id),
+  );
 }
 
 export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
@@ -670,22 +694,18 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
     client
       .from("shopping_items")
       .select("*")
-      .eq("list_id", config.listId)
       .order("created_at", { ascending: true }),
     client
       .from("shopping_sections")
       .select("*")
-      .eq("list_id", config.listId)
       .order("position", { ascending: true }),
     client
       .from("shopping_history_events")
       .select("*")
-      .eq("list_id", config.listId)
       .order("created_at", { ascending: true }),
     client
       .from("freezer_items")
       .select("*")
-      .eq("list_id", config.listId)
       .order("frozen_at", { ascending: true }),
     client
       .from("shopping_categories")
@@ -698,35 +718,29 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
     client
       .from("shopping_recategorization_runs")
       .select("*")
-      .eq("list_id", config.listId)
       .order("created_at", { ascending: false })
       .limit(30),
     client
       .from("shopping_recategorization_changes")
       .select("*")
-      .eq("list_id", config.listId)
       .order("created_at", { ascending: false })
       .limit(100),
     client
       .from("shopping_canonical_products")
       .select("*")
-      .eq("list_id", config.listId)
       .order("normalized_name", { ascending: true }),
     client
       .from("shopping_canonical_product_aliases")
       .select("*")
-      .eq("list_id", config.listId)
       .order("normalized_alias", { ascending: true }),
     client
       .from("shopping_product_normalization_runs")
       .select("*")
-      .eq("list_id", config.listId)
       .order("created_at", { ascending: false })
       .limit(30),
     client
       .from("shopping_product_normalization_changes")
       .select("*")
-      .eq("list_id", config.listId)
       .order("created_at", { ascending: false })
       .limit(100),
   ]);
@@ -807,14 +821,20 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
 
   return {
     items: (itemsResult.data ?? []).map((row) =>
-      mapRowToShoppingItem(row, productCatalogEntries),
+      mapRowToShoppingItem(row, productCatalogEntries, row.list_id),
     ),
     sections:
       sectionsResult.data && sectionsResult.data.length > 0
-        ? sectionsResult.data.map(mapRowToShoppingSection)
+        ? sectionsResult.data.map((row) =>
+            mapRowToShoppingSection(row, row.list_id),
+          )
         : defaultShoppingSections,
-    historyEvents: (historyResult.data ?? []).map(mapRowToShoppingHistoryEvent),
-    freezerItems: (freezerResult.data ?? []).map(mapRowToFreezerItem),
+    historyEvents: (historyResult.data ?? []).map((row) =>
+      mapRowToShoppingHistoryEvent(row, row.list_id),
+    ),
+    freezerItems: (freezerResult.data ?? []).map((row) =>
+      mapRowToFreezerItem(row, row.list_id),
+    ),
     categories:
       !categoriesResult.error &&
       categoriesResult.data &&
@@ -867,129 +887,120 @@ export async function replaceSupabaseShoppingData(data: ShoppingData) {
   }
 
   const client = getSupabaseClient(config);
-  const itemRows = data.items.map((item) =>
-    mapShoppingItemToRow(item, config.listId),
-  );
-  const sectionRows = data.sections.map((section, index) =>
-    mapShoppingSectionToRow(section, index, config.listId),
-  );
-  const historyRows = data.historyEvents.map((event) =>
-    mapShoppingHistoryEventToRow(event, config.listId),
-  );
-  const freezerRows = data.freezerItems.map((item) =>
-    mapFreezerItemToRow(item, config.listId),
-  );
+  const getItemListId = (item: ShoppingItem) =>
+    getScopedListId(item.sectionId) ?? config.listId;
+  const getSectionListId = (section: ShoppingSection) =>
+    getScopedListId(section.id) ?? config.listId;
+  const getHistoryListId = (event: ShoppingHistoryEvent) =>
+    getScopedListId(event.item.sectionId) ?? config.listId;
+  const listIds = new Set([
+    config.listId,
+    ...data.items.map(getItemListId),
+    ...data.sections.map(getSectionListId),
+    ...data.historyEvents.map(getHistoryListId),
+    ...data.freezerItems.map((item) => item.listId ?? config.listId),
+  ]);
 
-  if (sectionRows.length > 0) {
-    const { error } = await client
+  for (const listId of listIds) {
+    const sections = data.sections.filter(
+      (section) => getSectionListId(section) === listId,
+    );
+    const sectionRows = sections.map((section, index) =>
+      mapShoppingSectionToRow(section, index, listId),
+    );
+    const items = data.items.filter((item) => getItemListId(item) === listId);
+    const itemRows = items.map((item) => mapShoppingItemToRow(item, listId));
+    const historyEvents = data.historyEvents.filter(
+      (event) => getHistoryListId(event) === listId,
+    );
+    const historyRows = historyEvents.map((event) =>
+      mapShoppingHistoryEventToRow(event, listId),
+    );
+    const freezerItems = data.freezerItems.filter(
+      (item) => (item.listId ?? config.listId) === listId,
+    );
+    const freezerRows = freezerItems.map((item) =>
+      mapFreezerItemToRow(item, listId),
+    );
+
+    if (sectionRows.length > 0) {
+      const { error } = await client
+        .from("shopping_sections")
+        .upsert(sectionRows);
+      if (error) throw error;
+    }
+
+    let deleteSectionsQuery = client
       .from("shopping_sections")
-      .upsert(sectionRows);
-
-    if (error) {
-      throw error;
+      .delete()
+      .eq("list_id", listId);
+    if (sections.length > 0) {
+      deleteSectionsQuery = deleteSectionsQuery.not(
+        "id",
+        "in",
+        encodePostgrestTextList(
+          sections.map((section) => getUnscopedSectionId(section.id)),
+        ),
+      );
     }
-  }
+    const { error: deleteSectionsError } = await deleteSectionsQuery;
+    if (deleteSectionsError) throw deleteSectionsError;
 
-  let deleteSectionsQuery = client
-    .from("shopping_sections")
-    .delete()
-    .eq("list_id", config.listId);
-
-  if (data.sections.length > 0) {
-    deleteSectionsQuery = deleteSectionsQuery.not(
-      "id",
-      "in",
-      encodePostgrestTextList(data.sections.map((section) => section.id)),
-    );
-  }
-
-  const { error: deleteSectionsError } = await deleteSectionsQuery;
-
-  if (deleteSectionsError) {
-    throw deleteSectionsError;
-  }
-
-  if (itemRows.length > 0) {
-    const { error } = await client.from("shopping_items").upsert(itemRows);
-
-    if (error) {
-      throw error;
+    if (itemRows.length > 0) {
+      const { error } = await client.from("shopping_items").upsert(itemRows);
+      if (error) throw error;
     }
-  }
+    let deleteItemsQuery = client
+      .from("shopping_items")
+      .delete()
+      .eq("list_id", listId);
+    if (items.length > 0) {
+      deleteItemsQuery = deleteItemsQuery.not(
+        "id",
+        "in",
+        encodePostgrestTextList(items.map((item) => item.id)),
+      );
+    }
+    const { error: deleteItemsError } = await deleteItemsQuery;
+    if (deleteItemsError) throw deleteItemsError;
 
-  let deleteQuery = client
-    .from("shopping_items")
-    .delete()
-    .eq("list_id", config.listId);
-
-  if (data.items.length > 0) {
-    deleteQuery = deleteQuery.not(
-      "id",
-      "in",
-      encodePostgrestTextList(data.items.map((item) => item.id)),
-    );
-  }
-
-  const { error } = await deleteQuery;
-
-  if (error) {
-    throw error;
-  }
-
-  if (historyRows.length > 0) {
-    const { error } = await client
+    if (historyRows.length > 0) {
+      const { error } = await client
+        .from("shopping_history_events")
+        .upsert(historyRows);
+      if (error) throw error;
+    }
+    let deleteHistoryQuery = client
       .from("shopping_history_events")
-      .upsert(historyRows);
-
-    if (error) {
-      throw error;
+      .delete()
+      .eq("list_id", listId);
+    if (historyEvents.length > 0) {
+      deleteHistoryQuery = deleteHistoryQuery.not(
+        "id",
+        "in",
+        encodePostgrestTextList(historyEvents.map((event) => event.id)),
+      );
     }
-  }
+    const { error: deleteHistoryError } = await deleteHistoryQuery;
+    if (deleteHistoryError) throw deleteHistoryError;
 
-  let deleteHistoryQuery = client
-    .from("shopping_history_events")
-    .delete()
-    .eq("list_id", config.listId);
-
-  if (data.historyEvents.length > 0) {
-    deleteHistoryQuery = deleteHistoryQuery.not(
-      "id",
-      "in",
-      encodePostgrestTextList(data.historyEvents.map((event) => event.id)),
-    );
-  }
-
-  const { error: deleteHistoryError } = await deleteHistoryQuery;
-
-  if (deleteHistoryError) {
-    throw deleteHistoryError;
-  }
-
-  if (freezerRows.length > 0) {
-    const { error } = await client.from("freezer_items").upsert(freezerRows);
-
-    if (error) {
-      throw error;
+    if (freezerRows.length > 0) {
+      const { error } = await client.from("freezer_items").upsert(freezerRows);
+      if (error) throw error;
     }
-  }
-
-  let deleteFreezerQuery = client
-    .from("freezer_items")
-    .delete()
-    .eq("list_id", config.listId);
-
-  if (data.freezerItems.length > 0) {
-    deleteFreezerQuery = deleteFreezerQuery.not(
-      "id",
-      "in",
-      encodePostgrestTextList(data.freezerItems.map((item) => item.id)),
-    );
-  }
-
-  const { error: deleteFreezerError } = await deleteFreezerQuery;
-
-  if (deleteFreezerError) {
-    throw deleteFreezerError;
+    let deleteFreezerQuery = client
+      .from("freezer_items")
+      .delete()
+      .eq("list_id", listId);
+    if (freezerItems.length > 0) {
+      deleteFreezerQuery = deleteFreezerQuery.not(
+        "id",
+        "in",
+        encodePostgrestTextList(freezerItems.map((item) => item.id)),
+      );
+    }
+    const { error: deleteFreezerError } = await deleteFreezerQuery;
+    if (deleteFreezerError) throw deleteFreezerError;
   }
 
   return true;
@@ -1003,14 +1014,13 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
   }
 
   const channel = getSupabaseClient(config)
-    .channel(`shopping_items:${config.listId}`)
+    .channel("shopping_items:all-lists")
     .on(
       "postgres_changes",
       {
         event: "*",
         schema: "public",
         table: "shopping_items",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1020,7 +1030,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_sections",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1030,7 +1039,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_history_events",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1040,7 +1048,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "freezer_items",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1068,7 +1075,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_recategorization_runs",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1078,7 +1084,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_recategorization_changes",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1088,7 +1093,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_canonical_products",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1098,7 +1102,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_canonical_product_aliases",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1108,7 +1111,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_product_normalization_runs",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1118,7 +1120,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_product_normalization_changes",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1128,7 +1129,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_tickets",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1138,7 +1138,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_ticket_files",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1148,7 +1147,6 @@ export function subscribeToSupabaseShoppingItems(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "shopping_ticket_lines",
-        filter: `list_id=eq.${config.listId}`,
       },
       onChange,
     )
@@ -1219,12 +1217,15 @@ export async function disableSupabasePushSubscription(endpoint: string) {
 export function mapRowToShoppingItem(
   row: ShoppingItemRow,
   productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
+  listId?: string,
 ): ShoppingItem {
   return {
     id: row.id,
     name: row.name,
     quantity: row.quantity?.trim() ? row.quantity : undefined,
-    sectionId: normalizeSectionId(row.section_id),
+    sectionId: normalizeSectionId(
+      listId ? scopeSectionId(listId, row.section_id) : row.section_id,
+    ),
     categoryId: normalizeCategoryId(
       row.category_id,
       row.name,
@@ -1359,10 +1360,13 @@ export function mapRowToShoppingTicket(
   row: ShoppingTicketRow,
   files: ShoppingTicketFile[] = [],
   lines: ShoppingTicketLine[] = [],
+  listId?: string,
 ): ShoppingTicket {
   return {
     id: row.id,
-    sectionId: normalizeSectionId(row.section_id),
+    sectionId: normalizeSectionId(
+      listId ? scopeSectionId(listId, row.section_id) : row.section_id,
+    ),
     uploadedBy: normalizeUserId(row.uploaded_by),
     status: normalizeTicketStatus(row.status),
     fileCount: row.file_count,
@@ -1418,6 +1422,7 @@ export function mapRowToShoppingTicketLine(
 
 export function mapRowToShoppingPriceObservation(
   row: ShoppingPriceObservationRow,
+  listId?: string,
 ): ShoppingPriceObservation {
   return {
     id: row.id,
@@ -1428,7 +1433,7 @@ export function mapRowToShoppingPriceObservation(
     externalProductId: row.external_product_id,
     externalProductUrl: row.external_product_url,
     canonicalProductId: row.canonical_product_id,
-    sectionId: row.section_id,
+    sectionId: listId ? scopeSectionId(listId, row.section_id) : row.section_id,
     observedAt: Date.parse(row.observed_at),
     productName: row.product_name,
     quantity: row.quantity,
@@ -1447,9 +1452,10 @@ export function mapRowToShoppingPriceObservation(
 export function mapRowToShoppingSection(
   row: Pick<ShoppingSectionRow, "id" | "name"> &
     Partial<Pick<ShoppingSectionRow, "color">>,
+  listId?: string,
 ): ShoppingSection {
   return {
-    id: normalizeSectionId(row.id),
+    id: normalizeSectionId(listId ? scopeSectionId(listId, row.id) : row.id),
     name: row.name,
     color: row.color && isShoppingSectionColor(row.color) ? row.color : "mint",
   };
@@ -1464,7 +1470,7 @@ export function mapShoppingItemToRow(
     list_id: listId,
     name: item.name,
     quantity: item.quantity ?? null,
-    section_id: item.sectionId,
+    section_id: getUnscopedSectionId(item.sectionId),
     category_id: item.categoryId ?? inferShoppingCategoryId(item.name),
     canonical_product_id: item.canonicalProductId ?? null,
     added_by: item.addedBy,
@@ -1482,7 +1488,7 @@ export function mapShoppingSectionToRow(
   const now = new Date().toISOString();
 
   return {
-    id: section.id,
+    id: getUnscopedSectionId(section.id),
     list_id: listId,
     name: section.name,
     color: section.color,
@@ -1494,6 +1500,7 @@ export function mapShoppingSectionToRow(
 
 export function mapRowToShoppingHistoryEvent(
   row: ShoppingHistoryEventRow,
+  listId?: string,
 ): ShoppingHistoryEvent {
   const itemSnapshot = row.item_snapshot;
 
@@ -1511,7 +1518,11 @@ export function mapRowToShoppingHistoryEvent(
       quantity: itemSnapshot.quantity?.trim()
         ? itemSnapshot.quantity
         : undefined,
-      sectionId: normalizeSectionId(itemSnapshot.sectionId),
+      sectionId: normalizeSectionId(
+        listId
+          ? scopeSectionId(listId, itemSnapshot.sectionId)
+          : itemSnapshot.sectionId,
+      ),
       sectionName: itemSnapshot.sectionName ?? itemSnapshot.sectionId,
       categoryId: normalizeCategoryId(
         itemSnapshot.categoryId,
@@ -1541,15 +1552,22 @@ export function mapShoppingHistoryEventToRow(
     event_type: event.type,
     actor: event.actor,
     client_id: event.clientId,
-    item_snapshot: event.item,
+    item_snapshot: {
+      ...event.item,
+      sectionId: getUnscopedSectionId(event.item.sectionId),
+    },
     previous_item_snapshot: event.previousItem,
     created_at: new Date(event.createdAt).toISOString(),
   };
 }
 
-export function mapRowToFreezerItem(row: FreezerItemRow): FreezerItem {
+export function mapRowToFreezerItem(
+  row: FreezerItemRow,
+  listId?: string,
+): FreezerItem {
   return {
     id: row.id,
+    ...(listId ? { listId } : {}),
     name: row.name,
     quantity: row.quantity?.trim() ? row.quantity : undefined,
     drawerId: normalizeFreezerDrawerId(row.drawer_id),
@@ -1565,7 +1583,7 @@ export function mapFreezerItemToRow(
 ): FreezerItemRow {
   return {
     id: item.id,
-    list_id: listId,
+    list_id: item.listId ?? listId,
     name: item.name,
     quantity: item.quantity ?? null,
     drawer_id: item.drawerId,

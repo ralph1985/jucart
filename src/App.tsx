@@ -129,6 +129,32 @@ const lastSeenProductNormalizationChangeAtStorageKey =
 const pushInviteDismissedStorageKey = "jucart:push-invite-dismissed";
 const ticketPageSize = 10;
 const priceObservationPageSize = 10;
+
+function orderSectionsByShoppingLists(
+  sections: ShoppingSection[],
+  lists: ShoppingList[],
+) {
+  if (lists.length === 0) {
+    return sections;
+  }
+
+  const orderedSections = lists.flatMap((list) =>
+    sections.filter((section) => section.id.startsWith(`${list.id}::`)),
+  );
+  const orderedSectionIds = new Set(
+    orderedSections.map((section) => section.id),
+  );
+  const nextSections = [
+    ...orderedSections,
+    ...sections.filter((section) => !orderedSectionIds.has(section.id)),
+  ];
+
+  return nextSections.every(
+    (section, index) => section.id === sections[index]?.id,
+  )
+    ? sections
+    : nextSections;
+}
 const backupStaleThresholdMs = 6 * 60 * 60 * 1000;
 const initialPushNotificationSnapshot: PushNotificationSnapshot = {
   status: "syncing",
@@ -1753,6 +1779,9 @@ export function App() {
       .then((lists) => {
         if (isActive) {
           setShoppingLists(lists);
+          setSections((currentSections) =>
+            orderSectionsByShoppingLists(currentSections, lists),
+          );
           setShoppingListMessage(null);
         }
       })
@@ -2019,7 +2048,9 @@ export function App() {
         skipNextStoreRef.current = true;
         setItems(nextStoredData.items);
         setFreezerItems(nextStoredData.freezerItems ?? []);
-        setSections(nextStoredData.sections);
+        setSections(
+          orderSectionsByShoppingLists(nextStoredData.sections, shoppingLists),
+        );
         setCategories(nextStoredData.categories ?? defaultShoppingCategories);
         setProductCatalogEntries(
           nextStoredData.productCatalogEntries ??
@@ -2104,7 +2135,7 @@ export function App() {
       unsubscribe();
       document.removeEventListener("visibilitychange", refreshItemsWhenVisible);
     };
-  }, [beginRemoteRequest, isLoaded]);
+  }, [beginRemoteRequest, isLoaded, shoppingLists]);
 
   useEffect(() => {
     if (!isLoaded || !isSupabaseConfigured()) {

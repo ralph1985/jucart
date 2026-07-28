@@ -127,6 +127,23 @@ export async function regenerateShoppingListCode(listId: string) {
   return mapShoppingList(data as ShoppingListRow);
 }
 
+export async function renameShoppingList(listId: string, name: string) {
+  const supabase = getClient();
+
+  if (!supabase) {
+    throw getUnavailableMessage();
+  }
+
+  const { error } = await supabase.rpc("rename_shopping_list", {
+    p_list_id: listId,
+    p_name: name.trim(),
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function leaveShoppingList(listId: string) {
   const supabase = getClient();
 

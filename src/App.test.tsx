@@ -47,6 +47,7 @@ const shoppingListMocks = vi.hoisted(() => ({
   joinShoppingList: vi.fn(),
   regenerateShoppingListCode: vi.fn(),
   leaveShoppingList: vi.fn(),
+  renameShoppingList: vi.fn(),
 }));
 
 vi.mock("./auth", () => ({
@@ -63,6 +64,7 @@ vi.mock("./shoppingLists", () => ({
   joinShoppingList: shoppingListMocks.joinShoppingList,
   regenerateShoppingListCode: shoppingListMocks.regenerateShoppingListCode,
   leaveShoppingList: shoppingListMocks.leaveShoppingList,
+  renameShoppingList: shoppingListMocks.renameShoppingList,
 }));
 
 const emblaCarouselMock = vi.hoisted(() => {
@@ -200,6 +202,7 @@ afterEach(async () => {
   shoppingListMocks.joinShoppingList.mockReset();
   shoppingListMocks.regenerateShoppingListCode.mockReset();
   shoppingListMocks.leaveShoppingList.mockReset();
+  shoppingListMocks.renameShoppingList.mockReset();
 });
 
 function configureAuthMocks() {
@@ -606,8 +609,20 @@ describe("App", () => {
 
     expect(
       await screen.findByRole("region", { name: "Listas disponibles" }),
-    ).toHaveTextContent("Casa");
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre de Casa")).toHaveValue("Casa");
     expect(screen.getByText("AB12CD34")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Nombre de Casa"), {
+      target: { value: "Casa nueva" },
+    });
+    fireEvent.blur(screen.getByLabelText("Nombre de Casa"));
+    await waitFor(() =>
+      expect(shoppingListMocks.renameShoppingList).toHaveBeenCalledWith(
+        "list-1",
+        "Casa nueva",
+      ),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Regenerar" }));
     await waitFor(() =>

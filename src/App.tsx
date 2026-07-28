@@ -107,6 +107,7 @@ import {
   deleteShoppingList,
   getShoppingLists,
   leaveShoppingList,
+  renameShoppingList,
   regenerateShoppingListCode,
 } from "./shoppingLists";
 import type { ShoppingList } from "./shoppingLists";
@@ -4114,6 +4115,31 @@ export function App() {
     }
   }
 
+  async function handleRenameShoppingList(listId: string, rawName: string) {
+    const name = rawName.trim();
+
+    if (!name) {
+      setShoppingListMessage("El nombre de la lista no puede estar vacío.");
+      return;
+    }
+
+    setIsShoppingListActionPending(true);
+    setShoppingListMessage(null);
+
+    try {
+      await renameShoppingList(listId, name);
+      setShoppingLists((currentLists) =>
+        currentLists.map((list) =>
+          list.id === listId ? { ...list, name } : list,
+        ),
+      );
+    } catch {
+      setShoppingListMessage("No se pudo renombrar la lista.");
+    } finally {
+      setIsShoppingListActionPending(false);
+    }
+  }
+
   async function handleLeaveShoppingList(listId: string) {
     setIsShoppingListActionPending(true);
     setShoppingListMessage(null);
@@ -5711,16 +5737,73 @@ export function App() {
             {shoppingLists.map((list) => {
               const isOwner = list.ownerId === authSnapshot.user?.id;
               const memberCount = list.memberCount ?? 0;
-              const productCount = list.productCount ?? 0;
+              const listSections = sections.filter((section) =>
+                section.id.startsWith(`${list.id}::`),
+              );
+              const listItems = items.filter((item) =>
+                listSections.some((section) => section.id === item.sectionId),
+              );
+              const hasLoadedSections = listSections.length > 0;
+              const productCount = hasLoadedSections
+                ? listItems.length
+                : (list.productCount ?? 0);
+              const purchasedCount = hasLoadedSections
+                ? listItems.filter((item) => item.purchased).length
+                : 0;
+              const pendingCount = productCount - purchasedCount;
+              const listSection = listSections[0];
 
               return (
                 <li key={list.id} className={styles.shoppingListManagerItem}>
                   <div className={styles.shoppingListButton}>
-                    <strong>{list.name}</strong>
+                    {isOwner ? (
+                      <input
+                        className={styles.input}
+                        aria-label={`Nombre de ${list.name}`}
+                        defaultValue={list.name}
+                        type="text"
+                        onBlur={(event) =>
+                          void handleRenameShoppingList(
+                            list.id,
+                            event.target.value,
+                          )
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.currentTarget.blur();
+                          }
+                        }}
+                        disabled={isShoppingListActionPending}
+                      />
+                    ) : (
+                      <strong>{list.name}</strong>
+                    )}
                     <small>Propietario: {list.ownerEmail}</small>
-                    <small>
-                      {productCount} productos · {memberCount} suscritos
-                    </small>
+                    <small>Total: {productCount} productos</small>
+                    <small>Pendientes: {pendingCount}</small>
+                    <small>Comprados: {purchasedCount}</small>
+                    {listSection ? (
+                      <div
+                        className={styles.sectionColorPicker}
+                        aria-label={`Color de ${list.name}`}
+                        role="group"
+                      >
+                        {shoppingSectionColors.map((color) => (
+                          <button
+                            className={`${styles.sectionColorButton} ${styles[`sectionColorSwatch${color}`]}${listSection.color === color ? ` ${styles.sectionColorButtonSelected}` : ""}`}
+                            type="button"
+                            aria-label={`Poner ${list.name} en color ${color}`}
+                            aria-pressed={listSection.color === color}
+                            key={color}
+                            onPointerDown={handleButtonPointerDown}
+                            onClick={() =>
+                              handleSectionColorChange(listSection.id, color)
+                            }
+                            disabled={isShoppingListActionPending}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <div className={styles.shoppingListManagerActions}>
                     {isOwner ? (

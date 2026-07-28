@@ -107,6 +107,7 @@ import {
   deleteShoppingList,
   getShoppingLists,
   leaveShoppingList,
+  moveShoppingList,
   renameShoppingList,
   regenerateShoppingListCode,
 } from "./shoppingLists";
@@ -4140,6 +4141,20 @@ export function App() {
     }
   }
 
+  async function handleMoveShoppingList(listId: string, direction: -1 | 1) {
+    setIsShoppingListActionPending(true);
+    setShoppingListMessage(null);
+
+    try {
+      await moveShoppingList(listId, direction);
+      setShoppingLists(await getShoppingLists());
+    } catch {
+      setShoppingListMessage("No se pudo cambiar el orden de las listas.");
+    } finally {
+      setIsShoppingListActionPending(false);
+    }
+  }
+
   async function handleLeaveShoppingList(listId: string) {
     setIsShoppingListActionPending(true);
     setShoppingListMessage(null);
@@ -5736,6 +5751,9 @@ export function App() {
           <ul className={styles.shoppingListManager}>
             {shoppingLists.map((list) => {
               const isOwner = list.ownerId === authSnapshot.user?.id;
+              const listIndex = shoppingLists.findIndex(
+                (currentList) => currentList.id === list.id,
+              );
               const memberCount = list.memberCount ?? 0;
               const listSections = sections.filter((section) =>
                 section.id.startsWith(`${list.id}::`),
@@ -5806,6 +5824,31 @@ export function App() {
                     ) : null}
                   </div>
                   <div className={styles.shoppingListManagerActions}>
+                    <button
+                      className={styles.iconButton}
+                      type="button"
+                      aria-label={`Subir ${list.name}`}
+                      title="Subir"
+                      onPointerDown={handleButtonPointerDown}
+                      onClick={() => void handleMoveShoppingList(list.id, -1)}
+                      disabled={isShoppingListActionPending || listIndex === 0}
+                    >
+                      <Icon name="arrowUp" />
+                    </button>
+                    <button
+                      className={styles.iconButton}
+                      type="button"
+                      aria-label={`Bajar ${list.name}`}
+                      title="Bajar"
+                      onPointerDown={handleButtonPointerDown}
+                      onClick={() => void handleMoveShoppingList(list.id, 1)}
+                      disabled={
+                        isShoppingListActionPending ||
+                        listIndex === shoppingLists.length - 1
+                      }
+                    >
+                      <Icon name="arrowDown" />
+                    </button>
                     {isOwner ? (
                       <>
                         {memberCount === 0 && productCount === 0 ? (

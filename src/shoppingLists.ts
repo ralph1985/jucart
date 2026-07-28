@@ -144,6 +144,23 @@ export async function renameShoppingList(listId: string, name: string) {
   }
 }
 
+export async function moveShoppingList(listId: string, direction: -1 | 1) {
+  const supabase = getClient();
+
+  if (!supabase) {
+    throw getUnavailableMessage();
+  }
+
+  const { error } = await supabase.rpc("move_shopping_list", {
+    p_list_id: listId,
+    p_direction: direction,
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function leaveShoppingList(listId: string) {
   const supabase = getClient();
 

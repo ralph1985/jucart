@@ -48,6 +48,7 @@ const shoppingListMocks = vi.hoisted(() => ({
   regenerateShoppingListCode: vi.fn(),
   leaveShoppingList: vi.fn(),
   renameShoppingList: vi.fn(),
+  moveShoppingList: vi.fn(),
 }));
 
 vi.mock("./auth", () => ({
@@ -65,6 +66,7 @@ vi.mock("./shoppingLists", () => ({
   regenerateShoppingListCode: shoppingListMocks.regenerateShoppingListCode,
   leaveShoppingList: shoppingListMocks.leaveShoppingList,
   renameShoppingList: shoppingListMocks.renameShoppingList,
+  moveShoppingList: shoppingListMocks.moveShoppingList,
 }));
 
 const emblaCarouselMock = vi.hoisted(() => {
@@ -203,6 +205,7 @@ afterEach(async () => {
   shoppingListMocks.regenerateShoppingListCode.mockReset();
   shoppingListMocks.leaveShoppingList.mockReset();
   shoppingListMocks.renameShoppingList.mockReset();
+  shoppingListMocks.moveShoppingList.mockReset();
 });
 
 function configureAuthMocks() {

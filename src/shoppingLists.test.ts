@@ -61,6 +61,7 @@ import {
   getShoppingLists,
   joinShoppingList,
   leaveShoppingList,
+  moveShoppingList,
   renameShoppingList,
   regenerateShoppingListCode,
 } from "./shoppingLists";
@@ -120,6 +121,7 @@ describe("shoppingLists", () => {
     await expect(
       renameShoppingList("list-1", "Nueva casa"),
     ).resolves.toBeUndefined();
+    await expect(moveShoppingList("list-1", 1)).resolves.toBeUndefined();
     await expect(leaveShoppingList("list-1")).resolves.toBeUndefined();
     await expect(deleteShoppingList("list-1")).resolves.toBeUndefined();
 
@@ -140,10 +142,14 @@ describe("shoppingLists", () => {
       p_list_id: "list-1",
       p_name: "Nueva casa",
     });
-    expect(mocks.rpc).toHaveBeenNthCalledWith(5, "leave_shopping_list", {
+    expect(mocks.rpc).toHaveBeenNthCalledWith(5, "move_shopping_list", {
+      p_list_id: "list-1",
+      p_direction: 1,
+    });
+    expect(mocks.rpc).toHaveBeenNthCalledWith(6, "leave_shopping_list", {
       p_list_id: "list-1",
     });
-    expect(mocks.rpc).toHaveBeenNthCalledWith(6, "delete_shopping_list", {
+    expect(mocks.rpc).toHaveBeenNthCalledWith(7, "delete_shopping_list", {
       p_list_id: "list-1",
     });
   });

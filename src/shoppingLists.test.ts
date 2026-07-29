@@ -17,8 +17,9 @@ const mocks = vi.hoisted(() => {
   ];
   const single = vi.fn();
   const order = vi.fn(() => Promise.resolve({ data: rows, error: null }));
+  const insert = vi.fn(() => Promise.resolve({ error: null }));
   const select = vi.fn(() => ({ order }));
-  const from = vi.fn(() => ({ select }));
+  const from = vi.fn(() => ({ insert, select }));
   const rpc = vi.fn();
   const client = { from, rpc };
 
@@ -27,6 +28,7 @@ const mocks = vi.hoisted(() => {
     createClient: vi.fn(() => client),
     from,
     order,
+    insert,
     rpc,
     select,
     single,
@@ -34,6 +36,7 @@ const mocks = vi.hoisted(() => {
     reset() {
       from.mockClear();
       order.mockClear();
+      insert.mockClear();
       rpc.mockReset();
       select.mockClear();
       single.mockReset();

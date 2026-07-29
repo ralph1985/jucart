@@ -676,6 +676,8 @@ describe("App", () => {
       await screen.findByRole("region", { name: "Listas disponibles" }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Nombre de Casa")).toHaveValue("Casa");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Ver detalles" })[0]);
     expect(screen.getByText("AB12CD34")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Nombre de Casa"), {
@@ -696,7 +698,6 @@ describe("App", () => {
       ),
     );
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Miembros" })[0]);
     const membersRegion = await screen.findByRole("region", {
       name: "Miembros de Casa",
     });
@@ -717,7 +718,9 @@ describe("App", () => {
       ),
     );
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Miembros" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Ocultar detalles" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Ver detalles" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Ver detalles" })[0]);
     const memberListRegion = await screen.findByRole("region", {
       name: "Miembros de Begoña",
     });
@@ -728,10 +731,59 @@ describe("App", () => {
       within(memberListRegion).queryByRole("button", { name: "Expulsar" }),
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Abandonar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abandonar lista" }));
     await waitFor(() =>
       expect(shoppingListMocks.leaveShoppingList).toHaveBeenCalledWith(
         "list-2",
+      ),
+    );
+  });
+
+  it("crea una lista autenticada desde el CTA persistente", async () => {
+    authMocks.status = "signed_in";
+    configureAuthMocks();
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    shoppingListMocks.lists = [
+      {
+        id: "list-1",
+        name: "Casa",
+        ownerId: "user-1",
+        joinCode: "AB12CD34",
+        ownerEmail: "rafa@example.com",
+        currentRole: "owner",
+        memberCount: 0,
+        productCount: 0,
+        createdAt: "2026-07-27T12:00:00.000Z",
+        updatedAt: "2026-07-27T12:00:00.000Z",
+      },
+    ];
+    shoppingListMocks.getShoppingLists.mockResolvedValue(
+      shoppingListMocks.lists,
+    );
+    shoppingListMocks.createShoppingList.mockResolvedValue(
+      shoppingListMocks.lists[0],
+    );
+
+    render(<App />);
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear lista" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Crear lista" });
+    fireEvent.change(within(dialog).getByLabelText("Nueva lista"), {
+      target: { value: "Nueva casa" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: "Seleccionar color blue para la lista",
+      }),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Crear" }));
+
+    await waitFor(() =>
+      expect(shoppingListMocks.createShoppingList).toHaveBeenCalledWith(
+        "Nueva casa",
+        "blue",
       ),
     );
   });
@@ -3260,6 +3312,11 @@ describe("App", () => {
       target: { value: "Frutería" },
     });
     fireEvent.click(
+      within(createListDialog).getByRole("button", {
+        name: "Seleccionar color amber para la lista",
+      }),
+    );
+    fireEvent.click(
       within(createListDialog).getByRole("button", { name: "Crear" }),
     );
 
@@ -3269,7 +3326,7 @@ describe("App", () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Poner Frutería en color amber" }),
+      screen.getAllByRole("button", { name: "Ver detalles" }).at(-1)!,
     );
 
     expect(
@@ -3277,7 +3334,7 @@ describe("App", () => {
     ).toHaveAttribute("aria-pressed", "true");
     expect(
       screen.getByLabelText("Nombre de Frutería").closest("li")?.className,
-    ).toContain("sectionColoramber");
+    ).toContain("shoppingListCardColoramber");
 
     fireEvent.click(screen.getByRole("button", { name: "Lista" }));
 
@@ -3293,6 +3350,14 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
 
+    const generalCard = screen
+      .getByLabelText("Nombre de General")
+      .closest("li");
+    fireEvent.click(
+      within(generalCard as HTMLElement).getByRole("button", {
+        name: "Ver detalles",
+      }),
+    );
     fireEvent.change(screen.getByLabelText("Nombre de General"), {
       target: { value: "Varios" },
     });
@@ -3326,6 +3391,7 @@ describe("App", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
     fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
 
+    fireEvent.click(screen.getAllByRole("button", { name: "Ver detalles" })[2]);
     fireEvent.click(screen.getByRole("button", { name: "Borrar Mercadona" }));
 
     expect(

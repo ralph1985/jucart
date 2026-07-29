@@ -230,6 +230,11 @@ test("creates a shopping list from the bottom sheet", async ({ page }) => {
 test("renames, colors and reorders shopping lists", async ({ page }) => {
   await createShoppingList(page, "Frutería e2e");
 
+  await page
+    .getByLabel("Nombre de Frutería e2e")
+    .locator("xpath=ancestor::li")
+    .getByRole("button", { name: "Ver detalles" })
+    .click();
   await page.getByLabel("Nombre de Frutería e2e").fill("Fruta e2e");
   await expect(page.getByLabel("Nombre de Fruta e2e")).toHaveValue("Fruta e2e");
 

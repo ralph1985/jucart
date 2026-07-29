@@ -104,7 +104,10 @@ export async function getShoppingLists() {
   return (data as ShoppingListRow[]).map(mapShoppingList);
 }
 
-export async function createShoppingList(name: string) {
+export async function createShoppingList(
+  name: string,
+  color: "mint" | "blue" | "violet" | "amber" | "rose" | "slate" = "mint",
+) {
   const supabase = getClient();
 
   if (!supabase) {
@@ -119,7 +122,22 @@ export async function createShoppingList(name: string) {
     throw error;
   }
 
-  return mapShoppingList(data as ShoppingListRow);
+  const createdList = mapShoppingList(data as ShoppingListRow);
+  const { error: sectionError } = await supabase
+    .from("shopping_sections")
+    .insert({
+      id: "general",
+      list_id: createdList.id,
+      name: createdList.name,
+      position: 0,
+      color,
+    });
+
+  if (sectionError) {
+    throw sectionError;
+  }
+
+  return createdList;
 }
 
 export async function joinShoppingList(joinCode: string) {

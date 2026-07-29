@@ -270,7 +270,8 @@
 
 .shoppingListManager {
   display: grid;
-  gap: 0.45rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -280,51 +281,101 @@
   display: grid;
   gap: 0.4rem;
   border: 1px solid rgb(148 163 184 / 28%);
-  border-radius: 0.5rem;
-  padding: 0.5rem;
-  background: rgb(248 250 252 / 72%);
+  border-radius: 0.7rem;
+  padding: 0.7rem;
+  box-shadow: 0 0.35rem 0.75rem var(--surface-shadow);
 }
 
-.shoppingListButton,
-.shoppingListActiveButton {
+.shoppingListCardColormint {
+  border-color: rgb(22 124 90 / 34%);
+  background: linear-gradient(180deg, #f8fffc 0%, #ecfdf5 100%);
+}
+
+.shoppingListCardColorblue {
+  border-color: rgb(37 99 235 / 32%);
+  background: linear-gradient(180deg, #f8fbff 0%, #eff6ff 100%);
+}
+
+.shoppingListCardColorviolet {
+  border-color: rgb(124 58 237 / 30%);
+  background: linear-gradient(180deg, #fcfaff 0%, #f5f3ff 100%);
+}
+
+.shoppingListCardColoramber {
+  border-color: rgb(217 119 6 / 32%);
+  background: linear-gradient(180deg, #fffdf7 0%, #fffbeb 100%);
+}
+
+.shoppingListCardColorrose {
+  border-color: rgb(225 29 72 / 28%);
+  background: linear-gradient(180deg, #fffafa 0%, #fff1f2 100%);
+}
+
+.shoppingListCardColorslate {
+  border-color: rgb(71 85 105 / 28%);
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+}
+
+.shoppingListCardHeader {
   display: grid;
-  gap: 0.12rem;
+  gap: 0.35rem;
   min-width: 0;
-  border: 0;
-  border-radius: 0.4rem;
-  padding: 0.35rem 0.45rem;
-  text-align: left;
   color: #102033;
-  font: inherit;
 }
 
-.shoppingListButton {
-  background: rgb(226 232 240 / 46%);
+.shoppingListCardHeader > strong,
+.shoppingListCardHeader > .input {
+  font-size: 1rem;
+  font-weight: 850;
 }
 
-.shoppingListActiveButton {
-  background: rgb(220 252 231 / 82%);
-  color: #166534;
+.shoppingListStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  color: #526171;
+  font-size: 0.72rem;
+  font-weight: 750;
 }
 
-.shoppingListButton small,
-.shoppingListActiveButton small {
-  font-size: 0.68rem;
-  font-weight: 700;
+.shoppingListCardActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.45rem;
 }
 
 .shoppingListManagerActions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 0.4rem;
 }
 
-.shoppingListManagerActions code {
-  margin-right: auto;
+.shoppingListDetails {
+  display: grid;
+  gap: 0.6rem;
+  border-top: 1px solid rgb(148 163 184 / 28%);
+  padding-top: 0.6rem;
+}
+
+.shoppingListAdvanced {
+  display: grid;
+  gap: 0.55rem;
+  border-top: 1px solid rgb(148 163 184 / 22%);
+  padding-top: 0.55rem;
+}
+
+.shoppingListCodeBlock {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
   color: #526171;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.shoppingListCodeBlock code {
   letter-spacing: 0.08em;
 }
 
@@ -367,6 +418,12 @@
   font-size: 0.64rem;
   font-weight: 760;
   white-space: nowrap;
+}
+
+.shoppingListEmpty {
+  display: grid;
+  justify-items: start;
+  gap: 0.35rem;
 }
 
 .shoppingListMemberActions {
@@ -1596,7 +1653,7 @@ h2 {
   display: grid;
   align-content: start;
   gap: 0.85rem;
-  padding: 0.15rem 1rem 1rem;
+  padding: 0.15rem 1rem 5.5rem;
 }
 
 .historyScreen {
@@ -3102,6 +3159,10 @@ h2 {
 }
 
 @media (min-width: 42rem) {
+  .shoppingListManager {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .form {
     grid-template-columns: 10rem auto;
     align-items: end;

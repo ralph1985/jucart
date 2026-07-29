@@ -10,8 +10,19 @@ export type ShoppingList = {
   ownerEmail: string;
   memberCount: number;
   productCount: number;
+  currentRole: ShoppingListRole;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ShoppingListRole = "owner" | "member";
+
+export type ShoppingListMember = {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  role: ShoppingListRole;
+  joinedAt: string;
 };
 
 type ShoppingListRow = {
@@ -24,6 +35,15 @@ type ShoppingListRow = {
   owner_email: string;
   member_count: number;
   product_count: number;
+  membership_role: ShoppingListRole;
+};
+
+type ShoppingListMemberRow = {
+  user_id: string;
+  email: string;
+  display_name: string | null;
+  role: ShoppingListRole;
+  joined_at: string;
 };
 
 let client: SupabaseClient | null = null;
@@ -48,8 +68,19 @@ function mapShoppingList(row: ShoppingListRow): ShoppingList {
     ownerEmail: row.owner_email,
     memberCount: Number(row.member_count ?? 0),
     productCount: Number(row.product_count ?? 0),
+    currentRole: row.membership_role,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapShoppingListMember(row: ShoppingListMemberRow): ShoppingListMember {
+  return {
+    userId: row.user_id,
+    email: row.email,
+    displayName: row.display_name,
+    role: row.role,
+    joinedAt: row.joined_at,
   };
 }
 
@@ -116,15 +147,77 @@ export async function regenerateShoppingListCode(listId: string) {
     throw getUnavailableMessage();
   }
 
-  const { data, error } = await supabase
-    .rpc("regenerate_shopping_list_code", { p_list_id: listId })
-    .single();
+  const { error } = await supabase.rpc("regenerate_shopping_list_code", {
+    p_list_id: listId,
+  });
 
   if (error) {
     throw error;
   }
 
-  return mapShoppingList(data as ShoppingListRow);
+  const lists = await getShoppingLists();
+  const refreshedList = lists.find((list) => list.id === listId);
+
+  if (!refreshedList) {
+    throw new Error("No se pudo recargar la lista tras regenerar el código.");
+  }
+
+  return refreshedList;
+}
+
+export async function getShoppingListMembers(listId: string) {
+  const supabase = getClient();
+
+  if (!supabase) {
+    throw getUnavailableMessage();
+  }
+
+  const { data, error } = await supabase.rpc("get_shopping_list_members", {
+    p_list_id: listId,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as ShoppingListMemberRow[]).map(mapShoppingListMember);
+}
+
+export async function removeShoppingListMember(listId: string, userId: string) {
+  const supabase = getClient();
+
+  if (!supabase) {
+    throw getUnavailableMessage();
+  }
+
+  const { error } = await supabase.rpc("remove_shopping_list_member", {
+    p_list_id: listId,
+    p_user_id: userId,
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function transferShoppingListOwnership(
+  listId: string,
+  userId: string,
+) {
+  const supabase = getClient();
+
+  if (!supabase) {
+    throw getUnavailableMessage();
+  }
+
+  const { error } = await supabase.rpc("transfer_shopping_list_ownership", {
+    p_list_id: listId,
+    p_new_owner_id: userId,
+  });
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function renameShoppingList(listId: string, name: string) {

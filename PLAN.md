@@ -532,14 +532,16 @@ Objetivo: transformar las listas antiguas por supermercado en listas compartidas
 
 Objetivo: aplicar permisos reales a la administración de cada lista.
 
-- [ ] Crear los roles `owner` y `member`.
-- [ ] Permitir a propietario y miembros leer y modificar el contenido de la lista.
-- [ ] Permitir al propietario expulsar miembros.
-- [ ] Permitir al propietario transferir la propiedad.
-- [ ] Permitir eliminar una lista únicamente a su propietario.
-- [ ] Añadir pantallas de administración de miembros y acciones de propietario.
+- [x] Crear los roles `owner` y `member`.
+- [x] Permitir a propietario y miembros leer y modificar el contenido de la lista.
+- [x] Permitir al propietario expulsar miembros.
+- [x] Permitir al propietario transferir la propiedad.
+- [x] Permitir eliminar una lista únicamente a su propietario.
+- [x] Añadir pantallas de administración de miembros y acciones de propietario.
 - [x] Activar políticas y comprobaciones de pertenencia para clientes autenticados.
-- [ ] Añadir tests de autorización para propietario, miembro y usuario ajeno.
+- [x] Añadir tests de autorización para propietario, miembro y usuario ajeno.
+
+El Hito 38 añade el rol actual a la carga de listas, una vista de miembros y RPCs protegidas para consultar miembros, expulsar miembros y transferir propiedad. Las operaciones sensibles exigen propietario y sesión autenticada; `anon` no puede ejecutar esas RPCs. La migración remota quedó aplicada el 29/07/2026 y la validación local cubre propietario y miembro, además de las comprobaciones remotas de concesiones y pertenencia.
 
 ## Hito 39 — Aislamiento de todos los datos
 

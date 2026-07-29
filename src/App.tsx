@@ -106,13 +106,16 @@ import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
 import { isSupabaseConfigured } from "./supabaseConfig";
 import {
   deleteShoppingList,
+  getShoppingListMembers,
   getShoppingLists,
   leaveShoppingList,
   moveShoppingList,
+  removeShoppingListMember,
   renameShoppingList,
   regenerateShoppingListCode,
+  transferShoppingListOwnership,
 } from "./shoppingLists";
-import type { ShoppingList } from "./shoppingLists";
+import type { ShoppingList, ShoppingListMember } from "./shoppingLists";
 import {
   pwaUpdateApplyEvent,
   pwaUpdateAvailableEvent,
@@ -1434,6 +1437,12 @@ export function App() {
   );
   const [isShoppingListActionPending, setIsShoppingListActionPending] =
     useState(false);
+  const [expandedShoppingListId, setExpandedShoppingListId] = useState<
+    string | null
+  >(null);
+  const [shoppingListMembers, setShoppingListMembers] = useState<
+    Record<string, ShoppingListMember[]>
+  >({});
   const [isPwaUpdateAvailable, setIsPwaUpdateAvailable] = useState(false);
   const [isPwaUpdateApplying, setIsPwaUpdateApplying] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
@@ -4214,6 +4223,108 @@ export function App() {
     }
   }
 
+  async function handleToggleShoppingListMembers(listId: string) {
+    if (expandedShoppingListId === listId) {
+      setExpandedShoppingListId(null);
+      return;
+    }
+
+    setExpandedShoppingListId(listId);
+    setShoppingListMessage(null);
+
+    if (shoppingListMembers[listId]) {
+      return;
+    }
+
+    setIsShoppingListActionPending(true);
+
+    try {
+      const members = await getShoppingListMembers(listId);
+      setShoppingListMembers((currentMembers) => ({
+        ...currentMembers,
+        [listId]: members,
+      }));
+    } catch {
+      setShoppingListMessage("No se pudieron cargar los miembros de la lista.");
+    } finally {
+      setIsShoppingListActionPending(false);
+    }
+  }
+
+  async function handleRemoveShoppingListMember(
+    list: ShoppingList,
+    member: ShoppingListMember,
+  ) {
+    if (!window.confirm(`¿Expulsar a ${member.email} de ${list.name}?`)) {
+      return;
+    }
+
+    setIsShoppingListActionPending(true);
+    setShoppingListMessage(null);
+
+    try {
+      await removeShoppingListMember(list.id, member.userId);
+      setShoppingListMembers((currentMembers) => ({
+        ...currentMembers,
+        [list.id]: (currentMembers[list.id] ?? []).filter(
+          (currentMember) => currentMember.userId !== member.userId,
+        ),
+      }));
+      setShoppingLists((currentLists) =>
+        currentLists.map((currentList) =>
+          currentList.id === list.id
+            ? {
+                ...currentList,
+                memberCount: Math.max(currentList.memberCount - 1, 0),
+              }
+            : currentList,
+        ),
+      );
+      setShoppingListMessage(`Miembro expulsado de ${list.name}.`);
+    } catch {
+      setShoppingListMessage("No se pudo expulsar al miembro.");
+    } finally {
+      setIsShoppingListActionPending(false);
+    }
+  }
+
+  async function handleTransferShoppingListOwnership(
+    list: ShoppingList,
+    member: ShoppingListMember,
+  ) {
+    if (
+      !window.confirm(
+        `¿Transferir la propiedad de ${list.name} a ${member.email}? Dejarás de poder administrarla.`,
+      )
+    ) {
+      return;
+    }
+
+    setIsShoppingListActionPending(true);
+    setShoppingListMessage(null);
+
+    try {
+      await transferShoppingListOwnership(list.id, member.userId);
+      const lists = await getShoppingLists();
+      setShoppingLists(lists);
+      setShoppingListMembers((currentMembers) => ({
+        ...currentMembers,
+        [list.id]: (currentMembers[list.id] ?? []).map((currentMember) =>
+          currentMember.userId === member.userId
+            ? { ...currentMember, role: "owner" }
+            : currentMember.userId === list.ownerId
+              ? { ...currentMember, role: "member" }
+              : currentMember,
+        ),
+      }));
+      setShoppingListMessage(`Propiedad transferida a ${member.email}.`);
+    } catch {
+      setShoppingListMessage("No se pudo transferir la propiedad.");
+    } finally {
+      setIsShoppingListActionPending(false);
+    }
+  }
+
   async function handleLeaveShoppingList(listId: string) {
     setIsShoppingListActionPending(true);
     setShoppingListMessage(null);
@@ -5799,7 +5910,7 @@ export function App() {
         {shoppingLists.length > 0 ? (
           <ul className={styles.shoppingListManager}>
             {shoppingLists.map((list) => {
-              const isOwner = list.ownerId === authSnapshot.user?.id;
+              const isOwner = list.currentRole === "owner";
               const listIndex = shoppingLists.findIndex(
                 (currentList) => currentList.id === list.id,
               );
@@ -5898,6 +6009,19 @@ export function App() {
                     >
                       <Icon name="arrowDown" />
                     </button>
+                    <button
+                      className={styles.authButton}
+                      type="button"
+                      onPointerDown={handleButtonPointerDown}
+                      onClick={() =>
+                        void handleToggleShoppingListMembers(list.id)
+                      }
+                      disabled={isShoppingListActionPending}
+                    >
+                      {expandedShoppingListId === list.id
+                        ? "Ocultar miembros"
+                        : "Miembros"}
+                    </button>
                     {isOwner ? (
                       <>
                         {memberCount === 0 && productCount === 0 ? (
@@ -5938,6 +6062,65 @@ export function App() {
                       </button>
                     )}
                   </div>
+                  {expandedShoppingListId === list.id ? (
+                    <div
+                      className={styles.shoppingListMembers}
+                      aria-label={`Miembros de ${list.name}`}
+                      role="region"
+                    >
+                      <strong>Miembros de la lista</strong>
+                      {(shoppingListMembers[list.id] ?? []).map((member) => (
+                        <div
+                          className={styles.shoppingListMember}
+                          key={member.userId}
+                        >
+                          <div>
+                            <strong>
+                              {member.displayName || member.email}
+                            </strong>
+                            <small>{member.email}</small>
+                          </div>
+                          <span className={styles.shoppingListMemberRole}>
+                            {member.role === "owner"
+                              ? "Propietario"
+                              : "Miembro"}
+                          </span>
+                          {isOwner && member.role === "member" ? (
+                            <div className={styles.shoppingListMemberActions}>
+                              <button
+                                className={styles.authButton}
+                                type="button"
+                                onPointerDown={handleButtonPointerDown}
+                                onClick={() =>
+                                  void handleTransferShoppingListOwnership(
+                                    list,
+                                    member,
+                                  )
+                                }
+                                disabled={isShoppingListActionPending}
+                              >
+                                Transferir
+                              </button>
+                              <button
+                                className={styles.authButton}
+                                type="button"
+                                onPointerDown={handleButtonPointerDown}
+                                onClick={() =>
+                                  void handleRemoveShoppingListMember(
+                                    list,
+                                    member,
+                                  )
+                                }
+                                disabled={isShoppingListActionPending}
+                              >
+                                Expulsar
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </li>
               );
             })}

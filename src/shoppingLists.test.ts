@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => {
       owner_email: "rafa@example.com",
       created_at: "2026-07-27T12:00:00.000Z",
       updated_at: "2026-07-27T12:00:00.000Z",
+      member_count: 0,
+      product_count: 0,
+      membership_role: "owner",
     },
   ];
   const single = vi.fn();
@@ -58,12 +61,15 @@ vi.mock("./supabaseConfig", () => configMock);
 import {
   createShoppingList,
   deleteShoppingList,
+  getShoppingListMembers,
   getShoppingLists,
   joinShoppingList,
   leaveShoppingList,
   moveShoppingList,
+  removeShoppingListMember,
   renameShoppingList,
   regenerateShoppingListCode,
+  transferShoppingListOwnership,
 } from "./shoppingLists";
 
 describe("shoppingLists", () => {
@@ -89,6 +95,7 @@ describe("shoppingLists", () => {
         ownerEmail: "rafa@example.com",
         memberCount: 0,
         productCount: 0,
+        currentRole: "owner",
         updatedAt: "2026-07-27T12:00:00.000Z",
       },
     ]);
@@ -103,6 +110,10 @@ describe("shoppingLists", () => {
     mocks.rpc.mockImplementation((name: string) => {
       if (name === "leave_shopping_list") {
         return Promise.resolve({ error: null });
+      }
+
+      if (name === "get_shopping_lists_for_user") {
+        return Promise.resolve({ data: mocks.rows, error: null });
       }
 
       return { single: mocks.single };
@@ -138,20 +149,90 @@ describe("shoppingLists", () => {
         p_list_id: "list-1",
       },
     );
-    expect(mocks.rpc).toHaveBeenNthCalledWith(4, "rename_shopping_list", {
+    expect(mocks.rpc).toHaveBeenNthCalledWith(4, "get_shopping_lists_for_user");
+    expect(mocks.rpc).toHaveBeenNthCalledWith(5, "rename_shopping_list", {
       p_list_id: "list-1",
       p_name: "Nueva casa",
     });
-    expect(mocks.rpc).toHaveBeenNthCalledWith(5, "move_shopping_list", {
+    expect(mocks.rpc).toHaveBeenNthCalledWith(6, "move_shopping_list", {
       p_list_id: "list-1",
       p_direction: 1,
     });
-    expect(mocks.rpc).toHaveBeenNthCalledWith(6, "leave_shopping_list", {
+    expect(mocks.rpc).toHaveBeenNthCalledWith(7, "leave_shopping_list", {
       p_list_id: "list-1",
     });
-    expect(mocks.rpc).toHaveBeenNthCalledWith(7, "delete_shopping_list", {
+    expect(mocks.rpc).toHaveBeenNthCalledWith(8, "delete_shopping_list", {
       p_list_id: "list-1",
     });
+  });
+
+  it("loads and manages list members through protected RPCs", async () => {
+    const memberRows = [
+      {
+        user_id: "user-1",
+        email: "rafa@example.com",
+        display_name: "Rafa",
+        role: "owner",
+        joined_at: "2026-07-27T12:00:00.000Z",
+      },
+      {
+        user_id: "user-2",
+        email: "bego@example.com",
+        display_name: "Begoña",
+        role: "member",
+        joined_at: "2026-07-27T12:01:00.000Z",
+      },
+    ];
+    mocks.rpc.mockImplementation((name: string) => {
+      if (name === "get_shopping_list_members") {
+        return Promise.resolve({ data: memberRows, error: null });
+      }
+
+      return Promise.resolve({ error: null });
+    });
+
+    await expect(getShoppingListMembers("list-1")).resolves.toEqual([
+      {
+        userId: "user-1",
+        email: "rafa@example.com",
+        displayName: "Rafa",
+        role: "owner",
+        joinedAt: "2026-07-27T12:00:00.000Z",
+      },
+      {
+        userId: "user-2",
+        email: "bego@example.com",
+        displayName: "Begoña",
+        role: "member",
+        joinedAt: "2026-07-27T12:01:00.000Z",
+      },
+    ]);
+    await expect(
+      removeShoppingListMember("list-1", "user-2"),
+    ).resolves.toBeUndefined();
+    await expect(
+      transferShoppingListOwnership("list-1", "user-2"),
+    ).resolves.toBeUndefined();
+
+    expect(mocks.rpc).toHaveBeenNthCalledWith(1, "get_shopping_list_members", {
+      p_list_id: "list-1",
+    });
+    expect(mocks.rpc).toHaveBeenNthCalledWith(
+      2,
+      "remove_shopping_list_member",
+      {
+        p_list_id: "list-1",
+        p_user_id: "user-2",
+      },
+    );
+    expect(mocks.rpc).toHaveBeenNthCalledWith(
+      3,
+      "transfer_shopping_list_ownership",
+      {
+        p_list_id: "list-1",
+        p_new_owner_id: "user-2",
+      },
+    );
   });
 
   it("reports when list management is not configured", async () => {
@@ -169,6 +250,21 @@ describe("shoppingLists", () => {
     await expect(regenerateShoppingListCode("list-1")).rejects.toThrow(
       "La gestión de listas no está configurada.",
     );
+    await expect(getShoppingListMembers("list-1")).rejects.toThrow(
+      "La gestión de listas no está configurada.",
+    );
+    await expect(moveShoppingList("list-1", 1)).rejects.toThrow(
+      "La gestión de listas no está configurada.",
+    );
+    await expect(deleteShoppingList("list-1")).rejects.toThrow(
+      "La gestión de listas no está configurada.",
+    );
+    await expect(removeShoppingListMember("list-1", "user-2")).rejects.toThrow(
+      "La gestión de listas no está configurada.",
+    );
+    await expect(
+      transferShoppingListOwnership("list-1", "user-2"),
+    ).rejects.toThrow("La gestión de listas no está configurada.");
     await expect(leaveShoppingList("list-1")).rejects.toThrow(
       "La gestión de listas no está configurada.",
     );
@@ -197,6 +293,10 @@ describe("shoppingLists", () => {
         return Promise.resolve({ error });
       }
 
+      if (name === "get_shopping_lists_for_user") {
+        return Promise.resolve({ data: null as never, error });
+      }
+
       return { single: mocks.single };
     });
 
@@ -206,5 +306,24 @@ describe("shoppingLists", () => {
       "remote error",
     );
     await expect(leaveShoppingList("list-1")).rejects.toThrow("remote error");
+
+    mocks.rpc.mockImplementation((name: string) => {
+      if (name === "get_shopping_list_members") {
+        return Promise.resolve({ data: null as never, error });
+      }
+
+      return Promise.resolve({ error });
+    });
+    await expect(moveShoppingList("list-1", 1)).rejects.toThrow("remote error");
+    await expect(deleteShoppingList("list-1")).rejects.toThrow("remote error");
+    await expect(getShoppingListMembers("list-1")).rejects.toThrow(
+      "remote error",
+    );
+    await expect(removeShoppingListMember("list-1", "user-2")).rejects.toThrow(
+      "remote error",
+    );
+    await expect(
+      transferShoppingListOwnership("list-1", "user-2"),
+    ).rejects.toThrow("remote error");
   });
 });

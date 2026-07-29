@@ -38,10 +38,14 @@ const shoppingListMocks = vi.hoisted(() => ({
     ownerId: string;
     joinCode: string;
     ownerEmail: string;
+    currentRole: "owner" | "member";
+    memberCount: number;
+    productCount: number;
     createdAt: string;
     updatedAt: string;
   }>,
   getShoppingLists: vi.fn(),
+  getShoppingListMembers: vi.fn(),
   createShoppingList: vi.fn(),
   deleteShoppingList: vi.fn(),
   joinShoppingList: vi.fn(),
@@ -49,6 +53,8 @@ const shoppingListMocks = vi.hoisted(() => ({
   leaveShoppingList: vi.fn(),
   renameShoppingList: vi.fn(),
   moveShoppingList: vi.fn(),
+  removeShoppingListMember: vi.fn(),
+  transferShoppingListOwnership: vi.fn(),
 }));
 
 vi.mock("./auth", () => ({
@@ -60,6 +66,7 @@ vi.mock("./auth", () => ({
 
 vi.mock("./shoppingLists", () => ({
   getShoppingLists: shoppingListMocks.getShoppingLists,
+  getShoppingListMembers: shoppingListMocks.getShoppingListMembers,
   createShoppingList: shoppingListMocks.createShoppingList,
   deleteShoppingList: shoppingListMocks.deleteShoppingList,
   joinShoppingList: shoppingListMocks.joinShoppingList,
@@ -67,6 +74,9 @@ vi.mock("./shoppingLists", () => ({
   leaveShoppingList: shoppingListMocks.leaveShoppingList,
   renameShoppingList: shoppingListMocks.renameShoppingList,
   moveShoppingList: shoppingListMocks.moveShoppingList,
+  removeShoppingListMember: shoppingListMocks.removeShoppingListMember,
+  transferShoppingListOwnership:
+    shoppingListMocks.transferShoppingListOwnership,
 }));
 
 const emblaCarouselMock = vi.hoisted(() => {
@@ -199,6 +209,7 @@ afterEach(async () => {
   authMocks.signOut.mockReset();
   shoppingListMocks.lists = [];
   shoppingListMocks.getShoppingLists.mockReset();
+  shoppingListMocks.getShoppingListMembers.mockReset();
   shoppingListMocks.createShoppingList.mockReset();
   shoppingListMocks.deleteShoppingList.mockReset();
   shoppingListMocks.joinShoppingList.mockReset();
@@ -206,6 +217,8 @@ afterEach(async () => {
   shoppingListMocks.leaveShoppingList.mockReset();
   shoppingListMocks.renameShoppingList.mockReset();
   shoppingListMocks.moveShoppingList.mockReset();
+  shoppingListMocks.removeShoppingListMember.mockReset();
+  shoppingListMocks.transferShoppingListOwnership.mockReset();
 });
 
 function configureAuthMocks() {
@@ -610,6 +623,9 @@ describe("App", () => {
         ownerId: "user-1",
         joinCode: "AB12CD34",
         ownerEmail: "rafa@example.com",
+        currentRole: "owner",
+        memberCount: 1,
+        productCount: 0,
         createdAt: "2026-07-27T12:00:00.000Z",
         updatedAt: "2026-07-27T12:00:00.000Z",
       },
@@ -619,6 +635,9 @@ describe("App", () => {
         ownerId: "user-2",
         joinCode: "EF56GH78",
         ownerEmail: "bego@example.com",
+        currentRole: "member",
+        memberCount: 1,
+        productCount: 0,
         createdAt: "2026-07-27T13:00:00.000Z",
         updatedAt: "2026-07-27T13:00:00.000Z",
       },
@@ -626,6 +645,22 @@ describe("App", () => {
     shoppingListMocks.getShoppingLists.mockResolvedValue(
       shoppingListMocks.lists,
     );
+    shoppingListMocks.getShoppingListMembers.mockResolvedValue([
+      {
+        userId: "user-1",
+        email: "rafa@example.com",
+        displayName: "Rafa",
+        role: "owner",
+        joinedAt: "2026-07-27T12:00:00.000Z",
+      },
+      {
+        userId: "user-2",
+        email: "bego@example.com",
+        displayName: "Begoña",
+        role: "member",
+        joinedAt: "2026-07-27T12:01:00.000Z",
+      },
+    ]);
     shoppingListMocks.regenerateShoppingListCode.mockResolvedValue({
       ...shoppingListMocks.lists[0],
       joinCode: "ZX90YU12",
@@ -660,6 +695,38 @@ describe("App", () => {
         "list-1",
       ),
     );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Miembros" })[0]);
+    const membersRegion = await screen.findByRole("region", {
+      name: "Miembros de Casa",
+    });
+    expect(within(membersRegion).getByText("Begoña")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Transferir" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Expulsar" }),
+    ).toBeInTheDocument();
+
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Expulsar" }));
+    await waitFor(() =>
+      expect(shoppingListMocks.removeShoppingListMember).toHaveBeenCalledWith(
+        "list-1",
+        "user-2",
+      ),
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Miembros" })[0]);
+    const memberListRegion = await screen.findByRole("region", {
+      name: "Miembros de Begoña",
+    });
+    expect(
+      within(memberListRegion).queryByRole("button", { name: "Transferir" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(memberListRegion).queryByRole("button", { name: "Expulsar" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Abandonar" }));
     await waitFor(() =>

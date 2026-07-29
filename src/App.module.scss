@@ -328,6 +328,54 @@
   letter-spacing: 0.08em;
 }
 
+.shoppingListMembers {
+  display: grid;
+  gap: 0.4rem;
+  border-top: 1px solid rgb(148 163 184 / 28%);
+  padding: 0.5rem 0.45rem 0.1rem;
+  color: #102033;
+  font-size: 0.72rem;
+}
+
+.shoppingListMember {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.4rem;
+  padding: 0.35rem;
+  background: rgb(226 232 240 / 42%);
+}
+
+.shoppingListMember > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 0.08rem;
+}
+
+.shoppingListMember small {
+  overflow: hidden;
+  color: #526171;
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shoppingListMemberRole {
+  color: #526171;
+  font-size: 0.64rem;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.shoppingListMemberActions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
 .commandPanel {
   position: fixed;
   z-index: 7;

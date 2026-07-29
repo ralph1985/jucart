@@ -6207,9 +6207,6 @@ export function App() {
             </button>
           </div>
         )}
-        <p className={styles.authMessage}>
-          Estas son las listas compartidas disponibles durante la migración.
-        </p>
         {shoppingListMessage ? (
           <p className={styles.authMessage} role="status">
             {shoppingListMessage}

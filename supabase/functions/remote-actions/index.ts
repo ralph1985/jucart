@@ -7,23 +7,29 @@ const requiredEnvVars = [
 ] as const;
 
 const allowedActions = new Set(["supabase_backup"]);
+const defaultWebOrigin = "https://jucar-cart.vercel.app";
 
 Deno.serve(async (request) => {
+  if (request.method === "OPTIONS") {
+    return new Response("ok", { headers: getCorsHeaders(request) });
+  }
+
   if (request.method !== "POST") {
-    return Response.json({ error: "Método no permitido." }, { status: 405 });
+    return jsonResponse(request, { error: "Método no permitido." }, 405);
   }
 
   const env = readEnv();
   if (!env.valid) {
-    return Response.json(
+    return jsonResponse(
+      request,
       { error: `Faltan variables: ${env.missing.join(", ")}.` },
-      { status: 500 },
+      500,
     );
   }
 
   const body = await readJson(request);
   if (!body.valid) {
-    return Response.json({ error: body.error }, { status: 400 });
+    return jsonResponse(request, { error: body.error }, 400);
   }
 
   const supabase = createClient(
@@ -48,7 +54,7 @@ async function handleUserRequest(
     .get("Authorization")
     ?.replace(/^Bearer\s+/i, "");
   if (!token) {
-    return Response.json({ error: "No autorizado." }, { status: 401 });
+    return jsonResponse(request, { error: "No autorizado." }, 401);
   }
 
   const { data: userData, error: userError } =
@@ -59,7 +65,7 @@ async function handleUserRequest(
     !user ||
     user.email?.toLowerCase() !== "rafaelgarcia1985@hotmail.com"
   ) {
-    return Response.json({ error: "No autorizado." }, { status: 403 });
+    return jsonResponse(request, { error: "No autorizado." }, 403);
   }
 
   const action = typeof body.action === "string" ? body.action : "";
@@ -77,9 +83,10 @@ async function handleUserRequest(
     !clientRequestId ||
     clientRequestId.length > 120
   ) {
-    return Response.json(
+    return jsonResponse(
+      request,
       { error: "Acción o identificador inválido." },
-      { status: 400 },
+      400,
     );
   }
 
@@ -101,19 +108,18 @@ async function handleUserRequest(
       .eq("client_request_id", clientRequestId)
       .eq("requested_by", user.id)
       .maybeSingle();
-    return Response.json(existing.data ?? { error: "La orden ya existe." }, {
-      status: 200,
-    });
-  }
-
-  if (error) {
-    return Response.json(
-      { error: "No se pudo crear la orden." },
-      { status: 500 },
+    return jsonResponse(
+      request,
+      existing.data ?? { error: "La orden ya existe." },
+      200,
     );
   }
 
-  return Response.json(data, { status: 201 });
+  if (error) {
+    return jsonResponse(request, { error: "No se pudo crear la orden." }, 500);
+  }
+
+  return jsonResponse(request, data, 201);
 }
 
 async function handleAgentRequest(
@@ -123,7 +129,7 @@ async function handleAgentRequest(
   const operation = body.operation;
   const agentId = typeof body.agentId === "string" ? body.agentId.trim() : "";
   if (!agentId || agentId.length > 120) {
-    return Response.json({ error: "Agente inválido." }, { status: 400 });
+    return jsonResponse(undefined, { error: "Agente inválido." }, 400);
   }
 
   if (operation === "claim") {
@@ -132,11 +138,12 @@ async function handleAgentRequest(
       p_lease_seconds: 120,
     });
     if (error)
-      return Response.json(
+      return jsonResponse(
+        undefined,
         { error: "No se pudo reclamar la orden." },
-        { status: 500 },
+        500,
       );
-    return Response.json({ action: data?.[0] ?? null });
+    return jsonResponse(undefined, { action: data?.[0] ?? null });
   }
 
   if (operation === "complete") {
@@ -161,14 +168,41 @@ async function handleAgentRequest(
       p_error_message: errorMessage,
     });
     if (error)
-      return Response.json(
+      return jsonResponse(
+        undefined,
         { error: "No se pudo cerrar la orden." },
-        { status: 409 },
+        409,
       );
-    return Response.json({ action: data });
+    return jsonResponse(undefined, { action: data });
   }
 
-  return Response.json({ error: "Operación no permitida." }, { status: 400 });
+  return jsonResponse(undefined, { error: "Operación no permitida." }, 400);
+}
+
+function jsonResponse(
+  request: Request | undefined,
+  body: unknown,
+  status = 200,
+) {
+  return Response.json(body, { status, headers: getCorsHeaders(request) });
+}
+
+function getCorsHeaders(request: Request | undefined) {
+  const origin = request?.headers.get("origin");
+  const allowedOrigin =
+    Deno.env.get("JUCART_WEB_ORIGIN")?.trim() || defaultWebOrigin;
+  const headers = new Headers({
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type, x-jucart-agent-secret",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    Vary: "Origin",
+  });
+
+  if (origin === allowedOrigin || origin === "http://localhost:5173") {
+    headers.set("Access-Control-Allow-Origin", origin);
+  }
+
+  return headers;
 }
 
 async function readJson(request: Request) {

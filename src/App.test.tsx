@@ -604,6 +604,16 @@ describe("App", () => {
     expect(window.confirm).toHaveBeenCalledWith(
       "¿Quieres solicitar ahora un backup de Supabase?",
     );
+
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ejecutar backup ahora" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByText("No se pudo solicitar el backup remoto."),
+      ).toBeInTheDocument(),
+    );
   });
 
   it("hides the developer view from normal users", async () => {

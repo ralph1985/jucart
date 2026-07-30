@@ -144,6 +144,8 @@ pnpm backup:supabase:cron:install
 
 El backup se ejecuta desde la máquina local contra Supabase remoto. Genera archivos ignorados por Git en `var/backups/supabase/` y logs en `var/log/`.
 
+El backup usa `SUPABASE_SERVICE_ROLE_KEY` únicamente desde el fichero privado indicado por `JUCART_SUPABASE_BACKUP_ENV_FILE` (por defecto, `~/.config/jucart/supabase-backup.env`). No debe usarse la clave `anon` para este proceso: las tablas privadas requieren una credencial de servidor.
+
 ### Categorías y productos con Codex
 
 ```bash

@@ -105,6 +105,12 @@ import type {
 import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
 import { isSupabaseConfigured } from "./supabaseConfig";
 import {
+  createRemoteBackupAction,
+  getLatestRemoteAction,
+  subscribeToRemoteActions,
+} from "./remoteActions";
+import type { RemoteAction } from "./remoteActions";
+import {
   createShoppingList,
   deleteShoppingList,
   getShoppingListMembers,
@@ -1463,6 +1469,11 @@ export function App() {
   const [developerBackupError, setDeveloperBackupError] = useState<
     string | null
   >(null);
+  const [remoteAction, setRemoteAction] = useState<RemoteAction | null>(null);
+  const [remoteActionError, setRemoteActionError] = useState<string | null>(
+    null,
+  );
+  const [isRemoteActionPending, setIsRemoteActionPending] = useState(false);
   const [pushNotificationSnapshot, setPushNotificationSnapshot] = useState(
     initialPushNotificationSnapshot,
   );
@@ -2208,7 +2219,18 @@ export function App() {
     }
 
     void refreshDeveloperBackupRun();
+    void refreshRemoteAction();
   }, [currentShoppingUserId, isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!isLoaded || !isCurrentUserAdministrator || !isSupabaseConfigured()) {
+      return;
+    }
+
+    return subscribeToRemoteActions(() => {
+      void refreshRemoteAction();
+    });
+  }, [isCurrentUserAdministrator, isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     try {
@@ -4119,6 +4141,54 @@ export function App() {
     }
   }
 
+  async function refreshRemoteAction() {
+    if (!isCurrentUserAdministrator) {
+      return;
+    }
+
+    try {
+      const latestAction = await getLatestRemoteAction();
+      setRemoteAction(latestAction);
+      setRemoteActionError(null);
+    } catch {
+      setRemoteActionError("No se pudo cargar el estado de la acción remota.");
+    }
+  }
+
+  async function handleRemoteBackupAction() {
+    if (!window.confirm("¿Quieres solicitar ahora un backup de Supabase?")) {
+      return;
+    }
+
+    setIsRemoteActionPending(true);
+    setRemoteActionError(null);
+
+    try {
+      const actionId = await createRemoteBackupAction(
+        `supabase-backup-${createLocalId()}`,
+      );
+      await refreshRemoteAction();
+      setRemoteAction((currentAction) =>
+        currentAction?.id === actionId
+          ? currentAction
+          : {
+              id: actionId,
+              action: "supabase_backup",
+              status: "pending",
+              resultSummary: null,
+              errorMessage: null,
+              createdAt: Date.now(),
+              startedAt: null,
+              finishedAt: null,
+            },
+      );
+    } catch {
+      setRemoteActionError("No se pudo solicitar el backup remoto.");
+    } finally {
+      setIsRemoteActionPending(false);
+    }
+  }
+
   async function handlePushNotificationAction() {
     setIsPushNotificationActionPending(true);
     setPushNotificationDiagnostic(null);
@@ -5687,6 +5757,69 @@ export function App() {
             Hace más de 6 horas que no se completa una copia de seguridad.
           </p>
         ) : null}
+      </section>
+    );
+  }
+
+  function renderDeveloperRemoteActionsCard() {
+    const status = remoteAction?.status;
+    const statusText =
+      status === "running"
+        ? "Ejecutando"
+        : status === "completed"
+          ? "Completada"
+          : status === "failed"
+            ? "Fallida"
+            : status === "pending"
+              ? "Pendiente"
+              : "Sin órdenes";
+    const hasError = status === "failed" || Boolean(remoteActionError);
+
+    return (
+      <section className={styles.developerPanel} aria-label="Acciones remotas">
+        <div className={styles.developerPanelHeader}>
+          <h3>Acciones del servidor</h3>
+          <span
+            className={
+              hasError
+                ? styles.developerStatusFailed
+                : styles.developerStatusSuccess
+            }
+          >
+            {statusText}
+          </span>
+        </div>
+        <p className={styles.developerNote}>
+          El servidor ejecuta tareas autorizadas sin exponer puertos públicos.
+        </p>
+        {remoteActionError ? (
+          <p className={styles.error} role="alert">
+            {remoteActionError}
+          </p>
+        ) : null}
+        {remoteAction?.resultSummary ? (
+          <p className={styles.developerNote}>{remoteAction.resultSummary}</p>
+        ) : null}
+        {remoteAction?.errorMessage ? (
+          <p className={styles.developerNote} role="alert">
+            {remoteAction.errorMessage}
+          </p>
+        ) : null}
+        <div className={styles.developerActions}>
+          <button
+            className={styles.primaryButton}
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={handleRemoteBackupAction}
+            disabled={
+              isRemoteActionPending ||
+              status === "pending" ||
+              status === "running"
+            }
+          >
+            {isRemoteActionPending ? "Solicitando…" : "Ejecutar backup ahora"}
+          </button>
+        </div>
       </section>
     );
   }
@@ -8157,6 +8290,7 @@ export function App() {
           </div>
           {renderDeveloperAuthCard()}
           {renderDeveloperBackupCard()}
+          {renderDeveloperRemoteActionsCard()}
           {renderDeveloperPushNotificationCard()}
           <section
             className={styles.developerPanel}

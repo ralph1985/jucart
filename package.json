@@ -16,6 +16,7 @@
     "normalize:codex:cron:install": "scripts/install-codex-product-normalization-cron.sh",
     "tickets:process": "scripts/process-tickets-with-codex.sh",
     "tickets:process:cron:install": "scripts/install-codex-ticket-processing-cron.sh",
+    "remote-actions:agent": "node scripts/remote-actions-agent.mjs",
     "prices:external": "scripts/update-external-prices.mjs",
     "supabase:db:push": "supabase db push",
     "supabase:functions:deploy": "supabase functions deploy",

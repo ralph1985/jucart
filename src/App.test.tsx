@@ -596,6 +596,14 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Backup Supabase")).toBeInTheDocument();
     expect(screen.getByText("Sin copias registradas")).toBeInTheDocument();
+
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ejecutar backup ahora" }),
+    );
+    expect(window.confirm).toHaveBeenCalledWith(
+      "¿Quieres solicitar ahora un backup de Supabase?",
+    );
   });
 
   it("hides the developer view from normal users", async () => {

@@ -35,6 +35,8 @@ Reglas estrictas:
 - Compara formatos por precio unitario; no crees canónicos por tamaño salvo que sea imprescindible.
 - Puedes crear aliases para variantes como plátano/plátanos o nombres largos.
 - La app normaliza al alta con aliases ya conocidos, pero esta ejecución nocturna sí debe registrar cambios.
+- Las notas son propias de cada entrada de la lista: nunca las borres ni las sustituyas al cambiar el nombre.
+- Si una aclaración está dentro del nombre y renombras el producto, pásala a notes.
 
 Reglas de fusión:
 - No fusiones productos pendientes de listas distintas; se conservan para comparar supermercados.
@@ -86,6 +88,7 @@ Formato del changes-json si aplicas cambios:
       "remove_item_id": "item-comprado",
       "canonical_product_id": "new-platanos",
       "name": "Plátanos",
+      "notes": "Preferiblemente maduros",
       "quantity": "3",
       "purchased": false,
       "reason": "Misma lista y mismo producto; se conserva el pendiente"

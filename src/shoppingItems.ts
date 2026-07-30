@@ -134,6 +134,8 @@ export type ShoppingProductNormalizationChange = {
   itemId: string | null;
   previousItemName: string | null;
   nextItemName: string | null;
+  previousItemNotes?: string | null;
+  nextItemNotes?: string | null;
   previousCanonicalProductId: string | null;
   nextCanonicalProductId: string | null;
   quantityBefore: string | null;
@@ -363,6 +365,7 @@ export const defaultShoppingProductCatalogEntries: ShoppingProductCatalogEntry[]
 export type ShoppingItem = {
   id: string;
   name: string;
+  notes?: string;
   quantity?: string;
   sectionId: ShoppingSectionId;
   categoryId?: ShoppingCategoryId;
@@ -380,6 +383,7 @@ export type ShoppingHistoryItemSnapshot = Pick<
   ShoppingItem,
   | "id"
   | "name"
+  | "notes"
   | "quantity"
   | "sectionId"
   | "categoryId"
@@ -416,6 +420,12 @@ export function normalizeItemQuantity(value: string | undefined) {
   const quantity = normalizeItemName(value ?? "");
 
   return quantity || undefined;
+}
+
+export function normalizeShoppingItemNotes(value: string | undefined) {
+  const notes = value?.trim().replace(/\s+/g, " ");
+
+  return notes || undefined;
 }
 
 export function parseShoppingItemNameAndQuantity(rawName: string) {
@@ -839,6 +849,7 @@ export function addShoppingItem(
   productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
   canonicalProductAliases: ShoppingCanonicalProductAlias[] = [],
   canonicalProducts: ShoppingCanonicalProduct[] = [],
+  rawNotes?: string,
 ) {
   const parsedItem = parseShoppingItemNameAndQuantity(rawName);
   const canonicalProduct = resolveCanonicalProductForName(
@@ -851,6 +862,7 @@ export function addShoppingItem(
     rawQuantity === undefined
       ? parsedItem.quantity
       : normalizeItemQuantity(rawQuantity);
+  const notes = normalizeShoppingItemNotes(rawNotes);
 
   if (
     !name ||
@@ -872,6 +884,7 @@ export function addShoppingItem(
     {
       id: createId(),
       name,
+      notes,
       quantity,
       sectionId,
       categoryId: inferShoppingCategoryId(name, productCatalogEntries),
@@ -892,6 +905,7 @@ export function reactivatePurchasedShoppingItem(
   now: () => number = () => Date.now(),
   aliases: ShoppingCanonicalProductAlias[] = [],
   canonicalProducts: ShoppingCanonicalProduct[] = [],
+  rawNotes?: string,
 ) {
   const parsedItem = parseShoppingItemNameAndQuantity(rawName);
   const canonicalProduct = resolveCanonicalProductForName(
@@ -904,6 +918,7 @@ export function reactivatePurchasedShoppingItem(
     rawQuantity === undefined
       ? parsedItem.quantity
       : normalizeItemQuantity(rawQuantity);
+  const notes = normalizeShoppingItemNotes(rawNotes);
 
   if (!name) {
     return items;
@@ -930,6 +945,7 @@ export function reactivatePurchasedShoppingItem(
           ...item,
           name: canonicalProduct ? name : item.name,
           quantity,
+          notes: notes ?? item.notes,
           ...(canonicalProductId
             ? { canonicalProductId }
             : item.canonicalProductId
@@ -1048,6 +1064,7 @@ function createShoppingHistoryItemSnapshot(
   return {
     id: item.id,
     name: item.name,
+    notes: normalizeShoppingItemNotes(item.notes),
     quantity: item.quantity,
     sectionId: item.sectionId,
     sectionName,
@@ -1077,6 +1094,7 @@ export function updateShoppingItem(
   rawQuantityOrNow: string | undefined | (() => number) = undefined,
   now: () => number = () => Date.now(),
   productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
+  rawNotes?: string,
 ) {
   const name = normalizeItemName(rawName);
   const quantity =
@@ -1096,6 +1114,11 @@ export function updateShoppingItem(
     return items;
   }
 
+  const notes =
+    rawNotes === undefined
+      ? itemToUpdate.notes
+      : normalizeShoppingItemNotes(rawNotes);
+
   const duplicateExists = items.some(
     (item) =>
       item.id !== itemId &&
@@ -1110,7 +1133,8 @@ export function updateShoppingItem(
   if (
     itemToUpdate.name === name &&
     itemToUpdate.sectionId === sectionId &&
-    itemToUpdate.quantity === quantity
+    itemToUpdate.quantity === quantity &&
+    itemToUpdate.notes === notes
   ) {
     return items;
   }
@@ -1120,6 +1144,7 @@ export function updateShoppingItem(
       ? {
           ...item,
           name,
+          notes,
           quantity,
           sectionId,
           categoryId: inferShoppingCategoryId(name, productCatalogEntries),

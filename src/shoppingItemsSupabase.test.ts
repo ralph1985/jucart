@@ -1909,6 +1909,7 @@ describe("shopping items Supabase adapter", () => {
       id: "item-1",
       list_id: "00000000-0000-4000-8000-000000000001",
       name: "Pan",
+      notes: null,
       quantity: "1 kg",
       section_id: "alcampo",
       category_id: "bakery",

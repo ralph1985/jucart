@@ -26,6 +26,7 @@ import {
   ShoppingSection,
   ShoppingSectionId,
   ShoppingUserId,
+  normalizeShoppingItemNotes,
 } from "./shoppingItems";
 import { isSupabaseConfigured } from "./supabaseConfig";
 
@@ -494,6 +495,7 @@ function normalizeStoredSection(
 function normalizeStoredShoppingItem(item: StoredShoppingItem): ShoppingItem {
   return {
     ...item,
+    notes: normalizeShoppingItemNotes(item.notes),
     quantity: item.quantity?.trim() ? item.quantity : undefined,
     sectionId: item.sectionId?.trim() ? item.sectionId : "general",
     categoryId:

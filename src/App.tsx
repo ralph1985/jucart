@@ -1479,6 +1479,7 @@ export function App() {
   const [shoppingSearchQuery, setShoppingSearchQuery] = useState("");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState("");
+  const [editingItemNotes, setEditingItemNotes] = useState("");
   const [editingItemQuantity, setEditingItemQuantity] = useState("");
   const [editingSectionId, setEditingSectionId] =
     useState<ShoppingSectionId>("mercadona");
@@ -1566,6 +1567,7 @@ export function App() {
   const [closingBottomSheet, setClosingBottomSheet] =
     useState<BottomSheetOverlay | null>(null);
   const [addItemQuantity, setAddItemQuantity] = useState("1");
+  const [addItemNotes, setAddItemNotes] = useState("");
   const [addProductNotice, setAddProductNotice] =
     useState<AddProductNotice | null>(null);
   const [sheetKeyboardInset, setSheetKeyboardInset] = useState(0);
@@ -3385,7 +3387,11 @@ export function App() {
     };
   });
 
-  function addItemFromName(rawName: string, rawQuantity?: string) {
+  function addItemFromName(
+    rawName: string,
+    rawQuantity?: string,
+    rawNotes?: string,
+  ) {
     const duplicateItem = findPendingShoppingItemByName(
       items,
       rawName,
@@ -3412,6 +3418,7 @@ export function App() {
       undefined,
       canonicalProductAliases,
       canonicalProducts,
+      rawNotes,
     );
 
     if (reactivatedItems !== items) {
@@ -3432,6 +3439,7 @@ export function App() {
       setItems(reactivatedItems);
       setItemName("");
       setAddItemQuantity("1");
+      setAddItemNotes("");
       setAddProductNotice({
         type: "success",
         message: "Producto devuelto a pendientes",
@@ -3452,6 +3460,7 @@ export function App() {
       productCatalogEntries,
       canonicalProductAliases,
       canonicalProducts,
+      rawNotes,
     );
 
     if (nextItems !== items) {
@@ -3468,6 +3477,7 @@ export function App() {
       setItems(nextItems);
       setItemName("");
       setAddItemQuantity("1");
+      setAddItemNotes("");
       setAddProductNotice({ type: "success", message: "Producto añadido" });
       focusAddInputAtEnd();
       window.requestAnimationFrame(resizeAddInput);
@@ -3484,7 +3494,7 @@ export function App() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    addItemFromName(itemName, addItemQuantity || "1");
+    addItemFromName(itemName, addItemQuantity || "1", addItemNotes);
   }
 
   function handleQuickSuggestionClick(suggestionName: string) {
@@ -3526,7 +3536,7 @@ export function App() {
     }
 
     event.preventDefault();
-    addItemFromName(itemName, addItemQuantity || "1");
+    addItemFromName(itemName, addItemQuantity || "1", addItemNotes);
   }
 
   function handleAddSheetKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -3633,6 +3643,7 @@ export function App() {
     runHapticFeedback("light");
     setEditingItemId(item.id);
     setEditingItemName(item.name);
+    setEditingItemNotes(item.notes ?? "");
     setEditingItemQuantity(item.quantity ?? "");
     setEditingSectionId(item.sectionId);
   }
@@ -3640,6 +3651,7 @@ export function App() {
   function resetEditing() {
     setEditingItemId(null);
     setEditingItemName("");
+    setEditingItemNotes("");
     setEditingItemQuantity("");
     setEditingSectionId("mercadona");
   }
@@ -3665,6 +3677,7 @@ export function App() {
       editingItemQuantity,
       undefined,
       productCatalogEntries,
+      editingItemNotes,
     );
 
     if (nextItems !== items) {
@@ -5402,6 +5415,9 @@ export function App() {
                 {formatShoppingItemQuantity(item.quantity)}
               </span>
             ) : null}
+            {item.notes ? (
+              <span className={styles.itemNotes}>{item.notes}</span>
+            ) : null}
           </span>
           {itemTicketPriceSummary || itemBestExternalPrice ? (
             <span
@@ -6843,6 +6859,20 @@ export function App() {
                     handleItemNameChange(event.currentTarget.value)
                   }
                   placeholder="¿Qué necesitas comprar?"
+                  disabled={!isLoaded}
+                />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="item-notes">
+                  Notas (opcional)
+                </label>
+                <textarea
+                  id="item-notes"
+                  className={styles.input}
+                  rows={2}
+                  value={addItemNotes}
+                  onChange={(event) => setAddItemNotes(event.target.value)}
+                  placeholder="Aclaraciones, marca o formato..."
                   disabled={!isLoaded}
                 />
               </div>
@@ -8719,6 +8749,19 @@ export function App() {
                   value={editingItemName}
                   onChange={(event) => setEditingItemName(event.target.value)}
                   type="text"
+                />
+              </div>
+              <div className={styles.formField}>
+                <label className={styles.label} htmlFor="edit-item-notes">
+                  Notas (opcional)
+                </label>
+                <textarea
+                  id="edit-item-notes"
+                  className={styles.input}
+                  rows={2}
+                  value={editingItemNotes}
+                  onChange={(event) => setEditingItemNotes(event.target.value)}
+                  placeholder="Aclaraciones, marca o formato..."
                 />
               </div>
               <div className={styles.formField}>

@@ -17,6 +17,7 @@ import {
   isShoppingSectionColor,
   isShoppingUserId,
   normalizeCatalogText,
+  normalizeShoppingItemNotes,
   ShoppingCategory,
   ShoppingCanonicalProduct,
   ShoppingCanonicalProductAlias,
@@ -48,6 +49,7 @@ type ShoppingItemRow = {
   id: string;
   list_id: string;
   name: string;
+  notes?: string | null;
   quantity?: string | null;
   section_id: string;
   category_id?: string;
@@ -165,6 +167,8 @@ type ShoppingProductNormalizationChangeRow = {
   item_id: string | null;
   previous_item_name: string | null;
   next_item_name: string | null;
+  previous_item_notes?: string | null;
+  next_item_notes?: string | null;
   previous_canonical_product_id: string | null;
   next_canonical_product_id: string | null;
   quantity_before: string | null;
@@ -1222,6 +1226,7 @@ export function mapRowToShoppingItem(
   return {
     id: row.id,
     name: row.name,
+    notes: normalizeShoppingItemNotes(row.notes ?? undefined),
     quantity: row.quantity?.trim() ? row.quantity : undefined,
     sectionId: normalizeSectionId(
       listId ? scopeSectionId(listId, row.section_id) : row.section_id,
@@ -1347,6 +1352,8 @@ export function mapRowToShoppingProductNormalizationChange(
     itemId: row.item_id,
     previousItemName: row.previous_item_name,
     nextItemName: row.next_item_name,
+    previousItemNotes: row.previous_item_notes ?? null,
+    nextItemNotes: row.next_item_notes ?? null,
     previousCanonicalProductId: row.previous_canonical_product_id,
     nextCanonicalProductId: row.next_canonical_product_id,
     quantityBefore: row.quantity_before,
@@ -1469,6 +1476,7 @@ export function mapShoppingItemToRow(
     id: item.id,
     list_id: listId,
     name: item.name,
+    notes: item.notes ?? null,
     quantity: item.quantity ?? null,
     section_id: getUnscopedSectionId(item.sectionId),
     category_id: item.categoryId ?? inferShoppingCategoryId(item.name),
@@ -1515,6 +1523,7 @@ export function mapRowToShoppingHistoryEvent(
     item: {
       id: itemSnapshot.id,
       name: itemSnapshot.name,
+      notes: normalizeShoppingItemNotes(itemSnapshot.notes),
       quantity: itemSnapshot.quantity?.trim()
         ? itemSnapshot.quantity
         : undefined,
@@ -1554,6 +1563,7 @@ export function mapShoppingHistoryEventToRow(
     client_id: event.clientId,
     item_snapshot: {
       ...event.item,
+      notes: normalizeShoppingItemNotes(event.item.notes),
       sectionId: getUnscopedSectionId(event.item.sectionId),
     },
     previous_item_snapshot: event.previousItem,
@@ -1617,6 +1627,7 @@ function mapSnapshotToShoppingHistoryItemSnapshot(
   return {
     id: itemSnapshot.id,
     name: itemSnapshot.name,
+    notes: normalizeShoppingItemNotes(itemSnapshot.notes),
     quantity: itemSnapshot.quantity?.trim() ? itemSnapshot.quantity : undefined,
     sectionId: normalizeSectionId(itemSnapshot.sectionId),
     sectionName: itemSnapshot.sectionName ?? itemSnapshot.sectionId,

@@ -81,6 +81,7 @@ async function exportContext() {
     items: items.map((item) => ({
       id: item.id,
       name: item.name,
+      notes: item.notes,
       quantity: item.quantity,
       section_id: item.section_id,
       section_name: sectionsById.get(item.section_id)?.name ?? item.section_id,
@@ -337,16 +338,19 @@ async function applyChanges(rawChanges) {
     );
     const nextName = update.name || currentItem.name;
     const nextQuantity = update.quantity || currentItem.quantity || null;
+    const nextNotes = normalizeNotes(update.notes ?? currentItem.notes);
     const patch = {
       canonical_product_id: canonicalProductId,
       name: nextName,
       quantity: nextQuantity,
+      notes: nextNotes,
     };
 
     if (
       currentItem.canonical_product_id === canonicalProductId &&
       currentItem.name === nextName &&
-      (currentItem.quantity || null) === nextQuantity
+      (currentItem.quantity || null) === nextQuantity &&
+      normalizeNotes(currentItem.notes) === nextNotes
     ) {
       continue;
     }
@@ -362,6 +366,7 @@ async function applyChanges(rawChanges) {
       previousItem: currentItem,
       nextName,
       nextQuantity,
+      nextNotes,
     });
   }
 
@@ -377,6 +382,7 @@ async function applyChanges(rawChanges) {
     );
     const nextName = merge.name || keepItem.name;
     const nextQuantity = merge.quantity || keepItem.quantity || null;
+    const nextNotes = mergeNotes(keepItem.notes, removeItem.notes, merge.notes);
     const conflictingItem = items.find(
       (item) =>
         item.id !== keepItem.id &&
@@ -407,6 +413,7 @@ async function applyChanges(rawChanges) {
       canonical_product_id: canonicalProductId,
       name: nextName,
       quantity: nextQuantity,
+      notes: nextNotes,
       purchased: Boolean(merge.purchased ?? keepItem.purchased),
     };
     const keepItemQuery = `id=eq.${encodeURIComponent(keepItem.id)}&list_id=eq.${config.listId}`;
@@ -430,6 +437,7 @@ async function applyChanges(rawChanges) {
       removeItem,
       nextName,
       nextQuantity,
+      nextNotes,
     });
   }
 
@@ -497,6 +505,8 @@ async function applyChanges(rawChanges) {
         next_canonical_product_id: update.canonical_product_id,
         quantity_before: update.previousItem.quantity || null,
         quantity_after: update.nextQuantity,
+        previous_item_notes: normalizeNotes(update.previousItem.notes),
+        next_item_notes: update.nextNotes,
         reason: update.reason || null,
       })),
       ...effectiveItemMerges.flatMap((merge) => [
@@ -512,6 +522,8 @@ async function applyChanges(rawChanges) {
           next_canonical_product_id: merge.canonical_product_id,
           quantity_before: merge.keepItem.quantity || null,
           quantity_after: merge.nextQuantity,
+          previous_item_notes: normalizeNotes(merge.keepItem.notes),
+          next_item_notes: merge.nextNotes,
           reason: merge.reason || null,
         },
         {
@@ -526,6 +538,8 @@ async function applyChanges(rawChanges) {
           next_canonical_product_id: merge.canonical_product_id,
           quantity_before: merge.removeItem.quantity || null,
           quantity_after: merge.nextQuantity,
+          previous_item_notes: normalizeNotes(merge.removeItem.notes),
+          next_item_notes: merge.nextNotes,
           reason: merge.reason || null,
         },
       ]),
@@ -614,6 +628,10 @@ function normalizeChanges(rawChanges) {
             name: typeof update.name === "string" ? update.name.trim() : "",
             quantity:
               typeof update.quantity === "string" ? update.quantity.trim() : "",
+            notes:
+              typeof update.notes === "string"
+                ? update.notes.trim()
+                : undefined,
             reason:
               typeof update.reason === "string" ? update.reason.trim() : "",
           }))
@@ -637,6 +655,8 @@ function normalizeChanges(rawChanges) {
             name: typeof merge.name === "string" ? merge.name.trim() : "",
             quantity:
               typeof merge.quantity === "string" ? merge.quantity.trim() : "",
+            notes:
+              typeof merge.notes === "string" ? merge.notes.trim() : undefined,
             purchased:
               typeof merge.purchased === "boolean"
                 ? merge.purchased
@@ -663,6 +683,22 @@ function resolveCanonicalProductId(
   }
 
   return plannedProductsByClientId.get(canonicalProductId)?.id ?? "";
+}
+
+function normalizeNotes(value) {
+  const notes =
+    typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+  return notes || null;
+}
+
+function mergeNotes(...values) {
+  const notes = values
+    .map(normalizeNotes)
+    .filter(Boolean)
+    .flatMap((value) => value.split(/\n+/u).map((line) => line.trim()))
+    .filter((value, index, all) => value && all.indexOf(value) === index);
+
+  return notes.length > 0 ? notes.join("\n") : null;
 }
 
 async function readSupabaseConfig() {

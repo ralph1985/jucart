@@ -200,6 +200,24 @@ describe("shopping item logic", () => {
     ]);
   });
 
+  it("keeps optional notes separate from the product name", () => {
+    expect(
+      addShoppingItem(
+        [],
+        "Leche",
+        "mercadona",
+        "rafa",
+        () => "item-notes",
+        () => 100,
+        "1",
+        undefined,
+        [],
+        [],
+        "  sin   lactosa  ",
+      ),
+    ).toMatchObject([{ name: "Leche", notes: "sin lactosa" }]);
+  });
+
   it("normalizes new products with known canonical aliases", () => {
     const canonicalProducts = [
       {
@@ -732,6 +750,33 @@ describe("shopping item logic", () => {
         updatedAt: 200,
       },
     ]);
+  });
+
+  it("updates and clears product notes", () => {
+    expect(
+      updateShoppingItem(
+        [{ ...baseItem, notes: "entera" }],
+        "item-1",
+        "Leche",
+        "mercadona",
+        undefined,
+        () => 200,
+        undefined,
+        "sin lactosa",
+      ),
+    ).toMatchObject([{ notes: "sin lactosa", updatedAt: 200 }]);
+    expect(
+      updateShoppingItem(
+        [{ ...baseItem, notes: "entera" }],
+        "item-1",
+        "Leche",
+        "mercadona",
+        undefined,
+        () => 200,
+        undefined,
+        "   ",
+      ),
+    ).toMatchObject([{ notes: undefined, updatedAt: 200 }]);
   });
 
   it("does not update a product to an empty name", () => {

@@ -604,7 +604,13 @@ describe("App", () => {
     expect(
       screen.getByRole("button", { name: /^Backup Supabase/ }),
     ).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById("developer-section-backup")).toHaveAttribute(
+      "hidden",
+    );
     openDeveloperSection("Acciones remotas");
+    expect(
+      document.getElementById("developer-section-actions"),
+    ).not.toHaveAttribute("hidden");
     expect(
       screen.getByRole("button", { name: /^Backup Supabase/ }),
     ).toHaveTextContent("Sin copias registradas");

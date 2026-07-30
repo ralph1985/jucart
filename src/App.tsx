@@ -2233,6 +2233,21 @@ export function App() {
   }, [isCurrentUserAdministrator, isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (
+      !remoteAction ||
+      (remoteAction.status !== "pending" && remoteAction.status !== "running")
+    ) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshRemoteAction();
+    }, 2000);
+
+    return () => window.clearInterval(intervalId);
+  }, [remoteAction?.id, remoteAction?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     try {
       window.localStorage.setItem(
         showPurchasedItemsStorageKey,

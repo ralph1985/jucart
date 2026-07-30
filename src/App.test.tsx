@@ -264,6 +264,12 @@ describe("App", () => {
     return addFab;
   }
 
+  function openDeveloperSection(title: string) {
+    fireEvent.click(
+      screen.getByRole("button", { name: new RegExp(`^${title}`) }),
+    );
+  }
+
   async function openAddSheet() {
     const addFab = await waitForAddFab();
     fireEvent.click(addFab);
@@ -595,8 +601,13 @@ describe("App", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "Dev" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Backup Supabase")).toBeInTheDocument();
-    expect(screen.getByText("Sin copias registradas")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Backup Supabase/ }),
+    ).toHaveAttribute("aria-expanded", "false");
+    openDeveloperSection("Acciones remotas");
+    expect(
+      screen.getByRole("button", { name: /^Backup Supabase/ }),
+    ).toHaveTextContent("Sin copias registradas");
     expect(
       screen.getByRole("button", { name: "Recategorizar productos" }),
     ).toBeInTheDocument();
@@ -858,7 +869,10 @@ describe("App", () => {
       screen.getByRole("button", { name: "Vista de desarrollador" }),
     );
 
-    expect(await screen.findByText("Sin copia reciente")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /^Backup Supabase/ }),
+    ).toHaveTextContent("Sin copia reciente");
+    openDeveloperSection("Backup Supabase");
     expect(
       screen.getByText(
         "Hace más de 6 horas que no se completa una copia de seguridad.",
@@ -878,7 +892,10 @@ describe("App", () => {
       screen.getByRole("button", { name: "Vista de desarrollador" }),
     );
 
-    expect(await screen.findByText("Notificaciones push")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /^Notificaciones push/ }),
+    ).toBeInTheDocument();
+    openDeveloperSection("Notificaciones push");
     expect(screen.getByRole("button", { name: "Activar" })).toBeEnabled();
     expect(
       pushNotificationMocks.getPushNotificationSnapshot,
@@ -898,6 +915,7 @@ describe("App", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Vista de desarrollador" }),
     );
+    openDeveloperSection("Notificaciones push");
     fireEvent.click(
       await screen.findByRole("button", { name: "Probar registro" }),
     );
@@ -924,6 +942,7 @@ describe("App", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Vista de desarrollador" }),
     );
+    openDeveloperSection("Notificaciones push");
     fireEvent.click(await screen.findByRole("button", { name: "Activar" }));
 
     await waitFor(() =>
@@ -1031,6 +1050,7 @@ describe("App", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Vista de desarrollador" }),
     );
+    openDeveloperSection("Notificaciones push");
     fireEvent.click(await screen.findByRole("button", { name: "Desactivar" }));
 
     await waitFor(() =>
@@ -1054,6 +1074,7 @@ describe("App", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Vista de desarrollador" }),
     );
+    openDeveloperSection("Notificaciones push");
 
     const pushButton = await screen.findByRole("button", {
       name: "Bloqueadas",
@@ -1078,6 +1099,7 @@ describe("App", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Vista de desarrollador" }),
     );
+    openDeveloperSection("Notificaciones push");
     fireEvent.click(await screen.findByRole("button", { name: "Reintentar" }));
 
     await waitFor(() =>

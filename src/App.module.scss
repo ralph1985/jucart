@@ -1670,6 +1670,134 @@ h2 {
   padding: 0.15rem 1rem 1rem;
 }
 
+.developerOverview {
+  display: grid;
+  gap: 0.85rem;
+  border: 1px solid rgb(22 124 90 / 22%);
+  border-radius: 0.65rem;
+  padding: 0.9rem;
+  background: linear-gradient(135deg, #f0fdf4, #ffffff 72%);
+  box-shadow: 0 0.35rem 0.75rem var(--surface-shadow);
+}
+
+.developerOverviewHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.developerOverviewHeader h3,
+.developerEyebrow {
+  margin: 0;
+}
+
+.developerOverviewHeader h3 {
+  color: #102033;
+  font-size: 1.1rem;
+  font-weight: 950;
+}
+
+.developerEyebrow {
+  margin-bottom: 0.15rem;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.developerOverviewMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.developerOverviewMetrics div {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+  border-top: 1px solid rgb(148 163 184 / 24%);
+  padding-top: 0.5rem;
+}
+
+.developerOverviewMetrics span {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.developerOverviewMetrics strong {
+  overflow-wrap: anywhere;
+  color: #166534;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.developerMetricWarning {
+  color: #991b1b !important;
+}
+
+.developerDisclosure {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.developerDisclosureButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 3.15rem;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 0.6rem;
+  padding: 0.65rem 0.75rem;
+  background: rgb(255 255 255 / 88%);
+  color: #102033;
+  text-align: left;
+  cursor: pointer;
+}
+
+.developerDisclosureButton:focus-visible {
+  outline: 3px solid rgb(47 128 237 / 22%);
+  outline-offset: 1px;
+}
+
+.developerDisclosureCopy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.developerDisclosureTitle {
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.developerDisclosureSummary {
+  overflow-wrap: anywhere;
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.developerDisclosureAction {
+  flex: 0 0 auto;
+  color: #166b51;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.developerDisclosureContent {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.developerDisclosureContent .developerPanelHeader {
+  display: none;
+}
+
 .ticketsScreen {
   display: grid;
   align-content: start;

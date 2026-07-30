@@ -6,6 +6,7 @@ import {
   KeyboardEvent,
   MouseEvent,
   PointerEvent,
+  type ReactNode,
   TouchEvent,
   useCallback,
   useEffect,
@@ -234,6 +235,7 @@ type TimestampedItem = {
 };
 type HapticFeedback = "light" | "medium" | "success" | "warning";
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
+type DeveloperSectionId = "auth" | "backup" | "actions" | "push";
 type AppOverlay =
   | "add-sheet"
   | "ticket-upload-sheet"
@@ -253,6 +255,53 @@ type BottomSheetOverlay = Extract<
   | "freezer-add-sheet"
   | "freezer-edit-sheet"
 >;
+
+type DeveloperDisclosureProps = {
+  id: DeveloperSectionId;
+  title: string;
+  summary: string;
+  expanded: boolean;
+  onToggle: (id: DeveloperSectionId) => void;
+  children: ReactNode;
+};
+
+function DeveloperDisclosure({
+  id,
+  title,
+  summary,
+  expanded,
+  onToggle,
+  children,
+}: DeveloperDisclosureProps) {
+  const contentId = `developer-section-${id}`;
+
+  return (
+    <section className={styles.developerDisclosure}>
+      <button
+        className={styles.developerDisclosureButton}
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={contentId}
+        onClick={() => onToggle(id)}
+      >
+        <span className={styles.developerDisclosureCopy}>
+          <span className={styles.developerDisclosureTitle}>{title}</span>
+          <span className={styles.developerDisclosureSummary}>{summary}</span>
+        </span>
+        <span className={styles.developerDisclosureAction} aria-hidden="true">
+          {expanded ? "Ocultar" : "Ver"}
+        </span>
+      </button>
+      <div
+        id={contentId}
+        className={styles.developerDisclosureContent}
+        hidden={!expanded}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}
 type AddProductNotice =
   | { type: "success"; message: string }
   | { type: "error"; message: string }
@@ -1492,6 +1541,8 @@ export function App() {
     null,
   );
   const [isRemoteActionPending, setIsRemoteActionPending] = useState(false);
+  const [openDeveloperSection, setOpenDeveloperSection] =
+    useState<DeveloperSectionId | null>(null);
   const [pushNotificationSnapshot, setPushNotificationSnapshot] = useState(
     initialPushNotificationSnapshot,
   );
@@ -5948,6 +5999,70 @@ export function App() {
     );
   }
 
+  function renderDeveloperOverviewCard() {
+    const backupStatus = getDeveloperBackupStatus(developerBackupRun);
+    const backupStatusText = getDeveloperBackupStatusText(backupStatus);
+    const hasBackupProblem =
+      backupStatus === "failed" || backupStatus === "stale";
+    const pushStatus = pushNotificationSnapshot.message;
+    const hasPushProblem =
+      pushNotificationSnapshot.status === "error" ||
+      pushNotificationSnapshot.status === "denied";
+    const hasOperationalProblem =
+      hasBackupProblem || hasPushProblem || syncStatus === "offline";
+
+    return (
+      <section
+        className={styles.developerOverview}
+        aria-label="Resumen operativo"
+      >
+        <div className={styles.developerOverviewHeader}>
+          <div>
+            <p className={styles.developerEyebrow}>Estado general</p>
+            <h3>
+              {hasOperationalProblem ? "Revisar la app" : "Todo en orden"}
+            </h3>
+          </div>
+          <span
+            className={
+              hasOperationalProblem
+                ? styles.developerStatusFailed
+                : styles.developerStatusSuccess
+            }
+          >
+            {hasOperationalProblem ? "Atención" : "Operativa"}
+          </span>
+        </div>
+        <div className={styles.developerOverviewMetrics}>
+          <div>
+            <span>Backup</span>
+            <strong
+              className={hasBackupProblem ? styles.developerMetricWarning : ""}
+            >
+              {backupStatusText}
+            </strong>
+          </div>
+          <div>
+            <span>Sincronización</span>
+            <strong>{getSyncStatusText(syncStatus)}</strong>
+          </div>
+          <div>
+            <span>Push</span>
+            <strong
+              className={hasPushProblem ? styles.developerMetricWarning : ""}
+            >
+              {pushStatus}
+            </strong>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  function toggleDeveloperSection(id: DeveloperSectionId) {
+    setOpenDeveloperSection((currentId) => (currentId === id ? null : id));
+  }
+
   function renderPushNotificationInvite() {
     if (!isPushInviteVisible) {
       return null;
@@ -8327,51 +8442,88 @@ export function App() {
         >
           <div className={styles.sectionsHeader}>
             <h2 id="developer-title">Dev</h2>
-            <span className={styles.count}>Sesión activa</span>
+            <span className={styles.count}>Panel operativo</span>
           </div>
-          {renderDeveloperAuthCard()}
-          {renderDeveloperBackupCard()}
-          {renderDeveloperRemoteActionsCard()}
-          {renderDeveloperPushNotificationCard()}
-          <section
-            className={styles.developerPanel}
-            aria-label="Información operativa"
+          {renderDeveloperOverviewCard()}
+          <DeveloperDisclosure
+            id="auth"
+            title="Sesión y contexto"
+            summary={authSnapshot.user?.email ?? "Sesión local"}
+            expanded={openDeveloperSection === "auth"}
+            onToggle={toggleDeveloperSection}
           >
-            <div className={styles.developerPanelHeader}>
-              <h3>App</h3>
-              <span className={styles.developerStatusSuccess}>
-                {getSyncStatusText(syncStatus)}
-              </span>
-            </div>
-            <dl className={styles.developerMetrics}>
-              <div>
-                <dt>Almacenamiento</dt>
-                <dd>{getShoppingItemsStorageMode()}</dd>
+            {renderDeveloperAuthCard()}
+            <section
+              className={styles.developerPanel}
+              aria-label="Información operativa"
+            >
+              <div className={styles.developerPanelHeader}>
+                <h3>App</h3>
+                <span className={styles.developerStatusSuccess}>
+                  {getSyncStatusText(syncStatus)}
+                </span>
               </div>
-              <div>
-                <dt>Supabase</dt>
-                <dd>
-                  {isSupabaseConfigured() ? "Configurado" : "No configurado"}
-                </dd>
-              </div>
-              <div>
-                <dt>Listas</dt>
-                <dd>{sections.length}</dd>
-              </div>
-              <div>
-                <dt>Pendientes</dt>
-                <dd>{pendingCount}</dd>
-              </div>
-              <div>
-                <dt>Comprados</dt>
-                <dd>{purchasedCount}</dd>
-              </div>
-              <div>
-                <dt>Historial 30 días</dt>
-                <dd>{recentHistoryEvents.length}</dd>
-              </div>
-            </dl>
-          </section>
+              <dl className={styles.developerMetrics}>
+                <div>
+                  <dt>Almacenamiento</dt>
+                  <dd>{getShoppingItemsStorageMode()}</dd>
+                </div>
+                <div>
+                  <dt>Supabase</dt>
+                  <dd>
+                    {isSupabaseConfigured() ? "Configurado" : "No configurado"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Listas</dt>
+                  <dd>{sections.length}</dd>
+                </div>
+                <div>
+                  <dt>Pendientes</dt>
+                  <dd>{pendingCount}</dd>
+                </div>
+                <div>
+                  <dt>Comprados</dt>
+                  <dd>{purchasedCount}</dd>
+                </div>
+                <div>
+                  <dt>Historial 30 días</dt>
+                  <dd>{recentHistoryEvents.length}</dd>
+                </div>
+              </dl>
+            </section>
+          </DeveloperDisclosure>
+          <DeveloperDisclosure
+            id="backup"
+            title="Backup Supabase"
+            summary={getDeveloperBackupStatusText(
+              getDeveloperBackupStatus(developerBackupRun),
+            )}
+            expanded={openDeveloperSection === "backup"}
+            onToggle={toggleDeveloperSection}
+          >
+            {renderDeveloperBackupCard()}
+          </DeveloperDisclosure>
+          <DeveloperDisclosure
+            id="actions"
+            title="Acciones remotas"
+            summary={
+              remoteAction?.resultSummary ?? "Tareas autorizadas del servidor"
+            }
+            expanded={openDeveloperSection === "actions"}
+            onToggle={toggleDeveloperSection}
+          >
+            {renderDeveloperRemoteActionsCard()}
+          </DeveloperDisclosure>
+          <DeveloperDisclosure
+            id="push"
+            title="Notificaciones push"
+            summary={pushNotificationSnapshot.message}
+            expanded={openDeveloperSection === "push"}
+            onToggle={toggleDeveloperSection}
+          >
+            {renderDeveloperPushNotificationCard()}
+          </DeveloperDisclosure>
         </section>
       ) : null}
 

@@ -4,6 +4,13 @@ import { getSupabaseConfig } from "./supabaseConfig";
 
 export type RemoteActionStatus = "pending" | "running" | "completed" | "failed";
 
+export type RemoteActionName =
+  | "supabase_backup"
+  | "recategorize_products"
+  | "normalize_products"
+  | "process_tickets"
+  | "update_external_prices";
+
 export type RemoteAction = {
   id: string;
   action: string;
@@ -48,13 +55,16 @@ function mapRemoteAction(row: RemoteActionRow): RemoteAction {
   };
 }
 
-export async function createRemoteBackupAction(clientRequestId: string) {
+export async function createRemoteAction(
+  action: RemoteActionName,
+  clientRequestId: string,
+) {
   const supabase = getClient();
   if (!supabase) throw new Error("Supabase no está configurado.");
 
   const { data, error } = await supabase.functions.invoke("remote-actions", {
     body: {
-      action: "supabase_backup",
+      action,
       clientRequestId,
       payload: {},
     },
@@ -62,6 +72,10 @@ export async function createRemoteBackupAction(clientRequestId: string) {
   if (error) throw error;
   if (!data?.id) throw new Error(data?.error ?? "No se pudo crear la orden.");
   return data.id as string;
+}
+
+export async function createRemoteBackupAction(clientRequestId: string) {
+  return createRemoteAction("supabase_backup", clientRequestId);
 }
 
 export async function getLatestRemoteAction(): Promise<RemoteAction | null> {

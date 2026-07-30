@@ -6,7 +6,13 @@ const requiredEnvVars = [
   "JUCART_REMOTE_ACTION_AGENT_SECRET",
 ] as const;
 
-const allowedActions = new Set(["supabase_backup"]);
+const allowedActions = new Set([
+  "supabase_backup",
+  "recategorize_products",
+  "normalize_products",
+  "process_tickets",
+  "update_external_prices",
+]);
 const defaultWebOrigin = "https://jucar-cart.vercel.app";
 
 Deno.serve(async (request) => {

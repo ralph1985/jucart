@@ -27,6 +27,7 @@ vi.mock("./supabaseConfig", () => ({
 
 import {
   createRemoteBackupAction,
+  createRemoteAction,
   getLatestRemoteAction,
   subscribeToRemoteActions,
 } from "./remoteActions";
@@ -60,6 +61,24 @@ describe("remote actions", () => {
       body: {
         action: "supabase_backup",
         clientRequestId: "request-1",
+        payload: {},
+      },
+    });
+  });
+
+  it("creates a maintenance action through the Edge Function", async () => {
+    mocks.functionsInvoke.mockResolvedValue({
+      data: { id: "action-2" },
+      error: null,
+    });
+
+    await expect(
+      createRemoteAction("normalize_products", "request-2"),
+    ).resolves.toBe("action-2");
+    expect(mocks.functionsInvoke).toHaveBeenCalledWith("remote-actions", {
+      body: {
+        action: "normalize_products",
+        clientRequestId: "request-2",
         payload: {},
       },
     });

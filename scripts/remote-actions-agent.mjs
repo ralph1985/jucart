@@ -32,19 +32,23 @@ async function callAgent(body) {
 }
 
 async function executeAction(action) {
-  if (action.action !== "supabase_backup") {
+  const commands = {
+    supabase_backup: ["bash", ["scripts/backup-supabase.sh"]],
+    recategorize_products: ["bash", ["scripts/recategorize-with-codex.sh"]],
+    normalize_products: ["bash", ["scripts/normalize-products-with-codex.sh"]],
+    process_tickets: ["bash", ["scripts/process-tickets-with-codex.sh"]],
+    update_external_prices: ["node", ["scripts/update-external-prices.mjs"]],
+  };
+  const command = commands[action.action];
+  if (!command) {
     throw new Error(`Acción no permitida: ${action.action}`);
   }
-  const { stdout, stderr } = await execFileAsync(
-    "bash",
-    ["scripts/backup-supabase.sh"],
-    {
-      cwd: repoRoot,
-      env: process.env,
-      maxBuffer: 1024 * 1024,
-    },
-  );
-  return (stdout || stderr).trim().slice(-500) || "Backup completado.";
+  const { stdout, stderr } = await execFileAsync(command[0], command[1], {
+    cwd: repoRoot,
+    env: process.env,
+    maxBuffer: 1024 * 1024,
+  });
+  return (stdout || stderr).trim().slice(-500) || "Acción completada.";
 }
 
 async function poll() {

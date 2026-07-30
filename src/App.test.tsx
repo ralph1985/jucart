@@ -19,6 +19,7 @@ import {
   resetShoppingItemsDatabase,
 } from "./shoppingItemsDb";
 import * as shoppingItemsSupabase from "./shoppingItemsSupabase";
+import * as remoteActions from "./remoteActions";
 import * as supabaseConfig from "./supabaseConfig";
 import type { ShoppingData } from "./shoppingItemsDb";
 
@@ -596,23 +597,44 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Backup Supabase")).toBeInTheDocument();
     expect(screen.getByText("Sin copias registradas")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Recategorizar productos" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Normalizar productos" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Procesar tickets" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Actualizar precios externos" }),
+    ).toBeInTheDocument();
 
     vi.spyOn(window, "confirm").mockReturnValue(false);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Ejecutar backup ahora" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Ejecutar backup" }));
     expect(window.confirm).toHaveBeenCalledWith(
-      "¿Quieres solicitar ahora un backup de Supabase?",
+      "¿Quieres ejecutar «Ejecutar backup» ahora?",
     );
 
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Ejecutar backup ahora" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Ejecutar backup" }));
     await waitFor(() =>
       expect(
-        screen.getByText("No se pudo solicitar el backup remoto."),
+        screen.getByText("No se pudo solicitar «Ejecutar backup»."),
       ).toBeInTheDocument(),
+    );
+
+    const createRemoteActionSpy = vi
+      .spyOn(remoteActions, "createRemoteAction")
+      .mockResolvedValue("action-2");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Normalizar productos" }),
+    );
+    await waitFor(() =>
+      expect(createRemoteActionSpy).toHaveBeenCalledWith(
+        "normalize_products",
+        expect.stringMatching(/^normalize_products-/),
+      ),
     );
   });
 

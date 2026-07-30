@@ -105,11 +105,11 @@ import type {
 import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
 import { isSupabaseConfigured } from "./supabaseConfig";
 import {
-  createRemoteBackupAction,
+  createRemoteAction,
   getLatestRemoteAction,
   subscribeToRemoteActions,
 } from "./remoteActions";
-import type { RemoteAction } from "./remoteActions";
+import type { RemoteAction, RemoteActionName } from "./remoteActions";
 import {
   createShoppingList,
   deleteShoppingList,
@@ -140,6 +140,24 @@ const lastSeenProductNormalizationChangeAtStorageKey =
 const pushInviteDismissedStorageKey = "jucart:push-invite-dismissed";
 const ticketPageSize = 10;
 const priceObservationPageSize = 10;
+
+const remoteActionDefinitions: ReadonlyArray<{
+  name: RemoteActionName;
+  label: string;
+}> = [
+  { name: "recategorize_products", label: "Recategorizar productos" },
+  { name: "normalize_products", label: "Normalizar productos" },
+  { name: "process_tickets", label: "Procesar tickets" },
+  { name: "update_external_prices", label: "Actualizar precios externos" },
+  { name: "supabase_backup", label: "Ejecutar backup" },
+];
+
+function getRemoteActionLabel(action: string | null | undefined) {
+  return (
+    remoteActionDefinitions.find((definition) => definition.name === action)
+      ?.label ?? "Acción del servidor"
+  );
+}
 
 function orderSectionsByShoppingLists(
   sections: ShoppingSection[],
@@ -4170,8 +4188,9 @@ export function App() {
     }
   }
 
-  async function handleRemoteBackupAction() {
-    if (!window.confirm("¿Quieres solicitar ahora un backup de Supabase?")) {
+  async function handleRemoteAction(action: RemoteActionName) {
+    const label = getRemoteActionLabel(action);
+    if (!window.confirm(`¿Quieres ejecutar «${label}» ahora?`)) {
       return;
     }
 
@@ -4179,8 +4198,9 @@ export function App() {
     setRemoteActionError(null);
 
     try {
-      const actionId = await createRemoteBackupAction(
-        `supabase-backup-${createLocalId()}`,
+      const actionId = await createRemoteAction(
+        action,
+        `${action}-${createLocalId()}`,
       );
       await refreshRemoteAction();
       setRemoteAction((currentAction) =>
@@ -4188,7 +4208,7 @@ export function App() {
           ? currentAction
           : {
               id: actionId,
-              action: "supabase_backup",
+              action,
               status: "pending",
               resultSummary: null,
               errorMessage: null,
@@ -4198,7 +4218,7 @@ export function App() {
             },
       );
     } catch {
-      setRemoteActionError("No se pudo solicitar el backup remoto.");
+      setRemoteActionError(`No se pudo solicitar «${label}».`);
     } finally {
       setIsRemoteActionPending(false);
     }
@@ -5789,6 +5809,7 @@ export function App() {
               ? "Pendiente"
               : "Sin órdenes";
     const hasError = status === "failed" || Boolean(remoteActionError);
+    const isActionRunning = status === "pending" || status === "running";
 
     return (
       <section className={styles.developerPanel} aria-label="Acciones remotas">
@@ -5821,19 +5842,24 @@ export function App() {
           </p>
         ) : null}
         <div className={styles.developerActions}>
-          <button
-            className={styles.primaryButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handleRemoteBackupAction}
-            disabled={
-              isRemoteActionPending ||
-              status === "pending" ||
-              status === "running"
-            }
-          >
-            {isRemoteActionPending ? "Solicitando…" : "Ejecutar backup ahora"}
-          </button>
+          {remoteActionDefinitions.map((definition) => (
+            <button
+              key={definition.name}
+              className={
+                definition.name === "supabase_backup"
+                  ? styles.primaryButton
+                  : styles.secondaryButton
+              }
+              type="button"
+              onPointerDown={handleButtonPointerDown}
+              onClick={() => void handleRemoteAction(definition.name)}
+              disabled={isRemoteActionPending || isActionRunning}
+            >
+              {isRemoteActionPending && remoteAction?.action === definition.name
+                ? "Solicitando…"
+                : definition.label}
+            </button>
+          ))}
         </div>
       </section>
     );

@@ -191,22 +191,31 @@ function normalizeChanges(rawChanges) {
 }
 
 async function readSupabaseConfig() {
-  const [baseEnv, localEnv] = await Promise.all([
+  const [baseEnv, localEnv, backupEnv] = await Promise.all([
     readEnvFile(path.join(repoRoot, ".env")),
     readEnvFile(path.join(repoRoot, ".env.local")),
+    readEnvFile(
+      process.env.JUCART_SUPABASE_BACKUP_ENV_FILE ||
+        path.join(
+          process.env.HOME || repoRoot,
+          ".config",
+          "jucart",
+          "supabase-backup.env",
+        ),
+    ),
   ]);
-  const combinedEnv = { ...baseEnv, ...localEnv };
+  const combinedEnv = { ...baseEnv, ...localEnv, ...backupEnv, ...process.env };
   const url = combinedEnv.VITE_SUPABASE_URL?.trim();
-  const anonKey = combinedEnv.VITE_SUPABASE_ANON_KEY?.trim();
+  const serviceRoleKey = combinedEnv.SUPABASE_SERVICE_ROLE_KEY?.trim();
   const listId = combinedEnv.VITE_SUPABASE_LIST_ID?.trim();
 
-  if (!url || !anonKey || !listId) {
+  if (!url || !serviceRoleKey || !listId) {
     fail(
-      "Missing VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY or VITE_SUPABASE_LIST_ID.",
+      "Missing VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or VITE_SUPABASE_LIST_ID.",
     );
   }
 
-  return { anonKey, listId, url: url.replace(/\/$/, "") };
+  return { listId, serviceRoleKey, url: url.replace(/\/$/, "") };
 }
 
 async function readEnvFile(envPath) {
@@ -325,8 +334,8 @@ async function patchRows(tableName, query, body) {
 
 function supabaseHeaders() {
   return {
-    apikey: config.anonKey,
-    authorization: `Bearer ${config.anonKey}`,
+    apikey: config.serviceRoleKey,
+    authorization: `Bearer ${config.serviceRoleKey}`,
   };
 }
 

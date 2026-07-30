@@ -9,6 +9,14 @@ const agentId =
   process.env.JUCART_REMOTE_ACTION_AGENT_ID || `jucart-${process.pid}`;
 const pollMs = Number(process.env.JUCART_REMOTE_ACTION_POLL_MS || 3000);
 const repoRoot = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const userBinDir = process.env.HOME
+  ? `${process.env.HOME}/.local/bin`
+  : "/home/rafa/.local/bin";
+const actionEnv = {
+  ...process.env,
+  PATH: [userBinDir, process.env.PATH].filter(Boolean).join(":"),
+  CODEX_BIN: process.env.CODEX_BIN || `${userBinDir}/codex`,
+};
 
 if (!supabaseUrl || !agentSecret) {
   console.error(
@@ -45,7 +53,7 @@ async function executeAction(action) {
   }
   const { stdout, stderr } = await execFileAsync(command[0], command[1], {
     cwd: repoRoot,
-    env: process.env,
+    env: actionEnv,
     maxBuffer: 1024 * 1024,
   });
   return (stdout || stderr).trim().slice(-500) || "Acción completada.";

@@ -7,6 +7,7 @@ LOG_DIR="${JUCART_TICKETS_LOG_DIR:-$REPO_ROOT/var/log}"
 CODEX_BIN="${CODEX_BIN:-codex}"
 CODEX_REASONING_EFFORT="${CODEX_REASONING_EFFORT:-low}"
 STAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
+RUN_STARTED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 FILES_DIR="${JUCART_TICKETS_FILES_DIR:-/tmp/jucart-tickets-files-$STAMP}"
 CONTEXT_PATH="$LOG_DIR/jucart-tickets-context-$STAMP.json"
 PROMPT_PATH="$LOG_DIR/jucart-tickets-codex-$STAMP.prompt.md"
@@ -15,10 +16,12 @@ EXTRACTION_PATH="$LOG_DIR/jucart-tickets-extraction-$STAMP.json"
 
 mkdir -p "$LOG_DIR"
 
+printf "[%s] Ticket processing execution started (scheduled target: 04:00 Europe/Madrid).\n" "$RUN_STARTED_AT"
+
 node "$SCRIPT_DIR/process-supabase-tickets.mjs" export "$CONTEXT_PATH" "$FILES_DIR"
 
 if ! grep -q '"tickets": \[' "$CONTEXT_PATH" || grep -q '"tickets": \[\]' "$CONTEXT_PATH"; then
-  printf "No hay tickets pendientes.\n"
+  printf "[%s] Ticket processing result: no hay tickets pendientes.\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   exit 0
 fi
 
@@ -106,4 +109,4 @@ if ! "$CODEX_BIN" exec \
   exit 1
 fi
 
-printf "Jucart Codex ticket processing report: %s\n" "$REPORT_PATH"
+printf "[%s] Ticket processing execution finished; report: %s\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$REPORT_PATH"

@@ -465,6 +465,10 @@ async function applyChanges(rawChanges) {
     ],
   );
 
+  console.log(
+    `Mutation phase completed: ${insertedProducts.length} canonical products, ${effectiveCanonicalProductUpdates.length} canonical product updates, ${aliasRows.length} aliases, ${effectiveItemUpdates.length} item updates and ${effectiveItemMerges.length} merges.`,
+  );
+
   if (run) {
     const changeRows = [
       ...aliasRows.map((alias) => ({
@@ -545,14 +549,22 @@ async function applyChanges(rawChanges) {
       ]),
     ];
 
-    await insertRowsReturning(
+    const insertedChanges = await insertRowsReturning(
       "shopping_product_normalization_changes",
       changeRows,
     );
+
+    if (insertedChanges.length !== changeRows.length) {
+      throw new Error(
+        `Audit phase incomplete: expected ${changeRows.length} changes, inserted ${insertedChanges.length}.`,
+      );
+    }
+
+    console.log(`Audit phase completed: ${insertedChanges.length} changes.`);
   }
 
   console.log(
-    `Applied ${insertedProducts.length} canonical products, ${effectiveCanonicalProductUpdates.length} canonical product updates, ${aliasRows.length} aliases, ${effectiveItemUpdates.length} item updates and ${effectiveItemMerges.length} merges.`,
+    "Normalization run completed with mutation and audit phases confirmed separately.",
   );
 }
 
@@ -831,7 +843,10 @@ async function insertRowsReturning(tableName, rows) {
   });
 
   if (!response.ok) {
-    throw new Error(`Could not insert ${tableName}: ${response.status}`);
+    const details = await response.text();
+    throw new Error(
+      `Could not insert ${tableName}: ${response.status}${details ? ` - ${details}` : ""}`,
+    );
   }
 
   return response.json();

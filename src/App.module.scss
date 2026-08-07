@@ -3542,6 +3542,7 @@ h2 {
   .app .label,
   .app .itemMeta,
   .app .itemNotes,
+  .app .itemPriceSummary,
   .app .freezerItemMeta,
   .app .ticketItemButton span:last-child,
   .app .historyMeta,
@@ -3552,6 +3553,24 @@ h2 {
   .app .priceSectionList small,
   .app .priceObservationList small {
     color: var(--color-text-muted);
+  }
+
+  .app .categoryDivider {
+    color: var(--color-text-strong);
+  }
+
+  .app .purchasedDivider {
+    color: var(--color-text-muted);
+  }
+
+  .app .itemQuantity {
+    border-color: rgb(52 211 153 / 36%);
+    background: #1d4536;
+    color: #b7f0d7;
+  }
+
+  .app .itemPriceSummary .itemExternalPrice {
+    color: #f6c65b;
   }
 
   .app .input,

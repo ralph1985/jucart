@@ -3591,6 +3591,53 @@ h2 {
     background: color-mix(in srgb, var(--surface-muted) 76%, transparent);
   }
 
+  .app .shoppingListCardColormint,
+  .app .sectionColormint,
+  .app .shoppingListColormint {
+    border-color: rgb(52 211 153 / 42%);
+    background: linear-gradient(180deg, #16372d 0%, #1c4a39 100%);
+  }
+
+  .app .shoppingListCardColorblue,
+  .app .sectionColorblue,
+  .app .shoppingListColorblue {
+    border-color: rgb(96 165 250 / 46%);
+    background: linear-gradient(180deg, #182e4a 0%, #1f3b60 100%);
+  }
+
+  .app .shoppingListCardColorviolet,
+  .app .sectionColorviolet,
+  .app .shoppingListColorviolet {
+    border-color: rgb(167 139 250 / 46%);
+    background: linear-gradient(180deg, #2a2144 0%, #37295a 100%);
+  }
+
+  .app .shoppingListCardColoramber,
+  .app .sectionColoramber,
+  .app .shoppingListColoramber {
+    border-color: rgb(251 191 36 / 46%);
+    background: linear-gradient(180deg, #49381b 0%, #5a431e 100%);
+  }
+
+  .app .shoppingListCardColorrose,
+  .app .sectionColorrose,
+  .app .shoppingListColorrose {
+    border-color: rgb(251 113 133 / 44%);
+    background: linear-gradient(180deg, #45252d 0%, #5a2c39 100%);
+  }
+
+  .app .shoppingListCardColorslate,
+  .app .sectionColorslate,
+  .app .shoppingListColorslate {
+    border-color: rgb(148 163 184 / 42%);
+    background: linear-gradient(180deg, #26313a 0%, #303c46 100%);
+  }
+
+  .app .shoppingListCardHeader,
+  .app .sectionHeader h2 {
+    color: var(--color-text-strong);
+  }
+
   .app .itemPurchased {
     background: #202b31;
   }

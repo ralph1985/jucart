@@ -169,7 +169,7 @@ El procesamiento de tickets descarga los tickets pendientes desde el Storage pri
 
 ## Estado del proyecto
 
-La aplicación principal está implementada como una sola pantalla con navegación interna, listas, historial, congelador, tickets, precios y sincronización remota. La versión visible actual es `0.9.0`.
+La aplicación principal está implementada como una sola pantalla con navegación interna, listas, historial, congelador, tickets, precios y sincronización remota. La versión visible actual es `0.12.0`.
 
 - Los hitos 0–29 cubren el MVP, la PWA, la sincronización, las listas, categorías, historial, congelador y pruebas E2E.
 - Los hitos 31–35 cubren productos canónicos, tickets, procesamiento con Codex, historial de precios y proveedores externos.

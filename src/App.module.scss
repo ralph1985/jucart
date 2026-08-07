@@ -2,6 +2,20 @@
   --header-height: calc(4.1rem + env(safe-area-inset-top, 0px));
   --command-height: 3.45rem;
   --bottom-nav-height: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --surface-subtle: #eef3f1;
+  --color-text: #17212b;
+  --color-text-strong: #102033;
+  --color-text-muted: #536b7c;
+  --color-text-subtle: #718096;
+  --color-border: rgb(148 163 184 / 28%);
+  --color-border-strong: rgb(148 163 184 / 42%);
+  --color-accent: #167c5a;
+  --color-accent-strong: #126548;
+  --color-focus: #2f80ed;
+  --radius-control: 0.5rem;
+  --radius-surface: 0.75rem;
   --app-bg-start: #eef3f1;
   --app-bg-mid: #f7f8fa;
   --app-bg-end: #f2f4f6;
@@ -24,7 +38,7 @@
     var(--app-bg-mid) 42%,
     var(--app-bg-end) 100%
   );
-  color: #17212b;
+  color: var(--color-text);
   overflow-x: hidden;
   overscroll-behavior-y: contain;
   touch-action: pan-y;
@@ -122,11 +136,11 @@
   justify-content: space-between;
   gap: 0.7rem;
   min-height: 4.1rem;
-  border-bottom: 1px solid rgb(148 163 184 / 24%);
+  border-bottom: 1px solid var(--color-border);
   padding: calc(0.38rem + env(safe-area-inset-top, 0px))
     max(0.85rem, env(safe-area-inset-right, 0px)) 0.38rem
     max(1rem, env(safe-area-inset-left, 0px));
-  background: rgb(237 244 242 / 88%);
+  background: color-mix(in srgb, var(--surface-subtle) 88%, transparent);
   backdrop-filter: blur(0.8rem);
   box-shadow: 0 0.55rem 1.35rem var(--surface-shadow);
 }
@@ -146,7 +160,8 @@
   place-items: center;
   border-radius: 0.8rem;
   background:
-    linear-gradient(135deg, rgb(255 255 255 / 18%) 0%, transparent 45%), #167c5a;
+    linear-gradient(135deg, rgb(255 255 255 / 18%) 0%, transparent 45%),
+    var(--color-accent);
   color: #ffffff;
   box-shadow: 0 0.42rem 0.95rem rgb(22 124 90 / 16%);
 }
@@ -441,12 +456,12 @@
   left: 0;
   min-height: var(--command-height);
   margin: 0;
-  border: 1px solid rgb(148 163 184 / 32%);
+  border: 1px solid var(--color-border);
   border-right: 0;
   border-left: 0;
   padding: 0.5rem max(0.75rem, env(safe-area-inset-right, 0px)) 0.55rem
     max(0.75rem, env(safe-area-inset-left, 0px));
-  background: rgb(255 255 255 / 92%);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(0.8rem);
   box-shadow: 0 0.5rem 1.15rem var(--surface-shadow);
 }
@@ -630,14 +645,14 @@ h2 {
 
 .summaryItem {
   min-width: 0;
-  border: 1px solid rgb(148 163 184 / 26%);
-  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
   padding: 0.28rem 0.48rem;
-  background: rgb(255 255 255 / 72%);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
 }
 
 .summaryItem dt {
-  color: #536b7c;
+  color: var(--color-text-muted);
   font-size: 0.58rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -645,7 +660,7 @@ h2 {
 
 .summaryItem dd {
   margin: 0.05rem 0 0;
-  color: #102033;
+  color: var(--color-text-strong);
   font-size: 0.98rem;
   font-weight: 900;
   line-height: 1;
@@ -687,7 +702,7 @@ h2 {
   border-radius: 999rem;
   padding: 0.16rem 0.38rem;
   background: transparent;
-  color: #536b7c;
+  color: var(--color-text-muted);
   font-size: 0.6rem;
   font-weight: 850;
   text-align: center;
@@ -697,7 +712,7 @@ h2 {
 .appVersion {
   grid-column: 1 / -1;
   margin: 0;
-  color: #718096;
+  color: var(--color-text-subtle);
   font-size: 0.58rem;
   font-weight: 650;
   text-align: right;
@@ -752,11 +767,11 @@ h2 {
   display: flex;
   flex-wrap: nowrap;
   gap: 0.25rem;
-  border-top: 1px solid rgb(148 163 184 / 24%);
+  border-top: 1px solid var(--color-border);
   padding: 0.5rem max(1rem, env(safe-area-inset-right, 0px))
     calc(0.75rem + env(safe-area-inset-bottom, 0px))
     max(1rem, env(safe-area-inset-left, 0px));
-  background: rgb(255 255 255 / 90%);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
   backdrop-filter: blur(0.8rem);
   box-shadow: 0 -0.5rem 1.2rem var(--surface-shadow);
 }
@@ -781,10 +796,10 @@ h2 {
   place-items: center;
   gap: 0.15rem;
   border: 0;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-control);
   padding: 0.3rem;
   background: transparent;
-  color: #536b7c;
+  color: var(--color-text-muted);
   font-size: 0.64rem;
   font-weight: 850;
   text-decoration: none;
@@ -800,8 +815,10 @@ h2 {
 }
 
 .bottomNavItemActive {
-  background: #dff4ea;
-  color: #126548;
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--surface));
+  color: var(--color-accent-strong);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 .bottomNavItem:disabled {
@@ -813,6 +830,31 @@ h2 {
 .bottomNavItemActive .buttonIcon {
   width: 1.18rem;
   height: 1.18rem;
+}
+
+.column,
+.shoppingListManagerItem,
+.ticketItem,
+.developerPanel,
+.freezerPanel,
+.sectionManagerItem,
+.loginCard {
+  border-radius: var(--radius-surface);
+}
+
+.item,
+.loadingItem,
+.input,
+.select,
+.primaryButton,
+.secondaryButton,
+.dangerButton,
+.iconButton,
+.iconButtonDanger,
+.undoButton,
+.ticketFilterButton,
+.ticketFilterButtonActive {
+  border-radius: var(--radius-control);
 }
 
 .syncStatussynced {
@@ -834,7 +876,7 @@ h2 {
 .label {
   display: block;
   margin-bottom: 0.16rem;
-  color: #536b7c;
+  color: var(--color-text-muted);
   font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
@@ -880,9 +922,9 @@ h2 {
   align-items: center;
   width: 100%;
   min-height: 2.35rem;
-  border: 1px solid rgb(148 163 184 / 30%);
-  border-radius: 0.5rem;
-  background: rgb(255 255 255 / 78%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
   color: #3f5667;
   box-shadow: inset 0 1px 0 rgb(15 23 42 / 4%);
 }
@@ -894,7 +936,7 @@ h2 {
   border: 0;
   padding: 0;
   background: transparent;
-  color: #102033;
+  color: var(--color-text-strong);
   font: inherit;
   font-size: 0.86rem;
   font-weight: 760;
@@ -902,7 +944,7 @@ h2 {
 }
 
 .searchField input::placeholder {
-  color: #64748b;
+  color: var(--color-text-muted);
   opacity: 1;
 }
 
@@ -950,7 +992,7 @@ h2 {
   place-items: center;
   border: 0;
   border-radius: 999rem;
-  background: #167c5a;
+  background: var(--color-accent);
   color: #ffffff;
   box-shadow: 0 0.8rem 1.8rem rgb(15 23 42 / 18%);
   cursor: pointer;
@@ -1001,7 +1043,7 @@ h2 {
   border: 1px solid rgb(148 163 184 / 28%);
   border-radius: 0.85rem 0.85rem 0 0;
   padding: 0.48rem 0.78rem 1rem;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 -0.9rem 2.2rem rgb(15 23 42 / 16%);
   transform: translateY(var(--sheet-drag-offset, 0px));
 }
@@ -1311,11 +1353,11 @@ h2 {
   min-height: 2.8rem;
   max-height: 5.6rem;
   resize: none;
-  border: 1px solid rgb(148 163 184 / 38%);
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.6rem;
   padding: 0.72rem 0.82rem;
-  background: #ffffff;
-  color: #102033;
+  background: var(--surface);
+  color: var(--color-text-strong);
   font: inherit;
   font-size: 1rem;
   font-weight: 750;
@@ -1421,22 +1463,22 @@ h2 {
 .input {
   min-width: 0;
   min-height: 2.35rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
   padding: 0 0.9rem;
-  background: #ffffff;
-  color: #102033;
+  background: var(--surface);
+  color: var(--color-text-strong);
   box-shadow: inset 0 1px 0 rgb(15 23 42 / 4%);
 }
 
 .select {
   width: 100%;
   min-height: 2.35rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
   padding: 0 0.9rem;
-  background: #ffffff;
-  color: #102033;
+  background: var(--surface);
+  color: var(--color-text-strong);
   box-shadow: inset 0 1px 0 rgb(15 23 42 / 4%);
 }
 
@@ -3296,6 +3338,21 @@ h2 {
     align-items: start;
     gap: 0.65rem;
   }
+
+  .bottomNav {
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .bottomNav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bottomNavItem,
+  .bottomNavItemActive {
+    flex: 0 0 4.15rem;
+  }
 }
 
 @media (min-width: 42rem) {
@@ -3422,5 +3479,133 @@ h2 {
 
   100% {
     background-position: -120% 0;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .app {
+    --surface: #182329;
+    --surface-muted: #202d34;
+    --surface-subtle: #1d3430;
+    --color-text: #e5eee9;
+    --color-text-strong: #f4faf7;
+    --color-text-muted: #b1c3bd;
+    --color-text-subtle: #91a49e;
+    --color-border: rgb(148 163 184 / 24%);
+    --color-border-strong: rgb(148 163 184 / 42%);
+    --app-bg-start: #12201e;
+    --app-bg-mid: #172329;
+    --app-bg-end: #121b20;
+    --surface-shadow: rgb(0 0 0 / 22%);
+    --surface-shadow-strong: rgb(0 0 0 / 34%);
+    color: var(--color-text);
+  }
+
+  .app .header,
+  .app .commandPanel,
+  .app .bottomNav,
+  .app .summaryItem,
+  .app .searchField,
+  .app .visibilityToggle,
+  .app .loginCard,
+  .app .shoppingListManagerItem,
+  .app .ticketItem,
+  .app .developerPanel,
+  .app .freezerPanel,
+  .app .sectionManagerItem,
+  .app .historyTabs,
+  .app .ticketFilters {
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    color: var(--color-text);
+  }
+
+  .app h1,
+  .app h2,
+  .app h3,
+  .app .summaryItem dd,
+  .app .itemName,
+  .app .itemNamePurchased,
+  .app .freezerItemName,
+  .app .ticketItemButton strong,
+  .app .ticketReviewQueueHeader h3,
+  .app .ticketReviewList strong,
+  .app .developerPanelHeader h3,
+  .app .priceDetailHeader h2,
+  .app .priceDetailPanel h3,
+  .app .priceLatestGrid strong {
+    color: var(--color-text-strong);
+  }
+
+  .app .summaryItem dt,
+  .app .syncStatus,
+  .app .appVersion,
+  .app .label,
+  .app .itemMeta,
+  .app .itemNotes,
+  .app .freezerItemMeta,
+  .app .ticketItemButton span:last-child,
+  .app .historyMeta,
+  .app .historyProduct,
+  .app .developerEyebrow,
+  .app .priceDetailHeader p,
+  .app .priceLatestGrid span,
+  .app .priceSectionList small,
+  .app .priceObservationList small {
+    color: var(--color-text-muted);
+  }
+
+  .app .input,
+  .app .select,
+  .app .addSheetInput,
+  .app .authInput,
+  .app .ticketUploadFields select,
+  .app .ticketUploadFields input[type="file"] {
+    border-color: var(--color-border-strong);
+    background: var(--surface-muted);
+    color: var(--color-text-strong);
+  }
+
+  .app .addSheet,
+  .app .modal,
+  .app .priceDetailPanel,
+  .app .ticketReviewList li,
+  .app .ticketLine,
+  .app .ticketLineNeedsReview,
+  .app .ticketLineExcluded,
+  .app .ticketFileList li,
+  .app .ticketFileButton,
+  .app .clearPurchasedList li {
+    border-color: var(--color-border);
+    background: var(--surface);
+    color: var(--color-text);
+  }
+
+  .app .item,
+  .app .loadingItem {
+    border-color: var(--color-border-strong);
+    background: var(--surface);
+  }
+
+  .app .list,
+  .app .loadingList {
+    background: color-mix(in srgb, var(--surface-muted) 76%, transparent);
+  }
+
+  .app .itemPurchased {
+    background: #202b31;
+  }
+
+  .app .bottomNavItemActive {
+    background: color-mix(in srgb, var(--color-accent) 24%, var(--surface));
+  }
+
+  .app .splashScreen,
+  .app .loginScreen {
+    background: linear-gradient(180deg, #12201e 0%, #182329 54%, #121b20 100%);
+  }
+
+  .app .splashTitle,
+  .app .loginCard h1 {
+    color: var(--color-text-strong);
   }
 }

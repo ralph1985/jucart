@@ -596,4 +596,4 @@ Objetivo: permitir que las personas reciban versiones nuevas sin borrar manualme
 - [ ] Verificar el comportamiento en escritorio, móvil y PWA instalada.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 
-La versión visible actual es `0.9.0`. El coordinador revisará periódicamente si los cambios acumulados justifican una nueva versión y preguntará antes de modificarla.
+La versión visible actual es `0.12.0`. El coordinador revisará periódicamente si los cambios acumulados justifican una nueva versión y preguntará antes de modificarla.

@@ -5,6 +5,7 @@
   --surface: #ffffff;
   --surface-muted: #f8fafc;
   --surface-subtle: #eef3f1;
+  --surface-inset: #f1f5f9;
   --color-text: #17212b;
   --color-text-strong: #102033;
   --color-text-muted: #536b7c;
@@ -14,6 +15,17 @@
   --color-accent: #167c5a;
   --color-accent-strong: #126548;
   --color-focus: #2f80ed;
+  --color-on-accent: #ffffff;
+  --color-success-bg: #edf7ed;
+  --color-success-border: #b7e4c7;
+  --color-success-text: #1f4d36;
+  --color-danger-bg: #fee2e2;
+  --color-danger-text: #991b1b;
+  --color-warning-bg: #fffbeb;
+  --color-warning-text: #92400e;
+  --color-info-bg: #eff6ff;
+  --color-info-text: #1d4f91;
+  --color-price-text: #7a4f01;
   --radius-control: 0.5rem;
   --radius-surface: 0.75rem;
   --app-bg-start: #eef3f1;
@@ -495,7 +507,7 @@
   border-bottom: 1px solid rgb(148 163 184 / 24%);
   padding: 0.55rem max(0.75rem, env(safe-area-inset-right, 0px)) 0.55rem
     max(0.75rem, env(safe-area-inset-left, 0px));
-  background: rgb(240 253 250 / 94%);
+  background: color-mix(in srgb, var(--surface) 94%, var(--color-accent) 6%);
   color: #102033;
   box-shadow: 0 0.5rem 1rem var(--surface-shadow);
   backdrop-filter: blur(0.75rem);
@@ -591,11 +603,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border: 1px solid #b7e4c7;
+  border: 1px solid var(--color-success-border);
   border-radius: 0.5rem;
   padding: 0.65rem 0.75rem;
-  background: #edf7ed;
-  color: #1f4d36;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
   font-size: 0.92rem;
   font-weight: 700;
   transform-origin: center top;
@@ -1587,13 +1599,13 @@ h2 {
 }
 
 .undoButton {
-  background: #167c5a;
-  color: #ffffff;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
 }
 
 .dangerButton {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .iconButtonDanger {
@@ -1619,10 +1631,10 @@ h2 {
 
 .modal {
   width: min(100%, 24rem);
-  border: 1px solid rgb(148 163 184 / 34%);
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.5rem;
   padding: 1rem;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 1rem 2.5rem rgb(15 23 42 / 18%);
 }
 
@@ -1633,7 +1645,7 @@ h2 {
 
 .modal p {
   margin: 0.75rem 0 0;
-  color: #536b7c;
+  color: var(--color-text-muted);
   line-height: 1.45;
 }
 
@@ -1654,21 +1666,21 @@ h2 {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.65rem;
-  border: 1px solid rgb(148 163 184 / 26%);
+  border: 1px solid var(--color-border);
   border-radius: 0.45rem;
   padding: 0.48rem 0.58rem;
-  background: #f8fafc;
+  background: var(--surface-muted);
 }
 
 .clearPurchasedList span:first-child {
   min-width: 0;
   overflow-wrap: anywhere;
-  color: #102033;
+  color: var(--color-text-strong);
   font-weight: 800;
 }
 
 .clearPurchasedList span:last-child {
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: 0.72rem;
   font-weight: 800;
 }
@@ -1853,11 +1865,11 @@ h2 {
 
 .ticketNotice {
   margin: 0;
-  border: 1px solid #b7e4c7;
+  border: 1px solid var(--color-success-border);
   border-radius: 0.5rem;
   padding: 0.65rem 0.75rem;
-  background: #edf7ed;
-  color: #1f4d36;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
   font-size: 0.86rem;
   font-weight: 800;
 }
@@ -1888,11 +1900,11 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  border: 1px solid #b7e4c7;
+  border: 1px solid var(--color-success-border);
   border-radius: 0.5rem;
   padding: 0.65rem 0.75rem;
-  background: #edf7ed;
-  color: #1f4d36;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
   font-size: 0.9rem;
   font-weight: 800;
 }
@@ -2203,8 +2215,8 @@ h2 {
   width: fit-content;
   border-radius: 999rem;
   padding: 0.16rem 0.46rem;
-  background: #dbeafe;
-  color: #1d4f91;
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
   font-size: 0.68rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -2220,10 +2232,11 @@ h2 {
 .ticketReviewQueue {
   display: grid;
   gap: 0.55rem;
-  border: 1px solid rgb(217 119 6 / 30%);
+  border: 1px solid
+    color-mix(in srgb, var(--color-warning-text) 30%, transparent);
   border-radius: 0.5rem;
   padding: 0.65rem;
-  background: #fffbeb;
+  background: var(--color-warning-bg);
   box-shadow: 0 0.35rem 0.75rem var(--surface-shadow);
 }
 
@@ -2589,8 +2602,8 @@ h2 {
   border: 1px solid rgb(217 119 6 / 24%);
   border-radius: 0.5rem;
   padding: 0.65rem 0.75rem;
-  background: rgb(255 251 235 / 82%);
-  color: #92400e;
+  background: color-mix(in srgb, var(--color-warning-bg) 82%, transparent);
+  color: var(--color-warning-text);
   font-size: 0.86rem;
   font-weight: 750;
 }
@@ -2912,8 +2925,8 @@ h2 {
 }
 
 .status {
-  background: #edf2f7;
-  color: #536b7c;
+  background: var(--surface-inset);
+  color: var(--color-text-muted);
 }
 
 .loadingStatus {
@@ -2936,8 +2949,8 @@ h2 {
 }
 
 .error {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .list {
@@ -3203,7 +3216,7 @@ h2 {
 }
 
 .itemPriceSummary .itemExternalPrice {
-  color: #7a4f01;
+  color: var(--color-price-text);
   font-weight: 900;
 }
 
@@ -3482,17 +3495,123 @@ h2 {
   }
 }
 
+/* Semantic token layer: component colors are kept in one place so themes do not
+ * need one-off overrides for every screen. */
+.app .authLabel,
+.app .loginCard h1,
+.app .shoppingListCardHeader,
+.app .shoppingListDetails,
+.app .pushInviteText h2,
+.app h1,
+.app h2,
+.app .priceDetailHeader h2,
+.app .priceDetailMetrics dd,
+.app .priceDetailPanel h3,
+.app .priceLatestGrid strong,
+.app .priceSectionList span,
+.app .priceSectionList strong,
+.app .priceObservationList span,
+.app .priceObservationList strong,
+.app .ticketFilterButtonActive,
+.app .historyTabActive,
+.app .historyProduct,
+.app .ticketItemButton strong,
+.app .ticketReviewQueueHeader h3,
+.app .ticketReviewList strong,
+.app .ticketLine strong,
+.app .ticketLineNeedsReview strong,
+.app .ticketLineExcluded strong,
+.app .developerOverviewHeader h3,
+.app .developerPanelHeader h3,
+.app .freezerPanelHeader h3,
+.app .freezerItemName,
+.app .itemName,
+.app .clearPurchasedList span:first-child {
+  color: var(--color-text-strong);
+}
+
+.app .loginIntro,
+.app .loginStatus,
+.app .shoppingListStats,
+.app .shoppingListMember,
+.app .shoppingListMember small,
+.app .shoppingListMemberRole,
+.app .pwaUpdateText span,
+.app .pushInviteText p,
+.app .priceDetailHeader p,
+.app .priceDetailMetrics dt,
+.app .priceLatestGrid span,
+.app .priceObservationList small,
+.app .ticketItemButton span:last-child,
+.app .ticketReviewList span,
+.app .ticketReviewList small,
+.app .ticketFileButton small,
+.app .ticketLineNeedsReview span,
+.app .ticketLineNeedsReview small,
+.app .ticketLineExcluded span,
+.app .ticketLineExcluded small,
+.app .developerEyebrow,
+.app .developerOverviewMetrics span,
+.app .developerDisclosureSummary,
+.app .freezerItemMeta,
+.app .historyMeta,
+.app .itemNamePurchased,
+.app .itemMeta,
+.app .itemNotes,
+.app .itemPriceSummary,
+.app .clearPurchasedList span:last-child {
+  color: var(--color-text-muted);
+}
+
+.app .searchField,
+.app .visibilityToggle,
+.app .ticketFilterButton,
+.app .historyTab,
+.app .input,
+.app .select,
+.app .authInput,
+.app .ticketUploadFields select,
+.app .ticketUploadFields input[type="file"],
+.app .priceDetailMetrics div,
+.app .priceSectionList li,
+.app .priceObservationList li,
+.app .ticketFileList li,
+.app .clearPurchasedList li,
+.app .ticketFilterButtonActive,
+.app .historyTabActive,
+.app .modal {
+  border-color: var(--color-border);
+  background: var(--surface);
+}
+
+.app .secondaryButton {
+  background: var(--surface-inset);
+  color: var(--color-text-strong);
+}
+
 @media (prefers-color-scheme: dark) {
   .app {
     --surface: #182329;
     --surface-muted: #202d34;
     --surface-subtle: #1d3430;
+    --surface-inset: #202b31;
     --color-text: #e5eee9;
     --color-text-strong: #f4faf7;
     --color-text-muted: #b1c3bd;
     --color-text-subtle: #91a49e;
     --color-border: rgb(148 163 184 / 24%);
     --color-border-strong: rgb(148 163 184 / 42%);
+    --color-on-accent: #071b14;
+    --color-success-bg: #18382c;
+    --color-success-border: #34785d;
+    --color-success-text: #b7f0d7;
+    --color-danger-bg: #4a252c;
+    --color-danger-text: #ffc4c4;
+    --color-warning-bg: #49381b;
+    --color-warning-text: #f6d28a;
+    --color-info-bg: #182e4a;
+    --color-info-text: #b9d8ff;
+    --color-price-text: #f6c65b;
     --app-bg-start: #12201e;
     --app-bg-mid: #172329;
     --app-bg-end: #121b20;

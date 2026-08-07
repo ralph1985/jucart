@@ -69,6 +69,113 @@ export type ShoppingData = {
 };
 
 let lastStorageMode: ShoppingItemsStorageMode = "local";
+let remoteWriteQueue: Promise<unknown> = Promise.resolve();
+
+function mergeRecordsById<T extends { id: string }>(
+  remoteRecords: T[],
+  localRecords: T[],
+) {
+  const records = new Map(remoteRecords.map((record) => [record.id, record]));
+
+  for (const localRecord of localRecords) {
+    records.set(localRecord.id, localRecord);
+  }
+
+  return [...records.values()];
+}
+
+function mergeTimestampedRecords<T extends { id: string; updatedAt: number }>(
+  remoteRecords: T[],
+  localRecords: T[],
+) {
+  const records = new Map(remoteRecords.map((record) => [record.id, record]));
+
+  for (const localRecord of localRecords) {
+    const remoteRecord = records.get(localRecord.id);
+
+    if (!remoteRecord || localRecord.updatedAt >= remoteRecord.updatedAt) {
+      records.set(localRecord.id, localRecord);
+    }
+  }
+
+  return [...records.values()];
+}
+
+export function mergeShoppingDataForSync(
+  remoteData: ShoppingData,
+  localData: ShoppingData,
+): ShoppingData {
+  const latestLocalDeletes = new Map<string, number>();
+
+  for (const event of localData.historyEvents) {
+    if (event.type !== "deleted") {
+      continue;
+    }
+
+    const previousDeleteAt = latestLocalDeletes.get(event.itemId) ?? 0;
+    latestLocalDeletes.set(
+      event.itemId,
+      Math.max(previousDeleteAt, event.createdAt),
+    );
+  }
+
+  const mergedItems = mergeTimestampedRecords(
+    remoteData.items,
+    localData.items,
+  ).filter((item) => {
+    const deletedAt = latestLocalDeletes.get(item.id);
+
+    return !deletedAt || item.updatedAt > deletedAt;
+  });
+
+  const mergedFreezerItems = mergeTimestampedRecords(
+    remoteData.freezerItems ?? [],
+    localData.freezerItems ?? [],
+  );
+
+  return {
+    ...remoteData,
+    items: mergedItems,
+    sections: mergeRecordsById(remoteData.sections, localData.sections),
+    historyEvents: mergeRecordsById(
+      remoteData.historyEvents,
+      localData.historyEvents,
+    ).sort((left, right) => left.createdAt - right.createdAt),
+    freezerItems: mergedFreezerItems,
+    categories: mergeRecordsById(
+      remoteData.categories ?? defaultShoppingCategories,
+      localData.categories ?? defaultShoppingCategories,
+    ),
+    productCatalogEntries: mergeRecordsById(
+      remoteData.productCatalogEntries ?? defaultShoppingProductCatalogEntries,
+      localData.productCatalogEntries ?? defaultShoppingProductCatalogEntries,
+    ),
+    recategorizationRuns: mergeRecordsById(
+      remoteData.recategorizationRuns ?? [],
+      localData.recategorizationRuns ?? [],
+    ),
+    recategorizationChanges: mergeRecordsById(
+      remoteData.recategorizationChanges ?? [],
+      localData.recategorizationChanges ?? [],
+    ),
+    canonicalProducts: mergeTimestampedRecords(
+      remoteData.canonicalProducts ?? [],
+      localData.canonicalProducts ?? [],
+    ),
+    canonicalProductAliases: mergeRecordsById(
+      remoteData.canonicalProductAliases ?? [],
+      localData.canonicalProductAliases ?? [],
+    ),
+    productNormalizationRuns: mergeRecordsById(
+      remoteData.productNormalizationRuns ?? [],
+      localData.productNormalizationRuns ?? [],
+    ),
+    productNormalizationChanges: mergeRecordsById(
+      remoteData.productNormalizationChanges ?? [],
+      localData.productNormalizationChanges ?? [],
+    ),
+  };
+}
 
 class JucartDatabase extends Dexie {
   shoppingItems!: Table<StoredShoppingItem, string>;
@@ -234,25 +341,47 @@ export async function getStoredShoppingItems() {
   return (await getStoredShoppingData()).items;
 }
 
-export async function replaceStoredShoppingData(data: ShoppingData) {
-  if (isSupabaseConfigured()) {
-    try {
-      const { replaceSupabaseShoppingData } =
-        await import("./shoppingItemsSupabase");
-      await replaceSupabaseShoppingData(data);
-      lastStorageMode = "remote";
-    } catch {
-      await replaceLocalShoppingData(data);
-      lastStorageMode = "fallback";
-      return;
-    }
-  }
+export async function replaceStoredShoppingData(
+  data: ShoppingData,
+): Promise<void> {
+  const write = async () => {
+    if (isSupabaseConfigured()) {
+      try {
+        const { getSupabaseShoppingData, replaceSupabaseShoppingData } =
+          await import("./shoppingItemsSupabase");
+        const remoteData = await getSupabaseShoppingData();
+        const dataToStore = remoteData
+          ? mergeShoppingDataForSync(remoteData, data)
+          : data;
 
-  await replaceLocalShoppingData(data);
+        await replaceSupabaseShoppingData(dataToStore);
+        await replaceLocalShoppingData(dataToStore);
+        lastStorageMode = "remote";
+        return;
+      } catch {
+        await replaceLocalShoppingData(data);
+        lastStorageMode = "fallback";
+        return;
+      }
+    }
+
+    await replaceLocalShoppingData(data);
+    lastStorageMode = "local";
+  };
 
   if (!isSupabaseConfigured()) {
-    lastStorageMode = "local";
+    await write();
+    return;
   }
+
+  const queuedWrite = remoteWriteQueue.then(write, write);
+  remoteWriteQueue = queuedWrite.catch(() => undefined);
+
+  await queuedWrite;
+}
+
+export async function synchronizeCachedShoppingData() {
+  await replaceStoredShoppingData(await getCachedShoppingData());
 }
 
 export async function replaceStoredShoppingItems(items: ShoppingItem[]) {

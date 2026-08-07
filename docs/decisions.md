@@ -175,7 +175,7 @@ El Service Worker se registra con actualización automática y precachea el shel
 
 Los iconos son provisionales y locales: SVG, PNG 192x192 y PNG 512x512. No se añade una dependencia solo para generar iconos.
 
-La persistencia offline sigue dependiendo de IndexedDB mediante Dexie. Cuando no hay red o Supabase falla, la modificación de datos locales no requiere conexión.
+La persistencia offline sigue dependiendo de IndexedDB mediante Dexie. Cuando no hay red o Supabase falla, la modificación de datos locales no requiere conexión. Al recuperar la conexión, la app sincroniza la caché local con el evento `online` antes de refrescar la vista. La escritura remota fusiona los productos por identificador y `updatedAt`, conserva las altas hechas en otros dispositivos y usa los eventos de borrado locales para no resucitar productos eliminados. Las escrituras remotas se serializan para evitar que dos guardados simultáneos vuelvan a sobrescribirse.
 
 ## Usuarios, listas y permisos
 

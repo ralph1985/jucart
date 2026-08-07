@@ -92,6 +92,7 @@ import {
   getShoppingItemsStorageMode,
   getStoredShoppingData,
   replaceStoredShoppingData,
+  synchronizeCachedShoppingData,
 } from "./shoppingItemsDb";
 import {
   diagnosePushNotifications,
@@ -2235,6 +2236,36 @@ export function App() {
       document.removeEventListener("visibilitychange", refreshItemsWhenVisible);
     };
   }, [beginRemoteRequest, isLoaded, shoppingLists]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSupabaseConfigured()) {
+      return;
+    }
+
+    let isActive = true;
+
+    function synchronizeWhenOnline() {
+      const finishRemoteRequest = beginRemoteRequest();
+      setSyncStatus("syncing");
+
+      void synchronizeCachedShoppingData()
+        .then(() => refreshRemoteDataRef.current?.())
+        .catch(() => {
+          if (isActive) {
+            setStorageError("No se pudo sincronizar la lista recuperada.");
+            setSyncStatus("offline");
+          }
+        })
+        .finally(finishRemoteRequest);
+    }
+
+    window.addEventListener("online", synchronizeWhenOnline);
+
+    return () => {
+      isActive = false;
+      window.removeEventListener("online", synchronizeWhenOnline);
+    };
+  }, [beginRemoteRequest, isLoaded]);
 
   useEffect(() => {
     if (!isLoaded || !isSupabaseConfigured()) {

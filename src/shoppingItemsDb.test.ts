@@ -4,10 +4,12 @@ import {
   getShoppingItemsStorageMode,
   getStoredShoppingData,
   getStoredShoppingItems,
+  mergeShoppingDataForSync,
   replaceStoredShoppingData,
   replaceStoredShoppingItems,
   resetShoppingItemsDatabase,
 } from "./shoppingItemsDb";
+import { defaultShoppingSections } from "./shoppingItems";
 
 const historyEvent = {
   id: "history-1",
@@ -34,6 +36,85 @@ afterEach(async () => {
 });
 
 describe("shopping items database", () => {
+  it("fusiona altas offline de dos dispositivos sin perder productos", () => {
+    const remoteData = {
+      items: [
+        {
+          id: "item-a",
+          name: "Leche",
+          sectionId: "mercadona",
+          addedBy: "rafa" as const,
+          purchased: false,
+          createdAt: 100,
+          updatedAt: 200,
+        },
+      ],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+    };
+    const localData = {
+      ...remoteData,
+      items: [
+        ...remoteData.items,
+        {
+          id: "item-b",
+          name: "Pan",
+          sectionId: "mercadona",
+          addedBy: "begona" as const,
+          purchased: false,
+          createdAt: 300,
+          updatedAt: 300,
+        },
+      ],
+    };
+
+    expect(
+      mergeShoppingDataForSync(remoteData, localData).items.map(
+        (item) => item.id,
+      ),
+    ).toEqual(["item-a", "item-b"]);
+  });
+
+  it("mantiene un borrado offline frente a una copia remota antigua", () => {
+    const remoteData = {
+      items: [
+        {
+          id: "item-a",
+          name: "Leche",
+          sectionId: "mercadona",
+          addedBy: "rafa" as const,
+          purchased: false,
+          createdAt: 100,
+          updatedAt: 200,
+        },
+      ],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+    };
+    const localData = {
+      ...remoteData,
+      items: [],
+      historyEvents: [
+        {
+          id: "delete-a",
+          itemId: "item-a",
+          type: "deleted" as const,
+          actor: "rafa" as const,
+          clientId: "client-a",
+          item: {
+            ...remoteData.items[0],
+            sectionName: "Mercadona",
+          },
+          createdAt: 300,
+        },
+      ],
+    };
+
+    expect(mergeShoppingDataForSync(remoteData, localData).items).toEqual([]);
+  });
+
   it("stores and reads products ordered by creation date", async () => {
     await replaceStoredShoppingItems([
       {

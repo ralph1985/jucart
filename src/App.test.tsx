@@ -1548,6 +1548,41 @@ describe("App", () => {
     expect(screen.getByText("Sincronizado")).toBeInTheDocument();
   });
 
+  it("synchronizes the cached list when the connection returns", async () => {
+    const shoppingData: ShoppingData = {
+      items: [],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+    };
+
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockResolvedValue(
+      shoppingData,
+    );
+    vi.spyOn(shoppingItemsDb, "getStoredShoppingData").mockResolvedValue(
+      shoppingData,
+    );
+    const synchronizeCachedShoppingData = vi
+      .spyOn(shoppingItemsDb, "synchronizeCachedShoppingData")
+      .mockResolvedValue();
+
+    render(<App />);
+    await waitForAddFab();
+
+    act(() => {
+      window.dispatchEvent(new Event("online"));
+    });
+
+    await waitFor(() =>
+      expect(synchronizeCachedShoppingData).toHaveBeenCalledTimes(1),
+    );
+  });
+
   it("shows latest and average prices for canonical products", async () => {
     const shoppingData: ShoppingData = {
       items: [

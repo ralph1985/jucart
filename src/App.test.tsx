@@ -2433,6 +2433,12 @@ describe("App", () => {
     const themeToggle = screen.getByRole("button", {
       name: "Tema Auto. Cambiar a Claro.",
     });
+    const syncStatus = screen.getByText("Local");
+
+    expect(
+      syncStatus.compareDocumentPosition(themeToggle) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     fireEvent.click(themeToggle);
     expect(window.localStorage.getItem("jucart:theme-preference")).toBe(

@@ -6717,23 +6717,6 @@ export function App() {
           </div>
         </div>
         <div className={styles.headerMeta}>
-          <button
-            className={styles.themeToggle}
-            type="button"
-            aria-label={`Tema ${themePreferenceLabels[themePreference]}. Cambiar a ${themePreferenceLabels[getNextThemePreference(themePreference)]}.`}
-            title={`Tema: ${themePreferenceLabels[themePreference]}`}
-            onPointerDown={handleButtonPointerDown}
-            onClick={handleThemePreferenceChange}
-          >
-            <span aria-hidden="true">
-              {themePreference === "auto"
-                ? "◐"
-                : themePreference === "light"
-                  ? "☀"
-                  : "☾"}
-            </span>
-            <span>{themePreferenceLabels[themePreference]}</span>
-          </button>
           <dl className={styles.summary} aria-label="Resumen de la lista">
             <div className={styles.summaryItem}>
               <dt>Pendientes</dt>
@@ -6756,16 +6739,38 @@ export function App() {
               </dd>
             </div>
           </dl>
-          <p
-            ref={syncStatusRef}
-            className={`${styles.syncStatus} ${styles[`syncStatus${syncStatus}`]}`}
-            aria-live="polite"
-          >
-            {syncStatus === "syncing" ? (
-              <span className={styles.syncStatusIndicator} aria-hidden="true" />
-            ) : null}
-            {getSyncStatusText(syncStatus)}
-          </p>
+          <div className={styles.headerActions}>
+            <p
+              ref={syncStatusRef}
+              className={`${styles.syncStatus} ${styles[`syncStatus${syncStatus}`]}`}
+              aria-live="polite"
+            >
+              {syncStatus === "syncing" ? (
+                <span
+                  className={styles.syncStatusIndicator}
+                  aria-hidden="true"
+                />
+              ) : null}
+              {getSyncStatusText(syncStatus)}
+            </p>
+            <button
+              className={styles.themeToggle}
+              type="button"
+              aria-label={`Tema ${themePreferenceLabels[themePreference]}. Cambiar a ${themePreferenceLabels[getNextThemePreference(themePreference)]}.`}
+              title={`Tema: ${themePreferenceLabels[themePreference]}`}
+              onPointerDown={handleButtonPointerDown}
+              onClick={handleThemePreferenceChange}
+            >
+              <span aria-hidden="true">
+                {themePreference === "auto"
+                  ? "◐"
+                  : themePreference === "light"
+                    ? "☀"
+                    : "☾"}
+              </span>
+              <span>{themePreferenceLabels[themePreference]}</span>
+            </button>
+          </div>
           <p className={styles.appVersion} aria-label="Versión instalada">
             v{appRelease.version} · build {formatAppDate(appRelease.buildDate)}{" "}
             · activa {formatAppDate(appRelease.activatedAt)}

@@ -195,6 +195,12 @@
   gap: 0.35rem 0.5rem;
 }
 
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
 .themeToggle {
   display: inline-flex;
   min-height: 1.8rem;

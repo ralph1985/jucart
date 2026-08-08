@@ -2,11 +2,14 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import type { ShoppingList } from "./shoppingLists";
 import {
+  confirmMenuProposal,
   getLatestMenuProposal,
   getOrCreateMenuPlan,
   requestMenuPlanReview,
   saveMenuPlanDay,
+  updateMenuProposalItem,
 } from "./menuPlanning";
+import type { MenuProposal } from "./menuPlanning";
 
 type Props = { lists: ShoppingList[] };
 
@@ -27,6 +30,7 @@ export function MenuPlanningView({ lists }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("Cargando menú…");
   const [proposalMessage, setProposalMessage] = useState("");
+  const [proposal, setProposal] = useState<MenuProposal | null>(null);
   const days = useMemo(
     () =>
       Array.from({ length: 7 }, (_, index) => {
@@ -58,12 +62,14 @@ export function MenuPlanningView({ lists }: Props) {
         return getLatestMenuProposal(plan.id);
       })
       .then((proposal) => {
-        if (proposal)
+        if (proposal) {
+          setProposal(proposal);
           setProposalMessage(
             proposal.status === "ready"
               ? `${proposal.items.length} productos listos para revisar.`
               : `Propuesta: ${proposal.status}.`,
           );
+        }
       })
       .catch(() => {
         if (!cancelled)
@@ -103,6 +109,39 @@ export function MenuPlanningView({ lists }: Props) {
       setProposalMessage("Codex está preparando la propuesta.");
     } catch {
       setProposalMessage("No se pudo solicitar la revisión de Codex.");
+    }
+  }
+
+  async function toggleProposalItem(item: MenuProposal["items"][number]) {
+    const selected = !item.selected;
+    setProposal((current) =>
+      current
+        ? {
+            ...current,
+            items: current.items.map((currentItem) =>
+              currentItem.id === item.id
+                ? { ...currentItem, selected }
+                : currentItem,
+            ),
+          }
+        : current,
+    );
+    try {
+      await updateMenuProposalItem(item.id, { ...item, selected });
+    } catch {
+      setProposalMessage("No se pudo guardar ese cambio.");
+    }
+  }
+
+  async function confirmProposal() {
+    if (!proposal || !planId) return;
+    setProposalMessage("Añadiendo productos a las listas…");
+    try {
+      await confirmMenuProposal(proposal.id);
+      setProposal(await getLatestMenuProposal(planId));
+      setProposalMessage("Productos añadidos a las listas seleccionadas.");
+    } catch {
+      setProposalMessage("No se pudieron añadir los productos.");
     }
   }
 
@@ -154,6 +193,26 @@ export function MenuPlanningView({ lists }: Props) {
           productos.
         </p>
         {proposalMessage ? <p role="status">{proposalMessage}</p> : null}
+        {proposal?.status === "ready" ? (
+          <section className="menuProposal" aria-label="Propuesta de compra">
+            <h3>Propuesta de compra</h3>
+            {proposal.items.map((item) => (
+              <label key={item.id}>
+                <input
+                  type="checkbox"
+                  checked={item.selected}
+                  onChange={() => void toggleProposalItem(item)}
+                />
+                {item.name}
+                {item.quantity ? ` · ${item.quantity}` : ""}
+                {` · ${lists.find((list) => list.id === item.destinationListId)?.name ?? "Lista"}`}
+              </label>
+            ))}
+            <button type="button" onClick={confirmProposal}>
+              Añadir seleccionados
+            </button>
+          </section>
+        ) : null}
       </form>
     </section>
   );

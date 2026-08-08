@@ -25,6 +25,7 @@ type TableResult = { data: unknown; error: unknown };
 type TableQuery = {
   select: (columns: string) => TableQuery;
   insert: (values: unknown) => TableQuery;
+  update: (values: unknown) => TableQuery;
   upsert: (values: unknown, options?: { onConflict: string }) => TableQuery;
   eq: (column: string, value: string) => TableQuery;
   order: (column: string, options?: { ascending: boolean }) => TableQuery;
@@ -155,4 +156,31 @@ export async function requestMenuPlanReview(planId: string) {
     `review_menu_plan-${planId}-${crypto.randomUUID()}`,
     { planId },
   );
+}
+
+export async function updateMenuProposalItem(
+  itemId: string,
+  values: Pick<
+    MenuProposalItem,
+    "name" | "quantity" | "destinationListId" | "selected"
+  >,
+) {
+  const { error } = await (table("menu_plan_proposal_items")
+    .update({
+      name: values.name.trim(),
+      quantity: values.quantity?.trim() || null,
+      destination_list_id: values.destinationListId,
+      selected: values.selected,
+    })
+    .eq("id", itemId) as unknown as Promise<TableResult>);
+  if (error) throw error;
+}
+
+export async function confirmMenuProposal(proposalId: string) {
+  const { data, error } = await getClient().rpc(
+    "confirm_menu_plan_proposal" as never,
+    { p_proposal_id: proposalId } as never,
+  );
+  if (error) throw error;
+  return data;
 }

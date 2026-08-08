@@ -2407,7 +2407,15 @@ describe("App", () => {
       within(navigation)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Lista", "Tickets", "Congelador", "Listas", "Historial", "Dev"]);
+    ).toEqual([
+      "Menú",
+      "Lista",
+      "Tickets",
+      "Congelador",
+      "Listas",
+      "Historial",
+      "Dev",
+    ]);
     expect(navigation.className).not.toContain("bottomNavHidden");
     expect(
       within(navigation).getByRole("button", { name: "Lista" }),

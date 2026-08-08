@@ -9,7 +9,8 @@ export type RemoteActionName =
   | "recategorize_products"
   | "normalize_products"
   | "process_tickets"
-  | "update_external_prices";
+  | "update_external_prices"
+  | "review_menu_plan";
 
 export type RemoteAction = {
   id: string;
@@ -58,6 +59,7 @@ function mapRemoteAction(row: RemoteActionRow): RemoteAction {
 export async function createRemoteAction(
   action: RemoteActionName,
   clientRequestId: string,
+  payload: Record<string, unknown> = {},
 ) {
   const supabase = getClient();
   if (!supabase) throw new Error("Supabase no está configurado.");
@@ -66,7 +68,7 @@ export async function createRemoteAction(
     body: {
       action,
       clientRequestId,
-      payload: {},
+      payload,
     },
   });
   if (error) throw error;

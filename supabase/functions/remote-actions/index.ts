@@ -12,6 +12,7 @@ const allowedActions = new Set([
   "normalize_products",
   "process_tickets",
   "update_external_prices",
+  "review_menu_plan",
 ]);
 const defaultWebOrigin = "https://jucar-cart.vercel.app";
 
@@ -66,11 +67,7 @@ async function handleUserRequest(
   const { data: userData, error: userError } =
     await supabase.auth.getUser(token);
   const user = userData.user;
-  if (
-    userError ||
-    !user ||
-    user.email?.toLowerCase() !== "rafaelgarcia1985@hotmail.com"
-  ) {
+  if (userError || !user) {
     return jsonResponse(request, { error: "No autorizado." }, 403);
   }
 
@@ -94,6 +91,27 @@ async function handleUserRequest(
       { error: "Acción o identificador inválido." },
       400,
     );
+  }
+
+  if (action === "review_menu_plan") {
+    const planId = typeof payload.planId === "string" ? payload.planId : "";
+    if (!planId) return jsonResponse(request, { error: "Menú inválido." }, 400);
+    const { data: plan, error: planError } = await supabase
+      .from("menu_plans")
+      .select("scope_list_id")
+      .eq("id", planId)
+      .maybeSingle();
+    if (planError || !plan)
+      return jsonResponse(request, { error: "Menú no encontrado." }, 404);
+    const { data: member } = await supabase
+      .from("shopping_list_members")
+      .select("list_id")
+      .eq("list_id", plan.scope_list_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!member) return jsonResponse(request, { error: "No autorizado." }, 403);
+  } else if (user.email?.toLowerCase() !== "rafaelgarcia1985@hotmail.com") {
+    return jsonResponse(request, { error: "No autorizado." }, 403);
   }
 
   const { data, error } = await supabase
@@ -182,7 +200,132 @@ async function handleAgentRequest(
     return jsonResponse(undefined, { action: data });
   }
 
+  if (operation === "menu_context") {
+    const actionId = typeof body.actionId === "string" ? body.actionId : "";
+    const context = await getMenuContext(supabase, actionId, agentId);
+    return jsonResponse(undefined, context);
+  }
+
+  if (operation === "menu_apply") {
+    const actionId = typeof body.actionId === "string" ? body.actionId : "";
+    const items = Array.isArray(body.items) ? body.items : null;
+    if (!items)
+      return jsonResponse(undefined, { error: "Propuesta inválida." }, 400);
+    const result = await applyMenuProposal(supabase, actionId, agentId, items);
+    return jsonResponse(undefined, result);
+  }
+
   return jsonResponse(undefined, { error: "Operación no permitida." }, 400);
+}
+
+async function getMenuContext(
+  supabase: ReturnType<typeof createClient>,
+  actionId: string,
+  agentId: string,
+) {
+  const { data: action, error } = await supabase
+    .from("remote_actions")
+    .select("id, payload")
+    .eq("id", actionId)
+    .eq("action", "review_menu_plan")
+    .eq("status", "running")
+    .eq("agent_id", agentId)
+    .maybeSingle();
+  const planId =
+    typeof action?.payload?.planId === "string" ? action.payload.planId : "";
+  if (error || !planId) throw new Error("Acción de menú no disponible.");
+  const { data: plan } = await supabase
+    .from("menu_plans")
+    .select("id, scope_list_id, starts_on")
+    .eq("id", planId)
+    .single();
+  if (!plan) throw new Error("Menú no encontrado.");
+  const [{ data: days }, { data: lists }, { data: memberships }] =
+    await Promise.all([
+      supabase
+        .from("menu_plan_days")
+        .select("id, planned_on, content")
+        .eq("plan_id", plan.id)
+        .order("planned_on"),
+      supabase.from("shopping_lists").select("id, name"),
+      supabase.from("shopping_list_members").select("list_id, user_id"),
+    ]);
+  const scopeMembers = new Set(
+    (memberships ?? [])
+      .filter((row) => row.list_id === plan.scope_list_id)
+      .map((row) => row.user_id),
+  );
+  const destinations = (lists ?? []).filter((list) => {
+    const members = new Set(
+      (memberships ?? [])
+        .filter((row) => row.list_id === list.id)
+        .map((row) => row.user_id),
+    );
+    return (
+      members.size === scopeMembers.size &&
+      [...members].every((member) => scopeMembers.has(member))
+    );
+  });
+  return {
+    planId: plan.id,
+    startsOn: plan.starts_on,
+    days: days ?? [],
+    destinationLists: destinations,
+  };
+}
+
+async function applyMenuProposal(
+  supabase: ReturnType<typeof createClient>,
+  actionId: string,
+  agentId: string,
+  items: unknown[],
+) {
+  const context = await getMenuContext(supabase, actionId, agentId);
+  if (items.length > 100) throw new Error("La propuesta supera el límite.");
+  const allowedLists = new Set(context.destinationLists.map((list) => list.id));
+  const validItems = items.map((item) => {
+    if (!item || typeof item !== "object") throw new Error("Línea inválida.");
+    const value = item as Record<string, unknown>;
+    const name = typeof value.name === "string" ? value.name.trim() : "";
+    const quantity =
+      typeof value.quantity === "string"
+        ? value.quantity.trim().slice(0, 80) || null
+        : null;
+    const destinationListId =
+      typeof value.destinationListId === "string"
+        ? value.destinationListId
+        : "";
+    const sourceDayId =
+      typeof value.sourceDayId === "string" ? value.sourceDayId : null;
+    if (!name || name.length > 200 || !allowedLists.has(destinationListId))
+      throw new Error("Producto o destino inválido.");
+    return {
+      name,
+      quantity,
+      destination_list_id: destinationListId,
+      source_day_id: sourceDayId,
+    };
+  });
+  const { data: existing } = await supabase
+    .from("menu_plan_proposals")
+    .select("id")
+    .eq("request_id", actionId)
+    .maybeSingle();
+  if (existing) return { proposalId: existing.id, reused: true };
+  const { data: proposal, error } = await supabase
+    .from("menu_plan_proposals")
+    .insert({ plan_id: context.planId, status: "ready", request_id: actionId })
+    .select("id")
+    .single();
+  if (error || !proposal) throw new Error("No se pudo guardar la propuesta.");
+  const { error: itemsError } = await supabase
+    .from("menu_plan_proposal_items")
+    .insert(validItems.map((item) => ({ ...item, proposal_id: proposal.id })));
+  if (itemsError) {
+    await supabase.from("menu_plan_proposals").delete().eq("id", proposal.id);
+    throw new Error("No se pudo guardar la propuesta.");
+  }
+  return { proposalId: proposal.id, reused: false };
 }
 
 function jsonResponse(

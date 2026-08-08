@@ -46,6 +46,10 @@ async function executeAction(action) {
     normalize_products: ["bash", ["scripts/normalize-products-with-codex.sh"]],
     process_tickets: ["bash", ["scripts/process-tickets-with-codex.sh"]],
     update_external_prices: ["node", ["scripts/update-external-prices.mjs"]],
+    review_menu_plan: [
+      "node",
+      ["scripts/review-menu-plan-with-codex.mjs", action.id],
+    ],
   };
   const command = commands[action.action];
   if (!command) {

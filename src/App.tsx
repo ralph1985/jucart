@@ -19,6 +19,7 @@ import { animate, stagger } from "animejs";
 import useEmblaCarousel from "embla-carousel-react";
 
 import styles from "./App.module.scss";
+import { MenuPlanningView } from "./MenuPlanningView";
 import { formatAppDate, getCurrentAppRelease } from "./appVersion";
 import {
   getAuthSnapshot,
@@ -195,7 +196,7 @@ const initialPushNotificationSnapshot: PushNotificationSnapshot = {
 const freezerViewEnabled = import.meta.env.MODE === "test";
 
 type AppView =
-  "shopping" | "freezer" | "tickets" | "sections" | "history" | "developer";
+  "shopping" | "menu" | "freezer" | "tickets" | "sections" | "history" | "developer";
 type HistoryTab = "changes" | "categories" | "normalizations";
 type TicketFilter = "all" | ShoppingTicketStatus;
 
@@ -8494,6 +8495,8 @@ export function App() {
         </section>
       ) : null}
 
+      {activeView === "menu" ? <MenuPlanningView lists={shoppingLists} /> : null}
+
       {activeView === "developer" &&
       isCurrentUserAdministrator &&
       (!isSupabaseConfigured() || authSnapshot.status === "signed_in") ? (
@@ -8590,6 +8593,16 @@ export function App() {
       ) : null}
 
       <nav className={styles.bottomNav} aria-label="Navegación principal">
+        <button
+          className={activeView === "menu" ? styles.bottomNavItemActive : styles.bottomNavItem}
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={() => setActiveView("menu")}
+          disabled={!isLoaded || !isSupabaseConfigured()}
+        >
+          <Icon name="history" />
+          <span>Menú</span>
+        </button>
         <button
           className={
             activeView === "shopping"

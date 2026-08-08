@@ -43,3 +43,13 @@ textarea,
 select {
   font: inherit;
 }
+
+.menuPlanningScreen { padding: 1rem 1rem 7rem; max-width: 48rem; margin: 0 auto; }
+.menuPlanningHeader h2 { margin: 0; }
+.menuPlanningHeader p, .menuPlanningHint { color: #52606d; }
+.menuPlanningForm { display: grid; gap: 1rem; margin-top: 1rem; }
+.menuPlanningForm label { display: grid; gap: .45rem; font-weight: 600; }
+.menuPlanningForm select, .menuPlanningForm textarea { width: 100%; box-sizing: border-box; border: 1px solid #b8c4cf; border-radius: .75rem; padding: .7rem; font: inherit; background: #fff; }
+.menuPlanningForm textarea { resize: vertical; min-height: 5rem; font-weight: 400; }
+.menuPlanningForm button { border: 0; border-radius: .75rem; background: #166534; color: #fff; padding: .8rem 1rem; font: inherit; font-weight: 700; }
+.menuPlanningForm button:disabled { opacity: .55; }

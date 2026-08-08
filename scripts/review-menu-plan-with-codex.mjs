@@ -55,7 +55,7 @@ const directory = await mkdtemp(join(tmpdir(), "jucart-menu-"));
 const resultPath = join(directory, "proposal.json");
 try {
   const context = await agentRequest({ operation: "menu_context", actionId });
-  const prompt = `Trabaja en español. Eres el asistente de planificación de Jucart.\n\nContexto autorizado:\n${JSON.stringify(context)}\n\nGenera SOLO productos necesarios para el menú. No inventes cantidades ni incluyas básicos que no se deduzcan. El destino debe ser exactamente uno de destinationLists.id y sourceDayId debe ser uno de days.id.\n\nNo edites archivos del repositorio, no uses git ni credenciales. Escribe un JSON válido exclusivamente en ${resultPath} con este formato:\n{ "items": [{ "name": "Tomates", "quantity": "500 g", "destinationListId": "uuid", "sourceDayId": "uuid" }], "dishes": [] }\n`;
+  const prompt = `Trabaja en español. Eres el asistente de planificación de Jucart.\n\nContexto autorizado:\n${JSON.stringify(context)}\n\nGenera SOLO productos necesarios para el menú. No inventes cantidades ni incluyas básicos que no se deduzcan. El destino debe ser exactamente uno de destinationLists.id y sourceDayId debe ser uno de days.id. Extrae también los platos explícitos y usa solo dishTypes.id como dishTypeId.\n\nNo edites archivos del repositorio, no uses git ni credenciales. Escribe un JSON válido exclusivamente en ${resultPath} con este formato:\n{ "items": [{ "name": "Tomates", "quantity": "500 g", "destinationListId": "uuid", "sourceDayId": "uuid" }], "dishes": [{ "name": "Ensalada de tomate", "sourceDayId": "uuid", "dishTypeId": "uuid" }] }\n`;
   await runCodex(prompt);
   const proposal = JSON.parse(await readFile(resultPath, "utf8"));
   if (!proposal || !Array.isArray(proposal.items))

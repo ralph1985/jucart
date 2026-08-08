@@ -209,9 +209,16 @@ async function handleAgentRequest(
   if (operation === "menu_apply") {
     const actionId = typeof body.actionId === "string" ? body.actionId : "";
     const items = Array.isArray(body.items) ? body.items : null;
+    const dishes = Array.isArray(body.dishes) ? body.dishes : [];
     if (!items)
       return jsonResponse(undefined, { error: "Propuesta inválida." }, 400);
-    const result = await applyMenuProposal(supabase, actionId, agentId, items);
+    const result = await applyMenuProposal(
+      supabase,
+      actionId,
+      agentId,
+      items,
+      dishes,
+    );
     return jsonResponse(undefined, result);
   }
 
@@ -240,16 +247,25 @@ async function getMenuContext(
     .eq("id", planId)
     .single();
   if (!plan) throw new Error("Menú no encontrado.");
-  const [{ data: days }, { data: lists }, { data: memberships }] =
-    await Promise.all([
-      supabase
-        .from("menu_plan_days")
-        .select("id, planned_on, content")
-        .eq("plan_id", plan.id)
-        .order("planned_on"),
-      supabase.from("shopping_lists").select("id, name"),
-      supabase.from("shopping_list_members").select("list_id, user_id"),
-    ]);
+  const [
+    { data: days },
+    { data: lists },
+    { data: memberships },
+    { data: dishTypes },
+  ] = await Promise.all([
+    supabase
+      .from("menu_plan_days")
+      .select("id, planned_on, content")
+      .eq("plan_id", plan.id)
+      .order("planned_on"),
+    supabase.from("shopping_lists").select("id, name"),
+    supabase.from("shopping_list_members").select("list_id, user_id"),
+    supabase
+      .from("menu_dish_types")
+      .select("id, name")
+      .eq("scope_list_id", plan.scope_list_id)
+      .order("position"),
+  ]);
   const scopeMembers = new Set(
     (memberships ?? [])
       .filter((row) => row.list_id === plan.scope_list_id)
@@ -271,6 +287,7 @@ async function getMenuContext(
     startsOn: plan.starts_on,
     days: days ?? [],
     destinationLists: destinations,
+    dishTypes: dishTypes ?? [],
   };
 }
 
@@ -279,6 +296,7 @@ async function applyMenuProposal(
   actionId: string,
   agentId: string,
   items: unknown[],
+  dishes: unknown[],
 ) {
   const context = await getMenuContext(supabase, actionId, agentId);
   if (items.length > 100) throw new Error("La propuesta supera el límite.");
@@ -324,6 +342,33 @@ async function applyMenuProposal(
   if (itemsError) {
     await supabase.from("menu_plan_proposals").delete().eq("id", proposal.id);
     throw new Error("No se pudo guardar la propuesta.");
+  }
+  if (dishes.length > 70)
+    throw new Error("La propuesta incluye demasiados platos.");
+  const validDayIds = new Set(context.days.map((day) => day.id));
+  const validTypeIds = new Set(context.dishTypes.map((type) => type.id));
+  const validDishes = dishes.map((dish) => {
+    if (!dish || typeof dish !== "object") throw new Error("Plato inválido.");
+    const value = dish as Record<string, unknown>;
+    const name = typeof value.name === "string" ? value.name.trim() : "";
+    const sourceDayId =
+      typeof value.sourceDayId === "string" ? value.sourceDayId : "";
+    const dishTypeId =
+      typeof value.dishTypeId === "string" ? value.dishTypeId : null;
+    if (
+      !name ||
+      name.length > 200 ||
+      !validDayIds.has(sourceDayId) ||
+      (dishTypeId && !validTypeIds.has(dishTypeId))
+    )
+      throw new Error("Plato inválido.");
+    return { plan_day_id: sourceDayId, name, dish_type_id: dishTypeId };
+  });
+  if (validDishes.length > 0) {
+    const { error: dishesError } = await supabase
+      .from("menu_plan_dishes")
+      .insert(validDishes);
+    if (dishesError) throw new Error("No se pudieron guardar los platos.");
   }
   return { proposalId: proposal.id, reused: false };
 }

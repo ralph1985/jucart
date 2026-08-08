@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createNotification,
   getNotificationTargetUrl,
   handleActivateEvent,
+  handleFetchEvent,
+  handleInstallEvent,
   handleNotificationClickEvent,
   handlePushEvent,
   parsePushPayload,
@@ -19,6 +21,7 @@ function createEnvironment() {
   const cache = {
     match: vi.fn(() => Promise.resolve(undefined as Response | undefined)),
     put: vi.fn(() => Promise.resolve()),
+    addAll: vi.fn(() => Promise.resolve()),
   };
   const clients = {
     matchAll: vi.fn<() => Promise<TestWindowClient[]>>(() =>
@@ -31,6 +34,7 @@ function createEnvironment() {
   return {
     caches: {
       open: vi.fn(() => Promise.resolve(cache)),
+      match: cache.match,
       keys: vi.fn(() => Promise.resolve([])),
       delete: vi.fn(() => Promise.resolve(true)),
     } as unknown as CacheStorage,
@@ -46,6 +50,10 @@ function createEnvironment() {
 describe("service worker push notifications", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("creates a notification from push JSON payload", () => {
@@ -215,5 +223,142 @@ describe("service worker push notifications", () => {
 
     expect(navigate).not.toHaveBeenCalled();
     expect(env.cache.put).not.toHaveBeenCalled();
+  });
+
+  it("instala la precaché y activa inmediatamente cuando esas APIs existen", async () => {
+    const env = createEnvironment();
+    const skipWaiting = vi.fn(() => Promise.resolve());
+    (env as { skipWaiting?: () => Promise<void> }).skipWaiting = skipWaiting;
+
+    await handleInstallEvent(env);
+
+    expect(env.cache.addAll).toHaveBeenCalled();
+    expect(skipWaiting).toHaveBeenCalledOnce();
+  });
+
+  it("instala y activa aunque las APIs opcionales no estén disponibles", async () => {
+    const env = createEnvironment();
+    delete (env as { skipWaiting?: () => Promise<void> }).skipWaiting;
+    delete (env.clients as { claim?: () => Promise<void> }).claim;
+
+    await handleInstallEvent(env);
+    await handleActivateEvent(env);
+
+    expect(env.cache.addAll).toHaveBeenCalledOnce();
+    expect(env.cache.put).toHaveBeenCalledOnce();
+  });
+
+  it("responde solo a GET y usa caché para navegación y recursos", async () => {
+    const env = createEnvironment();
+    const cached = new Response("cached");
+    env.cache.match.mockResolvedValue(cached);
+    const respondWith = vi.fn();
+
+    handleFetchEvent(
+      {
+        request: new Request("https://jucart.example/api", { method: "POST" }),
+        respondWith,
+      } as unknown as Parameters<typeof handleFetchEvent>[0],
+      env,
+    );
+    expect(respondWith).not.toHaveBeenCalled();
+
+    handleFetchEvent(
+      {
+        request: {
+          method: "GET",
+          mode: "navigate",
+        } as Request,
+        respondWith,
+      } as unknown as Parameters<typeof handleFetchEvent>[0],
+      env,
+    );
+    await respondWith.mock.calls[0][0];
+    expect(env.cache.match).toHaveBeenCalledWith("/index.html");
+  });
+
+  it("recurre a la red cuando un recurso GET no está en caché", async () => {
+    const env = createEnvironment();
+    const respondWith = vi.fn();
+    const request = new Request("https://jucart.example/assets/app.js");
+    const networkResponse = new Response("network");
+    const fetchMock = vi.fn(() => Promise.resolve(networkResponse));
+    vi.stubGlobal("fetch", fetchMock);
+
+    handleFetchEvent(
+      {
+        request,
+        respondWith,
+      } as unknown as Parameters<typeof handleFetchEvent>[0],
+      env,
+    );
+
+    await expect(respondWith.mock.calls[0][0]).resolves.toBe(networkResponse);
+    expect(fetchMock).toHaveBeenCalledWith(request);
+  });
+
+  it("tolera payloads, URLs y clientes inválidos", async () => {
+    expect(parsePushPayload({ json: () => null, text: () => "" })).toEqual({});
+    expect(getNotificationTargetUrl(null, "https://jucart.example")).toBe(
+      "https://jucart.example/",
+    );
+    expect(
+      createNotification(
+        { title: " ", body: " ", url: "%%%" },
+        "https://jucart.example",
+      ).title,
+    ).toBe("Cambios en Jucart");
+
+    const env = createEnvironment();
+    env.clients.matchAll.mockResolvedValue([{ url: "not a url" }]);
+    const waitUntil = vi.fn();
+    handleNotificationClickEvent(
+      {
+        notification: { close: vi.fn(), data: {} },
+        waitUntil,
+      } as unknown as Parameters<typeof handleNotificationClickEvent>[0],
+      env,
+    );
+    await waitUntil.mock.calls[0][0];
+    expect(env.clients.openWindow).toHaveBeenCalledWith(
+      "https://jucart.example/",
+    );
+  });
+
+  it("abre una ventana si el cliente existente no se puede enfocar", async () => {
+    const env = createEnvironment();
+    const waitUntil = vi.fn();
+    env.clients.matchAll.mockResolvedValue([
+      { url: "https://jucart.example/menu" },
+    ]);
+
+    handleNotificationClickEvent(
+      {
+        notification: { close: vi.fn(), data: { url: "/menu" } },
+        waitUntil,
+      } as unknown as Parameters<typeof handleNotificationClickEvent>[0],
+      env,
+    );
+
+    await waitUntil.mock.calls[0][0];
+    expect(env.clients.openWindow).toHaveBeenCalledWith(
+      "https://jucart.example/menu",
+    );
+  });
+
+  it("borra precachés antiguas e ignora clientes que desaparecen", async () => {
+    const env = createEnvironment();
+    (env.caches.keys as ReturnType<typeof vi.fn>).mockResolvedValue([
+      "jucart-precache-old",
+      "other",
+    ]);
+    env.clients.matchAll.mockResolvedValue([
+      {
+        navigate: vi.fn(() => Promise.reject(new Error("gone"))),
+        url: "https://jucart.example/",
+      },
+    ]);
+    await handleActivateEvent(env);
+    expect(env.caches.delete).toHaveBeenCalledWith("jucart-precache-old");
   });
 });

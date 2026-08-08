@@ -196,7 +196,13 @@ const initialPushNotificationSnapshot: PushNotificationSnapshot = {
 const freezerViewEnabled = import.meta.env.MODE === "test";
 
 type AppView =
-  "shopping" | "menu" | "freezer" | "tickets" | "sections" | "history" | "developer";
+  | "shopping"
+  | "menu"
+  | "freezer"
+  | "tickets"
+  | "sections"
+  | "history"
+  | "developer";
 type HistoryTab = "changes" | "categories" | "normalizations";
 type TicketFilter = "all" | ShoppingTicketStatus;
 
@@ -8495,7 +8501,9 @@ export function App() {
         </section>
       ) : null}
 
-      {activeView === "menu" ? <MenuPlanningView lists={shoppingLists} /> : null}
+      {activeView === "menu" ? (
+        <MenuPlanningView lists={shoppingLists} />
+      ) : null}
 
       {activeView === "developer" &&
       isCurrentUserAdministrator &&
@@ -8594,7 +8602,11 @@ export function App() {
 
       <nav className={styles.bottomNav} aria-label="Navegación principal">
         <button
-          className={activeView === "menu" ? styles.bottomNavItemActive : styles.bottomNavItem}
+          className={
+            activeView === "menu"
+              ? styles.bottomNavItemActive
+              : styles.bottomNavItem
+          }
           type="button"
           onPointerDown={handleButtonPointerDown}
           onClick={() => setActiveView("menu")}

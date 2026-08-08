@@ -24,7 +24,6 @@ create table public.menu_dish_types (
   name text not null,
   position integer not null default 0,
   created_at timestamptz not null default now(),
-  unique (scope_list_id, lower(name)),
   constraint menu_dish_types_name check (length(btrim(name)) > 0)
 );
 
@@ -64,6 +63,7 @@ create table public.menu_plan_proposal_items (
 create index menu_plans_scope_starts_on_idx on public.menu_plans (scope_list_id, starts_on desc);
 create index menu_plan_days_plan_idx on public.menu_plan_days (plan_id, planned_on);
 create index menu_plan_proposals_plan_idx on public.menu_plan_proposals (plan_id, created_at desc);
+create unique index menu_dish_types_scope_name_idx on public.menu_dish_types (scope_list_id, lower(name));
 
 create or replace function public.is_menu_plan_member(p_plan_id uuid)
 returns boolean language sql stable security definer set search_path = public as $$

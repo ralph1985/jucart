@@ -29,6 +29,7 @@ type TableQuery = {
   update: (values: unknown) => TableQuery;
   upsert: (values: unknown, options?: { onConflict: string }) => TableQuery;
   eq: (column: string, value: string) => TableQuery;
+  in: (column: string, values: string[]) => TableQuery;
   order: (column: string, options?: { ascending: boolean }) => TableQuery;
   limit: (value: number) => TableQuery;
   maybeSingle: () => Promise<TableResult>;
@@ -51,6 +52,39 @@ type MenuProposalRow = {
   menu_plan_proposal_items: MenuProposalItemRow[] | null;
 };
 type MenuDishTypeRow = { id: string; name: string };
+type MenuDishRow = {
+  id: string;
+  name: string;
+  plan_day_id: string;
+  menu_dish_types: { name: string } | null;
+};
+type MenuHistoryRow = {
+  id: string;
+  starts_on: string;
+  menu_plan_days: Array<{
+    planned_on: string;
+    content: string;
+    menu_plan_dishes: Array<{
+      name: string;
+      menu_dish_types: { name: string } | null;
+    }>;
+  }>;
+};
+export type MenuDish = {
+  id: string;
+  name: string;
+  planDayId: string;
+  typeName: string | null;
+};
+export type MenuHistoryPlan = {
+  id: string;
+  startsOn: string;
+  days: Array<{
+    plannedOn: string;
+    content: string;
+    dishes: Array<{ name: string; typeName: string | null }>;
+  }>;
+};
 function getClient() {
   const config = getSupabaseConfig();
   if (!config)
@@ -206,4 +240,48 @@ export async function createMenuDishType(scopeListId: string, name: string) {
     position: Date.now(),
   }) as unknown as Promise<TableResult>);
   if (error) throw error;
+}
+
+export async function getMenuDishes(planId: string): Promise<MenuDish[]> {
+  const { data: days, error: daysError } = await (table("menu_plan_days")
+    .select("id")
+    .eq("plan_id", planId) as unknown as Promise<TableResult>);
+  if (daysError) throw daysError;
+  const dayIds = ((days ?? []) as Array<{ id: string }>).map((day) => day.id);
+  if (dayIds.length === 0) return [];
+  const { data, error } = await (table("menu_plan_dishes")
+    .select("id, name, plan_day_id, menu_dish_types(name)")
+    .in("plan_day_id", dayIds) as unknown as Promise<TableResult>);
+  if (error) throw error;
+  return ((data ?? []) as MenuDishRow[]).map((dish) => ({
+    id: dish.id,
+    name: dish.name,
+    planDayId: dish.plan_day_id,
+    typeName: dish.menu_dish_types?.name ?? null,
+  }));
+}
+
+export async function getMenuHistory(
+  scopeListId: string,
+): Promise<MenuHistoryPlan[]> {
+  const { data, error } = await (table("menu_plans")
+    .select(
+      "id, starts_on, menu_plan_days(planned_on, content, menu_plan_dishes(name, menu_dish_types(name)))",
+    )
+    .eq("scope_list_id", scopeListId)
+    .order("starts_on", { ascending: false })
+    .limit(24) as unknown as Promise<TableResult>);
+  if (error) throw error;
+  return ((data ?? []) as MenuHistoryRow[]).map((plan) => ({
+    id: plan.id,
+    startsOn: plan.starts_on,
+    days: (plan.menu_plan_days ?? []).map((day) => ({
+      plannedOn: day.planned_on,
+      content: day.content,
+      dishes: (day.menu_plan_dishes ?? []).map((dish) => ({
+        name: dish.name,
+        typeName: dish.menu_dish_types?.name ?? null,
+      })),
+    })),
+  }));
 }

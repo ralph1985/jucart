@@ -4,14 +4,21 @@ import type { ShoppingList } from "./shoppingLists";
 import {
   confirmMenuProposal,
   createMenuDishType,
+  getMenuDishes,
   getMenuDishTypes,
+  getMenuHistory,
   getLatestMenuProposal,
   getOrCreateMenuPlan,
   requestMenuPlanReview,
   saveMenuPlanDay,
   updateMenuProposalItem,
 } from "./menuPlanning";
-import type { MenuDishType, MenuProposal } from "./menuPlanning";
+import type {
+  MenuDish,
+  MenuDishType,
+  MenuHistoryPlan,
+  MenuProposal,
+} from "./menuPlanning";
 
 type Props = { lists: ShoppingList[] };
 
@@ -35,6 +42,9 @@ export function MenuPlanningView({ lists }: Props) {
   const [proposal, setProposal] = useState<MenuProposal | null>(null);
   const [dishTypes, setDishTypes] = useState<MenuDishType[]>([]);
   const [dishTypeName, setDishTypeName] = useState("");
+  const [dishes, setDishes] = useState<MenuDish[]>([]);
+  const [history, setHistory] = useState<MenuHistoryPlan[]>([]);
+  const [historyQuery, setHistoryQuery] = useState("");
   const days = useMemo(
     () =>
       Array.from({ length: 7 }, (_, index) => {
@@ -63,6 +73,9 @@ export function MenuPlanningView({ lists }: Props) {
           ),
         );
         setMessage("");
+        void getMenuDishes(plan.id)
+          .then(setDishes)
+          .catch(() => undefined);
         return getLatestMenuProposal(plan.id);
       })
       .then((proposal) => {
@@ -91,6 +104,25 @@ export function MenuPlanningView({ lists }: Props) {
       .catch(() => undefined);
   }, [selectedScopeListId]);
 
+  useEffect(() => {
+    if (!planId || proposalMessage !== "Codex está preparando la propuesta.")
+      return;
+    const intervalId = window.setInterval(() => {
+      void getLatestMenuProposal(planId).then((nextProposal) => {
+        if (nextProposal?.status === "ready") {
+          setProposal(nextProposal);
+          setProposalMessage(
+            `${nextProposal.items.length} productos listos para revisar.`,
+          );
+          void getMenuDishes(planId)
+            .then(setDishes)
+            .catch(() => undefined);
+        }
+      });
+    }, 3000);
+    return () => window.clearInterval(intervalId);
+  }, [planId, proposalMessage]);
+
   async function addDishType() {
     if (!dishTypeName.trim()) return;
     try {
@@ -99,6 +131,14 @@ export function MenuPlanningView({ lists }: Props) {
       setDishTypeName("");
     } catch {
       setMessage("No se pudo guardar el tipo de plato.");
+    }
+  }
+
+  async function loadHistory() {
+    try {
+      setHistory(await getMenuHistory(selectedScopeListId));
+    } catch {
+      setMessage("No se pudo cargar el histórico.");
     }
   }
 
@@ -225,6 +265,19 @@ export function MenuPlanningView({ lists }: Props) {
             />
           </label>
         ))}
+        {dishes.length > 0 ? (
+          <section className="menuDishes" aria-label="Platos detectados">
+            <h3>Platos detectados</h3>
+            <ul>
+              {dishes.map((dish) => (
+                <li key={dish.id}>
+                  {dish.name}
+                  {dish.typeName ? ` · ${dish.typeName}` : ""}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <button type="submit" disabled={!planId}>
           Guardar menú
         </button>
@@ -249,6 +302,36 @@ export function MenuPlanningView({ lists }: Props) {
           <button type="button" onClick={addDishType}>
             Añadir tipo
           </button>
+        </section>
+        <section className="menuHistory" aria-label="Histórico de menús">
+          <h3>Histórico</h3>
+          <input
+            aria-label="Buscar en el histórico"
+            value={historyQuery}
+            onChange={(event) => setHistoryQuery(event.target.value)}
+            placeholder="Buscar plato o menú"
+          />
+          <button type="button" onClick={loadHistory}>
+            Cargar histórico
+          </button>
+          {history
+            .filter((plan) =>
+              JSON.stringify(plan)
+                .toLocaleLowerCase("es")
+                .includes(historyQuery.toLocaleLowerCase("es")),
+            )
+            .map((plan) => (
+              <article key={plan.id}>
+                <h4>{plan.startsOn}</h4>
+                {plan.days.map((day) => (
+                  <p key={day.plannedOn}>
+                    {day.plannedOn}:{" "}
+                    {day.dishes.map((dish) => dish.name).join(", ") ||
+                      day.content}
+                  </p>
+                ))}
+              </article>
+            ))}
         </section>
         {proposalMessage ? <p role="status">{proposalMessage}</p> : null}
         {proposal?.status === "ready" ? (

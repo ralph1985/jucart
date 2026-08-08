@@ -133,6 +133,28 @@ export function MenuPlanningView({ lists }: Props) {
     }
   }
 
+  async function changeProposalItem(
+    item: MenuProposal["items"][number],
+    values: Partial<MenuProposal["items"][number]>,
+  ) {
+    const next = { ...item, ...values };
+    setProposal((current) =>
+      current
+        ? {
+            ...current,
+            items: current.items.map((currentItem) =>
+              currentItem.id === item.id ? next : currentItem,
+            ),
+          }
+        : current,
+    );
+    try {
+      await updateMenuProposalItem(item.id, next);
+    } catch {
+      setProposalMessage("No se pudo guardar ese cambio.");
+    }
+  }
+
   async function confirmProposal() {
     if (!proposal || !planId) return;
     setProposalMessage("Añadiendo productos a las listas…");
@@ -197,16 +219,55 @@ export function MenuPlanningView({ lists }: Props) {
           <section className="menuProposal" aria-label="Propuesta de compra">
             <h3>Propuesta de compra</h3>
             {proposal.items.map((item) => (
-              <label key={item.id}>
-                <input
-                  type="checkbox"
-                  checked={item.selected}
-                  onChange={() => void toggleProposalItem(item)}
-                />
-                {item.name}
-                {item.quantity ? ` · ${item.quantity}` : ""}
-                {` · ${lists.find((list) => list.id === item.destinationListId)?.name ?? "Lista"}`}
-              </label>
+              <fieldset key={item.id}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={item.selected}
+                    onChange={() => void toggleProposalItem(item)}
+                  />{" "}
+                  Añadir
+                </label>
+                <label>
+                  Producto
+                  <input
+                    value={item.name}
+                    onChange={(event) =>
+                      void changeProposalItem(item, {
+                        name: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  Cantidad
+                  <input
+                    value={item.quantity ?? ""}
+                    onChange={(event) =>
+                      void changeProposalItem(item, {
+                        quantity: event.target.value || null,
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  Lista
+                  <select
+                    value={item.destinationListId}
+                    onChange={(event) =>
+                      void changeProposalItem(item, {
+                        destinationListId: event.target.value,
+                      })
+                    }
+                  >
+                    {lists.map((list) => (
+                      <option key={list.id} value={list.id}>
+                        {list.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </fieldset>
             ))}
             <button type="button" onClick={confirmProposal}>
               Añadir seleccionados

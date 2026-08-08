@@ -79,6 +79,10 @@
   overflow: hidden;
 }
 
+.appThemeDark {
+  color-scheme: dark;
+}
+
 .appPushInviteVisible {
   --push-invite-height: 4.45rem;
 }
@@ -189,6 +193,33 @@
   grid-template-columns: auto auto;
   align-items: center;
   gap: 0.35rem 0.5rem;
+}
+
+.themeToggle {
+  display: inline-flex;
+  min-height: 1.8rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.24rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999rem;
+  padding: 0.2rem 0.46rem;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  color: var(--color-text-strong);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.themeToggle span:first-child {
+  font-size: 0.83rem;
+  line-height: 1;
+}
+
+.themeToggle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .developerAuthForm {
@@ -3589,7 +3620,7 @@ h2 {
   color: var(--color-text-strong);
 }
 
-@media (prefers-color-scheme: dark) {
+:global(body.jucart-theme-dark) {
   .app {
     --surface: #182329;
     --surface-muted: #202d34;

@@ -2425,6 +2425,44 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("cicla el tema entre automático, claro y oscuro desde la cabecera", async () => {
+    render(<App />);
+
+    await waitForAddFab();
+
+    const themeToggle = screen.getByRole("button", {
+      name: "Tema Auto. Cambiar a Claro.",
+    });
+
+    fireEvent.click(themeToggle);
+    expect(window.localStorage.getItem("jucart:theme-preference")).toBe(
+      "light",
+    );
+    expect(themeToggle).toHaveAccessibleName("Tema Claro. Cambiar a Oscuro.");
+
+    fireEvent.click(themeToggle);
+    expect(window.localStorage.getItem("jucart:theme-preference")).toBe("dark");
+    expect(document.body).toHaveClass("jucart-theme-dark");
+
+    fireEvent.click(themeToggle);
+    expect(window.localStorage.getItem("jucart:theme-preference")).toBe("auto");
+  });
+
+  it("restaura el tema manual elegido al abrir la aplicación", async () => {
+    window.localStorage.setItem("jucart:theme-preference", "dark");
+
+    render(<App />);
+
+    await waitForAddFab();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Tema Oscuro. Cambiar a Auto.",
+      }),
+    ).toBeInTheDocument();
+    expect(document.body).toHaveClass("jucart-theme-dark");
+  });
+
   it("shows the tickets view from the main navigation", async () => {
     render(<App />);
 

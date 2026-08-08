@@ -242,6 +242,8 @@ type TimestampedItem = {
   updatedAt: number;
 };
 type HapticFeedback = "light" | "medium" | "success" | "warning";
+type ThemePreference = "auto" | "light" | "dark";
+type ResolvedTheme = Exclude<ThemePreference, "auto">;
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
 type DeveloperSectionId = "auth" | "backup" | "actions" | "push";
 type AppOverlay =
@@ -322,6 +324,32 @@ const hapticFeedbackPatterns: Record<HapticFeedback, VibratePattern> = {
   warning: [28, 42, 36],
 };
 const overlayHistoryStateKey = "jucartOverlay";
+const themePreferenceStorageKey = "jucart:theme-preference";
+const themePreferenceLabels: Record<ThemePreference, string> = {
+  auto: "Auto",
+  light: "Claro",
+  dark: "Oscuro",
+};
+
+function getStoredThemePreference(): ThemePreference {
+  const preference = window.localStorage.getItem(themePreferenceStorageKey);
+
+  return preference === "light" || preference === "dark" ? preference : "auto";
+}
+
+function getSystemTheme(): ResolvedTheme {
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+
+function getNextThemePreference(preference: ThemePreference): ThemePreference {
+  if (preference === "auto") {
+    return "light";
+  }
+
+  return preference === "light" ? "dark" : "auto";
+}
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, string[]> = {
@@ -1378,6 +1406,12 @@ async function getStoredPriceObservations() {
 export function App() {
   const appRelease = useState(getCurrentAppRelease)[0];
   const [activeView, setActiveView] = useState<AppView>("shopping");
+  const [themePreference, setThemePreference] = useState<ThemePreference>(
+    getStoredThemePreference,
+  );
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme);
+  const resolvedTheme =
+    themePreference === "auto" ? systemTheme : themePreference;
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [freezerItems, setFreezerItems] = useState<FreezerItem[]>([]);
   const [sections, setSections] = useState<ShoppingSection[]>(
@@ -1863,6 +1897,34 @@ export function App() {
   const markLocalDataChange = useCallback(() => {
     localDataRevisionRef.current += 1;
   }, []);
+
+  useEffect(() => {
+    if (!window.matchMedia) {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (event: MediaQueryListEvent) => {
+      setSystemTheme(event.matches ? "dark" : "light");
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle(
+      "jucart-theme-dark",
+      resolvedTheme === "dark",
+    );
+    document.documentElement.style.colorScheme = resolvedTheme;
+
+    return () => {
+      document.body.classList.remove("jucart-theme-dark");
+      document.documentElement.style.removeProperty("color-scheme");
+    };
+  }, [resolvedTheme]);
 
   useEffect(() => {
     return () => {
@@ -3119,6 +3181,14 @@ export function App() {
 
   function handleButtonPointerDown(event: MouseEvent<HTMLButtonElement>) {
     animateButtonPress(event.currentTarget);
+  }
+
+  function handleThemePreferenceChange() {
+    const nextPreference = getNextThemePreference(themePreference);
+
+    setThemePreference(nextPreference);
+    window.localStorage.setItem(themePreferenceStorageKey, nextPreference);
+    runHapticFeedback("light");
   }
 
   function focusAddInputAtEndNow() {
@@ -6596,13 +6666,9 @@ export function App() {
       onTouchMove={handlePullRefreshTouchMove}
       onTouchEnd={handlePullRefreshTouchEnd}
       onTouchCancel={finishPullRefreshGesture}
-      className={
-        activeView === "shopping"
-          ? `${styles.app} ${styles.appShopping} ${
-              isPushInviteVisible ? styles.appPushInviteVisible : ""
-            }`
-          : styles.app
-      }
+      className={`${styles.app} ${resolvedTheme === "dark" ? styles.appThemeDark : ""} ${
+        activeView === "shopping" ? styles.appShopping : ""
+      } ${isPushInviteVisible ? styles.appPushInviteVisible : ""}`}
     >
       {pullRefreshDistance > 0 || isPullRefreshing || pullRefreshMessage ? (
         <div
@@ -6651,6 +6717,23 @@ export function App() {
           </div>
         </div>
         <div className={styles.headerMeta}>
+          <button
+            className={styles.themeToggle}
+            type="button"
+            aria-label={`Tema ${themePreferenceLabels[themePreference]}. Cambiar a ${themePreferenceLabels[getNextThemePreference(themePreference)]}.`}
+            title={`Tema: ${themePreferenceLabels[themePreference]}`}
+            onPointerDown={handleButtonPointerDown}
+            onClick={handleThemePreferenceChange}
+          >
+            <span aria-hidden="true">
+              {themePreference === "auto"
+                ? "◐"
+                : themePreference === "light"
+                  ? "☀"
+                  : "☾"}
+            </span>
+            <span>{themePreferenceLabels[themePreference]}</span>
+          </button>
           <dl className={styles.summary} aria-label="Resumen de la lista">
             <div className={styles.summaryItem}>
               <dt>Pendientes</dt>

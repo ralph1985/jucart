@@ -102,6 +102,16 @@ select {
 .menuProposal h3 {
   margin: 0;
 }
+.menuDishTypes {
+  display: grid;
+  gap: 0.6rem;
+  border-top: 1px solid #d9e1e8;
+  padding-top: 1rem;
+}
+.menuDishTypes h3,
+.menuDishTypes p {
+  margin: 0;
+}
 .menuProposal fieldset {
   display: grid;
   gap: 0.45rem;

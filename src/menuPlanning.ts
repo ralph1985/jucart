@@ -19,6 +19,7 @@ export type MenuProposal = {
   errorMessage: string | null;
   items: MenuProposalItem[];
 };
+export type MenuDishType = { id: string; name: string };
 
 let client: ReturnType<typeof createClient> | null = null;
 type TableResult = { data: unknown; error: unknown };
@@ -49,6 +50,7 @@ type MenuProposalRow = {
   error_message: string | null;
   menu_plan_proposal_items: MenuProposalItemRow[] | null;
 };
+type MenuDishTypeRow = { id: string; name: string };
 function getClient() {
   const config = getSupabaseConfig();
   if (!config)
@@ -183,4 +185,25 @@ export async function confirmMenuProposal(proposalId: string) {
   );
   if (error) throw error;
   return data;
+}
+
+export async function getMenuDishTypes(scopeListId: string) {
+  const { data, error } = await (table("menu_dish_types")
+    .select("id, name")
+    .eq("scope_list_id", scopeListId)
+    .order("position") as unknown as Promise<TableResult>);
+  if (error) throw error;
+  return ((data ?? []) as MenuDishTypeRow[]).map((type) => ({
+    id: type.id,
+    name: type.name,
+  }));
+}
+
+export async function createMenuDishType(scopeListId: string, name: string) {
+  const { error } = await (table("menu_dish_types").insert({
+    scope_list_id: scopeListId,
+    name: name.trim(),
+    position: Date.now(),
+  }) as unknown as Promise<TableResult>);
+  if (error) throw error;
 }

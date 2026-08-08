@@ -3,13 +3,15 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { ShoppingList } from "./shoppingLists";
 import {
   confirmMenuProposal,
+  createMenuDishType,
+  getMenuDishTypes,
   getLatestMenuProposal,
   getOrCreateMenuPlan,
   requestMenuPlanReview,
   saveMenuPlanDay,
   updateMenuProposalItem,
 } from "./menuPlanning";
-import type { MenuProposal } from "./menuPlanning";
+import type { MenuDishType, MenuProposal } from "./menuPlanning";
 
 type Props = { lists: ShoppingList[] };
 
@@ -31,6 +33,8 @@ export function MenuPlanningView({ lists }: Props) {
   const [message, setMessage] = useState("Cargando menú…");
   const [proposalMessage, setProposalMessage] = useState("");
   const [proposal, setProposal] = useState<MenuProposal | null>(null);
+  const [dishTypes, setDishTypes] = useState<MenuDishType[]>([]);
+  const [dishTypeName, setDishTypeName] = useState("");
   const days = useMemo(
     () =>
       Array.from({ length: 7 }, (_, index) => {
@@ -79,6 +83,24 @@ export function MenuPlanningView({ lists }: Props) {
       cancelled = true;
     };
   }, [days, selectedScopeListId]);
+
+  useEffect(() => {
+    if (!selectedScopeListId) return;
+    void getMenuDishTypes(selectedScopeListId)
+      .then(setDishTypes)
+      .catch(() => undefined);
+  }, [selectedScopeListId]);
+
+  async function addDishType() {
+    if (!dishTypeName.trim()) return;
+    try {
+      await createMenuDishType(selectedScopeListId, dishTypeName);
+      setDishTypes(await getMenuDishTypes(selectedScopeListId));
+      setDishTypeName("");
+    } catch {
+      setMessage("No se pudo guardar el tipo de plato.");
+    }
+  }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -214,6 +236,20 @@ export function MenuPlanningView({ lists }: Props) {
           Codex prepara una propuesta que podrás revisar antes de añadir
           productos.
         </p>
+        <section className="menuDishTypes" aria-label="Tipos de plato">
+          <h3>Tipos de plato</h3>
+          <p>{dishTypes.map((type) => type.name).join(" · ") || "Sin tipos"}</p>
+          <label>
+            Nuevo tipo
+            <input
+              value={dishTypeName}
+              onChange={(event) => setDishTypeName(event.target.value)}
+            />
+          </label>
+          <button type="button" onClick={addDishType}>
+            Añadir tipo
+          </button>
+        </section>
         {proposalMessage ? <p role="status">{proposalMessage}</p> : null}
         {proposal?.status === "ready" ? (
           <section className="menuProposal" aria-label="Propuesta de compra">

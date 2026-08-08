@@ -2408,8 +2408,8 @@ describe("App", () => {
         .getAllByRole("button")
         .map((button) => button.textContent),
     ).toEqual([
-      "Menú",
       "Lista",
+      "Menú",
       "Tickets",
       "Congelador",
       "Listas",

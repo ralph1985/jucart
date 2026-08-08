@@ -8603,20 +8603,6 @@ export function App() {
       <nav className={styles.bottomNav} aria-label="Navegación principal">
         <button
           className={
-            activeView === "menu"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={() => setActiveView("menu")}
-          disabled={!isLoaded || !isSupabaseConfigured()}
-        >
-          <Icon name="history" />
-          <span>Menú</span>
-        </button>
-        <button
-          className={
             activeView === "shopping"
               ? styles.bottomNavItemActive
               : styles.bottomNavItem
@@ -8628,6 +8614,20 @@ export function App() {
         >
           <Icon name="list" />
           <span>Lista</span>
+        </button>
+        <button
+          className={
+            activeView === "menu"
+              ? styles.bottomNavItemActive
+              : styles.bottomNavItem
+          }
+          type="button"
+          onPointerDown={handleButtonPointerDown}
+          onClick={() => setActiveView("menu")}
+          disabled={!isLoaded || !isSupabaseConfigured()}
+        >
+          <Icon name="history" />
+          <span>Menú</span>
         </button>
         <button
           className={

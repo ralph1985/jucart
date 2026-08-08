@@ -102,4 +102,57 @@ describe("MenuPlanningView", () => {
     });
     expect(screen.getByText(/Pasta/)).toBeInTheDocument();
   });
+
+  it("muestra errores de carga, guardado, revisión, tipos e histórico", async () => {
+    mocks.getOrCreate.mockRejectedValueOnce(new Error("offline"));
+    render(<MenuPlanningView lists={lists} />);
+    await waitFor(() =>
+      expect(
+        screen.getByText("No se pudo cargar el menú. Comprueba la conexión."),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("maneja los fallos de las acciones después de cargar", async () => {
+    mocks.getProposal.mockResolvedValue(null);
+    mocks.saveDay.mockRejectedValue(new Error("save"));
+    mocks.request.mockRejectedValue(new Error("request"));
+    mocks.createType.mockRejectedValue(new Error("type"));
+    mocks.getHistory.mockRejectedValue(new Error("history"));
+    render(<MenuPlanningView lists={lists} />);
+    await waitFor(() => expect(mocks.getOrCreate).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Guardar menú" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText("No se pudo guardar el menú."),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Revisar con Codex" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText("No se pudo solicitar la revisión de Codex."),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.change(screen.getByLabelText("Nuevo tipo"), {
+      target: { value: "Brunch" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Añadir tipo" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText("No se pudo guardar el tipo de plato."),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cargar histórico" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText("No se pudo cargar el histórico."),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("no crea ni carga datos cuando no hay listas", () => {
+    render(<MenuPlanningView lists={[] as never} />);
+    expect(screen.getByRole("button", { name: "Guardar menú" })).toBeDisabled();
+    expect(mocks.getOrCreate).not.toHaveBeenCalled();
+  });
 });

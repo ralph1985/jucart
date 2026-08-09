@@ -70,11 +70,12 @@ select {
 .menuPlanningForm textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #b8c4cf;
+  border: 1px solid var(--color-border-strong);
   border-radius: 0.75rem;
   padding: 0.7rem;
+  background: var(--surface-muted);
+  color: var(--color-text-strong);
   font: inherit;
-  background: #fff;
 }
 .menuPlanningForm textarea {
   resize: vertical;

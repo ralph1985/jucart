@@ -2162,10 +2162,10 @@ h2 {
 .historyItem {
   display: grid;
   gap: 0.25rem;
-  border: 1px solid rgb(148 163 184 / 28%);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   padding: 0.72rem 0.78rem;
-  background: rgb(255 255 255 / 82%);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
   box-shadow: 0 0.35rem 0.75rem var(--surface-shadow);
 }
 

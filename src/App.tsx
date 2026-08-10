@@ -151,6 +151,7 @@ import { FreezerAddSheet } from "./components/freezer/FreezerAddSheet";
 import type { HistoryTab } from "./components/history/HistoryTabs";
 import { HistoryView } from "./components/history/HistoryView";
 import { TicketUploadSheet } from "./components/tickets/TicketUploadSheet";
+import { TicketReviewQueue } from "./components/tickets/TicketReviewQueue";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -6839,131 +6840,28 @@ export function App() {
               {ticketError}
             </p>
           ) : null}
-          {ticketReviewEntries.length > 0 ? (
-            <section
-              className={styles.ticketReviewQueue}
-              aria-labelledby="ticket-review-queue-title"
-            >
-              <div className={styles.ticketReviewQueueHeader}>
-                <h3 id="ticket-review-queue-title">Cola de revisión</h3>
-                <span>{ticketReviewEntries.length}</span>
-              </div>
-              <ol className={styles.ticketReviewList}>
-                {ticketReviewEntries.map(({ ticket, line }) => {
-                  const sectionName =
-                    sections.find((section) => section.id === ticket.sectionId)
-                      ?.name ?? ticket.sectionId;
-                  const linePriceText = getTicketLinePriceText(line);
-
-                  return (
-                    <li key={line.id}>
-                      <div>
-                        <strong>{getTicketLineName(line)}</strong>
-                        <span>
-                          {sectionName} · {formatTicketDate(ticket.uploadedAt)}
-                        </span>
-                        {linePriceText ? <small>{linePriceText}</small> : null}
-                        <small>
-                          {line.reviewReason ?? "Necesita revisión"}
-                        </small>
-                      </div>
-                      <div className={styles.ticketReviewActions}>
-                        <label
-                          className={styles.visuallyHidden}
-                          htmlFor={`ticket-line-product-${line.id}`}
-                        >
-                          Producto canónico
-                        </label>
-                        <select
-                          id={`ticket-line-product-${line.id}`}
-                          className={styles.select}
-                          value={ticketReviewProductIds[line.id] ?? ""}
-                          onChange={(event) =>
-                            handleTicketReviewProductChange(
-                              line.id,
-                              event.target.value,
-                            )
-                          }
-                          disabled={
-                            pendingTicketReviewLineId === line.id ||
-                            canonicalProducts.length === 0
-                          }
-                        >
-                          <option value="">Producto</option>
-                          {canonicalProducts.map((product) => (
-                            <option key={product.id} value={product.id}>
-                              {product.name}
-                            </option>
-                          ))}
-                        </select>
-                        <div className={styles.ticketReviewActionButtons}>
-                          <button
-                            className={styles.iconButton}
-                            type="button"
-                            aria-label="Ver"
-                            title="Ver ticket"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() => {
-                              setTicketFilter("all");
-                              setSelectedTicketId(ticket.id);
-                            }}
-                          >
-                            <Icon name="file" />
-                          </button>
-                          <button
-                            className={styles.iconButton}
-                            type="button"
-                            aria-label="Asociar"
-                            title="Asociar producto"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleResolveTicketLine(ticket, line, false)
-                            }
-                            disabled={
-                              pendingTicketReviewLineId === line.id ||
-                              !ticketReviewProductIds[line.id]
-                            }
-                          >
-                            <Icon name="check" />
-                          </button>
-                          <button
-                            className={styles.iconButton}
-                            type="button"
-                            aria-label="Alias"
-                            title="Crear alias"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleResolveTicketLine(ticket, line, true)
-                            }
-                            disabled={
-                              pendingTicketReviewLineId === line.id ||
-                              !ticketReviewProductIds[line.id] ||
-                              !(line.productName ?? line.rawText)?.trim()
-                            }
-                          >
-                            <Icon name="plus" />
-                          </button>
-                          <button
-                            className={styles.iconButtonDanger}
-                            type="button"
-                            aria-label="Excluir"
-                            title="Excluir línea"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleExcludeTicketLine(ticket, line)
-                            }
-                            disabled={pendingTicketReviewLineId === line.id}
-                          >
-                            <Icon name="trash" />
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-          ) : null}
+          <TicketReviewQueue
+            canonicalProducts={canonicalProducts}
+            entries={ticketReviewEntries}
+            formatDate={formatTicketDate}
+            getLineName={getTicketLineName}
+            getLinePriceText={getTicketLinePriceText}
+            onButtonPointerDown={handleButtonPointerDown}
+            onExclude={(ticket, line) => {
+              void handleExcludeTicketLine(ticket, line);
+            }}
+            onProductChange={handleTicketReviewProductChange}
+            onResolve={(ticket, line, createAlias) => {
+              void handleResolveTicketLine(ticket, line, createAlias);
+            }}
+            onView={(ticketId) => {
+              setTicketFilter("all");
+              setSelectedTicketId(ticketId);
+            }}
+            pendingLineId={pendingTicketReviewLineId}
+            productIds={ticketReviewProductIds}
+            sections={sections}
+          />
           <div className={styles.ticketFilters} role="tablist">
             {(
               [

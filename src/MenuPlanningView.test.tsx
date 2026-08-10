@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  getLibrary: vi.fn(),
   getDishes: vi.fn(),
   createDish: vi.fn(),
   updateDish: vi.fn(),
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./menuPlanning", () => ({
+  getMenuDishLibrary: mocks.getLibrary,
   getMenuDishes: mocks.getDishes,
   createMenuDish: mocks.createDish,
   updateMenuDish: mocks.updateDish,
@@ -21,10 +23,9 @@ vi.mock("./menuPlanning", () => ({
 
 import { MenuPlanningView } from "./MenuPlanningView";
 
-const lists = [{ id: "list-1", name: "Casa" }] as never;
 const pendingDish = {
   id: "dish-1",
-  scopeListId: "list-1",
+  libraryId: "library-1",
   name: "Lentejas",
   dishTypeId: "type-1",
   typeName: "Legumbres",
@@ -44,6 +45,7 @@ const cookedDish = {
 describe("MenuPlanningView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getLibrary.mockResolvedValue("library-1");
     mocks.getDishes.mockResolvedValue([pendingDish, cookedDish]);
     mocks.getTypes.mockResolvedValue([{ id: "type-1", name: "Legumbres" }]);
     mocks.createDish.mockResolvedValue({
@@ -66,7 +68,7 @@ describe("MenuPlanningView", () => {
   });
 
   it("muestra pendientes, permite añadir y pasa un plato al histórico", async () => {
-    render(<MenuPlanningView lists={lists} />);
+    render(<MenuPlanningView />);
     await waitFor(() =>
       expect(screen.getByText("Lentejas")).toBeInTheDocument(),
     );
@@ -79,7 +81,7 @@ describe("MenuPlanningView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
     await waitFor(() =>
       expect(mocks.createDish).toHaveBeenCalledWith(
-        "list-1",
+        "library-1",
         "Macarrones",
         null,
       ),
@@ -98,7 +100,7 @@ describe("MenuPlanningView", () => {
   });
 
   it("consulta cocinados, filtra por tipo y permite editar y eliminar", async () => {
-    render(<MenuPlanningView lists={lists} />);
+    render(<MenuPlanningView />);
     await waitFor(() =>
       expect(screen.getByText("Lentejas")).toBeInTheDocument(),
     );
@@ -126,7 +128,7 @@ describe("MenuPlanningView", () => {
 
   it("gestiona tipos y errores de carga", async () => {
     mocks.getDishes.mockRejectedValueOnce(new Error("offline"));
-    render(<MenuPlanningView lists={lists} />);
+    render(<MenuPlanningView />);
     await waitFor(() =>
       expect(
         screen.getByText("No se pudo cargar la biblioteca de platos."),
@@ -134,9 +136,14 @@ describe("MenuPlanningView", () => {
     );
   });
 
-  it("no carga ni permite guardar sin listas", () => {
-    render(<MenuPlanningView lists={[]} />);
+  it("muestra un error si no existe una biblioteca compartida", async () => {
+    mocks.getLibrary.mockRejectedValueOnce(new Error("missing"));
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(
+        screen.getByText("No se pudo cargar la biblioteca de platos."),
+      ).toBeInTheDocument(),
+    );
     expect(screen.getByRole("button", { name: "Añadir" })).toBeDisabled();
-    expect(mocks.getDishes).not.toHaveBeenCalled();
   });
 });

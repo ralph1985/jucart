@@ -216,6 +216,7 @@ type IconName =
   | "close"
   | "plus"
   | "list"
+  | "utensils"
   | "settings"
   | "arrowUp"
   | "arrowDown"
@@ -377,6 +378,14 @@ function Icon({ name }: { name: IconName }) {
       "M3 6h.01",
       "M3 12h.01",
       "M3 18h.01",
+    ],
+    utensils: [
+      "M6 3v7",
+      "M9 3v7",
+      "M12 3v7",
+      "M9 10v11",
+      "M18 3v18",
+      "M15 8h6",
     ],
     settings: [
       "M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
@@ -8589,9 +8598,7 @@ export function App() {
         </section>
       ) : null}
 
-      {activeView === "menu" ? (
-        <MenuPlanningView lists={shoppingLists} />
-      ) : null}
+      {activeView === "menu" ? <MenuPlanningView /> : null}
 
       {activeView === "developer" &&
       isCurrentUserAdministrator &&
@@ -8700,7 +8707,7 @@ export function App() {
           onClick={showShoppingView}
           disabled={!isLoaded}
         >
-          <Icon name="list" />
+          <Icon name="utensils" />
           <span>Lista</span>
         </button>
         <button

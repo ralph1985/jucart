@@ -5,7 +5,7 @@ import { getSupabaseConfig } from "./supabaseConfig";
 export type MenuDishStatus = "pending" | "cooked";
 export type MenuDish = {
   id: string;
-  scopeListId: string;
+  libraryId: string;
   name: string;
   dishTypeId: string | null;
   typeName: string | null;
@@ -25,12 +25,13 @@ type TableQuery = {
   delete: () => TableQuery;
   eq: (column: string, value: string) => TableQuery;
   order: (column: string, options?: { ascending: boolean }) => TableQuery;
+  limit: (value: number) => TableQuery;
   maybeSingle: () => Promise<TableResult>;
   single: () => Promise<TableResult>;
 };
 type MenuDishRow = {
   id: string;
-  scope_list_id: string;
+  library_id: string;
   name: string;
   dish_type_id: string | null;
   status: MenuDishStatus;
@@ -55,7 +56,7 @@ function table(name: string): TableQuery {
 function mapDish(row: MenuDishRow): MenuDish {
   return {
     id: row.id,
-    scopeListId: row.scope_list_id,
+    libraryId: row.library_id,
     name: row.name,
     dishTypeId: row.dish_type_id,
     typeName: row.menu_dish_types?.name ?? null,
@@ -67,12 +68,24 @@ function mapDish(row: MenuDishRow): MenuDish {
 }
 
 const dishColumns =
-  "id, scope_list_id, name, dish_type_id, status, cooked_at, created_at, updated_at, menu_dish_types(id, name)";
+  "id, library_id, name, dish_type_id, status, cooked_at, created_at, updated_at, menu_dish_types(id, name)";
 
-export async function getMenuDishes(scopeListId: string): Promise<MenuDish[]> {
+export async function getMenuDishLibrary(): Promise<string> {
+  const { data, error } = await (table("menu_dish_libraries")
+    .select("id")
+    .limit(1)
+    .maybeSingle() as unknown as Promise<TableResult>);
+  if (error) throw error;
+  const library = data as { id?: string } | null;
+  if (!library?.id)
+    throw new Error("No tienes una biblioteca de platos compartida.");
+  return library.id;
+}
+
+export async function getMenuDishes(libraryId: string): Promise<MenuDish[]> {
   const { data, error } = await (table("menu_dishes")
     .select(dishColumns)
-    .eq("scope_list_id", scopeListId)
+    .eq("library_id", libraryId)
     .order("status", { ascending: true })
     .order("cooked_at", {
       ascending: false,
@@ -82,13 +95,13 @@ export async function getMenuDishes(scopeListId: string): Promise<MenuDish[]> {
 }
 
 export async function createMenuDish(
-  scopeListId: string,
+  libraryId: string,
   name: string,
   dishTypeId: string | null,
 ): Promise<MenuDish> {
   const { data, error } = await (table("menu_dishes")
     .insert({
-      scope_list_id: scopeListId,
+      library_id: libraryId,
       name: name.trim(),
       dish_type_id: dishTypeId,
       status: "pending",
@@ -132,10 +145,10 @@ export async function deleteMenuDish(dishId: string) {
   if (error) throw error;
 }
 
-export async function getMenuDishTypes(scopeListId: string) {
+export async function getMenuDishTypes(libraryId: string) {
   const { data, error } = await (table("menu_dish_types")
     .select("id, name")
-    .eq("scope_list_id", scopeListId)
+    .eq("library_id", libraryId)
     .order("position", { ascending: true }) as unknown as Promise<TableResult>);
   if (error) throw error;
   return ((data ?? []) as MenuDishTypeRow[]).map((type) => ({
@@ -144,9 +157,9 @@ export async function getMenuDishTypes(scopeListId: string) {
   }));
 }
 
-export async function createMenuDishType(scopeListId: string, name: string) {
+export async function createMenuDishType(libraryId: string, name: string) {
   const { error } = await (table("menu_dish_types").insert({
-    scope_list_id: scopeListId,
+    library_id: libraryId,
     name: name.trim(),
     position: Date.now(),
   }) as unknown as Promise<TableResult>);

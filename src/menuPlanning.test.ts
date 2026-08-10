@@ -12,6 +12,7 @@ import {
   createMenuDish,
   createMenuDishType,
   deleteMenuDish,
+  getMenuDishLibrary,
   getMenuDishes,
   getMenuDishTypes,
   updateMenuDish,
@@ -19,7 +20,15 @@ import {
 
 function query(data: unknown, error: unknown = null) {
   const value: Record<string, unknown> = { data, error };
-  for (const key of ["select", "insert", "update", "delete", "eq", "order"])
+  for (const key of [
+    "select",
+    "insert",
+    "update",
+    "delete",
+    "eq",
+    "order",
+    "limit",
+  ])
     value[key] = vi.fn(() => value);
   value.single = vi.fn(async () => ({ data, error }));
   value.maybeSingle = vi.fn(async () => ({ data, error }));
@@ -28,7 +37,7 @@ function query(data: unknown, error: unknown = null) {
 
 const row = {
   id: "dish-1",
-  scope_list_id: "list-1",
+  library_id: "library-1",
   name: "Lentejas",
   dish_type_id: "type-1",
   status: "pending",
@@ -50,14 +59,17 @@ describe("menuPlanning", () => {
 
   it("mapea la colección y sus tipos", async () => {
     mocks.from.mockImplementation((name: string) =>
-      name === "menu_dish_types"
-        ? query([{ id: "type-1", name: "Legumbres" }])
-        : query([row]),
+      name === "menu_dish_libraries"
+        ? query({ id: "library-1" })
+        : name === "menu_dish_types"
+          ? query([{ id: "type-1", name: "Legumbres" }])
+          : query([row]),
     );
-    await expect(getMenuDishes("list-1")).resolves.toEqual([
+    await expect(getMenuDishLibrary()).resolves.toBe("library-1");
+    await expect(getMenuDishes("library-1")).resolves.toEqual([
       expect.objectContaining({ name: "Lentejas", typeName: "Legumbres" }),
     ]);
-    await expect(getMenuDishTypes("list-1")).resolves.toEqual([
+    await expect(getMenuDishTypes("library-1")).resolves.toEqual([
       { id: "type-1", name: "Legumbres" },
     ]);
   });
@@ -65,7 +77,7 @@ describe("menuPlanning", () => {
   it("crea, actualiza y elimina un plato", async () => {
     mocks.from.mockReturnValue(query(row));
     await expect(
-      createMenuDish("list-1", " Lentejas ", "type-1"),
+      createMenuDish("library-1", " Lentejas ", "type-1"),
     ).resolves.toMatchObject({
       name: "Lentejas",
     });
@@ -79,7 +91,7 @@ describe("menuPlanning", () => {
     });
     await expect(deleteMenuDish("dish-1")).resolves.toBeUndefined();
     await expect(
-      createMenuDishType("list-1", " Pasta "),
+      createMenuDishType("library-1", " Pasta "),
     ).resolves.toBeUndefined();
   });
 });

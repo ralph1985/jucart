@@ -84,7 +84,6 @@ select {
   color: var(--color-text-strong);
   font-size: 1rem;
 }
-.menuScopeField,
 .menuFilterField {
   display: grid;
   gap: 0.35rem;
@@ -93,7 +92,6 @@ select {
   font-size: 0.78rem;
   font-weight: 800;
 }
-.menuScopeField select,
 .menuFilterField select,
 .menuAddDishControls input,
 .menuAddDishControls select,

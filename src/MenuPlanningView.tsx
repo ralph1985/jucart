@@ -1,17 +1,16 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-import type { ShoppingList } from "./shoppingLists";
 import {
   createMenuDish,
   createMenuDishType,
   deleteMenuDish,
+  getMenuDishLibrary,
   getMenuDishTypes,
   getMenuDishes,
   updateMenuDish,
 } from "./menuPlanning";
 import type { MenuDish, MenuDishType } from "./menuPlanning";
 
-type Props = { lists: ShoppingList[] };
 type DishTab = "pending" | "cooked";
 
 const dateFormatter = new Intl.DateTimeFormat("es-ES", {
@@ -24,8 +23,8 @@ function formatCookedAt(value: string) {
   return dateFormatter.format(new Date(value));
 }
 
-export function MenuPlanningView({ lists }: Props) {
-  const [scopeListId, setScopeListId] = useState("");
+export function MenuPlanningView() {
+  const [libraryId, setLibraryId] = useState("");
   const [dishes, setDishes] = useState<MenuDish[]>([]);
   const [dishTypes, setDishTypes] = useState<MenuDishType[]>([]);
   const [dishName, setDishName] = useState("");
@@ -39,14 +38,12 @@ export function MenuPlanningView({ lists }: Props) {
   const [message, setMessage] = useState("Cargando platos…");
   const [isSaving, setIsSaving] = useState(false);
 
-  const selectedScopeListId = scopeListId || lists[0]?.id || "";
-
-  const loadCollection = useCallback(async (listId: string) => {
+  const loadCollection = useCallback(async (nextLibraryId: string) => {
     setMessage("Cargando platos…");
     try {
       const [nextDishes, nextTypes] = await Promise.all([
-        getMenuDishes(listId),
-        getMenuDishTypes(listId),
+        getMenuDishes(nextLibraryId),
+        getMenuDishTypes(nextLibraryId),
       ]);
       setDishes(nextDishes);
       setDishTypes(nextTypes);
@@ -57,12 +54,17 @@ export function MenuPlanningView({ lists }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!selectedScopeListId) return;
-    void Promise.resolve().then(() => loadCollection(selectedScopeListId));
-  }, [loadCollection, selectedScopeListId]);
+    void Promise.resolve()
+      .then(getMenuDishLibrary)
+      .then((nextLibraryId) => {
+        setLibraryId(nextLibraryId);
+        return loadCollection(nextLibraryId);
+      })
+      .catch(() => setMessage("No se pudo cargar la biblioteca de platos."));
+  }, [loadCollection]);
 
-  const collectionDishes = selectedScopeListId ? dishes : null;
-  const collectionTypes = selectedScopeListId ? dishTypes : [];
+  const collectionDishes = libraryId ? dishes : null;
+  const collectionTypes = libraryId ? dishTypes : [];
 
   const visibleDishes = useMemo(
     () =>
@@ -79,18 +81,16 @@ export function MenuPlanningView({ lists }: Props) {
   const cookedCount = (collectionDishes ?? []).filter(
     (dish) => dish.status === "cooked",
   ).length;
-  const statusMessage = selectedScopeListId
-    ? message
-    : "Crea o selecciona una lista para guardar platos.";
+  const statusMessage = libraryId ? message : message;
 
   async function addDish(event: FormEvent) {
     event.preventDefault();
-    if (!selectedScopeListId || !dishName.trim() || isSaving) return;
+    if (!libraryId || !dishName.trim() || isSaving) return;
     setIsSaving(true);
     setMessage("Guardando plato…");
     try {
       const dish = await createMenuDish(
-        selectedScopeListId,
+        libraryId,
         dishName,
         dishTypeId || null,
       );
@@ -172,11 +172,11 @@ export function MenuPlanningView({ lists }: Props) {
 
   async function addDishType(event: FormEvent) {
     event.preventDefault();
-    if (!selectedScopeListId || !newTypeName.trim()) return;
+    if (!libraryId || !newTypeName.trim()) return;
     try {
-      await createMenuDishType(selectedScopeListId, newTypeName);
+      await createMenuDishType(libraryId, newTypeName);
       setNewTypeName("");
-      setDishTypes(await getMenuDishTypes(selectedScopeListId));
+      setDishTypes(await getMenuDishTypes(libraryId));
       setMessage("Tipo de plato añadido.");
     } catch {
       setMessage("No se pudo guardar el tipo de plato.");
@@ -201,22 +201,6 @@ export function MenuPlanningView({ lists }: Props) {
         </div>
       </header>
 
-      {lists.length > 0 ? (
-        <label className="menuScopeField">
-          Lista compartida
-          <select
-            value={selectedScopeListId}
-            onChange={(event) => setScopeListId(event.target.value)}
-          >
-            {lists.map((list) => (
-              <option key={list.id} value={list.id}>
-                {list.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-
       <form onSubmit={addDish} className="menuAddDishForm">
         <label htmlFor="new-dish">Añadir un plato</label>
         <div className="menuAddDishControls">
@@ -225,13 +209,13 @@ export function MenuPlanningView({ lists }: Props) {
             value={dishName}
             onChange={(event) => setDishName(event.target.value)}
             placeholder="Lentejas, tortilla de patata…"
-            disabled={!selectedScopeListId || isSaving}
+            disabled={!libraryId || isSaving}
           />
           <select
             aria-label="Tipo del nuevo plato"
             value={dishTypeId}
             onChange={(event) => setDishTypeId(event.target.value)}
-            disabled={!selectedScopeListId || isSaving}
+            disabled={!libraryId || isSaving}
           >
             <option value="">Sin tipo</option>
             {collectionTypes.map((type) => (
@@ -242,7 +226,7 @@ export function MenuPlanningView({ lists }: Props) {
           </select>
           <button
             type="submit"
-            disabled={!dishName.trim() || !selectedScopeListId || isSaving}
+            disabled={!dishName.trim() || !libraryId || isSaving}
           >
             Añadir
           </button>
@@ -378,10 +362,7 @@ export function MenuPlanningView({ lists }: Props) {
               onChange={(event) => setNewTypeName(event.target.value)}
               placeholder="Pasta, pescado…"
             />
-            <button
-              type="submit"
-              disabled={!newTypeName.trim() || !selectedScopeListId}
-            >
+            <button type="submit" disabled={!newTypeName.trim() || !libraryId}>
               Añadir tipo
             </button>
           </div>

@@ -148,11 +148,14 @@ import { PushNotificationInvite } from "./components/push/PushNotificationInvite
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
 import { DeveloperAppContext } from "./components/developer/DeveloperAppContext";
 import { DeveloperViewShell } from "./components/developer/DeveloperViewShell";
+import { DeveloperAuthCard } from "./components/developer/DeveloperAuthCard";
+import { DeveloperBackupCard } from "./components/developer/DeveloperBackupCard";
 import {
   DeveloperRemoteActionsCard,
   type DeveloperRemoteActionDefinition,
 } from "./components/developer/DeveloperRemoteActionsCard";
 import { DeveloperPushNotificationCard } from "./components/developer/DeveloperPushNotificationCard";
+import { DeveloperStatusOverview } from "./components/developer/DeveloperStatusOverview";
 import { FreezerView } from "./components/freezer/FreezerView";
 import { FreezerAddSheet } from "./components/freezer/FreezerAddSheet";
 import { FreezerEditSheet } from "./components/freezer/FreezerEditSheet";
@@ -5636,174 +5639,8 @@ export function App() {
     );
   }
 
-  function renderDeveloperBackupCard() {
-    const backupStatus = getDeveloperBackupStatus(developerBackupRun);
-    const backupStatusText = getDeveloperBackupStatusText(backupStatus);
-    const hasBackupProblem =
-      backupStatus === "failed" || backupStatus === "stale";
-
-    return (
-      <section className={styles.developerPanel} aria-label="Estado del backup">
-        <div className={styles.developerPanelHeader}>
-          <h3>Backup Supabase</h3>
-          <span
-            className={
-              hasBackupProblem
-                ? styles.developerStatusFailed
-                : styles.developerStatusSuccess
-            }
-          >
-            {backupStatusText}
-          </span>
-        </div>
-        {developerBackupError ? (
-          <p className={styles.error} role="alert">
-            {developerBackupError}
-          </p>
-        ) : null}
-        <dl className={styles.developerMetrics}>
-          <div>
-            <dt>Última copia</dt>
-            <dd>
-              {developerBackupRun
-                ? formatDeveloperDate(developerBackupRun.finishedAt)
-                : "Sin registro"}
-            </dd>
-          </div>
-          <div>
-            <dt>Duración</dt>
-            <dd>
-              {developerBackupRun
-                ? formatDuration(developerBackupRun.durationMs)
-                : "Sin dato"}
-            </dd>
-          </div>
-          <div>
-            <dt>Tamaño</dt>
-            <dd>
-              {developerBackupRun
-                ? formatFileSize(developerBackupRun.fileSizeBytes)
-                : "Sin dato"}
-            </dd>
-          </div>
-          <div>
-            <dt>Copias</dt>
-            <dd>{developerBackupRun?.retainedCount ?? 0}</dd>
-          </div>
-          <div>
-            <dt>Archivo</dt>
-            <dd>{developerBackupRun?.fileName ?? "Sin archivo"}</dd>
-          </div>
-          <div>
-            <dt>SHA-256</dt>
-            <dd>{formatShortHash(developerBackupRun?.sha256 ?? null)}</dd>
-          </div>
-        </dl>
-        {developerBackupRun?.errorMessage ? (
-          <p className={styles.developerNote}>
-            {developerBackupRun.errorMessage}
-          </p>
-        ) : null}
-        {backupStatus === "stale" ? (
-          <p className={styles.developerNote} role="alert">
-            Hace más de 6 horas que no se completa una copia de seguridad.
-          </p>
-        ) : null}
-      </section>
-    );
-  }
-
-  function renderDeveloperOverviewCard() {
-    const backupStatus = getDeveloperBackupStatus(developerBackupRun);
-    const backupStatusText = getDeveloperBackupStatusText(backupStatus);
-    const hasBackupProblem =
-      backupStatus === "failed" || backupStatus === "stale";
-    const pushStatus = pushNotificationSnapshot.message;
-    const hasPushProblem =
-      pushNotificationSnapshot.status === "error" ||
-      pushNotificationSnapshot.status === "denied";
-    const hasOperationalProblem =
-      hasBackupProblem || hasPushProblem || syncStatus === "offline";
-
-    return (
-      <section
-        className={styles.developerOverview}
-        aria-label="Resumen operativo"
-      >
-        <div className={styles.developerOverviewHeader}>
-          <div>
-            <p className={styles.developerEyebrow}>Estado general</p>
-            <h3>
-              {hasOperationalProblem ? "Revisar la app" : "Todo en orden"}
-            </h3>
-          </div>
-          <span
-            className={
-              hasOperationalProblem
-                ? styles.developerStatusFailed
-                : styles.developerStatusSuccess
-            }
-          >
-            {hasOperationalProblem ? "Atención" : "Operativa"}
-          </span>
-        </div>
-        <div className={styles.developerOverviewMetrics}>
-          <div>
-            <span>Backup</span>
-            <strong
-              className={hasBackupProblem ? styles.developerMetricWarning : ""}
-            >
-              {backupStatusText}
-            </strong>
-          </div>
-          <div>
-            <span>Sincronización</span>
-            <strong>{getSyncStatusText(syncStatus)}</strong>
-          </div>
-          <div>
-            <span>Push</span>
-            <strong
-              className={hasPushProblem ? styles.developerMetricWarning : ""}
-            >
-              {pushStatus}
-            </strong>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   function toggleDeveloperSection(id: DeveloperSectionId) {
     setOpenDeveloperSection((currentId) => (currentId === id ? null : id));
-  }
-
-  function renderDeveloperAuthCard() {
-    if (authSnapshot.status !== "signed_in" || !authSnapshot.user) {
-      return null;
-    }
-
-    return (
-      <section className={styles.developerPanel} aria-label="Autenticación">
-        <div className={styles.developerPanelHeader}>
-          <h3>Autenticación</h3>
-          <span className={styles.developerStatusSuccess}>Sesión activa</span>
-        </div>
-        <div className={styles.developerAuthRow}>
-          <span className={styles.authStatus}>
-            {authSnapshot.user.email ?? "Sesión iniciada"}
-          </span>
-          <button
-            className={styles.authButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handleSignOut}
-            disabled={isAuthActionPending}
-          >
-            Cerrar sesión
-          </button>
-        </div>
-      </section>
-    );
   }
 
   function renderShoppingListsCard() {
@@ -6623,7 +6460,28 @@ export function App() {
       isCurrentUserAdministrator &&
       (!isSupabaseConfigured() || authSnapshot.status === "signed_in") ? (
         <DeveloperViewShell screenRef={developerScreenRef}>
-          {renderDeveloperOverviewCard()}
+          <DeveloperStatusOverview
+            backupStatusText={getDeveloperBackupStatusText(
+              getDeveloperBackupStatus(developerBackupRun),
+            )}
+            hasBackupProblem={
+              getDeveloperBackupStatus(developerBackupRun) === "failed" ||
+              getDeveloperBackupStatus(developerBackupRun) === "stale"
+            }
+            hasOperationalProblem={
+              getDeveloperBackupStatus(developerBackupRun) === "failed" ||
+              getDeveloperBackupStatus(developerBackupRun) === "stale" ||
+              pushNotificationSnapshot.status === "error" ||
+              pushNotificationSnapshot.status === "denied" ||
+              syncStatus === "offline"
+            }
+            hasPushProblem={
+              pushNotificationSnapshot.status === "error" ||
+              pushNotificationSnapshot.status === "denied"
+            }
+            pushStatus={pushNotificationSnapshot.message}
+            syncStatusText={getSyncStatusText(syncStatus)}
+          />
           <DeveloperDisclosure
             id="auth"
             title="Sesión y contexto"
@@ -6631,7 +6489,14 @@ export function App() {
             expanded={openDeveloperSection === "auth"}
             onToggle={toggleDeveloperSection}
           >
-            {renderDeveloperAuthCard()}
+            {authSnapshot.status === "signed_in" && authSnapshot.user ? (
+              <DeveloperAuthCard
+                email={authSnapshot.user.email ?? "Sesión iniciada"}
+                isPending={isAuthActionPending}
+                onButtonPointerDown={handleButtonPointerDown}
+                onSignOut={handleSignOut}
+              />
+            ) : null}
             <DeveloperAppContext
               historyCount={recentHistoryEvents.length}
               pendingCount={pendingCount}
@@ -6651,7 +6516,22 @@ export function App() {
             expanded={openDeveloperSection === "backup"}
             onToggle={toggleDeveloperSection}
           >
-            {renderDeveloperBackupCard()}
+            <DeveloperBackupCard
+              error={developerBackupError}
+              formatDate={formatDeveloperDate}
+              formatDuration={formatDuration}
+              formatFileSize={formatFileSize}
+              formatHash={formatShortHash}
+              hasBackupProblem={
+                getDeveloperBackupStatus(developerBackupRun) === "failed" ||
+                getDeveloperBackupStatus(developerBackupRun) === "stale"
+              }
+              run={developerBackupRun}
+              status={getDeveloperBackupStatus(developerBackupRun)}
+              statusText={getDeveloperBackupStatusText(
+                getDeveloperBackupStatus(developerBackupRun),
+              )}
+            />
           </DeveloperDisclosure>
           <DeveloperDisclosure
             id="actions"

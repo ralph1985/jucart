@@ -40,7 +40,6 @@ import {
   addShoppingItem,
   addShoppingSection,
   CanonicalProductComparisonUnit,
-  compareShoppingItemsForShopping,
   createInitialShoppingHistoryEvents,
   createShoppingHistoryEvent,
   defaultShoppingCategories,
@@ -48,7 +47,6 @@ import {
   defaultShoppingSections,
   findPendingShoppingItemByName,
   getShoppingCategoryName,
-  getShoppingItemCategoryId,
   getQuickShoppingItemSuggestions,
   getRecentShoppingHistoryEvents,
   getUnseenRemoteShoppingHistoryEvents,
@@ -141,6 +139,7 @@ import { SectionsViewShell } from "./components/shopping/SectionsViewShell";
 import { LocalSectionsManager } from "./components/shopping/LocalSectionsManager";
 import { ShoppingListsManager } from "./components/shopping/ShoppingListsManager";
 import { ShoppingBoardLoading } from "./components/shopping/ShoppingBoardLoading";
+import { ShoppingItemsList } from "./components/shopping/ShoppingItemsList";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -627,20 +626,6 @@ function createLocalId() {
   }
 
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-}
-
-function compareShoppingItemsForVisibleOrder(
-  firstItem: ShoppingItem,
-  secondItem: ShoppingItem,
-  categories: ShoppingCategory[] = defaultShoppingCategories,
-  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
-) {
-  return compareShoppingItemsForShopping(
-    firstItem,
-    secondItem,
-    categories,
-    productCatalogEntries,
-  );
 }
 
 function shouldAnimate() {
@@ -4987,379 +4972,6 @@ export function App() {
     selectSection(sectionId);
   }
 
-  function renderUndoItem(removedItems: ShoppingItem[]) {
-    return (
-      <li
-        ref={undoItemRef}
-        className={styles.undoItem}
-        key={`undo-${removedItems[0].id}`}
-      >
-        <span>
-          {removedItems.length === 1
-            ? "Producto borrado."
-            : `${removedItems.length} productos borrados.`}
-        </span>
-        <button
-          className={styles.undoButton}
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handleUndoRemoveItems}
-        >
-          Deshacer
-        </button>
-      </li>
-    );
-  }
-
-  function renderHiddenPurchasedUndoItem(item: ShoppingItem) {
-    return (
-      <li
-        ref={hiddenUndoItemRef}
-        className={styles.undoItem}
-        key={`hidden-purchased-${item.id}`}
-      >
-        <span>Producto marcado como comprado.</span>
-        <button
-          className={styles.undoButton}
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handleUndoHiddenPurchasedItem}
-        >
-          Deshacer
-        </button>
-      </li>
-    );
-  }
-
-  function renderItems(
-    sectionItems: ShoppingItem[],
-    removedSectionItems: ShoppingItem[],
-    hiddenPurchasedItem: ShoppingItem | null,
-    sectionColor: ShoppingSectionColor,
-  ) {
-    const renderedSectionItems = (
-      showPurchasedItems
-        ? sectionItems
-        : sectionItems.filter((item) => !item.purchased)
-    ).filter((item) =>
-      isShoppingSearchActive
-        ? normalizeShoppingSearchQuery(item.name).includes(
-            normalizedShoppingSearchQuery,
-          )
-        : true,
-    );
-
-    if (
-      renderedSectionItems.length === 0 &&
-      removedSectionItems.length === 0 &&
-      !hiddenPurchasedItem
-    ) {
-      return (
-        <div
-          className={`${styles.empty} ${styles[`shoppingListColor${sectionColor}`]}`}
-        >
-          <span className={styles.emptyIcon} aria-hidden="true">
-            <Icon name="list" />
-          </span>
-          <p className={styles.emptyTitle}>
-            {isShoppingSearchActive
-              ? "No hay coincidencias"
-              : "No hay productos"}
-          </p>
-          <p className={styles.emptyDescription}>
-            {isShoppingSearchActive
-              ? "No hay coincidencias con la búsqueda."
-              : sectionItems.length === 0
-                ? "Añade el primero usando el formulario superior."
-                : "Los productos comprados están ocultos."}
-          </p>
-        </div>
-      );
-    }
-
-    const visibleItems = sortShoppingItemsForShopping(
-      renderedSectionItems,
-      categories,
-      productCatalogEntries,
-    );
-    const sortedRemovedItems = [...removedSectionItems].sort(
-      (firstItem, secondItem) =>
-        compareShoppingItemsForVisibleOrder(
-          firstItem,
-          secondItem,
-          categories,
-          productCatalogEntries,
-        ),
-    );
-    const hasPendingItems = sectionItems.some((item) => !item.purchased);
-    const hasPurchasedItems = sectionItems.some((item) => item.purchased);
-    const shouldShowPurchasedDivider = hasPendingItems && hasPurchasedItems;
-    let hasRenderedUndoItem = false;
-    let hasRenderedHiddenPurchasedUndoItem = false;
-    const listItems = visibleItems.flatMap((item, index) => {
-      const itemCategoryId = getShoppingItemCategoryId(
-        item,
-        productCatalogEntries,
-      );
-      const previousItem = visibleItems[index - 1];
-      const shouldRenderCategoryDivider =
-        !previousItem ||
-        previousItem.purchased !== item.purchased ||
-        getShoppingItemCategoryId(previousItem, productCatalogEntries) !==
-          itemCategoryId;
-      const shouldRenderPurchasedDivider =
-        shouldShowPurchasedDivider &&
-        item.purchased &&
-        !visibleItems[index - 1]?.purchased;
-      const itemPriceSummary = item.canonicalProductId
-        ? productPriceCardSummaries.get(item.canonicalProductId)
-        : null;
-      const itemTicketPriceSummary = itemPriceSummary?.ticketSummary ?? null;
-      const itemBestExternalPrice =
-        itemPriceSummary?.bestExternalObservation ?? null;
-      const itemContent = (
-        <li
-          ref={(itemElement) => {
-            if (itemElement) {
-              itemRefs.current[item.id] = itemElement;
-            } else {
-              delete itemRefs.current[item.id];
-            }
-          }}
-          className={
-            item.purchased
-              ? `${styles.item} ${styles.itemPurchased} ${
-                  highlightedItemId === item.id ? styles.itemHighlighted : ""
-                }`
-              : `${styles.item} ${
-                  highlightedItemId === item.id ? styles.itemHighlighted : ""
-                }`
-          }
-          key={item.id}
-          tabIndex={highlightedItemId === item.id ? -1 : undefined}
-        >
-          <button
-            className={
-              item.purchased
-                ? `${styles.itemCheck} ${styles.itemCheckPurchased}`
-                : styles.itemCheck
-            }
-            type="button"
-            aria-label={
-              item.purchased
-                ? `Devolver ${item.name} a pendientes`
-                : `Marcar ${item.name} como comprado`
-            }
-            title={item.purchased ? "Devolver a pendientes" : "Marcar comprado"}
-            onClick={() => handleToggleItem(item.id)}
-          >
-            <Icon name="check" />
-          </button>
-          <span
-            className={
-              item.purchased
-                ? `${styles.itemName} ${styles.itemNamePurchased}`
-                : styles.itemName
-            }
-          >
-            {item.name}
-            {item.quantity ? (
-              <span className={styles.itemQuantity}>
-                {formatShoppingItemQuantity(item.quantity)}
-              </span>
-            ) : null}
-            {item.notes ? (
-              <span className={styles.itemNotes}>{item.notes}</span>
-            ) : null}
-          </span>
-          {itemTicketPriceSummary || itemBestExternalPrice ? (
-            <span
-              className={styles.itemPriceSummary}
-              aria-label={[
-                itemTicketPriceSummary
-                  ? `Último precio real ${formatPriceSummaryValue(
-                      itemTicketPriceSummary.latestPrice,
-                      itemTicketPriceSummary.comparisonUnit,
-                    )}, media real ${formatPriceSummaryValue(
-                      itemTicketPriceSummary.averagePrice,
-                      itemTicketPriceSummary.comparisonUnit,
-                    )}`
-                  : null,
-                itemBestExternalPrice
-                  ? `Mejor precio externo ${formatPriceSummaryValue(
-                      itemBestExternalPrice.observedPrice,
-                      itemBestExternalPrice.comparisonUnit,
-                    )}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(", ")}
-              title={
-                itemTicketPriceSummary
-                  ? `${itemTicketPriceSummary.observationCount} ${
-                      itemTicketPriceSummary.observationCount === 1
-                        ? "observación real"
-                        : "observaciones reales"
-                    }`
-                  : "Solo precio externo"
-              }
-            >
-              {itemTicketPriceSummary ? (
-                <>
-                  <span>
-                    Últ.{" "}
-                    {formatPriceSummaryValue(
-                      itemTicketPriceSummary.latestPrice,
-                      itemTicketPriceSummary.comparisonUnit,
-                    )}
-                  </span>
-                  <span>
-                    Media{" "}
-                    {formatPriceSummaryValue(
-                      itemTicketPriceSummary.averagePrice,
-                      itemTicketPriceSummary.comparisonUnit,
-                    )}
-                  </span>
-                </>
-              ) : null}
-              {itemBestExternalPrice ? (
-                <span className={styles.itemExternalPrice}>
-                  Ext.{" "}
-                  {formatPriceSummaryValue(
-                    itemBestExternalPrice.observedPrice,
-                    itemBestExternalPrice.comparisonUnit,
-                  )}
-                </span>
-              ) : null}
-              <button
-                className={styles.itemPriceDetailButton}
-                type="button"
-                aria-label={`Ver precios de ${item.name}`}
-                title="Ver precios"
-                onPointerDown={handleButtonPointerDown}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  openPriceDetailSheet(item);
-                }}
-              >
-                <Icon name="history" />
-              </button>
-            </span>
-          ) : null}
-          <span className={styles.itemMeta}>
-            {getShoppingUserName(item.addedBy)}
-          </span>
-          <div className={styles.itemActions}>
-            <button
-              className={styles.iconButton}
-              type="button"
-              aria-label={`Editar ${item.name}`}
-              title="Editar"
-              onPointerDown={handleButtonPointerDown}
-              onClick={(event) => {
-                event.stopPropagation();
-                startEditing(item);
-              }}
-            >
-              <Icon name="edit" />
-            </button>
-            <button
-              className={styles.iconButtonDanger}
-              type="button"
-              aria-label={`Eliminar ${item.name}`}
-              title="Eliminar"
-              onPointerDown={handleButtonPointerDown}
-              onClick={(event) => {
-                event.stopPropagation();
-                handleRemoveItem(item.id);
-              }}
-            >
-              <Icon name="trash" />
-            </button>
-          </div>
-        </li>
-      );
-      const purchasedDivider = shouldRenderPurchasedDivider ? (
-        <li className={styles.purchasedDivider} key="purchased-divider">
-          Comprados
-        </li>
-      ) : null;
-      const categoryDivider = shouldRenderCategoryDivider ? (
-        <li
-          className={styles.categoryDivider}
-          key={`${item.purchased ? "purchased" : "pending"}-${itemCategoryId}`}
-        >
-          {getShoppingCategoryName(itemCategoryId, categories)}
-        </li>
-      ) : null;
-      const shouldRenderUndoItem =
-        !hasRenderedUndoItem &&
-        sortedRemovedItems.length > 0 &&
-        compareShoppingItemsForVisibleOrder(
-          sortedRemovedItems[0],
-          item,
-          categories,
-          productCatalogEntries,
-        ) < 0;
-      const shouldRenderHiddenPurchasedUndoItem =
-        !hasRenderedHiddenPurchasedUndoItem &&
-        hiddenPurchasedItem &&
-        compareShoppingItemsForVisibleOrder(
-          hiddenPurchasedItem,
-          item,
-          categories,
-          productCatalogEntries,
-        ) < 0;
-
-      if (shouldRenderUndoItem) {
-        hasRenderedUndoItem = true;
-
-        return sortedRemovedItems[0].purchased
-          ? [
-              purchasedDivider,
-              categoryDivider,
-              renderUndoItem(sortedRemovedItems),
-              itemContent,
-            ]
-          : [
-              renderUndoItem(sortedRemovedItems),
-              purchasedDivider,
-              categoryDivider,
-              itemContent,
-            ];
-      }
-
-      if (shouldRenderHiddenPurchasedUndoItem) {
-        hasRenderedHiddenPurchasedUndoItem = true;
-
-        return [
-          renderHiddenPurchasedUndoItem(hiddenPurchasedItem),
-          purchasedDivider,
-          categoryDivider,
-          itemContent,
-        ];
-      }
-
-      return [purchasedDivider, categoryDivider, itemContent];
-    });
-
-    if (!hasRenderedUndoItem && sortedRemovedItems.length > 0) {
-      listItems.push(renderUndoItem(sortedRemovedItems));
-    }
-
-    if (hiddenPurchasedItem && !hasRenderedHiddenPurchasedUndoItem) {
-      listItems.push(renderHiddenPurchasedUndoItem(hiddenPurchasedItem));
-    }
-
-    return (
-      <ul
-        className={`${styles.list} ${styles[`shoppingListColor${sectionColor}`]}`}
-      >
-        {listItems}
-      </ul>
-    );
-  }
-
   function toggleDeveloperSection(id: DeveloperSectionId) {
     setOpenDeveloperSection((currentId) => (currentId === id ? null : id));
   }
@@ -5782,7 +5394,39 @@ export function App() {
           onButtonPointerDown={handleButtonPointerDown}
           onColumnKeyDown={handleColumnKeyDown}
           onSelectSection={selectSection}
-          renderItems={renderItems}
+          renderItems={(
+            sectionItems,
+            removedSectionItems,
+            hiddenPurchasedItem,
+            sectionColor,
+          ) => (
+            <ShoppingItemsList
+              categories={categories}
+              formatPrice={formatPriceSummaryValue}
+              formatQuantity={formatShoppingItemQuantity}
+              getUserName={getShoppingUserName}
+              hiddenPurchasedItem={hiddenPurchasedItem}
+              hiddenUndoRef={hiddenUndoItemRef}
+              highlightedItemId={highlightedItemId}
+              isSearchActive={isShoppingSearchActive}
+              itemRefs={itemRefs}
+              normalizedSearchQuery={normalizedShoppingSearchQuery}
+              onButtonPointerDown={handleButtonPointerDown}
+              onEdit={startEditing}
+              onOpenPrice={openPriceDetailSheet}
+              onRemove={handleRemoveItem}
+              onToggle={handleToggleItem}
+              onUndoHiddenPurchased={handleUndoHiddenPurchasedItem}
+              onUndoRemoved={handleUndoRemoveItems}
+              priceSummaries={productPriceCardSummaries}
+              productCatalogEntries={productCatalogEntries}
+              removedItems={removedSectionItems}
+              sectionColor={sectionColor}
+              sectionItems={sectionItems}
+              showPurchasedItems={showPurchasedItems}
+              undoRef={undoItemRef}
+            />
+          )}
           loadingBoard={<ShoppingBoardLoading />}
           sectionColumnRefs={sectionColumnRefs}
           sectionIndicatorRefs={sectionIndicatorRefs}

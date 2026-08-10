@@ -20,7 +20,7 @@ import useEmblaCarousel from "embla-carousel-react";
 
 import styles from "./App.module.scss";
 import { MenuPlanningView } from "./MenuPlanningView";
-import { formatAppDate, getCurrentAppRelease } from "./appVersion";
+import { getCurrentAppRelease } from "./appVersion";
 import {
   getAuthSnapshot,
   signInWithPassword,
@@ -131,6 +131,8 @@ import {
   pwaUpdateAvailableEvent,
 } from "./pwaUpdateEvents";
 import { updateBadge } from "./services/badgeService";
+import { AppHeader } from "./components/app/AppHeader";
+import type { SyncStatus, ThemePreference } from "./components/app/AppHeader";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -208,7 +210,6 @@ type AppView =
 type HistoryTab = "changes" | "categories" | "normalizations";
 type TicketFilter = "all" | ShoppingTicketStatus;
 
-type SyncStatus = "local" | "syncing" | "synced" | "offline";
 type PullRefreshGesture = {
   pointerId: number;
   startX: number;
@@ -221,7 +222,6 @@ type TimestampedItem = {
   updatedAt: number;
 };
 type HapticFeedback = "light" | "medium" | "success" | "warning";
-type ThemePreference = "auto" | "light" | "dark";
 type ResolvedTheme = Exclude<ThemePreference, "auto">;
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
 type DeveloperSectionId = "auth" | "backup" | "actions" | "push";
@@ -304,12 +304,6 @@ const hapticFeedbackPatterns: Record<HapticFeedback, VibratePattern> = {
 };
 const overlayHistoryStateKey = "jucartOverlay";
 const themePreferenceStorageKey = "jucart:theme-preference";
-const themePreferenceLabels: Record<ThemePreference, string> = {
-  auto: "Auto",
-  light: "Claro",
-  dark: "Oscuro",
-};
-
 function getStoredThemePreference(): ThemePreference {
   const preference = window.localStorage.getItem(themePreferenceStorageKey);
 
@@ -6541,77 +6535,18 @@ export function App() {
         </div>
       ) : null}
       {renderPwaUpdateBanner()}
-      <section className={styles.header} aria-labelledby="app-title">
-        <div className={styles.brand}>
-          <span className={styles.logo} aria-hidden="true">
-            <HeaderLogo />
-          </span>
-          <div>
-            <p className={styles.kicker}>Lista de la compra</p>
-            <h1 id="app-title">Jucart</h1>
-          </div>
-        </div>
-        <div className={styles.headerMeta}>
-          <dl className={styles.summary} aria-label="Resumen de la lista">
-            <div className={styles.summaryItem}>
-              <dt>Pendientes</dt>
-              <dd>
-                {isLoaded ? (
-                  pendingCount
-                ) : (
-                  <span className={styles.loadingSummaryValue} />
-                )}
-              </dd>
-            </div>
-            <div className={styles.summaryItem}>
-              <dt>Comprados</dt>
-              <dd>
-                {isLoaded ? (
-                  purchasedCount
-                ) : (
-                  <span className={styles.loadingSummaryValue} />
-                )}
-              </dd>
-            </div>
-          </dl>
-          <div className={styles.headerActions}>
-            <p
-              ref={syncStatusRef}
-              className={`${styles.syncStatus} ${styles[`syncStatus${syncStatus}`]}`}
-              aria-live="polite"
-            >
-              {syncStatus === "syncing" ? (
-                <span
-                  className={styles.syncStatusIndicator}
-                  aria-hidden="true"
-                />
-              ) : null}
-              {getSyncStatusText(syncStatus)}
-            </p>
-            <button
-              className={styles.themeToggle}
-              type="button"
-              aria-label={`Tema ${themePreferenceLabels[themePreference]}. Cambiar a ${themePreferenceLabels[getNextThemePreference(themePreference)]}.`}
-              title={`Tema: ${themePreferenceLabels[themePreference]}`}
-              onPointerDown={handleButtonPointerDown}
-              onClick={handleThemePreferenceChange}
-            >
-              <span aria-hidden="true">
-                {themePreference === "auto"
-                  ? "◐"
-                  : themePreference === "light"
-                    ? "☀"
-                    : "☾"}
-              </span>
-              <span>{themePreferenceLabels[themePreference]}</span>
-            </button>
-          </div>
-          <p className={styles.appVersion} aria-label="Versión instalada">
-            v{appRelease.version} · build {formatAppDate(appRelease.buildDate)}{" "}
-            · activa {formatAppDate(appRelease.activatedAt)}
-          </p>
-        </div>
-      </section>
+      <AppHeader
+        appRelease={appRelease}
+        isLoaded={isLoaded}
+        pendingCount={pendingCount}
+        purchasedCount={purchasedCount}
+        syncStatus={syncStatus}
+        syncStatusRef={syncStatusRef}
+        themePreference={themePreference}
+        onThemePreferenceChange={handleThemePreferenceChange}
+        onButtonPointerDown={handleButtonPointerDown}
+        getSyncStatusText={getSyncStatusText}
+      />
 
       {activeView === "shopping" ? (
         <section

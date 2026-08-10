@@ -143,6 +143,7 @@ import { useThemePreference } from "./hooks/useThemePreference";
 import { usePullToRefreshGesture } from "./hooks/usePullToRefreshGesture";
 import { useOverlayHistory } from "./hooks/useOverlayHistory";
 import { useSheetDrag } from "./hooks/useSheetDrag";
+import { useBottomSheetOpenAnimation } from "./hooks/useBottomSheetOpenAnimation";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
@@ -2512,161 +2513,42 @@ export function App() {
     });
   }, [syncStatus]);
 
-  useLayoutEffect(() => {
-    if (!isAddSheetOpen || closingBottomSheet === "add-sheet") {
-      return;
-    }
-
-    const sheet = addSheetRef.current;
-    const backdrop = addSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, isAddSheetOpen]);
-
-  useLayoutEffect(() => {
-    if (!isFreezerAddSheetOpen || closingBottomSheet === "freezer-add-sheet") {
-      return;
-    }
-
-    const sheet = freezerAddSheetRef.current;
-    const backdrop = freezerAddSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, isFreezerAddSheetOpen]);
-
-  useLayoutEffect(() => {
-    if (
-      !isTicketUploadSheetOpen ||
-      closingBottomSheet === "ticket-upload-sheet"
-    ) {
-      return;
-    }
-
-    const sheet = ticketUploadSheetRef.current;
-    const backdrop = ticketUploadSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, isTicketUploadSheetOpen]);
-
-  useLayoutEffect(() => {
-    if (
-      selectedPriceProductId === null ||
-      closingBottomSheet === "price-detail-sheet"
-    ) {
-      return;
-    }
-
-    const sheet = priceDetailSheetRef.current;
-    const backdrop = priceDetailSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, selectedPriceProductId]);
-
-  useLayoutEffect(() => {
-    if (!isSectionAddSheetOpen || closingBottomSheet === "section-add-sheet") {
-      return;
-    }
-
-    const sheet = sectionAddSheetRef.current;
-    const backdrop = sectionAddSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, isSectionAddSheetOpen]);
-
-  useLayoutEffect(() => {
-    if (!editingFreezerItem || closingBottomSheet === "freezer-edit-sheet") {
-      return;
-    }
-
-    const sheet = freezerEditSheetRef.current;
-    const backdrop = freezerEditSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, editingFreezerItem]);
+  useBottomSheetOpenAnimation({
+    backdropRef: addSheetBackdropRef,
+    isClosing: closingBottomSheet === "add-sheet",
+    isOpen: isAddSheetOpen,
+    sheetRef: addSheetRef,
+  });
+  useBottomSheetOpenAnimation({
+    backdropRef: freezerAddSheetBackdropRef,
+    isClosing: closingBottomSheet === "freezer-add-sheet",
+    isOpen: isFreezerAddSheetOpen,
+    sheetRef: freezerAddSheetRef,
+  });
+  useBottomSheetOpenAnimation({
+    backdropRef: ticketUploadSheetBackdropRef,
+    isClosing: closingBottomSheet === "ticket-upload-sheet",
+    isOpen: isTicketUploadSheetOpen,
+    sheetRef: ticketUploadSheetRef,
+  });
+  useBottomSheetOpenAnimation({
+    backdropRef: priceDetailSheetBackdropRef,
+    isClosing: closingBottomSheet === "price-detail-sheet",
+    isOpen: selectedPriceProductId !== null,
+    sheetRef: priceDetailSheetRef,
+  });
+  useBottomSheetOpenAnimation({
+    backdropRef: sectionAddSheetBackdropRef,
+    isClosing: closingBottomSheet === "section-add-sheet",
+    isOpen: isSectionAddSheetOpen,
+    sheetRef: sectionAddSheetRef,
+  });
+  useBottomSheetOpenAnimation({
+    backdropRef: freezerEditSheetBackdropRef,
+    isClosing: closingBottomSheet === "freezer-edit-sheet",
+    isOpen: editingFreezerItem !== null,
+    sheetRef: freezerEditSheetRef,
+  });
 
   useEffect(() => {
     if (lastRemovedItems.length === 0) {

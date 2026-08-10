@@ -33,7 +33,6 @@ import {
   FreezerDrawerId,
   FreezerItem,
   getFreezerDrawerName,
-  getFreezerItemsByDrawer,
   isFreezerDrawerId,
   removeFreezerItem,
   sortFreezerItemsByUseFirst,
@@ -142,6 +141,7 @@ import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
+import { FreezerView } from "./components/freezer/FreezerView";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -7375,51 +7375,13 @@ export function App() {
       ) : null}
 
       {freezerViewEnabled && activeView === "freezer" ? (
-        <section
-          ref={freezerScreenRef}
-          className={styles.freezerScreen}
-          aria-labelledby="freezer-title"
-        >
-          <div className={styles.sectionsHeader}>
-            <h2 id="freezer-title">Congelador</h2>
-            <span className={styles.count}>{freezerItems.length}</span>
-          </div>
-          {renderFreezerUseUndoItem()}
-          <section
-            className={styles.freezerPanel}
-            aria-labelledby="freezer-use-first-title"
-          >
-            <div className={styles.freezerPanelHeader}>
-              <h3 id="freezer-use-first-title">Usar primero</h3>
-              <span>{useFirstFreezerItems.length}</span>
-            </div>
-            {renderFreezerItemList(useFirstFreezerItems)}
-          </section>
-          <div className={styles.freezerDrawers}>
-            {freezerDrawers.map((drawer) => {
-              const drawerItems = getFreezerItemsByDrawer(
-                freezerItems,
-                drawer.id,
-              );
-
-              return (
-                <section
-                  className={styles.freezerPanel}
-                  aria-labelledby={`freezer-drawer-${drawer.id}-title`}
-                  key={drawer.id}
-                >
-                  <div className={styles.freezerPanelHeader}>
-                    <h3 id={`freezer-drawer-${drawer.id}-title`}>
-                      {drawer.name}
-                    </h3>
-                    <span>{drawerItems.length}</span>
-                  </div>
-                  {renderFreezerItemList(drawerItems)}
-                </section>
-              );
-            })}
-          </div>
-        </section>
+        <FreezerView
+          screenRef={freezerScreenRef}
+          items={freezerItems}
+          useFirstItems={useFirstFreezerItems}
+          undo={renderFreezerUseUndoItem()}
+          renderItems={renderFreezerItemList}
+        />
       ) : null}
 
       {activeView === "tickets" ? (

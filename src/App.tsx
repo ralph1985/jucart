@@ -152,6 +152,7 @@ import type { HistoryTab } from "./components/history/HistoryTabs";
 import { HistoryView } from "./components/history/HistoryView";
 import { TicketUploadSheet } from "./components/tickets/TicketUploadSheet";
 import { TicketReviewQueue } from "./components/tickets/TicketReviewQueue";
+import { TicketFilters } from "./components/tickets/TicketFilters";
 import { PriceDetailSheet } from "./components/prices/PriceDetailSheet";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
@@ -6786,36 +6787,14 @@ export function App() {
             productIds={ticketReviewProductIds}
             sections={sections}
           />
-          <div className={styles.ticketFilters} role="tablist">
-            {(
-              [
-                "all",
-                "pending",
-                "processed",
-                "failed",
-                "needs_review",
-              ] as TicketFilter[]
-            ).map((filter) => (
-              <button
-                key={filter}
-                className={
-                  ticketFilter === filter
-                    ? styles.ticketFilterButtonActive
-                    : styles.ticketFilterButton
-                }
-                type="button"
-                role="tab"
-                aria-selected={ticketFilter === filter}
-                aria-label={getTicketFilterText(filter)}
-                title={getTicketFilterText(filter)}
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => handleTicketFilterChange(filter)}
-              >
-                <Icon name={getTicketFilterIcon(filter)} />
-                <span>{getTicketFilterShortText(filter)}</span>
-              </button>
-            ))}
-          </div>
+          <TicketFilters
+            getIcon={getTicketFilterIcon}
+            getLabel={getTicketFilterText}
+            getShortLabel={getTicketFilterShortText}
+            onButtonPointerDown={handleButtonPointerDown}
+            onChange={handleTicketFilterChange}
+            value={ticketFilter}
+          />
           {isTicketsLoading && tickets.length === 0 ? (
             <p className={styles.loadingStatus} role="status">
               Cargando tickets...

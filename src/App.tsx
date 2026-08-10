@@ -28,7 +28,6 @@ import {
 import type { AuthSnapshot } from "./auth";
 import {
   addFreezerItem,
-  freezerDrawers,
   FreezerDrawerId,
   FreezerItem,
   getFreezerDrawerName,
@@ -5031,109 +5030,6 @@ export function App() {
     );
   }
 
-  function renderFreezerUseUndoItem() {
-    if (!lastUsedFreezerItem) {
-      return null;
-    }
-
-    return (
-      <div ref={freezerUndoRef} className={styles.freezerUndo} role="status">
-        <span>{lastUsedFreezerItem.name} usado.</span>
-        <button
-          className={styles.undoButton}
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handleUndoUseFreezerItem}
-        >
-          Deshacer
-        </button>
-      </div>
-    );
-  }
-
-  function renderFreezerItemCard(item: FreezerItem) {
-    const availableDrawers = freezerDrawers.filter(
-      (drawer) => drawer.id !== item.drawerId,
-    );
-
-    return (
-      <li
-        ref={(itemElement) => {
-          if (itemElement) {
-            freezerItemRefs.current[item.id] = itemElement;
-          } else {
-            delete freezerItemRefs.current[item.id];
-          }
-        }}
-        className={styles.freezerItem}
-        key={item.id}
-      >
-        <div className={styles.freezerItemBody}>
-          <p className={styles.freezerItemName}>{item.name}</p>
-          <p className={styles.freezerItemMeta}>
-            <span>{getFreezerDrawerName(item.drawerId)}</span>
-            <span>{formatFreezerDate(item.frozenAt)}</span>
-            <span>{getFreezerAgeText(item.frozenAt)}</span>
-            {item.quantity ? <span>{item.quantity}</span> : null}
-          </p>
-        </div>
-        <div className={styles.freezerItemActions}>
-          <button
-            className={styles.iconButton}
-            type="button"
-            aria-label={`Editar ${item.name}`}
-            title="Editar"
-            onPointerDown={handleButtonPointerDown}
-            onClick={() => startEditingFreezerItem(item)}
-          >
-            <Icon name="edit" />
-          </button>
-          {availableDrawers.map((drawer) => (
-            <button
-              className={styles.freezerMoveButton}
-              type="button"
-              key={drawer.id}
-              onPointerDown={handleButtonPointerDown}
-              onClick={() => handleMoveFreezerItem(item.id, drawer.id)}
-            >
-              {drawer.name}
-            </button>
-          ))}
-          <button
-            className={styles.dangerButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={() => handleUseFreezerItem(item.id)}
-          >
-            Usado
-          </button>
-        </div>
-      </li>
-    );
-  }
-
-  function renderFreezerItemList(itemsToRender: FreezerItem[]) {
-    if (itemsToRender.length === 0) {
-      return (
-        <div className={styles.freezerEmpty}>
-          <span className={styles.emptyIcon} aria-hidden="true">
-            <Icon name="freezer" />
-          </span>
-          <p className={styles.emptyTitle}>Sin productos</p>
-          <p className={styles.emptyDescription}>
-            Añade algo cuando guardes comida en el congelador.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <ol className={styles.freezerList}>
-        {itemsToRender.map((item) => renderFreezerItemCard(item))}
-      </ol>
-    );
-  }
-
   function renderItems(
     sectionItems: ShoppingItem[],
     removedSectionItems: ShoppingItem[],
@@ -5928,11 +5824,20 @@ export function App() {
 
       {freezerViewEnabled && activeView === "freezer" ? (
         <FreezerView
-          screenRef={freezerScreenRef}
+          formatAge={getFreezerAgeText}
+          formatDate={formatFreezerDate}
+          getDrawerName={getFreezerDrawerName}
+          itemRefs={freezerItemRefs}
           items={freezerItems}
+          lastUsedItem={lastUsedFreezerItem}
+          onButtonPointerDown={handleButtonPointerDown}
+          onEdit={startEditingFreezerItem}
+          onMove={handleMoveFreezerItem}
+          onUndoUse={handleUndoUseFreezerItem}
+          onUse={handleUseFreezerItem}
+          screenRef={freezerScreenRef}
+          undoRef={freezerUndoRef}
           useFirstItems={useFirstFreezerItems}
-          undo={renderFreezerUseUndoItem()}
-          renderItems={renderFreezerItemList}
         />
       ) : null}
 

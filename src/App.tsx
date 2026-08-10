@@ -139,6 +139,7 @@ import { ShoppingControls } from "./components/shopping/ShoppingControls";
 import { ShoppingBoard } from "./components/shopping/ShoppingBoard";
 import { EditProductDialog } from "./components/shopping/EditProductDialog";
 import { AddProductSheet } from "./components/shopping/AddProductSheet";
+import { CreateSectionSheet } from "./components/shopping/CreateSectionSheet";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -6828,124 +6829,25 @@ export function App() {
       ) : null}
 
       {activeView === "sections" && isSectionAddSheetOpen ? (
-        <div
-          ref={sectionAddSheetBackdropRef}
-          className={styles.addSheetBackdrop}
-          style={
-            {
-              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
-            } as CSSProperties
-          }
-          onClick={() => closeSectionAddSheet()}
-        >
-          <form
-            ref={sectionAddSheetRef}
-            className={`${styles.addSheet} ${styles.addSheetCompact}`}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="section-add-sheet-title"
-            style={
-              {
-                "--sheet-drag-offset": `${sheetDragOffset}px`,
-              } as CSSProperties
-            }
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={handleAddSheetKeyDown}
-            onSubmit={handleSectionSubmit}
-          >
-            <div
-              className={styles.addSheetHandle}
-              aria-label="Cerrar panel de lista"
-              role="button"
-              tabIndex={0}
-              onPointerDown={handleAddSheetDragStart}
-              onPointerMove={handleAddSheetDragMove}
-              onPointerUp={handleAddSheetDragEnd}
-              onPointerCancel={handleAddSheetDragEnd}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  closeSectionAddSheet();
-                }
-              }}
-            >
-              <span />
-            </div>
-            <h2 id="section-add-sheet-title" className={styles.visuallyHidden}>
-              Crear lista
-            </h2>
-            <div className={styles.addSheetFields}>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="section-name">
-                  Nueva lista
-                </label>
-                <input
-                  id="section-name"
-                  ref={sectionNameInputRef}
-                  className={styles.addSheetInput}
-                  autoComplete="off"
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  enterKeyHint="done"
-                  value={sectionName}
-                  onChange={(event) => setSectionName(event.target.value)}
-                  placeholder="Carrefour, frutería..."
-                  type="text"
-                  disabled={!isLoaded}
-                />
-              </div>
-              <div className={styles.formField}>
-                <span className={styles.label}>Color de la lista</span>
-                <div
-                  className={styles.sectionColorPicker}
-                  aria-label="Colores de la lista"
-                  role="group"
-                >
-                  {shoppingSectionColors.map((color) => (
-                    <button
-                      className={
-                        styles.sectionColorButton +
-                        " " +
-                        styles["sectionColorSwatch" + color] +
-                        (newSectionColor === color
-                          ? " " + styles.sectionColorButtonSelected
-                          : "")
-                      }
-                      type="button"
-                      aria-label={
-                        "Seleccionar color " + color + " para la lista"
-                      }
-                      aria-pressed={newSectionColor === color}
-                      key={color}
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={() => setNewSectionColor(color)}
-                      disabled={!isLoaded}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className={styles.addSheetFooter}>
-              <p className={styles.addSheetNotice} aria-live="polite" />
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => closeSectionAddSheet()}
-              >
-                Cerrar
-              </button>
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-                disabled={!isLoaded}
-              >
-                Crear
-              </button>
-            </div>
-          </form>
-        </div>
+        <CreateSectionSheet
+          backdropRef={sectionAddSheetBackdropRef}
+          isLoaded={isLoaded}
+          keyboardInset={sheetKeyboardInset}
+          name={sectionName}
+          nameInputRef={sectionNameInputRef}
+          onButtonPointerDown={handleButtonPointerDown}
+          onClose={closeSectionAddSheet}
+          onColorChange={setNewSectionColor}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          onNameChange={setSectionName}
+          onSheetKeyDown={handleAddSheetKeyDown}
+          onSubmit={handleSectionSubmit}
+          selectedColor={newSectionColor}
+          sheetDragOffset={sheetDragOffset}
+          sheetRef={sectionAddSheetRef}
+        />
       ) : null}
 
       {unseenRemoteHistoryEvents.length > 0 && activeView !== "history" ? (

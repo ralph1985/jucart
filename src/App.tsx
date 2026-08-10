@@ -140,6 +140,7 @@ import { ShoppingBoard } from "./components/shopping/ShoppingBoard";
 import { EditProductDialog } from "./components/shopping/EditProductDialog";
 import { AddProductSheet } from "./components/shopping/AddProductSheet";
 import { CreateSectionSheet } from "./components/shopping/CreateSectionSheet";
+import { SectionsViewShell } from "./components/shopping/SectionsViewShell";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -7017,17 +7018,12 @@ export function App() {
       ) : null}
 
       {activeView === "sections" ? (
-        <section
-          ref={sectionsScreenRef}
-          className={styles.sectionsScreen}
-          aria-labelledby="sections-title"
+        <SectionsViewShell
+          count={
+            isSupabaseConfigured() ? shoppingLists.length : sections.length
+          }
+          screenRef={sectionsScreenRef}
         >
-          <div className={styles.sectionsHeader}>
-            <h2 id="sections-title">Listas</h2>
-            <span className={styles.count}>
-              {isSupabaseConfigured() ? shoppingLists.length : sections.length}
-            </span>
-          </div>
           {isSupabaseConfigured() ? renderShoppingListsCard() : null}
           {!isSupabaseConfigured() ? (
             <>
@@ -7177,7 +7173,7 @@ export function App() {
               </ol>
             </>
           ) : null}
-        </section>
+        </SectionsViewShell>
       ) : null}
 
       {activeView === "history" ? (

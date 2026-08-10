@@ -148,6 +148,11 @@ import { PushNotificationInvite } from "./components/push/PushNotificationInvite
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
 import { DeveloperAppContext } from "./components/developer/DeveloperAppContext";
 import { DeveloperViewShell } from "./components/developer/DeveloperViewShell";
+import {
+  DeveloperRemoteActionsCard,
+  type DeveloperRemoteActionDefinition,
+} from "./components/developer/DeveloperRemoteActionsCard";
+import { DeveloperPushNotificationCard } from "./components/developer/DeveloperPushNotificationCard";
 import { FreezerView } from "./components/freezer/FreezerView";
 import { FreezerAddSheet } from "./components/freezer/FreezerAddSheet";
 import { FreezerEditSheet } from "./components/freezer/FreezerEditSheet";
@@ -175,16 +180,14 @@ const pushInviteDismissedStorageKey = "jucart:push-invite-dismissed";
 const ticketPageSize = 10;
 const priceObservationPageSize = 10;
 
-const remoteActionDefinitions: ReadonlyArray<{
-  name: RemoteActionName;
-  label: string;
-}> = [
-  { name: "recategorize_products", label: "Recategorizar productos" },
-  { name: "normalize_products", label: "Normalizar productos" },
-  { name: "process_tickets", label: "Procesar tickets" },
-  { name: "update_external_prices", label: "Actualizar precios externos" },
-  { name: "supabase_backup", label: "Ejecutar backup" },
-];
+const remoteActionDefinitions: ReadonlyArray<DeveloperRemoteActionDefinition> =
+  [
+    { name: "recategorize_products", label: "Recategorizar productos" },
+    { name: "normalize_products", label: "Normalizar productos" },
+    { name: "process_tickets", label: "Procesar tickets" },
+    { name: "update_external_prices", label: "Actualizar precios externos" },
+    { name: "supabase_backup", label: "Ejecutar backup" },
+  ];
 
 function getRemoteActionLabel(action: string | null | undefined) {
   return (
@@ -5710,158 +5713,6 @@ export function App() {
     );
   }
 
-  function renderDeveloperRemoteActionsCard() {
-    const status = remoteAction?.status;
-    const statusText =
-      status === "running"
-        ? "Ejecutando"
-        : status === "completed"
-          ? "Completada"
-          : status === "failed"
-            ? "Fallida"
-            : status === "pending"
-              ? "Pendiente"
-              : "Sin órdenes";
-    const hasError = status === "failed" || Boolean(remoteActionError);
-    const isActionRunning = status === "pending" || status === "running";
-
-    return (
-      <section className={styles.developerPanel} aria-label="Acciones remotas">
-        <div className={styles.developerPanelHeader}>
-          <h3>Acciones del servidor</h3>
-          <span
-            className={
-              hasError
-                ? styles.developerStatusFailed
-                : styles.developerStatusSuccess
-            }
-          >
-            {statusText}
-          </span>
-        </div>
-        <p className={styles.developerNote}>
-          El servidor ejecuta tareas autorizadas sin exponer puertos públicos.
-        </p>
-        {remoteActionError ? (
-          <p className={styles.error} role="alert">
-            {remoteActionError}
-          </p>
-        ) : null}
-        {remoteAction?.resultSummary ? (
-          <p className={styles.developerNote}>{remoteAction.resultSummary}</p>
-        ) : null}
-        {remoteAction?.errorMessage ? (
-          <p className={styles.developerNote} role="alert">
-            {remoteAction.errorMessage}
-          </p>
-        ) : null}
-        <div className={styles.developerActions}>
-          {remoteActionDefinitions.map((definition) => (
-            <button
-              key={definition.name}
-              className={
-                definition.name === "supabase_backup"
-                  ? styles.primaryButton
-                  : styles.secondaryButton
-              }
-              type="button"
-              onPointerDown={handleButtonPointerDown}
-              onClick={() => void handleRemoteAction(definition.name)}
-              disabled={isRemoteActionPending || isActionRunning}
-            >
-              {isRemoteActionPending && remoteAction?.action === definition.name
-                ? "Solicitando…"
-                : definition.label}
-            </button>
-          ))}
-        </div>
-      </section>
-    );
-  }
-
-  function renderDeveloperPushNotificationCard() {
-    const isSupabaseAvailable = isSupabaseConfigured();
-    const isSubscribed = pushNotificationSnapshot.status === "subscribed";
-    const isActionDisabled =
-      isPushNotificationActionPending ||
-      isPushNotificationActionDisabled(
-        pushNotificationSnapshot,
-        isSupabaseAvailable,
-      );
-
-    return (
-      <section
-        className={styles.developerPanel}
-        aria-label="Notificaciones push"
-      >
-        <div className={styles.developerPanelHeader}>
-          <h3>Notificaciones push</h3>
-          <span
-            className={
-              isSubscribed
-                ? styles.developerStatusSuccess
-                : styles.developerStatusFailed
-            }
-          >
-            {pushNotificationSnapshot.message}
-          </span>
-        </div>
-        <dl className={styles.developerMetrics}>
-          <div>
-            <dt>Permiso</dt>
-            <dd>{pushNotificationSnapshot.message}</dd>
-          </div>
-          <div>
-            <dt>Supabase</dt>
-            <dd>{isSupabaseAvailable ? "Configurado" : "No configurado"}</dd>
-          </div>
-        </dl>
-        {pushNotificationDiagnostic ? (
-          <div
-            className={
-              pushNotificationDiagnostic.ok
-                ? styles.developerDiagnosticSuccess
-                : styles.developerDiagnosticFailed
-            }
-            role="status"
-          >
-            <p>{pushNotificationDiagnostic.message}</p>
-            <ul>
-              {pushNotificationDiagnostic.details.map((detail) => (
-                <li key={detail}>{detail}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        <div className={styles.developerActions}>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handlePushNotificationDiagnostic}
-            disabled={!isSupabaseAvailable || isPushDiagnosticPending}
-          >
-            Probar registro
-          </button>
-          <button
-            className={
-              isSubscribed ? styles.secondaryButton : styles.primaryButton
-            }
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handlePushNotificationAction}
-            disabled={isActionDisabled}
-          >
-            {getPushNotificationActionText(
-              pushNotificationSnapshot,
-              isSupabaseAvailable,
-            )}
-          </button>
-        </div>
-      </section>
-    );
-  }
-
   function renderDeveloperOverviewCard() {
     const backupStatus = getDeveloperBackupStatus(developerBackupRun);
     const backupStatusText = getDeveloperBackupStatusText(backupStatus);
@@ -6811,7 +6662,14 @@ export function App() {
             expanded={openDeveloperSection === "actions"}
             onToggle={toggleDeveloperSection}
           >
-            {renderDeveloperRemoteActionsCard()}
+            <DeveloperRemoteActionsCard
+              action={remoteAction}
+              definitions={remoteActionDefinitions}
+              error={remoteActionError}
+              isPending={isRemoteActionPending}
+              onAction={(action) => void handleRemoteAction(action)}
+              onButtonPointerDown={handleButtonPointerDown}
+            />
           </DeveloperDisclosure>
           <DeveloperDisclosure
             id="push"
@@ -6820,7 +6678,26 @@ export function App() {
             expanded={openDeveloperSection === "push"}
             onToggle={toggleDeveloperSection}
           >
-            {renderDeveloperPushNotificationCard()}
+            <DeveloperPushNotificationCard
+              actionText={getPushNotificationActionText(
+                pushNotificationSnapshot,
+                isSupabaseConfigured(),
+              )}
+              diagnostic={pushNotificationDiagnostic}
+              isActionDisabled={
+                isPushNotificationActionPending ||
+                isPushNotificationActionDisabled(
+                  pushNotificationSnapshot,
+                  isSupabaseConfigured(),
+                )
+              }
+              isDiagnosticPending={isPushDiagnosticPending}
+              isSupabaseAvailable={isSupabaseConfigured()}
+              onAction={handlePushNotificationAction}
+              onButtonPointerDown={handleButtonPointerDown}
+              onDiagnostic={handlePushNotificationDiagnostic}
+              snapshot={pushNotificationSnapshot}
+            />
           </DeveloperDisclosure>
         </DeveloperViewShell>
       ) : null}

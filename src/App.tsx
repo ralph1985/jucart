@@ -158,6 +158,7 @@ import { TicketFilters } from "./components/tickets/TicketFilters";
 import { TicketList } from "./components/tickets/TicketList";
 import { TicketsView } from "./components/tickets/TicketsView";
 import { PriceDetailSheet } from "./components/prices/PriceDetailSheet";
+import { PriceDetailContent } from "./components/prices/PriceDetailContent";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -6460,127 +6461,21 @@ export function App() {
           sheetRef={priceDetailSheetRef}
           summary={selectedPriceSummary}
         >
-          <div className={styles.priceDetailContent}>
-            {selectedLatestPriceObservation ? (
-              <section
-                className={styles.priceDetailPanel}
-                aria-labelledby="price-latest-title"
-              >
-                <h3 id="price-latest-title">Último precio</h3>
-                <div className={styles.priceLatestGrid}>
-                  <strong>
-                    {formatPriceSummaryValue(
-                      selectedLatestPriceObservation.observedPrice,
-                      selectedLatestPriceObservation.comparisonUnit,
-                    )}
-                  </strong>
-                  <span>
-                    {sections.find(
-                      (section) =>
-                        section.id === selectedLatestPriceObservation.sectionId,
-                    )?.name ?? selectedLatestPriceObservation.sectionId}
-                  </span>
-                  <span>
-                    {formatTicketDate(
-                      selectedLatestPriceObservation.observedAt,
-                    )}
-                  </span>
-                  <span className={selectedPriceDifferenceClassName}>
-                    {selectedPriceDifference === null
-                      ? "Sin anterior"
-                      : formatPriceDifference(
-                          selectedPriceDifference,
-                          selectedLatestPriceObservation.comparisonUnit,
-                        )}
-                  </span>
-                </div>
-              </section>
-            ) : null}
-            {selectedPriceSectionSummaries.length > 0 ? (
-              <section
-                className={styles.priceDetailPanel}
-                aria-labelledby="price-sections-title"
-              >
-                <h3 id="price-sections-title">Por lista</h3>
-                <ol className={styles.priceSectionList}>
-                  {selectedPriceSectionSummaries.map((summary) => (
-                    <li key={summary.sectionId}>
-                      <span>
-                        {sections.find(
-                          (section) => section.id === summary.sectionId,
-                        )?.name ?? summary.sectionId}
-                      </span>
-                      <strong>
-                        {formatPriceSummaryValue(
-                          summary.latestPrice,
-                          summary.comparisonUnit,
-                        )}
-                      </strong>
-                      <small>
-                        Media{" "}
-                        {formatPriceSummaryValue(
-                          summary.averagePrice,
-                          summary.comparisonUnit,
-                        )}{" "}
-                        · {summary.observationCount}
-                      </small>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            ) : null}
-            {selectedPriceObservations.length > 0 ? (
-              <section
-                className={styles.priceDetailPanel}
-                aria-labelledby="price-observations-title"
-              >
-                <h3 id="price-observations-title">Observaciones</h3>
-                <ol className={styles.priceObservationList}>
-                  {visibleSelectedPriceObservations.map((observation) => (
-                    <li key={observation.id}>
-                      <span>
-                        {formatTicketDate(observation.observedAt)} ·{" "}
-                        {sections.find(
-                          (section) => section.id === observation.sectionId,
-                        )?.name ?? observation.sectionId}
-                        {observation.source === "external"
-                          ? ` · Externo${
-                              observation.externalProvider
-                                ? `: ${observation.externalProvider}`
-                                : ""
-                            }`
-                          : ""}
-                      </span>
-                      <strong>
-                        {formatPriceSummaryValue(
-                          observation.observedPrice,
-                          observation.comparisonUnit,
-                        )}
-                      </strong>
-                      {observation.quantity ? (
-                        <small>{observation.quantity}</small>
-                      ) : null}
-                    </li>
-                  ))}
-                </ol>
-                {hiddenSelectedPriceObservationCount > 0 ? (
-                  <button
-                    className={styles.paginationButton}
-                    type="button"
-                    onPointerDown={handleButtonPointerDown}
-                    onClick={showMorePriceObservations}
-                  >
-                    Ver{" "}
-                    {Math.min(
-                      hiddenSelectedPriceObservationCount,
-                      priceObservationPageSize,
-                    )}{" "}
-                    observaciones más
-                  </button>
-                ) : null}
-              </section>
-            ) : null}
-          </div>
+          <PriceDetailContent
+            formatDate={formatTicketDate}
+            formatDifference={formatPriceDifference}
+            formatValue={formatPriceSummaryValue}
+            hiddenObservationCount={hiddenSelectedPriceObservationCount}
+            latestObservation={selectedLatestPriceObservation}
+            observationPageSize={priceObservationPageSize}
+            observations={visibleSelectedPriceObservations}
+            onButtonPointerDown={handleButtonPointerDown}
+            onShowMore={showMorePriceObservations}
+            priceDifference={selectedPriceDifference}
+            priceDifferenceClassName={selectedPriceDifferenceClassName}
+            sectionSummaries={selectedPriceSectionSummaries}
+            sections={sections}
+          />
         </PriceDetailSheet>
       ) : null}
 

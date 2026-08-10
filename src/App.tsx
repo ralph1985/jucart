@@ -6,7 +6,6 @@ import {
   KeyboardEvent,
   MouseEvent,
   PointerEvent,
-  type ReactNode,
   TouchEvent,
   useCallback,
   useEffect,
@@ -142,6 +141,7 @@ import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
+import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -245,52 +245,6 @@ type BottomSheetOverlay = Extract<
   | "freezer-edit-sheet"
 >;
 
-type DeveloperDisclosureProps = {
-  id: DeveloperSectionId;
-  title: string;
-  summary: string;
-  expanded: boolean;
-  onToggle: (id: DeveloperSectionId) => void;
-  children: ReactNode;
-};
-
-function DeveloperDisclosure({
-  id,
-  title,
-  summary,
-  expanded,
-  onToggle,
-  children,
-}: DeveloperDisclosureProps) {
-  const contentId = `developer-section-${id}`;
-
-  return (
-    <section className={styles.developerDisclosure}>
-      <button
-        className={styles.developerDisclosureButton}
-        type="button"
-        aria-expanded={expanded}
-        aria-controls={contentId}
-        onClick={() => onToggle(id)}
-      >
-        <span className={styles.developerDisclosureCopy}>
-          <span className={styles.developerDisclosureTitle}>{title}</span>
-          <span className={styles.developerDisclosureSummary}>{summary}</span>
-        </span>
-        <span className={styles.developerDisclosureAction} aria-hidden="true">
-          {expanded ? "Ocultar" : "Ver"}
-        </span>
-      </button>
-      <div
-        id={contentId}
-        className={styles.developerDisclosureContent}
-        hidden={!expanded}
-      >
-        {children}
-      </div>
-    </section>
-  );
-}
 type AddProductNotice =
   | { type: "success"; message: string }
   | { type: "error"; message: string }

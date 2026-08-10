@@ -146,6 +146,7 @@ import { DeveloperAppContext } from "./components/developer/DeveloperAppContext"
 import { FreezerView } from "./components/freezer/FreezerView";
 import type { HistoryTab } from "./components/history/HistoryTabs";
 import { HistoryView } from "./components/history/HistoryView";
+import { TicketUploadSheet } from "./components/tickets/TicketUploadSheet";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -6804,125 +6805,27 @@ export function App() {
       ) : null}
 
       {activeView === "tickets" && isTicketUploadSheetOpen ? (
-        <div
-          ref={ticketUploadSheetBackdropRef}
-          className={styles.addSheetBackdrop}
-          style={
-            {
-              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
-            } as CSSProperties
-          }
-          onClick={() => closeTicketUploadSheet()}
-        >
-          <form
-            ref={ticketUploadSheetRef}
-            className={`${styles.addSheet} ${styles.ticketUploadSheet}`}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="ticket-upload-title"
-            style={
-              {
-                "--sheet-drag-offset": `${sheetDragOffset}px`,
-              } as CSSProperties
-            }
-            onClick={(event) => event.stopPropagation()}
-            onSubmit={handleTicketUploadSubmit}
-          >
-            <div
-              className={styles.addSheetHandle}
-              onPointerDown={handleAddSheetDragStart}
-              onPointerMove={handleAddSheetDragMove}
-              onPointerUp={handleAddSheetDragEnd}
-              onPointerCancel={handleAddSheetDragEnd}
-            >
-              <span aria-hidden="true" />
-            </div>
-            <div className={styles.addSheetHeader}>
-              <div>
-                <p className={styles.sheetKicker}>Ticket de compra</p>
-                <h2 id="ticket-upload-title">Subir ticket</h2>
-              </div>
-              <button
-                className={styles.closeButton}
-                type="button"
-                aria-label="Cerrar subida de ticket"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => closeTicketUploadSheet()}
-              >
-                <Icon name="close" />
-              </button>
-            </div>
-            <div className={styles.ticketUploadFields}>
-              <label className={styles.label} htmlFor="ticket-section-id">
-                Supermercado
-              </label>
-              <select
-                id="ticket-section-id"
-                value={ticketUploadSectionId}
-                onChange={(event) =>
-                  setTicketUploadSectionId(event.target.value)
-                }
-                disabled={isTicketUploadPending}
-              >
-                {sections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.name}
-                  </option>
-                ))}
-              </select>
-              <label className={styles.label} htmlFor="ticket-files">
-                Archivos
-              </label>
-              <input
-                id="ticket-files"
-                ref={ticketFileInputRef}
-                type="file"
-                multiple
-                accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"
-                onChange={handleTicketFilesChange}
-                disabled={isTicketUploadPending}
-              />
-              {ticketUploadFiles.length > 0 ? (
-                <ul className={styles.ticketFileList}>
-                  {ticketUploadFiles.map((file, index) => (
-                    <li key={`${file.name}-${file.size}-${index}`}>
-                      <Icon name="file" />
-                      <span>{file.name}</span>
-                      <small>{formatFileSize(file.size)}</small>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {ticketError ? (
-                <p className={styles.error} role="alert">
-                  {ticketError}
-                </p>
-              ) : null}
-            </div>
-            <div className={styles.addSheetActions}>
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => closeTicketUploadSheet()}
-                disabled={isTicketUploadPending}
-              >
-                Cancelar
-              </button>
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-                disabled={
-                  isTicketUploadPending || ticketUploadFiles.length === 0
-                }
-              >
-                <Icon name="upload" />
-                {isTicketUploadPending ? "Subiendo" : "Subir"}
-              </button>
-            </div>
-          </form>
-        </div>
+        <TicketUploadSheet
+          backdropRef={ticketUploadSheetBackdropRef}
+          error={ticketError}
+          files={ticketUploadFiles}
+          fileInputRef={ticketFileInputRef}
+          formatFileSize={formatFileSize}
+          isPending={isTicketUploadPending}
+          keyboardInset={sheetKeyboardInset}
+          onButtonPointerDown={handleButtonPointerDown}
+          onClose={closeTicketUploadSheet}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          onFilesChange={handleTicketFilesChange}
+          onSectionChange={setTicketUploadSectionId}
+          onSubmit={handleTicketUploadSubmit}
+          sectionId={ticketUploadSectionId}
+          sections={sections}
+          sheetDragOffset={sheetDragOffset}
+          sheetRef={ticketUploadSheetRef}
+        />
       ) : null}
 
       {freezerViewEnabled &&

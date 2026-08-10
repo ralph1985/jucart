@@ -162,6 +162,7 @@ import { FreezerEditSheet } from "./components/freezer/FreezerEditSheet";
 import type { HistoryTab } from "./components/history/HistoryTabs";
 import { HistoryView } from "./components/history/HistoryView";
 import { HistoryEventsList } from "./components/history/HistoryEventsList";
+import { RecategorizationChangesList } from "./components/history/RecategorizationChangesList";
 import { TicketUploadSheet } from "./components/tickets/TicketUploadSheet";
 import { TicketReviewQueue } from "./components/tickets/TicketReviewQueue";
 import { TicketFilters } from "./components/tickets/TicketFilters";
@@ -5492,62 +5493,6 @@ export function App() {
     ));
   }
 
-  function renderRecategorizationChanges() {
-    if (displayedRecategorizationChanges.length === 0) {
-      return (
-        <div className={styles.historyEmpty}>
-          <p className={styles.emptyTitle}>
-            {showUnseenHistoryOnly
-              ? "No hay recategorizaciones pendientes"
-              : "No hay recategorizaciones"}
-          </p>
-          <p className={styles.emptyDescription}>
-            {showUnseenHistoryOnly
-              ? "Las recategorizaciones ya están revisadas."
-              : "Los cambios automáticos de categoría aparecerán aquí."}
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <ol className={styles.historyList}>
-        {displayedRecategorizationChanges.map((change) => {
-          const run = recategorizationRunsById.get(change.runId);
-          const runSummary = getRecategorizationRunSummary(run);
-
-          return (
-            <li className={styles.historyItem} key={change.id}>
-              <div className={styles.historyItemHeader}>
-                <span className={styles.historyAction}>
-                  Categoría actualizada
-                </span>
-                <time dateTime={new Date(change.createdAt).toISOString()}>
-                  {formatHistoryEventDate(change.createdAt)}
-                </time>
-              </div>
-              <p className={styles.historyProduct}>{change.itemName}</p>
-              <p className={styles.historyMeta}>
-                {getRecategorizationChangeMeta(change, categories)}
-              </p>
-              {change.reason ? (
-                <p className={styles.historyMeta}>{change.reason}</p>
-              ) : null}
-              {runSummary ? (
-                <p className={styles.historyMeta}>{runSummary}</p>
-              ) : null}
-              {change.catalogEntryId ? (
-                <p className={styles.historyMeta}>
-                  Catálogo: {change.catalogEntryId}
-                </p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
-    );
-  }
-
   function renderProductNormalizationChanges() {
     if (displayedProductNormalizationChanges.length === 0) {
       return (
@@ -6167,7 +6112,15 @@ export function App() {
           {historyTab === "normalizations" ? (
             renderProductNormalizationChanges()
           ) : historyTab === "categories" ? (
-            renderRecategorizationChanges()
+            <RecategorizationChangesList
+              categories={categories}
+              changes={displayedRecategorizationChanges}
+              formatDate={formatHistoryEventDate}
+              getChangeMeta={getRecategorizationChangeMeta}
+              getRunSummary={getRecategorizationRunSummary}
+              runsById={recategorizationRunsById}
+              showUnseenOnly={showUnseenHistoryOnly}
+            />
           ) : (
             <HistoryEventsList
               events={displayedHistoryEvents}

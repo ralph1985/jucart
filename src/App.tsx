@@ -5,7 +5,6 @@ import {
   KeyboardEvent,
   MouseEvent,
   PointerEvent,
-  TouchEvent,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -142,6 +141,7 @@ import { ShoppingBoardLoading } from "./components/shopping/ShoppingBoardLoading
 import { ShoppingItemsList } from "./components/shopping/ShoppingItemsList";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
+import { usePullToRefreshGesture } from "./hooks/usePullToRefreshGesture";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
@@ -235,13 +235,6 @@ const initialPushNotificationSnapshot: PushNotificationSnapshot = {
 const freezerViewEnabled = import.meta.env.MODE === "test";
 
 type TicketFilter = "all" | ShoppingTicketStatus;
-
-type PullRefreshGesture = {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  scrollContainer: HTMLElement | null;
-};
 
 type TimestampedItem = {
   id: string;
@@ -1339,7 +1332,6 @@ export function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isSupabaseConfigured() ? "syncing" : "local",
   );
-  const [pullRefreshDistance, setPullRefreshDistance] = useState(0);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
   const [pullRefreshMessage, setPullRefreshMessage] = useState<string | null>(
     null,
@@ -1455,8 +1447,6 @@ export function App() {
   const pendingLocalStoresRef = useRef(0);
   const queuedRemoteRefreshRef = useRef(false);
   const refreshRemoteDataRef = useRef<(() => Promise<void>) | null>(null);
-  const pullRefreshGestureRef = useRef<PullRefreshGesture | null>(null);
-  const pullRefreshRawDistanceRef = useRef(0);
   const pullRefreshMessageTimeoutRef = useRef<number | null>(null);
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
@@ -1490,6 +1480,17 @@ export function App() {
     isSectionAddSheetOpen ||
     isFreezerAddSheetOpen ||
     editingFreezerItem !== null;
+  const {
+    distance: pullRefreshDistance,
+    handleTouchEnd: handlePullRefreshTouchEnd,
+    handleTouchMove: handlePullRefreshTouchMove,
+    handleTouchStart: handlePullRefreshTouchStart,
+    reset: resetPullRefreshGesture,
+  } = usePullToRefreshGesture({
+    enabled: isLoaded && !isBottomSheetOpen,
+    isRefreshing: isPullRefreshing,
+    onRefresh: () => void refreshCurrentView(),
+  });
   const selectedSectionName =
     sections.find((section) => section.id === selectedSectionId)?.name ??
     "esta lista";
@@ -3838,139 +3839,6 @@ export function App() {
     }
   }
 
-  function getPullRefreshScrollContainer(target: EventTarget | null) {
-    let element = target instanceof HTMLElement ? target : null;
-
-    while (element && element !== document.body) {
-      const computedStyle = window.getComputedStyle(element);
-      const canScrollVertically =
-        (computedStyle.overflowY === "auto" ||
-          computedStyle.overflowY === "scroll") &&
-        element.scrollHeight > element.clientHeight;
-
-      if (canScrollVertically) {
-        return element;
-      }
-
-      element = element.parentElement;
-    }
-
-    return document.scrollingElement instanceof HTMLElement
-      ? document.scrollingElement
-      : null;
-  }
-
-  function isPullRefreshExcludedTarget(target: EventTarget | null) {
-    return (
-      target instanceof HTMLElement &&
-      Boolean(
-        target.closest(
-          "button, input, select, textarea, [role=dialog], [data-pull-refresh-ignore]",
-        ),
-      )
-    );
-  }
-
-  function startPullRefreshGesture(
-    pointerId: number,
-    startX: number,
-    startY: number,
-    target: EventTarget | null,
-  ) {
-    if (
-      !isLoaded ||
-      isPullRefreshing ||
-      isBottomSheetOpen ||
-      isPullRefreshExcludedTarget(target)
-    ) {
-      return;
-    }
-
-    const scrollContainer = getPullRefreshScrollContainer(target);
-
-    if (!scrollContainer || scrollContainer.scrollTop > 0) {
-      return;
-    }
-
-    pullRefreshGestureRef.current = {
-      pointerId,
-      startX,
-      startY,
-      scrollContainer,
-    };
-  }
-
-  function updatePullRefreshGesture(
-    pointerId: number,
-    clientX: number,
-    clientY: number,
-    event: { preventDefault: () => void },
-  ) {
-    const gesture = pullRefreshGestureRef.current;
-
-    if (!gesture || gesture.pointerId !== pointerId) {
-      return;
-    }
-
-    if (!gesture.scrollContainer || gesture.scrollContainer.scrollTop > 0) {
-      pullRefreshGestureRef.current = null;
-      setPullRefreshDistance(0);
-      return;
-    }
-
-    const distance = Math.max(0, clientY - gesture.startY);
-    const horizontalDistance = Math.abs(clientX - gesture.startX);
-
-    if (distance < 12) {
-      return;
-    }
-
-    if (horizontalDistance > distance) {
-      finishPullRefreshGesture();
-      return;
-    }
-
-    event.preventDefault();
-    pullRefreshRawDistanceRef.current = distance;
-    setPullRefreshDistance(Math.min(96, distance * 0.48));
-  }
-
-  function handlePullRefreshTouchStart(event: TouchEvent<HTMLElement>) {
-    const touch = event.touches[0];
-
-    if (!touch) {
-      return;
-    }
-
-    startPullRefreshGesture(
-      touch.identifier,
-      touch.clientX,
-      touch.clientY,
-      event.target,
-    );
-  }
-
-  function handlePullRefreshTouchMove(event: TouchEvent<HTMLElement>) {
-    const touch = event.touches[0];
-
-    if (!touch) {
-      return;
-    }
-
-    updatePullRefreshGesture(
-      touch.identifier,
-      touch.clientX,
-      touch.clientY,
-      event,
-    );
-  }
-
-  function finishPullRefreshGesture() {
-    pullRefreshGestureRef.current = null;
-    pullRefreshRawDistanceRef.current = 0;
-    setPullRefreshDistance(0);
-  }
-
   async function refreshLocalShoppingData() {
     const storedData = await getCachedShoppingData();
 
@@ -4035,29 +3903,6 @@ export function App() {
         setPullRefreshMessage(null);
         pullRefreshMessageTimeoutRef.current = null;
       }, 1800);
-    }
-  }
-
-  function finishPullRefresh(pointerId: number) {
-    const gesture = pullRefreshGestureRef.current;
-
-    if (!gesture || gesture.pointerId !== pointerId) {
-      return;
-    }
-
-    const shouldRefresh = pullRefreshRawDistanceRef.current >= 72;
-    finishPullRefreshGesture();
-
-    if (shouldRefresh) {
-      void refreshCurrentView();
-    }
-  }
-
-  function handlePullRefreshTouchEnd(event: TouchEvent<HTMLElement>) {
-    const touch = event.changedTouches[0];
-
-    if (touch) {
-      finishPullRefresh(touch.identifier);
     }
   }
 
@@ -4997,7 +4842,7 @@ export function App() {
       onTouchStart={handlePullRefreshTouchStart}
       onTouchMove={handlePullRefreshTouchMove}
       onTouchEnd={handlePullRefreshTouchEnd}
-      onTouchCancel={finishPullRefreshGesture}
+      onTouchCancel={resetPullRefreshGesture}
       className={`${styles.app} ${resolvedTheme === "dark" ? styles.appThemeDark : ""} ${
         activeView === "shopping" ? styles.appShopping : ""
       } ${isPushInviteVisible ? styles.appPushInviteVisible : ""}`}

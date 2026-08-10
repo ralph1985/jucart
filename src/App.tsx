@@ -141,6 +141,7 @@ import { EditProductDialog } from "./components/shopping/EditProductDialog";
 import { AddProductSheet } from "./components/shopping/AddProductSheet";
 import { CreateSectionSheet } from "./components/shopping/CreateSectionSheet";
 import { SectionsViewShell } from "./components/shopping/SectionsViewShell";
+import { LocalSectionsManager } from "./components/shopping/LocalSectionsManager";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -4887,15 +4888,8 @@ export function App() {
     }
   }
 
-  function handleSectionNameChange(
-    sectionId: ShoppingSectionId,
-    event: ChangeEvent<HTMLInputElement>,
-  ) {
-    const nextSections = renameShoppingSection(
-      sections,
-      sectionId,
-      event.target.value,
-    );
+  function handleSectionNameChange(sectionId: ShoppingSectionId, name: string) {
+    const nextSections = renameShoppingSection(sections, sectionId, name);
 
     if (nextSections !== sections) {
       markLocalDataChange();
@@ -6730,152 +6724,26 @@ export function App() {
         >
           {isSupabaseConfigured() ? renderShoppingListsCard() : null}
           {!isSupabaseConfigured() ? (
-            <>
-              {sectionActionMessage ? (
-                <p className={styles.sectionActionMessage} role="status">
-                  {sectionActionMessage}
-                </p>
-              ) : null}
-              <ol className={styles.shoppingListManager}>
-                {sections.map((section, index) => {
-                  const sectionProductCount = items.filter(
-                    (item) => item.sectionId === section.id,
-                  ).length;
-                  const sectionPendingCount = items.filter(
-                    (item) => item.sectionId === section.id && !item.purchased,
-                  ).length;
-                  const isExpanded = expandedShoppingListIds.includes(
-                    section.id,
-                  );
-
-                  return (
-                    <li
-                      className={
-                        styles.shoppingListManagerItem +
-                        " " +
-                        styles["shoppingListCardColor" + section.color]
-                      }
-                      key={section.id}
-                    >
-                      <div className={styles.shoppingListCardHeader}>
-                        <input
-                          className={styles.input}
-                          aria-label={`Nombre de ${section.name}`}
-                          value={section.name}
-                          onChange={(event) =>
-                            isExpanded
-                              ? handleSectionNameChange(section.id, event)
-                              : undefined
-                          }
-                          disabled={!isLoaded || !isExpanded}
-                          type="text"
-                        />
-                        <div className={styles.shoppingListStats}>
-                          <span>{sectionPendingCount} pendientes</span>
-                          <span>{sectionProductCount} productos</span>
-                        </div>
-                      </div>
-                      <div className={styles.shoppingListCardActions}>
-                        <button
-                          className={styles.primaryButton}
-                          type="button"
-                          onPointerDown={handleButtonPointerDown}
-                          onClick={() =>
-                            setExpandedShoppingListIds((currentIds) =>
-                              currentIds.includes(section.id)
-                                ? currentIds.filter((id) => id !== section.id)
-                                : [...currentIds, section.id],
-                            )
-                          }
-                        >
-                          {isExpanded ? "Ocultar detalles" : "Ver detalles"}
-                        </button>
-                        <button
-                          className={styles.secondaryButton}
-                          type="button"
-                          onPointerDown={handleButtonPointerDown}
-                          onClick={() => handleOpenShoppingList(section.id)}
-                        >
-                          Abrir lista
-                        </button>
-                      </div>
-                      {isExpanded ? (
-                        <div className={styles.shoppingListAdvanced}>
-                          <div
-                            className={styles.sectionColorPicker}
-                            aria-label={`Color de ${section.name}`}
-                            role="group"
-                          >
-                            {shoppingSectionColors.map((color) => (
-                              <button
-                                className={
-                                  styles.sectionColorButton +
-                                  " " +
-                                  styles["sectionColorSwatch" + color] +
-                                  (section.color === color
-                                    ? " " + styles.sectionColorButtonSelected
-                                    : "")
-                                }
-                                type="button"
-                                aria-label={`Poner ${section.name} en color ${color}`}
-                                aria-pressed={section.color === color}
-                                key={color}
-                                onPointerDown={handleButtonPointerDown}
-                                onClick={() =>
-                                  handleSectionColorChange(section.id, color)
-                                }
-                                disabled={!isLoaded}
-                              />
-                            ))}
-                          </div>
-                          <div className={styles.shoppingListManagerActions}>
-                            <button
-                              className={styles.iconButton}
-                              type="button"
-                              aria-label={`Subir ${section.name}`}
-                              title="Subir"
-                              onPointerDown={handleButtonPointerDown}
-                              onClick={() => handleMoveSection(section.id, -1)}
-                              disabled={!isLoaded || index === 0}
-                            >
-                              <Icon name="arrowUp" />
-                            </button>
-                            <button
-                              className={styles.iconButton}
-                              type="button"
-                              aria-label={`Bajar ${section.name}`}
-                              title="Bajar"
-                              onPointerDown={handleButtonPointerDown}
-                              onClick={() => handleMoveSection(section.id, 1)}
-                              disabled={
-                                !isLoaded || index === sections.length - 1
-                              }
-                            >
-                              <Icon name="arrowDown" />
-                            </button>
-                          </div>
-                          <button
-                            className={styles.dangerButton}
-                            type="button"
-                            aria-label={`Borrar ${section.name}`}
-                            title={
-                              sectionProductCount > 0
-                                ? "No se puede borrar una lista con productos"
-                                : "Borrar"
-                            }
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() => handleRemoveSection(section.id)}
-                            disabled={!isLoaded}
-                          >
-                            <Icon name="trash" /> Borrar lista
-                          </button>
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ol>
-            </>
+            <LocalSectionsManager
+              actionMessage={sectionActionMessage}
+              expandedSectionIds={expandedShoppingListIds}
+              isLoaded={isLoaded}
+              items={items}
+              onButtonPointerDown={handleButtonPointerDown}
+              onColorChange={handleSectionColorChange}
+              onMove={handleMoveSection}
+              onNameChange={handleSectionNameChange}
+              onOpen={handleOpenShoppingList}
+              onRemove={handleRemoveSection}
+              onToggle={(sectionId) =>
+                setExpandedShoppingListIds((currentIds) =>
+                  currentIds.includes(sectionId)
+                    ? currentIds.filter((id) => id !== sectionId)
+                    : [...currentIds, sectionId],
+                )
+              }
+              sections={sections}
+            />
           ) : null}
         </SectionsViewShell>
       ) : null}

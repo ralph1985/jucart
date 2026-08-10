@@ -45,96 +45,236 @@ select {
 }
 
 .menuPlanningScreen {
-  padding: 1rem 1rem 7rem;
-  max-width: 48rem;
+  padding: 1.2rem 1rem 7rem;
+  max-width: 52rem;
   margin: 0 auto;
+}
+.menuPlanningHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.menuPlanningEyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--color-accent-strong);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .menuPlanningHeader h2 {
   margin: 0;
+  font-size: clamp(1.75rem, 5vw, 2.4rem);
 }
-.menuPlanningHeader p,
-.menuPlanningHint {
-  color: #52606d;
+.menuPlanningHeader p:not(.menuPlanningEyebrow) {
+  max-width: 32rem;
+  margin: 0.35rem 0 0;
+  color: var(--color-text-muted);
 }
-.menuPlanningForm {
+.menuPlanningCounts {
   display: grid;
-  gap: 1rem;
-  margin-top: 1rem;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  text-align: right;
 }
-.menuPlanningForm label {
+.menuPlanningCounts strong {
+  color: var(--color-text-strong);
+  font-size: 1rem;
+}
+.menuScopeField,
+.menuFilterField {
   display: grid;
-  gap: 0.45rem;
-  font-weight: 600;
+  gap: 0.35rem;
+  margin-top: 1.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
-.menuPlanningForm select,
-.menuPlanningForm textarea {
-  width: 100%;
-  box-sizing: border-box;
+.menuScopeField select,
+.menuFilterField select,
+.menuAddDishControls input,
+.menuAddDishControls select,
+.menuDishEditForm input,
+.menuDishEditForm select,
+.menuDishTypes input {
+  min-width: 0;
   border: 1px solid var(--color-border-strong);
-  border-radius: 0.75rem;
-  padding: 0.7rem;
+  border-radius: 0.7rem;
+  padding: 0.68rem 0.75rem;
   background: var(--surface-muted);
   color: var(--color-text-strong);
   font: inherit;
 }
-.menuPlanningForm textarea {
-  resize: vertical;
-  min-height: 5rem;
-  font-weight: 400;
-}
-.menuPlanningForm button {
-  border: 0;
-  border-radius: 0.75rem;
-  background: #166534;
-  color: #fff;
-  padding: 0.8rem 1rem;
-  font: inherit;
-  font-weight: 700;
-}
-.menuPlanningForm button:disabled {
-  opacity: 0.55;
-}
-.menuProposal {
+.menuAddDishForm {
   display: grid;
-  gap: 0.7rem;
-  border-top: 1px solid #d9e1e8;
-  padding-top: 1rem;
+  gap: 0.4rem;
+  margin-top: 1.1rem;
 }
-.menuProposal h3 {
-  margin: 0;
+.menuAddDishForm > label {
+  color: var(--color-text-strong);
+  font-weight: 850;
+}
+.menuAddDishControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9rem auto;
+  gap: 0.5rem;
+}
+.menuAddDishControls button,
+.menuDishEditForm button,
+.menuDishTypes button {
+  border: 0;
+  border-radius: 0.7rem;
+  padding: 0.68rem 0.9rem;
+  background: var(--color-accent);
+  color: var(--surface);
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+.menuAddDishControls button:disabled,
+.menuDishTypes button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.menuDishTabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 1.4rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.menuDishTabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0.7rem 0.2rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.menuDishTabs button[aria-selected="true"] {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-accent-strong);
+}
+.menuDishTabs span {
+  display: inline-grid;
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  place-items: center;
+  margin-left: 0.2rem;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  font-size: 0.72rem;
+}
+.menuDishList {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+.menuDishRow {
+  display: grid;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.7rem 0;
+}
+.menuDishCopy {
+  display: grid;
+  gap: 0.2rem;
+}
+.menuDishCopy strong {
+  color: var(--color-text-strong);
+}
+.menuDishCopy span {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+.menuDishActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.menuDishActions button,
+.menuDishEditForm button:last-child {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.65rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.menuDishActions button:first-child {
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent) 45%,
+    var(--color-border)
+  );
+  color: var(--color-accent-strong);
+}
+.menuDishEditForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9rem auto auto;
+  gap: 0.4rem;
+}
+.menuEmptyState {
+  margin: 1rem 0;
+  color: var(--color-text-muted);
+}
+.menuPlanningMessage {
+  margin: 1rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
 }
 .menuDishTypes {
-  display: grid;
-  gap: 0.6rem;
-  border-top: 1px solid #d9e1e8;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
   padding-top: 1rem;
 }
-.menuDishTypes h3,
-.menuDishTypes p {
-  margin: 0;
+.menuDishTypes summary {
+  color: var(--color-text-strong);
+  font-weight: 800;
+  cursor: pointer;
 }
-.menuProposal fieldset {
+.menuDishTypes form {
   display: grid;
-  gap: 0.45rem;
-  margin: 0;
-  border: 1px solid #d9e1e8;
-  border-radius: 0.75rem;
-  padding: 0.7rem;
+  gap: 0.4rem;
+  margin-top: 0.8rem;
 }
-.menuDishes,
-.menuHistory {
+.menuDishTypes form > label {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+.menuDishTypes form > div {
   display: grid;
-  gap: 0.6rem;
-  border-top: 1px solid #d9e1e8;
-  padding-top: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.4rem;
 }
-.menuDishes h3,
-.menuHistory h3,
-.menuHistory h4,
-.menuHistory p {
-  margin: 0;
-}
-.menuDishes ul {
-  margin: 0;
-  padding-left: 1.2rem;
+@media (max-width: 600px) {
+  .menuPlanningHeader {
+    align-items: start;
+    flex-direction: column;
+  }
+  .menuPlanningCounts {
+    display: flex;
+    gap: 0.8rem;
+    text-align: left;
+  }
+  .menuAddDishControls,
+  .menuDishEditForm {
+    grid-template-columns: 1fr 1fr;
+  }
+  .menuAddDishControls input,
+  .menuDishEditForm input {
+    grid-column: 1 / -1;
+  }
+  .menuAddDishControls button,
+  .menuDishEditForm button {
+    min-height: 2.75rem;
+  }
 }

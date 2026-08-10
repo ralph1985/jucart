@@ -2409,7 +2409,7 @@ describe("App", () => {
         .map((button) => button.textContent),
     ).toEqual([
       "Lista",
-      "Menú",
+      "Platos",
       "Tickets",
       "Congelador",
       "Listas",

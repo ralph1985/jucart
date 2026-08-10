@@ -2,157 +2,141 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  getOrCreate: vi.fn(),
-  getProposal: vi.fn(),
-  saveDay: vi.fn(),
-  request: vi.fn(),
-  updateItem: vi.fn(),
-  confirm: vi.fn(),
+  getDishes: vi.fn(),
+  createDish: vi.fn(),
+  updateDish: vi.fn(),
+  deleteDish: vi.fn(),
   getTypes: vi.fn(),
   createType: vi.fn(),
-  getDishes: vi.fn(),
-  getHistory: vi.fn(),
 }));
 
 vi.mock("./menuPlanning", () => ({
-  getOrCreateMenuPlan: mocks.getOrCreate,
-  getLatestMenuProposal: mocks.getProposal,
-  saveMenuPlanDay: mocks.saveDay,
-  requestMenuPlanReview: mocks.request,
-  updateMenuProposalItem: mocks.updateItem,
-  confirmMenuProposal: mocks.confirm,
+  getMenuDishes: mocks.getDishes,
+  createMenuDish: mocks.createDish,
+  updateMenuDish: mocks.updateDish,
+  deleteMenuDish: mocks.deleteDish,
   getMenuDishTypes: mocks.getTypes,
   createMenuDishType: mocks.createType,
-  getMenuDishes: mocks.getDishes,
-  getMenuHistory: mocks.getHistory,
 }));
 
 import { MenuPlanningView } from "./MenuPlanningView";
 
 const lists = [{ id: "list-1", name: "Casa" }] as never;
+const pendingDish = {
+  id: "dish-1",
+  scopeListId: "list-1",
+  name: "Lentejas",
+  dishTypeId: "type-1",
+  typeName: "Legumbres",
+  status: "pending",
+  cookedAt: null,
+  createdAt: "2026-08-10T10:00:00Z",
+  updatedAt: "2026-08-10T10:00:00Z",
+} as const;
+const cookedDish = {
+  ...pendingDish,
+  id: "dish-2",
+  name: "Tortilla",
+  status: "cooked",
+  cookedAt: "2026-08-09T18:00:00Z",
+} as const;
 
 describe("MenuPlanningView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getOrCreate.mockResolvedValue({ plan: { id: "plan-1" }, days: [] });
-    mocks.getProposal.mockResolvedValue({
-      id: "proposal-1",
-      status: "ready",
-      errorMessage: null,
-      items: [
-        {
-          id: "item-1",
-          name: "Tomates",
-          quantity: "500 g",
-          destinationListId: "list-1",
-          selected: true,
-          confirmedAt: null,
-        },
-      ],
+    mocks.getDishes.mockResolvedValue([pendingDish, cookedDish]);
+    mocks.getTypes.mockResolvedValue([{ id: "type-1", name: "Legumbres" }]);
+    mocks.createDish.mockResolvedValue({
+      ...pendingDish,
+      id: "dish-3",
+      name: "Macarrones",
     });
-    mocks.getTypes.mockResolvedValue([{ id: "type-1", name: "Cena" }]);
-    mocks.getDishes.mockResolvedValue([
-      { id: "dish-1", name: "Ensalada", planDayId: "day-1", typeName: "Cena" },
-    ]);
-    mocks.getHistory.mockResolvedValue([
-      {
-        id: "old",
-        startsOn: "2026-08-01",
-        days: [
-          {
-            plannedOn: "2026-08-01",
-            content: "Pasta",
-            dishes: [{ name: "Pasta", typeName: "Comida" }],
-          },
-        ],
-      },
-    ]);
+    mocks.updateDish.mockImplementation(
+      async (id: string, values: Record<string, unknown>) => ({
+        ...(id === "dish-1" ? pendingDish : cookedDish),
+        ...values,
+        status: values.status ?? (id === "dish-1" ? "pending" : "cooked"),
+        cookedAt:
+          values.cookedAt ?? (id === "dish-1" ? null : cookedDish.cookedAt),
+      }),
+    );
+    mocks.createType.mockResolvedValue(undefined);
+    mocks.deleteDish.mockResolvedValue(undefined);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
-  it("guarda, revisa, edita, confirma y consulta el histórico", async () => {
+  it("muestra pendientes, permite añadir y pasa un plato al histórico", async () => {
     render(<MenuPlanningView lists={lists} />);
     await waitFor(() =>
-      expect(screen.getByText("Propuesta de compra")).toBeInTheDocument(),
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
     );
-    fireEvent.change(screen.getByLabelText("Producto"), {
-      target: { value: "Tomate pera" },
+    expect(screen.getByText("por cocinar")).toBeInTheDocument();
+    expect(screen.queryByText("Tortilla")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Añadir un plato"), {
+      target: { value: "Macarrones" },
     });
-    await waitFor(() => expect(mocks.updateItem).toHaveBeenCalled());
-    fireEvent.click(
-      screen.getByRole("button", { name: "Añadir seleccionados" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
     await waitFor(() =>
-      expect(mocks.confirm).toHaveBeenCalledWith("proposal-1"),
+      expect(mocks.createDish).toHaveBeenCalledWith(
+        "list-1",
+        "Macarrones",
+        null,
+      ),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Revisar con Codex" }));
-    await waitFor(() => expect(mocks.request).toHaveBeenCalledWith("plan-1"));
-    fireEvent.change(screen.getByLabelText("Nuevo tipo"), {
-      target: { value: "Brunch" },
+
+    const cookButtons = screen.getAllByRole("button", {
+      name: "Marcar cocinado",
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir tipo" }));
+    fireEvent.click(cookButtons[cookButtons.length - 1]);
     await waitFor(() =>
-      expect(mocks.createType).toHaveBeenCalledWith("list-1", "Brunch"),
+      expect(mocks.updateDish).toHaveBeenCalledWith(
+        "dish-1",
+        expect.objectContaining({ status: "cooked" }),
+      ),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Cargar histórico" }));
-    await waitFor(() =>
-      expect(screen.getByText("2026-08-01")).toBeInTheDocument(),
-    );
-    fireEvent.change(screen.getByLabelText("Buscar en el histórico"), {
-      target: { value: "Pasta" },
-    });
-    expect(screen.getByText(/Pasta/)).toBeInTheDocument();
   });
 
-  it("muestra errores de carga, guardado, revisión, tipos e histórico", async () => {
-    mocks.getOrCreate.mockRejectedValueOnce(new Error("offline"));
+  it("consulta cocinados, filtra por tipo y permite editar y eliminar", async () => {
+    render(<MenuPlanningView lists={lists} />);
+    await waitFor(() =>
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("tab", { name: /Cocinados/ }));
+    expect(screen.getByText("Tortilla")).toBeInTheDocument();
+    expect(screen.getByText(/9 ago 2026/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    fireEvent.change(screen.getByLabelText("Editar Tortilla"), {
+      target: { value: "Tortilla de patata" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocks.updateDish).toHaveBeenCalledWith(
+        "dish-2",
+        expect.objectContaining({ name: "Tortilla de patata" }),
+      ),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Eliminar" }));
+    await waitFor(() =>
+      expect(mocks.deleteDish).toHaveBeenCalledWith("dish-2"),
+    );
+  });
+
+  it("gestiona tipos y errores de carga", async () => {
+    mocks.getDishes.mockRejectedValueOnce(new Error("offline"));
     render(<MenuPlanningView lists={lists} />);
     await waitFor(() =>
       expect(
-        screen.getByText("No se pudo cargar el menú. Comprueba la conexión."),
+        screen.getByText("No se pudo cargar la biblioteca de platos."),
       ).toBeInTheDocument(),
     );
   });
 
-  it("maneja los fallos de las acciones después de cargar", async () => {
-    mocks.getProposal.mockResolvedValue(null);
-    mocks.saveDay.mockRejectedValue(new Error("save"));
-    mocks.request.mockRejectedValue(new Error("request"));
-    mocks.createType.mockRejectedValue(new Error("type"));
-    mocks.getHistory.mockRejectedValue(new Error("history"));
-    render(<MenuPlanningView lists={lists} />);
-    await waitFor(() => expect(mocks.getOrCreate).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole("button", { name: "Guardar menú" }));
-    await waitFor(() =>
-      expect(
-        screen.getByText("No se pudo guardar el menú."),
-      ).toBeInTheDocument(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Revisar con Codex" }));
-    await waitFor(() =>
-      expect(
-        screen.getByText("No se pudo solicitar la revisión de Codex."),
-      ).toBeInTheDocument(),
-    );
-    fireEvent.change(screen.getByLabelText("Nuevo tipo"), {
-      target: { value: "Brunch" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir tipo" }));
-    await waitFor(() =>
-      expect(
-        screen.getByText("No se pudo guardar el tipo de plato."),
-      ).toBeInTheDocument(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Cargar histórico" }));
-    await waitFor(() =>
-      expect(
-        screen.getByText("No se pudo cargar el histórico."),
-      ).toBeInTheDocument(),
-    );
-  });
-
-  it("no crea ni carga datos cuando no hay listas", () => {
-    render(<MenuPlanningView lists={[] as never} />);
-    expect(screen.getByRole("button", { name: "Guardar menú" })).toBeDisabled();
-    expect(mocks.getOrCreate).not.toHaveBeenCalled();
+  it("no carga ni permite guardar sin listas", () => {
+    render(<MenuPlanningView lists={[]} />);
+    expect(screen.getByRole("button", { name: "Añadir" })).toBeDisabled();
+    expect(mocks.getDishes).not.toHaveBeenCalled();
   });
 });

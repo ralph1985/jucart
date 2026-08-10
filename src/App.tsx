@@ -8714,8 +8714,8 @@ export function App() {
           onClick={() => setActiveView("menu")}
           disabled={!isLoaded || !isSupabaseConfigured()}
         >
-          <Icon name="history" />
-          <span>Menú</span>
+          <Icon name="list" />
+          <span>Platos</span>
         </button>
         <button
           className={

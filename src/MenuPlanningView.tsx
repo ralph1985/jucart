@@ -1,243 +1,209 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import type { ShoppingList } from "./shoppingLists";
 import {
-  confirmMenuProposal,
+  createMenuDish,
   createMenuDishType,
-  getMenuDishes,
+  deleteMenuDish,
   getMenuDishTypes,
-  getMenuHistory,
-  getLatestMenuProposal,
-  getOrCreateMenuPlan,
-  requestMenuPlanReview,
-  saveMenuPlanDay,
-  updateMenuProposalItem,
+  getMenuDishes,
+  updateMenuDish,
 } from "./menuPlanning";
-import type {
-  MenuDish,
-  MenuDishType,
-  MenuHistoryPlan,
-  MenuProposal,
-} from "./menuPlanning";
+import type { MenuDish, MenuDishType } from "./menuPlanning";
 
 type Props = { lists: ShoppingList[] };
+type DishTab = "pending" | "cooked";
 
-function dayKey(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-function formatDay(date: Date) {
-  return new Intl.DateTimeFormat("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-  }).format(date);
+const dateFormatter = new Intl.DateTimeFormat("es-ES", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+function formatCookedAt(value: string) {
+  return dateFormatter.format(new Date(value));
 }
 
 export function MenuPlanningView({ lists }: Props) {
   const [scopeListId, setScopeListId] = useState("");
-  const [planId, setPlanId] = useState<string | null>(null);
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [message, setMessage] = useState("Cargando menú…");
-  const [proposalMessage, setProposalMessage] = useState("");
-  const [proposal, setProposal] = useState<MenuProposal | null>(null);
-  const [dishTypes, setDishTypes] = useState<MenuDishType[]>([]);
-  const [dishTypeName, setDishTypeName] = useState("");
   const [dishes, setDishes] = useState<MenuDish[]>([]);
-  const [history, setHistory] = useState<MenuHistoryPlan[]>([]);
-  const [historyQuery, setHistoryQuery] = useState("");
-  const days = useMemo(
-    () =>
-      Array.from({ length: 7 }, (_, index) => {
-        const date = new Date();
-        date.setHours(12, 0, 0, 0);
-        date.setDate(date.getDate() + index);
-        return date;
-      }),
-    [],
-  );
+  const [dishTypes, setDishTypes] = useState<MenuDishType[]>([]);
+  const [dishName, setDishName] = useState("");
+  const [dishTypeId, setDishTypeId] = useState("");
+  const [activeTab, setActiveTab] = useState<DishTab>("pending");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [editingTypeId, setEditingTypeId] = useState("");
+  const [newTypeName, setNewTypeName] = useState("");
+  const [message, setMessage] = useState("Cargando platos…");
+  const [isSaving, setIsSaving] = useState(false);
 
   const selectedScopeListId = scopeListId || lists[0]?.id || "";
-  useEffect(() => {
-    if (!selectedScopeListId) return;
-    let cancelled = false;
-    void getOrCreateMenuPlan(selectedScopeListId, dayKey(days[0]))
-      .then(({ plan, days: storedDays }) => {
-        if (cancelled) return;
-        setPlanId(plan.id);
-        setValues(
-          Object.fromEntries(
-            storedDays.map((day: { plannedOn: string; content: string }) => [
-              day.plannedOn,
-              day.content,
-            ]),
-          ),
-        );
-        setMessage("");
-        void getMenuDishes(plan.id)
-          .then(setDishes)
-          .catch(() => undefined);
-        return getLatestMenuProposal(plan.id);
-      })
-      .then((proposal) => {
-        if (proposal) {
-          setProposal(proposal);
-          setProposalMessage(
-            proposal.status === "ready"
-              ? `${proposal.items.length} productos listos para revisar.`
-              : `Propuesta: ${proposal.status}.`,
-          );
-        }
-      })
-      .catch(() => {
-        if (!cancelled)
-          setMessage("No se pudo cargar el menú. Comprueba la conexión.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [days, selectedScopeListId]);
 
-  useEffect(() => {
-    if (!selectedScopeListId) return;
-    void getMenuDishTypes(selectedScopeListId)
-      .then(setDishTypes)
-      .catch(() => undefined);
-  }, [selectedScopeListId]);
-
-  useEffect(() => {
-    if (!planId || proposalMessage !== "Codex está preparando la propuesta.")
-      return;
-    const intervalId = window.setInterval(() => {
-      void getLatestMenuProposal(planId).then((nextProposal) => {
-        if (nextProposal?.status === "ready") {
-          setProposal(nextProposal);
-          setProposalMessage(
-            `${nextProposal.items.length} productos listos para revisar.`,
-          );
-          void getMenuDishes(planId)
-            .then(setDishes)
-            .catch(() => undefined);
-        }
-      });
-    }, 3000);
-    return () => window.clearInterval(intervalId);
-  }, [planId, proposalMessage]);
-
-  async function addDishType() {
-    if (!dishTypeName.trim()) return;
+  const loadCollection = useCallback(async (listId: string) => {
+    setMessage("Cargando platos…");
     try {
-      await createMenuDishType(selectedScopeListId, dishTypeName);
+      const [nextDishes, nextTypes] = await Promise.all([
+        getMenuDishes(listId),
+        getMenuDishTypes(listId),
+      ]);
+      setDishes(nextDishes);
+      setDishTypes(nextTypes);
+      setMessage("");
+    } catch {
+      setMessage("No se pudo cargar la biblioteca de platos.");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedScopeListId) return;
+    void Promise.resolve().then(() => loadCollection(selectedScopeListId));
+  }, [loadCollection, selectedScopeListId]);
+
+  const collectionDishes = selectedScopeListId ? dishes : null;
+  const collectionTypes = selectedScopeListId ? dishTypes : [];
+
+  const visibleDishes = useMemo(
+    () =>
+      (collectionDishes ?? []).filter(
+        (dish) =>
+          dish.status === activeTab &&
+          (!typeFilter || dish.dishTypeId === typeFilter),
+      ),
+    [activeTab, collectionDishes, typeFilter],
+  );
+  const pendingCount = (collectionDishes ?? []).filter(
+    (dish) => dish.status === "pending",
+  ).length;
+  const cookedCount = (collectionDishes ?? []).filter(
+    (dish) => dish.status === "cooked",
+  ).length;
+  const statusMessage = selectedScopeListId
+    ? message
+    : "Crea o selecciona una lista para guardar platos.";
+
+  async function addDish(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedScopeListId || !dishName.trim() || isSaving) return;
+    setIsSaving(true);
+    setMessage("Guardando plato…");
+    try {
+      const dish = await createMenuDish(
+        selectedScopeListId,
+        dishName,
+        dishTypeId || null,
+      );
+      setDishes((current) => [dish, ...current]);
+      setDishName("");
+      setMessage("Plato añadido.");
+    } catch {
+      setMessage(
+        "No se pudo guardar el plato. Comprueba que no esté repetido.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function changeDishStatus(dish: MenuDish) {
+    const status = dish.status === "pending" ? "cooked" : "pending";
+    try {
+      const updated = await updateMenuDish(dish.id, {
+        status,
+        cookedAt: status === "cooked" ? new Date().toISOString() : null,
+      });
+      setDishes((current) =>
+        current.map((currentDish) =>
+          currentDish.id === updated.id ? updated : currentDish,
+        ),
+      );
+      setMessage(
+        status === "cooked"
+          ? "Plato marcado como cocinado."
+          : "Plato recuperado.",
+      );
+    } catch {
+      setMessage("No se pudo actualizar el estado del plato.");
+    }
+  }
+
+  function startEditing(dish: MenuDish) {
+    setEditingId(dish.id);
+    setEditingName(dish.name);
+    setEditingTypeId(dish.dishTypeId ?? "");
+  }
+
+  async function saveEdit(event: FormEvent, dish: MenuDish) {
+    event.preventDefault();
+    if (!editingName.trim() || isSaving) return;
+    setIsSaving(true);
+    try {
+      const updated = await updateMenuDish(dish.id, {
+        name: editingName,
+        dishTypeId: editingTypeId || null,
+      });
+      setDishes((current) =>
+        current.map((currentDish) =>
+          currentDish.id === updated.id ? updated : currentDish,
+        ),
+      );
+      setEditingId(null);
+      setMessage("Plato actualizado.");
+    } catch {
+      setMessage("No se pudo actualizar el plato.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function removeDish(dish: MenuDish) {
+    if (!window.confirm(`¿Eliminar «${dish.name}» de la biblioteca?`)) return;
+    try {
+      await deleteMenuDish(dish.id);
+      setDishes((current) =>
+        current.filter((currentDish) => currentDish.id !== dish.id),
+      );
+      setMessage("Plato eliminado.");
+    } catch {
+      setMessage("No se pudo eliminar el plato.");
+    }
+  }
+
+  async function addDishType(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedScopeListId || !newTypeName.trim()) return;
+    try {
+      await createMenuDishType(selectedScopeListId, newTypeName);
+      setNewTypeName("");
       setDishTypes(await getMenuDishTypes(selectedScopeListId));
-      setDishTypeName("");
+      setMessage("Tipo de plato añadido.");
     } catch {
       setMessage("No se pudo guardar el tipo de plato.");
-    }
-  }
-
-  async function loadHistory() {
-    try {
-      setHistory(await getMenuHistory(selectedScopeListId));
-    } catch {
-      setMessage("No se pudo cargar el histórico.");
-    }
-  }
-
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!planId) return;
-    setMessage("Guardando…");
-    try {
-      await Promise.all(
-        days.map((day) =>
-          saveMenuPlanDay(planId, dayKey(day), values[dayKey(day)] ?? ""),
-        ),
-      );
-      setMessage("Menú guardado.");
-    } catch {
-      setMessage("No se pudo guardar el menú.");
-    }
-  }
-
-  async function requestReview() {
-    if (!planId) return;
-    setProposalMessage("Solicitando revisión a Codex…");
-    try {
-      await Promise.all(
-        days.map((day) =>
-          saveMenuPlanDay(planId, dayKey(day), values[dayKey(day)] ?? ""),
-        ),
-      );
-      await requestMenuPlanReview(planId);
-      setProposalMessage("Codex está preparando la propuesta.");
-    } catch {
-      setProposalMessage("No se pudo solicitar la revisión de Codex.");
-    }
-  }
-
-  async function toggleProposalItem(item: MenuProposal["items"][number]) {
-    const selected = !item.selected;
-    setProposal((current) =>
-      current
-        ? {
-            ...current,
-            items: current.items.map((currentItem) =>
-              currentItem.id === item.id
-                ? { ...currentItem, selected }
-                : currentItem,
-            ),
-          }
-        : current,
-    );
-    try {
-      await updateMenuProposalItem(item.id, { ...item, selected });
-    } catch {
-      setProposalMessage("No se pudo guardar ese cambio.");
-    }
-  }
-
-  async function changeProposalItem(
-    item: MenuProposal["items"][number],
-    values: Partial<MenuProposal["items"][number]>,
-  ) {
-    const next = { ...item, ...values };
-    setProposal((current) =>
-      current
-        ? {
-            ...current,
-            items: current.items.map((currentItem) =>
-              currentItem.id === item.id ? next : currentItem,
-            ),
-          }
-        : current,
-    );
-    try {
-      await updateMenuProposalItem(item.id, next);
-    } catch {
-      setProposalMessage("No se pudo guardar ese cambio.");
-    }
-  }
-
-  async function confirmProposal() {
-    if (!proposal || !planId) return;
-    setProposalMessage("Añadiendo productos a las listas…");
-    try {
-      await confirmMenuProposal(proposal.id);
-      setProposal(await getLatestMenuProposal(planId));
-      setProposalMessage("Productos añadidos a las listas seleccionadas.");
-    } catch {
-      setProposalMessage("No se pudieron añadir los productos.");
     }
   }
 
   return (
     <section aria-labelledby="menu-title" className="menuPlanningScreen">
       <header className="menuPlanningHeader">
-        <h2 id="menu-title">Menú</h2>
-        <p>Planifica desde hoy hasta los próximos seis días.</p>
+        <div>
+          <p className="menuPlanningEyebrow">Biblioteca compartida</p>
+          <h2 id="menu-title">Platos</h2>
+          <p>Ideas que podéis cocinar cuando no queráis pensar desde cero.</p>
+        </div>
+        <div className="menuPlanningCounts" aria-label="Resumen de platos">
+          <span>
+            <strong>{pendingCount}</strong> por cocinar
+          </span>
+          <span>
+            <strong>{cookedCount}</strong> cocinados
+          </span>
+        </div>
       </header>
-      <form onSubmit={save} className="menuPlanningForm">
-        <label>
-          Ámbito compartido
+
+      {lists.length > 0 ? (
+        <label className="menuScopeField">
+          Lista compartida
           <select
             value={selectedScopeListId}
             onChange={(event) => setScopeListId(event.target.value)}
@@ -249,151 +215,184 @@ export function MenuPlanningView({ lists }: Props) {
             ))}
           </select>
         </label>
-        {days.map((day) => (
-          <label key={dayKey(day)}>
-            <strong>{formatDay(day)}</strong>
-            <textarea
-              value={values[dayKey(day)] ?? ""}
-              onChange={(event) =>
-                setValues((current) => ({
-                  ...current,
-                  [dayKey(day)]: event.target.value,
-                }))
-              }
-              placeholder="¿Qué queréis comer?"
-              rows={3}
-            />
-          </label>
-        ))}
-        {dishes.length > 0 ? (
-          <section className="menuDishes" aria-label="Platos detectados">
-            <h3>Platos detectados</h3>
-            <ul>
-              {dishes.map((dish) => (
-                <li key={dish.id}>
-                  {dish.name}
-                  {dish.typeName ? ` · ${dish.typeName}` : ""}
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-        <button type="submit" disabled={!planId}>
-          Guardar menú
-        </button>
-        <button type="button" disabled={!planId} onClick={requestReview}>
-          Revisar con Codex
-        </button>
-        {message ? <p role="status">{message}</p> : null}
-        <p className="menuPlanningHint">
-          Codex prepara una propuesta que podrás revisar antes de añadir
-          productos.
-        </p>
-        <section className="menuDishTypes" aria-label="Tipos de plato">
-          <h3>Tipos de plato</h3>
-          <p>{dishTypes.map((type) => type.name).join(" · ") || "Sin tipos"}</p>
-          <label>
-            Nuevo tipo
-            <input
-              value={dishTypeName}
-              onChange={(event) => setDishTypeName(event.target.value)}
-            />
-          </label>
-          <button type="button" onClick={addDishType}>
-            Añadir tipo
-          </button>
-        </section>
-        <section className="menuHistory" aria-label="Histórico de menús">
-          <h3>Histórico</h3>
+      ) : null}
+
+      <form onSubmit={addDish} className="menuAddDishForm">
+        <label htmlFor="new-dish">Añadir un plato</label>
+        <div className="menuAddDishControls">
           <input
-            aria-label="Buscar en el histórico"
-            value={historyQuery}
-            onChange={(event) => setHistoryQuery(event.target.value)}
-            placeholder="Buscar plato o menú"
+            id="new-dish"
+            value={dishName}
+            onChange={(event) => setDishName(event.target.value)}
+            placeholder="Lentejas, tortilla de patata…"
+            disabled={!selectedScopeListId || isSaving}
           />
-          <button type="button" onClick={loadHistory}>
-            Cargar histórico
-          </button>
-          {history
-            .filter((plan) =>
-              JSON.stringify(plan)
-                .toLocaleLowerCase("es")
-                .includes(historyQuery.toLocaleLowerCase("es")),
-            )
-            .map((plan) => (
-              <article key={plan.id}>
-                <h4>{plan.startsOn}</h4>
-                {plan.days.map((day) => (
-                  <p key={day.plannedOn}>
-                    {day.plannedOn}:{" "}
-                    {day.dishes.map((dish) => dish.name).join(", ") ||
-                      day.content}
-                  </p>
-                ))}
-              </article>
+          <select
+            aria-label="Tipo del nuevo plato"
+            value={dishTypeId}
+            onChange={(event) => setDishTypeId(event.target.value)}
+            disabled={!selectedScopeListId || isSaving}
+          >
+            <option value="">Sin tipo</option>
+            {collectionTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+              </option>
             ))}
-        </section>
-        {proposalMessage ? <p role="status">{proposalMessage}</p> : null}
-        {proposal?.status === "ready" ? (
-          <section className="menuProposal" aria-label="Propuesta de compra">
-            <h3>Propuesta de compra</h3>
-            {proposal.items.map((item) => (
-              <fieldset key={item.id}>
-                <label>
+          </select>
+          <button
+            type="submit"
+            disabled={!dishName.trim() || !selectedScopeListId || isSaving}
+          >
+            Añadir
+          </button>
+        </div>
+      </form>
+
+      <div
+        className="menuDishTabs"
+        role="tablist"
+        aria-label="Estado de los platos"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "pending"}
+          onClick={() => setActiveTab("pending")}
+        >
+          Por cocinar <span>{pendingCount}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "cooked"}
+          onClick={() => setActiveTab("cooked")}
+        >
+          Cocinados <span>{cookedCount}</span>
+        </button>
+      </div>
+
+      {collectionTypes.length > 0 ? (
+        <label className="menuFilterField">
+          Filtrar por tipo
+          <select
+            value={typeFilter}
+            onChange={(event) => setTypeFilter(event.target.value)}
+          >
+            <option value="">Todos los tipos</option>
+            {collectionTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+
+      <section
+        className="menuDishList"
+        aria-live="polite"
+        aria-label={
+          activeTab === "pending" ? "Platos por cocinar" : "Platos cocinados"
+        }
+      >
+        {visibleDishes.length > 0 ? (
+          visibleDishes.map((dish) => (
+            <article className="menuDishRow" key={dish.id}>
+              {editingId === dish.id ? (
+                <form
+                  className="menuDishEditForm"
+                  onSubmit={(event) => void saveEdit(event, dish)}
+                >
                   <input
-                    type="checkbox"
-                    checked={item.selected}
-                    onChange={() => void toggleProposalItem(item)}
-                  />{" "}
-                  Añadir
-                </label>
-                <label>
-                  Producto
-                  <input
-                    value={item.name}
-                    onChange={(event) =>
-                      void changeProposalItem(item, {
-                        name: event.target.value,
-                      })
-                    }
+                    aria-label={`Editar ${dish.name}`}
+                    value={editingName}
+                    onChange={(event) => setEditingName(event.target.value)}
+                    autoFocus
                   />
-                </label>
-                <label>
-                  Cantidad
-                  <input
-                    value={item.quantity ?? ""}
-                    onChange={(event) =>
-                      void changeProposalItem(item, {
-                        quantity: event.target.value || null,
-                      })
-                    }
-                  />
-                </label>
-                <label>
-                  Lista
                   <select
-                    value={item.destinationListId}
-                    onChange={(event) =>
-                      void changeProposalItem(item, {
-                        destinationListId: event.target.value,
-                      })
-                    }
+                    aria-label={`Tipo de ${dish.name}`}
+                    value={editingTypeId}
+                    onChange={(event) => setEditingTypeId(event.target.value)}
                   >
-                    {lists.map((list) => (
-                      <option key={list.id} value={list.id}>
-                        {list.name}
+                    <option value="">Sin tipo</option>
+                    {collectionTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.name}
                       </option>
                     ))}
                   </select>
-                </label>
-              </fieldset>
-            ))}
-            <button type="button" onClick={confirmProposal}>
-              Añadir seleccionados
+                  <button type="submit">Guardar</button>
+                  <button type="button" onClick={() => setEditingId(null)}>
+                    Cancelar
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <div className="menuDishCopy">
+                    <strong>{dish.name}</strong>
+                    <span>
+                      {dish.typeName ?? "Sin tipo"}
+                      {dish.cookedAt
+                        ? ` · ${formatCookedAt(dish.cookedAt)}`
+                        : ""}
+                    </span>
+                  </div>
+                  <div className="menuDishActions">
+                    <button
+                      type="button"
+                      onClick={() => void changeDishStatus(dish)}
+                    >
+                      {dish.status === "pending"
+                        ? "Marcar cocinado"
+                        : "Recuperar"}
+                    </button>
+                    <button type="button" onClick={() => startEditing(dish)}>
+                      Editar
+                    </button>
+                    <button type="button" onClick={() => void removeDish(dish)}>
+                      Eliminar
+                    </button>
+                  </div>
+                </>
+              )}
+            </article>
+          ))
+        ) : message ? null : (
+          <p className="menuEmptyState">
+            {activeTab === "pending"
+              ? "Todavía no hay platos por cocinar."
+              : "Aún no hay platos cocinados."}
+          </p>
+        )}
+      </section>
+
+      <details className="menuDishTypes">
+        <summary>Gestionar tipos de plato</summary>
+        <form onSubmit={addDishType}>
+          <label htmlFor="new-dish-type">Nuevo tipo</label>
+          <div>
+            <input
+              id="new-dish-type"
+              value={newTypeName}
+              onChange={(event) => setNewTypeName(event.target.value)}
+              placeholder="Pasta, pescado…"
+            />
+            <button
+              type="submit"
+              disabled={!newTypeName.trim() || !selectedScopeListId}
+            >
+              Añadir tipo
             </button>
-          </section>
-        ) : null}
-      </form>
+          </div>
+        </form>
+      </details>
+
+      {statusMessage ? (
+        <p className="menuPlanningMessage" role="status">
+          {statusMessage}
+        </p>
+      ) : null}
     </section>
   );
 }

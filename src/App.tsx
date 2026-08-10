@@ -163,6 +163,7 @@ import type { HistoryTab } from "./components/history/HistoryTabs";
 import { HistoryView } from "./components/history/HistoryView";
 import { HistoryEventsList } from "./components/history/HistoryEventsList";
 import { RecategorizationChangesList } from "./components/history/RecategorizationChangesList";
+import { ProductNormalizationChangesList } from "./components/history/ProductNormalizationChangesList";
 import { TicketUploadSheet } from "./components/tickets/TicketUploadSheet";
 import { TicketReviewQueue } from "./components/tickets/TicketReviewQueue";
 import { TicketFilters } from "./components/tickets/TicketFilters";
@@ -5493,60 +5494,6 @@ export function App() {
     ));
   }
 
-  function renderProductNormalizationChanges() {
-    if (displayedProductNormalizationChanges.length === 0) {
-      return (
-        <div className={styles.historyEmpty}>
-          <p className={styles.emptyTitle}>
-            {showUnseenHistoryOnly
-              ? "No hay normalizaciones pendientes"
-              : "No hay normalizaciones"}
-          </p>
-          <p className={styles.emptyDescription}>
-            {showUnseenHistoryOnly
-              ? "Las normalizaciones ya están revisadas."
-              : "Las fusiones, renombres y aliases de Codex aparecerán aquí."}
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <ol className={styles.historyList}>
-        {displayedProductNormalizationChanges.map((change) => {
-          const run = productNormalizationRunsById.get(change.runId);
-          const runSummary = getProductNormalizationRunSummary(run);
-          const changeMeta = getProductNormalizationChangeMeta(change);
-
-          return (
-            <li className={styles.historyItem} key={change.id}>
-              <div className={styles.historyItemHeader}>
-                <span className={styles.historyAction}>
-                  {getProductNormalizationActionText(change)}
-                </span>
-                <time dateTime={new Date(change.createdAt).toISOString()}>
-                  {formatHistoryEventDate(change.createdAt)}
-                </time>
-              </div>
-              <p className={styles.historyProduct}>
-                {getProductNormalizationProductText(change)}
-              </p>
-              {changeMeta ? (
-                <p className={styles.historyMeta}>{changeMeta}</p>
-              ) : null}
-              {change.reason ? (
-                <p className={styles.historyMeta}>{change.reason}</p>
-              ) : null}
-              {runSummary ? (
-                <p className={styles.historyMeta}>{runSummary}</p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
-    );
-  }
-
   function toggleDeveloperSection(id: DeveloperSectionId) {
     setOpenDeveloperSection((currentId) => (currentId === id ? null : id));
   }
@@ -6110,7 +6057,16 @@ export function App() {
           showUnseenOnly={showUnseenHistoryOnly}
         >
           {historyTab === "normalizations" ? (
-            renderProductNormalizationChanges()
+            <ProductNormalizationChangesList
+              changes={displayedProductNormalizationChanges}
+              formatDate={formatHistoryEventDate}
+              getActionText={getProductNormalizationActionText}
+              getChangeMeta={getProductNormalizationChangeMeta}
+              getProductText={getProductNormalizationProductText}
+              getRunSummary={getProductNormalizationRunSummary}
+              runsById={productNormalizationRunsById}
+              showUnseenOnly={showUnseenHistoryOnly}
+            />
           ) : historyTab === "categories" ? (
             <RecategorizationChangesList
               categories={categories}

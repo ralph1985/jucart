@@ -142,9 +142,10 @@ import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
+import { DeveloperAppContext } from "./components/developer/DeveloperAppContext";
 import { FreezerView } from "./components/freezer/FreezerView";
-import { HistoryTabs } from "./components/history/HistoryTabs";
 import type { HistoryTab } from "./components/history/HistoryTabs";
+import { HistoryView } from "./components/history/HistoryView";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -7855,40 +7856,21 @@ export function App() {
       ) : null}
 
       {activeView === "history" ? (
-        <section
-          ref={historyScreenRef}
-          className={styles.historyScreen}
-          aria-labelledby="history-title"
+        <HistoryView
+          count={displayedHistoryCount}
+          historyTab={historyTab}
+          onButtonPointerDown={handleButtonPointerDown}
+          onHistoryTabChange={handleHistoryTabClick}
+          onShowFullHistory={showHistoryView}
+          screenRef={historyScreenRef}
+          showUnseenOnly={showUnseenHistoryOnly}
         >
-          <div className={styles.sectionsHeader}>
-            <h2 id="history-title">
-              {showUnseenHistoryOnly ? "Cambios nuevos" : "Historial"}
-            </h2>
-            <span className={styles.count}>{displayedHistoryCount}</span>
-          </div>
-          {showUnseenHistoryOnly ? (
-            <button
-              className={styles.secondaryButton}
-              type="button"
-              onPointerDown={handleButtonPointerDown}
-              onClick={showHistoryView}
-            >
-              Ver historial completo
-            </button>
-          ) : null}
-          {!showUnseenHistoryOnly ? (
-            <HistoryTabs
-              value={historyTab}
-              onChange={handleHistoryTabClick}
-              onButtonPointerDown={handleButtonPointerDown}
-            />
-          ) : null}
           {historyTab === "normalizations"
             ? renderProductNormalizationChanges()
             : historyTab === "categories"
               ? renderRecategorizationChanges()
               : renderHistoryEvents()}
-        </section>
+        </HistoryView>
       ) : null}
 
       {activeView === "menu" ? <MenuPlanningView /> : null}
@@ -7914,45 +7896,15 @@ export function App() {
             onToggle={toggleDeveloperSection}
           >
             {renderDeveloperAuthCard()}
-            <section
-              className={styles.developerPanel}
-              aria-label="Información operativa"
-            >
-              <div className={styles.developerPanelHeader}>
-                <h3>App</h3>
-                <span className={styles.developerStatusSuccess}>
-                  {getSyncStatusText(syncStatus)}
-                </span>
-              </div>
-              <dl className={styles.developerMetrics}>
-                <div>
-                  <dt>Almacenamiento</dt>
-                  <dd>{getShoppingItemsStorageMode()}</dd>
-                </div>
-                <div>
-                  <dt>Supabase</dt>
-                  <dd>
-                    {isSupabaseConfigured() ? "Configurado" : "No configurado"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Listas</dt>
-                  <dd>{sections.length}</dd>
-                </div>
-                <div>
-                  <dt>Pendientes</dt>
-                  <dd>{pendingCount}</dd>
-                </div>
-                <div>
-                  <dt>Comprados</dt>
-                  <dd>{purchasedCount}</dd>
-                </div>
-                <div>
-                  <dt>Historial 30 días</dt>
-                  <dd>{recentHistoryEvents.length}</dd>
-                </div>
-              </dl>
-            </section>
+            <DeveloperAppContext
+              historyCount={recentHistoryEvents.length}
+              pendingCount={pendingCount}
+              purchasedCount={purchasedCount}
+              sectionCount={sections.length}
+              storageMode={getShoppingItemsStorageMode()}
+              supabaseConfigured={isSupabaseConfigured()}
+              syncStatusText={getSyncStatusText(syncStatus)}
+            />
           </DeveloperDisclosure>
           <DeveloperDisclosure
             id="backup"

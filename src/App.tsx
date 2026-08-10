@@ -133,6 +133,8 @@ import {
 import { updateBadge } from "./services/badgeService";
 import { AppHeader } from "./components/app/AppHeader";
 import type { SyncStatus, ThemePreference } from "./components/app/AppHeader";
+import { AppBottomNav } from "./components/app/AppBottomNav";
+import type { AppView } from "./components/app/AppBottomNav";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -199,14 +201,6 @@ const initialPushNotificationSnapshot: PushNotificationSnapshot = {
 // Keep the freezer UI covered by unit tests while it remains hidden in builds.
 const freezerViewEnabled = import.meta.env.MODE === "test";
 
-type AppView =
-  | "shopping"
-  | "menu"
-  | "freezer"
-  | "tickets"
-  | "sections"
-  | "history"
-  | "developer";
 type HistoryTab = "changes" | "categories" | "normalizations";
 type TicketFilter = "all" | ShoppingTicketStatus;
 
@@ -8456,113 +8450,24 @@ export function App() {
         </section>
       ) : null}
 
-      <nav className={styles.bottomNav} aria-label="Navegación principal">
-        <button
-          className={
-            activeView === "shopping"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={showShoppingView}
-          disabled={!isLoaded}
-        >
-          <Icon name="utensils" />
-          <span>Lista</span>
-        </button>
-        <button
-          className={
-            activeView === "menu"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={() => setActiveView("menu")}
-          disabled={!isLoaded || !isSupabaseConfigured()}
-        >
-          <Icon name="list" />
-          <span>Platos</span>
-        </button>
-        <button
-          className={
-            activeView === "tickets"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={showTicketsView}
-          disabled={!isLoaded}
-        >
-          <Icon name="ticket" />
-          <span>Tickets</span>
-        </button>
-        {freezerViewEnabled ? (
-          <button
-            className={
-              activeView === "freezer"
-                ? styles.bottomNavItemActive
-                : styles.bottomNavItem
-            }
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={() => setActiveView("freezer")}
-            disabled={!isLoaded}
-          >
-            <Icon name="freezer" />
-            <span>Congelador</span>
-          </button>
-        ) : null}
-        <button
-          className={
-            activeView === "sections"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          aria-label="Gestionar listas"
-          onPointerDown={handleButtonPointerDown}
-          onClick={showSectionsView}
-          disabled={!isLoaded}
-        >
-          <Icon name="settings" />
-          <span>Listas</span>
-        </button>
-        <button
-          className={
-            activeView === "history"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={showHistoryView}
-          disabled={!isLoaded}
-        >
-          <Icon name="history" />
-          <span>Historial</span>
-        </button>
-        {isCurrentUserAdministrator &&
-        (!isSupabaseConfigured() || authSnapshot.status === "signed_in") ? (
-          <button
-            className={
-              activeView === "developer"
-                ? styles.bottomNavItemActive
-                : styles.bottomNavItem
-            }
-            type="button"
-            aria-label="Vista de desarrollador"
-            onPointerDown={handleButtonPointerDown}
-            onClick={showDeveloperView}
-            disabled={!isLoaded}
-          >
-            <Icon name="database" />
-            <span>Dev</span>
-          </button>
-        ) : null}
-      </nav>
+      <AppBottomNav
+        activeView={activeView}
+        isLoaded={isLoaded}
+        freezerViewEnabled={freezerViewEnabled}
+        canOpenMenu={isSupabaseConfigured()}
+        canOpenDeveloper={
+          isCurrentUserAdministrator &&
+          (!isSupabaseConfigured() || authSnapshot.status === "signed_in")
+        }
+        onButtonPointerDown={handleButtonPointerDown}
+        onShopping={showShoppingView}
+        onMenu={() => setActiveView("menu")}
+        onTickets={showTicketsView}
+        onFreezer={() => setActiveView("freezer")}
+        onSections={showSectionsView}
+        onHistory={showHistoryView}
+        onDeveloper={showDeveloperView}
+      />
 
       {isClearDialogOpen ? (
         <div

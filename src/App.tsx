@@ -132,12 +132,13 @@ import {
 } from "./pwaUpdateEvents";
 import { updateBadge } from "./services/badgeService";
 import { AppHeader } from "./components/app/AppHeader";
-import type { SyncStatus, ThemePreference } from "./components/app/AppHeader";
+import type { SyncStatus } from "./components/app/AppHeader";
 import { AppBottomNav } from "./components/app/AppBottomNav";
 import type { AppView } from "./components/app/AppBottomNav";
 import { PwaUpdateBanner } from "./components/app/PwaUpdateBanner";
 import { FloatingActionButton } from "./components/app/FloatingActionButton";
 import { ShoppingControls } from "./components/shopping/ShoppingControls";
+import { useThemePreference } from "./hooks/useThemePreference";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -219,7 +220,6 @@ type TimestampedItem = {
   updatedAt: number;
 };
 type HapticFeedback = "light" | "medium" | "success" | "warning";
-type ResolvedTheme = Exclude<ThemePreference, "auto">;
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
 type DeveloperSectionId = "auth" | "backup" | "actions" | "push";
 type AppOverlay =
@@ -300,26 +300,6 @@ const hapticFeedbackPatterns: Record<HapticFeedback, VibratePattern> = {
   warning: [28, 42, 36],
 };
 const overlayHistoryStateKey = "jucartOverlay";
-const themePreferenceStorageKey = "jucart:theme-preference";
-function getStoredThemePreference(): ThemePreference {
-  const preference = window.localStorage.getItem(themePreferenceStorageKey);
-
-  return preference === "light" || preference === "dark" ? preference : "auto";
-}
-
-function getSystemTheme(): ResolvedTheme {
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
-
-function getNextThemePreference(preference: ThemePreference): ThemePreference {
-  if (preference === "auto") {
-    return "light";
-  }
-
-  return preference === "light" ? "dark" : "auto";
-}
 
 function getInitialSelectedSectionId(): ShoppingSectionId {
   try {
@@ -1232,12 +1212,8 @@ async function getStoredPriceObservations() {
 export function App() {
   const appRelease = useState(getCurrentAppRelease)[0];
   const [activeView, setActiveView] = useState<AppView>("shopping");
-  const [themePreference, setThemePreference] = useState<ThemePreference>(
-    getStoredThemePreference,
-  );
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme);
-  const resolvedTheme =
-    themePreference === "auto" ? systemTheme : themePreference;
+  const { themePreference, resolvedTheme, cycleThemePreference } =
+    useThemePreference();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [freezerItems, setFreezerItems] = useState<FreezerItem[]>([]);
   const [sections, setSections] = useState<ShoppingSection[]>(
@@ -1723,34 +1699,6 @@ export function App() {
   const markLocalDataChange = useCallback(() => {
     localDataRevisionRef.current += 1;
   }, []);
-
-  useEffect(() => {
-    if (!window.matchMedia) {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = (event: MediaQueryListEvent) => {
-      setSystemTheme(event.matches ? "dark" : "light");
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
-
-  useEffect(() => {
-    document.body.classList.toggle(
-      "jucart-theme-dark",
-      resolvedTheme === "dark",
-    );
-    document.documentElement.style.colorScheme = resolvedTheme;
-
-    return () => {
-      document.body.classList.remove("jucart-theme-dark");
-      document.documentElement.style.removeProperty("color-scheme");
-    };
-  }, [resolvedTheme]);
 
   useEffect(() => {
     return () => {
@@ -3010,10 +2958,7 @@ export function App() {
   }
 
   function handleThemePreferenceChange() {
-    const nextPreference = getNextThemePreference(themePreference);
-
-    setThemePreference(nextPreference);
-    window.localStorage.setItem(themePreferenceStorageKey, nextPreference);
+    cycleThemePreference();
     runHapticFeedback("light");
   }
 

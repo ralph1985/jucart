@@ -147,6 +147,7 @@ import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
 import { DeveloperAppContext } from "./components/developer/DeveloperAppContext";
+import { DeveloperViewShell } from "./components/developer/DeveloperViewShell";
 import { FreezerView } from "./components/freezer/FreezerView";
 import { FreezerAddSheet } from "./components/freezer/FreezerAddSheet";
 import type { HistoryTab } from "./components/history/HistoryTabs";
@@ -7199,15 +7200,7 @@ export function App() {
       {activeView === "developer" &&
       isCurrentUserAdministrator &&
       (!isSupabaseConfigured() || authSnapshot.status === "signed_in") ? (
-        <section
-          ref={developerScreenRef}
-          className={styles.developerScreen}
-          aria-labelledby="developer-title"
-        >
-          <div className={styles.sectionsHeader}>
-            <h2 id="developer-title">Dev</h2>
-            <span className={styles.count}>Panel operativo</span>
-          </div>
+        <DeveloperViewShell screenRef={developerScreenRef}>
           {renderDeveloperOverviewCard()}
           <DeveloperDisclosure
             id="auth"
@@ -7258,7 +7251,7 @@ export function App() {
           >
             {renderDeveloperPushNotificationCard()}
           </DeveloperDisclosure>
-        </section>
+        </DeveloperViewShell>
       ) : null}
 
       <AppBottomNav

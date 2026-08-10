@@ -4976,46 +4976,6 @@ export function App() {
     setOpenDeveloperSection((currentId) => (currentId === id ? null : id));
   }
 
-  function renderShoppingListsCard() {
-    if (authSnapshot.status !== "signed_in" || !authSnapshot.user) {
-      return null;
-    }
-
-    return (
-      <ShoppingListsManager
-        expandedListIds={expandedShoppingListIds}
-        isActionPending={isShoppingListActionPending}
-        items={items}
-        lists={shoppingLists}
-        membersByListId={shoppingListMembers}
-        message={shoppingListMessage}
-        onButtonPointerDown={handleButtonPointerDown}
-        onColorChange={handleSectionColorChange}
-        onCreate={openSectionAddSheet}
-        onDelete={(list) => void handleDeleteShoppingList(list)}
-        onLeave={(listId) => void handleLeaveShoppingList(listId)}
-        onMove={(listId, direction) =>
-          void handleMoveShoppingList(listId, direction)
-        }
-        onOpen={handleOpenShoppingList}
-        onRegenerateCode={(listId) =>
-          void handleRegenerateShoppingListCode(listId)
-        }
-        onRemoveMember={(list, member) =>
-          void handleRemoveShoppingListMember(list, member)
-        }
-        onRename={(listId, name) => void handleRenameShoppingList(listId, name)}
-        onToggleDetails={(listId) =>
-          void handleToggleShoppingListMembers(listId)
-        }
-        onTransferOwnership={(list, member) =>
-          void handleTransferShoppingListOwnership(list, member)
-        }
-        sections={sections}
-      />
-    );
-  }
-
   if (isSupabaseConfigured() && authSnapshot.status !== "signed_in") {
     return (
       <LoginScreen
@@ -5539,7 +5499,43 @@ export function App() {
           }
           screenRef={sectionsScreenRef}
         >
-          {isSupabaseConfigured() ? renderShoppingListsCard() : null}
+          {isSupabaseConfigured() &&
+          authSnapshot.status === "signed_in" &&
+          authSnapshot.user ? (
+            <ShoppingListsManager
+              expandedListIds={expandedShoppingListIds}
+              isActionPending={isShoppingListActionPending}
+              items={items}
+              lists={shoppingLists}
+              membersByListId={shoppingListMembers}
+              message={shoppingListMessage}
+              onButtonPointerDown={handleButtonPointerDown}
+              onColorChange={handleSectionColorChange}
+              onCreate={openSectionAddSheet}
+              onDelete={(list) => void handleDeleteShoppingList(list)}
+              onLeave={(listId) => void handleLeaveShoppingList(listId)}
+              onMove={(listId, direction) =>
+                void handleMoveShoppingList(listId, direction)
+              }
+              onOpen={handleOpenShoppingList}
+              onRegenerateCode={(listId) =>
+                void handleRegenerateShoppingListCode(listId)
+              }
+              onRemoveMember={(list, member) =>
+                void handleRemoveShoppingListMember(list, member)
+              }
+              onRename={(listId, name) =>
+                void handleRenameShoppingList(listId, name)
+              }
+              onToggleDetails={(listId) =>
+                void handleToggleShoppingListMembers(listId)
+              }
+              onTransferOwnership={(list, member) =>
+                void handleTransferShoppingListOwnership(list, member)
+              }
+              sections={sections}
+            />
+          ) : null}
           {!isSupabaseConfigured() ? (
             <LocalSectionsManager
               actionMessage={sectionActionMessage}

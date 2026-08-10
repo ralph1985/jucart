@@ -146,6 +146,7 @@ import { useSheetDrag } from "./hooks/useSheetDrag";
 import { useBottomSheetOpenAnimation } from "./hooks/useBottomSheetOpenAnimation";
 import { useBottomSheetViewport } from "./hooks/useBottomSheetViewport";
 import { useBottomSheetCloseAnimation } from "./hooks/useBottomSheetCloseAnimation";
+import { useShoppingBoardCarousel } from "./hooks/useShoppingBoardCarousel";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
@@ -1483,6 +1484,16 @@ export function App() {
     slidesToScroll: 1,
     startIndex: selectedSectionIndex,
   });
+  useShoppingBoardCarousel({
+    api: boardApi,
+    isActive: activeView === "shopping",
+    onSelectSection: setSelectedSectionId,
+    sections,
+    sectionsRef,
+    selectedSectionId,
+    selectedSectionIdRef,
+    shouldAnimate,
+  });
   const editingItem = editingItemId
     ? items.find((item) => item.id === editingItemId)
     : null;
@@ -2247,59 +2258,6 @@ export function App() {
   useEffect(() => {
     selectedSectionIdRef.current = selectedSectionId;
   }, [selectedSectionId]);
-
-  useEffect(() => {
-    if (!boardApi) {
-      return;
-    }
-
-    const api = boardApi;
-
-    function syncSelectedSection() {
-      const nextSection = sectionsRef.current[api.selectedScrollSnap()];
-
-      if (!nextSection || nextSection.id === selectedSectionIdRef.current) {
-        return;
-      }
-
-      setSelectedSectionId(nextSection.id);
-    }
-
-    api.on("select", syncSelectedSection);
-
-    return () => {
-      api.off("select", syncSelectedSection);
-    };
-  }, [boardApi]);
-
-  useEffect(() => {
-    if (!boardApi || activeView !== "shopping") {
-      return;
-    }
-
-    boardApi.scrollTo(selectedSectionIndex, !shouldAnimate());
-  }, [activeView, boardApi, selectedSectionId, selectedSectionIndex]);
-
-  useEffect(() => {
-    if (!boardApi || activeView !== "shopping") {
-      return;
-    }
-
-    const api = boardApi;
-    const animationFrame = window.requestAnimationFrame(() => {
-      const nextSectionIndex = Math.max(
-        sectionsRef.current.findIndex(
-          (section) => section.id === selectedSectionIdRef.current,
-        ),
-        0,
-      );
-
-      api.reInit();
-      api.scrollTo(nextSectionIndex, true);
-    });
-
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [activeView, boardApi, sections]);
 
   useEffect(() => {
     if (!isLoaded || hasAnimatedInitialColumnsRef.current) {

@@ -144,6 +144,7 @@ import { usePullToRefreshGesture } from "./hooks/usePullToRefreshGesture";
 import { useOverlayHistory } from "./hooks/useOverlayHistory";
 import { useSheetDrag } from "./hooks/useSheetDrag";
 import { useBottomSheetOpenAnimation } from "./hooks/useBottomSheetOpenAnimation";
+import { useBottomSheetViewport } from "./hooks/useBottomSheetViewport";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
@@ -1377,7 +1378,6 @@ export function App() {
   const [addItemNotes, setAddItemNotes] = useState("");
   const [addProductNotice, setAddProductNotice] =
     useState<AddProductNotice | null>(null);
-  const [sheetKeyboardInset, setSheetKeyboardInset] = useState(0);
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(
     null,
   );
@@ -1490,6 +1490,24 @@ export function App() {
     isSectionAddSheetOpen ||
     isFreezerAddSheetOpen ||
     editingFreezerItem !== null;
+  const bottomSheetFocusKey = isAddSheetOpen
+    ? "add"
+    : isTicketUploadSheetOpen
+      ? "ticket-upload"
+      : selectedPriceProductId !== null
+        ? "price-detail"
+        : editingFreezerItem !== null
+          ? "freezer-edit"
+          : isSectionAddSheetOpen
+            ? "section-add"
+            : isFreezerAddSheetOpen
+              ? "freezer-add"
+              : null;
+  const sheetKeyboardInset = useBottomSheetViewport({
+    focusKey: bottomSheetFocusKey,
+    isOpen: isBottomSheetOpen,
+    onFocus: focusActiveBottomSheet,
+  });
   const {
     distance: pullRefreshDistance,
     handleTouchEnd: handlePullRefreshTouchEnd,
@@ -2677,82 +2695,6 @@ export function App() {
   }, [isAddSheetOpen]);
 
   useEffect(() => {
-    if (!isBottomSheetOpen) {
-      return;
-    }
-
-    const previousBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    function updateViewportInset() {
-      const visualViewport = window.visualViewport;
-
-      if (!visualViewport) {
-        setSheetKeyboardInset(0);
-        return;
-      }
-
-      setSheetKeyboardInset(
-        Math.max(
-          0,
-          window.innerHeight - visualViewport.height - visualViewport.offsetTop,
-        ),
-      );
-    }
-
-    updateViewportInset();
-    window.visualViewport?.addEventListener("resize", updateViewportInset);
-    window.visualViewport?.addEventListener("scroll", updateViewportInset);
-    const focusFrame = window.requestAnimationFrame(() => {
-      if (isAddSheetOpen) {
-        itemNameInputRef.current?.focus({ preventScroll: true });
-        const textLength = itemNameInputRef.current?.value.length ?? 0;
-        itemNameInputRef.current?.setSelectionRange(textLength, textLength);
-        resizeAddInput();
-        return;
-      }
-
-      if (isTicketUploadSheetOpen) {
-        ticketFileInputRef.current?.focus({ preventScroll: true });
-        return;
-      }
-
-      if (selectedPriceProductId !== null) {
-        priceDetailSheetRef.current?.focus({ preventScroll: true });
-        return;
-      }
-
-      if (editingFreezerItem) {
-        editingFreezerItemNameInputRef.current?.focus({
-          preventScroll: true,
-        });
-        return;
-      }
-
-      if (isSectionAddSheetOpen) {
-        sectionNameInputRef.current?.focus({ preventScroll: true });
-        return;
-      }
-
-      freezerItemNameInputRef.current?.focus({ preventScroll: true });
-    });
-
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      window.cancelAnimationFrame(focusFrame);
-      window.visualViewport?.removeEventListener("resize", updateViewportInset);
-      window.visualViewport?.removeEventListener("scroll", updateViewportInset);
-    };
-  }, [
-    editingFreezerItem,
-    isAddSheetOpen,
-    isBottomSheetOpen,
-    isSectionAddSheetOpen,
-    isTicketUploadSheetOpen,
-    selectedPriceProductId,
-  ]);
-
-  useEffect(() => {
     if (!isAddSheetOpen || !addProductNotice) {
       return;
     }
@@ -2825,6 +2767,38 @@ export function App() {
 
     input.style.height = "auto";
     input.style.height = `${input.scrollHeight}px`;
+  }
+
+  function focusActiveBottomSheet() {
+    if (isAddSheetOpen) {
+      itemNameInputRef.current?.focus({ preventScroll: true });
+      const textLength = itemNameInputRef.current?.value.length ?? 0;
+      itemNameInputRef.current?.setSelectionRange(textLength, textLength);
+      resizeAddInput();
+      return;
+    }
+
+    if (isTicketUploadSheetOpen) {
+      ticketFileInputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
+    if (selectedPriceProductId !== null) {
+      priceDetailSheetRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
+    if (editingFreezerItem) {
+      editingFreezerItemNameInputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
+    if (isSectionAddSheetOpen) {
+      sectionNameInputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
+    freezerItemNameInputRef.current?.focus({ preventScroll: true });
   }
 
   function closeBottomSheetWithAnimation(

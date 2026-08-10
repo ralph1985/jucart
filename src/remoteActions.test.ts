@@ -28,6 +28,7 @@ vi.mock("./supabaseConfig", () => ({
 import {
   createRemoteBackupAction,
   createRemoteAction,
+  getRemoteAction,
   getLatestRemoteAction,
   subscribeToRemoteActions,
 } from "./remoteActions";
@@ -191,6 +192,34 @@ describe("remote actions", () => {
       startedAt: null,
       finishedAt: null,
     });
+  });
+
+  it("loads a remote action by id", async () => {
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          id: "action-3",
+          action: "recategorize_menu_dishes",
+          status: "running",
+          result_summary: null,
+          error_message: null,
+          created_at: "2026-07-30T10:00:00.000Z",
+          started_at: null,
+          finished_at: null,
+        },
+        error: null,
+      }),
+    };
+    mocks.from.mockReturnValue(query);
+
+    await expect(getRemoteAction("action-3")).resolves.toMatchObject({
+      id: "action-3",
+      action: "recategorize_menu_dishes",
+      status: "running",
+    });
+    expect(query.eq).toHaveBeenCalledWith("id", "action-3");
   });
 
   it("does nothing when Supabase is not configured", async () => {

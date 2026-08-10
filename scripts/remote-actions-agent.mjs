@@ -50,6 +50,10 @@ async function executeAction(action) {
       "node",
       ["scripts/review-menu-plan-with-codex.mjs", action.id],
     ],
+    recategorize_menu_dishes: [
+      "node",
+      ["scripts/recategorize-menu-dishes-with-codex.mjs", action.id],
+    ],
   };
   const command = commands[action.action];
   if (!command) {

@@ -13,6 +13,7 @@ const allowedActions = new Set([
   "process_tickets",
   "update_external_prices",
   "review_menu_plan",
+  "recategorize_menu_dishes",
 ]);
 const defaultWebOrigin = "https://jucar-cart.vercel.app";
 
@@ -107,6 +108,18 @@ async function handleUserRequest(
       .from("shopping_list_members")
       .select("list_id")
       .eq("list_id", plan.scope_list_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!member) return jsonResponse(request, { error: "No autorizado." }, 403);
+  } else if (action === "recategorize_menu_dishes") {
+    const libraryId =
+      typeof payload.libraryId === "string" ? payload.libraryId : "";
+    if (!libraryId)
+      return jsonResponse(request, { error: "Biblioteca inválida." }, 400);
+    const { data: member } = await supabase
+      .from("menu_dish_library_members")
+      .select("library_id")
+      .eq("library_id", libraryId)
       .eq("user_id", user.id)
       .maybeSingle();
     if (!member) return jsonResponse(request, { error: "No autorizado." }, 403);
@@ -206,6 +219,12 @@ async function handleAgentRequest(
     return jsonResponse(undefined, context);
   }
 
+  if (operation === "menu_dish_context") {
+    const actionId = typeof body.actionId === "string" ? body.actionId : "";
+    const context = await getMenuDishContext(supabase, actionId, agentId);
+    return jsonResponse(undefined, context);
+  }
+
   if (operation === "menu_apply") {
     const actionId = typeof body.actionId === "string" ? body.actionId : "";
     const items = Array.isArray(body.items) ? body.items : null;
@@ -222,7 +241,106 @@ async function handleAgentRequest(
     return jsonResponse(undefined, result);
   }
 
+  if (operation === "menu_dish_apply") {
+    const actionId = typeof body.actionId === "string" ? body.actionId : "";
+    const changes = Array.isArray(body.changes) ? body.changes : null;
+    const summary = typeof body.summary === "string" ? body.summary : "";
+    if (!changes)
+      return jsonResponse(
+        undefined,
+        { error: "Recategorización inválida." },
+        400,
+      );
+    const result = await applyMenuDishRecategorization(
+      supabase,
+      actionId,
+      agentId,
+      changes,
+      summary,
+    );
+    return jsonResponse(undefined, result);
+  }
+
   return jsonResponse(undefined, { error: "Operación no permitida." }, 400);
+}
+
+async function getMenuDishContext(
+  supabase: ReturnType<typeof createClient>,
+  actionId: string,
+  agentId: string,
+) {
+  const { data: action, error } = await supabase
+    .from("remote_actions")
+    .select("id, payload")
+    .eq("id", actionId)
+    .eq("action", "recategorize_menu_dishes")
+    .eq("status", "running")
+    .eq("agent_id", agentId)
+    .maybeSingle();
+  const libraryId =
+    typeof action?.payload?.libraryId === "string"
+      ? action.payload.libraryId
+      : "";
+  if (error || !libraryId)
+    throw new Error("Biblioteca de platos no disponible.");
+  const [{ data: dishes }, { data: dishTypes }] = await Promise.all([
+    supabase
+      .from("menu_dishes")
+      .select("id, name, status, dish_type_id")
+      .eq("library_id", libraryId)
+      .order("name"),
+    supabase
+      .from("menu_dish_types")
+      .select("id, name")
+      .eq("library_id", libraryId)
+      .order("position"),
+  ]);
+  return { libraryId, dishes: dishes ?? [], dishTypes: dishTypes ?? [] };
+}
+
+async function applyMenuDishRecategorization(
+  supabase: ReturnType<typeof createClient>,
+  actionId: string,
+  agentId: string,
+  changes: unknown[],
+  summary: string,
+) {
+  const context = await getMenuDishContext(supabase, actionId, agentId);
+  if (changes.length > 500)
+    throw new Error("La recategorización supera el límite.");
+  const allowedDishes = new Set(context.dishes.map((dish) => dish.id));
+  const allowedTypes = new Set(context.dishTypes.map((type) => type.id));
+  const validChanges = changes.map((change) => {
+    if (!change || typeof change !== "object")
+      throw new Error("Cambio de plato inválido.");
+    const value = change as Record<string, unknown>;
+    const dishId = typeof value.dishId === "string" ? value.dishId : "";
+    const dishTypeId =
+      value.dishTypeId === null
+        ? null
+        : typeof value.dishTypeId === "string"
+          ? value.dishTypeId
+          : "";
+    const reason = typeof value.reason === "string" ? value.reason : "";
+    if (
+      !allowedDishes.has(dishId) ||
+      (dishTypeId && !allowedTypes.has(dishTypeId))
+    )
+      throw new Error("El cambio usa un plato o tipo no autorizado.");
+    return { dishId, dishTypeId, reason };
+  });
+  const { data, error } = await supabase.rpc(
+    "apply_menu_dish_recategorization",
+    {
+      p_action_id: actionId,
+      p_library_id: context.libraryId,
+      p_changes: validChanges,
+      p_summary: summary.slice(0, 500),
+    },
+  );
+  if (error || !data)
+    throw new Error("No se pudo aplicar la recategorización.");
+  return { run: data };
 }
 
 async function getMenuContext(

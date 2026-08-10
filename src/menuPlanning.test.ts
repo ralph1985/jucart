@@ -4,6 +4,8 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   getConfig: vi.fn(),
   from: vi.fn(),
+  rpc: vi.fn(),
+  createRemoteAction: vi.fn(),
 }));
 vi.mock("@supabase/supabase-js", () => ({ createClient: mocks.createClient }));
 vi.mock("./supabaseConfig", () => ({ getSupabaseConfig: mocks.getConfig }));
@@ -15,8 +17,17 @@ import {
   getMenuDishLibrary,
   getMenuDishes,
   getMenuDishTypes,
+  getLatestMenuDishRecategorization,
+  requestMenuDishRecategorization,
+  undoMenuDishRecategorization,
+  updateMenuDishType,
+  deleteMenuDishType,
   updateMenuDish,
 } from "./menuPlanning";
+
+vi.mock("./remoteActions", () => ({
+  createRemoteAction: mocks.createRemoteAction,
+}));
 
 function query(data: unknown, error: unknown = null) {
   const value: Record<string, unknown> = { data, error };
@@ -54,7 +65,9 @@ describe("menuPlanning", () => {
       url: "https://example.supabase.co",
       anonKey: "key",
     });
-    mocks.createClient.mockReturnValue({ from: mocks.from });
+    mocks.createClient.mockReturnValue({ from: mocks.from, rpc: mocks.rpc });
+    mocks.createRemoteAction.mockResolvedValue("action-1");
+    mocks.rpc.mockResolvedValue({ data: 1, error: null });
   });
 
   it("mapea la colección y sus tipos", async () => {
@@ -93,5 +106,39 @@ describe("menuPlanning", () => {
     await expect(
       createMenuDishType("library-1", " Pasta "),
     ).resolves.toBeUndefined();
+  });
+
+  it("gestiona tipos y recategorización remota con deshacer", async () => {
+    mocks.from.mockImplementation((name: string) => {
+      if (name === "menu_dish_recategorization_runs") {
+        return query({
+          id: "run-1",
+          library_id: "library-1",
+          summary: "1 plato",
+          dishes_recategorized: 1,
+          created_at: "2026-08-10T12:00:00Z",
+          reverted_at: null,
+        });
+      }
+      return query(row);
+    });
+
+    await expect(
+      updateMenuDishType("type-1", " Verduras "),
+    ).resolves.toBeUndefined();
+    await expect(deleteMenuDishType("type-1")).resolves.toBeUndefined();
+    await expect(requestMenuDishRecategorization("library-1")).resolves.toBe(
+      "action-1",
+    );
+    await expect(
+      getLatestMenuDishRecategorization("library-1"),
+    ).resolves.toMatchObject({
+      id: "run-1",
+      dishesRecategorized: 1,
+    });
+    await expect(undoMenuDishRecategorization("run-1")).resolves.toBe(1);
+    expect(mocks.rpc).toHaveBeenCalledWith("undo_menu_dish_recategorization", {
+      p_run_id: "run-1",
+    });
   });
 });

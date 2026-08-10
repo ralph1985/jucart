@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -9,6 +15,12 @@ const mocks = vi.hoisted(() => ({
   deleteDish: vi.fn(),
   getTypes: vi.fn(),
   createType: vi.fn(),
+  updateType: vi.fn(),
+  deleteType: vi.fn(),
+  getLatestRun: vi.fn(),
+  requestRecategorization: vi.fn(),
+  undoRecategorization: vi.fn(),
+  getRemoteAction: vi.fn(),
 }));
 
 vi.mock("./menuPlanning", () => ({
@@ -19,7 +31,14 @@ vi.mock("./menuPlanning", () => ({
   deleteMenuDish: mocks.deleteDish,
   getMenuDishTypes: mocks.getTypes,
   createMenuDishType: mocks.createType,
+  updateMenuDishType: mocks.updateType,
+  deleteMenuDishType: mocks.deleteType,
+  getLatestMenuDishRecategorization: mocks.getLatestRun,
+  requestMenuDishRecategorization: mocks.requestRecategorization,
+  undoMenuDishRecategorization: mocks.undoRecategorization,
 }));
+
+vi.mock("./remoteActions", () => ({ getRemoteAction: mocks.getRemoteAction }));
 
 import { MenuPlanningView } from "./MenuPlanningView";
 
@@ -63,6 +82,12 @@ describe("MenuPlanningView", () => {
       }),
     );
     mocks.createType.mockResolvedValue(undefined);
+    mocks.updateType.mockResolvedValue(undefined);
+    mocks.deleteType.mockResolvedValue(undefined);
+    mocks.getLatestRun.mockResolvedValue(null);
+    mocks.requestRecategorization.mockResolvedValue("action-1");
+    mocks.undoRecategorization.mockResolvedValue(1);
+    mocks.getRemoteAction.mockResolvedValue(null);
     mocks.deleteDish.mockResolvedValue(undefined);
     vi.spyOn(window, "confirm").mockReturnValue(true);
   });
@@ -88,7 +113,7 @@ describe("MenuPlanningView", () => {
     );
 
     const cookButtons = screen.getAllByRole("button", {
-      name: "Marcar cocinado",
+      name: /Marcar cocinado: Lentejas/,
     });
     fireEvent.click(cookButtons[cookButtons.length - 1]);
     await waitFor(() =>
@@ -108,7 +133,7 @@ describe("MenuPlanningView", () => {
     expect(screen.getByText("Tortilla")).toBeInTheDocument();
     expect(screen.getByText(/9 ago 2026/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Editar: Tortilla" }));
     fireEvent.change(screen.getByLabelText("Editar Tortilla"), {
       target: { value: "Tortilla de patata" },
     });
@@ -120,7 +145,9 @@ describe("MenuPlanningView", () => {
       ),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Eliminar" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Eliminar: Tortilla de patata" }),
+    );
     await waitFor(() =>
       expect(mocks.deleteDish).toHaveBeenCalledWith("dish-2"),
     );
@@ -145,5 +172,136 @@ describe("MenuPlanningView", () => {
       ).toBeInTheDocument(),
     );
     expect(screen.getByRole("button", { name: "Añadir" })).toBeDisabled();
+  });
+
+  it("gestiona tipos desde una modal y solicita la recategorización", async () => {
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Gestionar tipos de plato" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Tipos de plato" }),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Nuevo tipo"), {
+      target: { value: "Pasta" },
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Añadir" })[1]);
+    await waitFor(() =>
+      expect(mocks.createType).toHaveBeenCalledWith("library-1", "Pasta"),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Recategorizar platos" }),
+    );
+    await waitFor(() =>
+      expect(mocks.requestRecategorization).toHaveBeenCalledWith("library-1"),
+    );
+    expect(
+      screen.getByRole("button", { name: /Marcar cocinado: Lentejas/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("permite renombrar, eliminar y deshacer la última recategorización", async () => {
+    mocks.getLatestRun.mockResolvedValue({
+      id: "run-1",
+      libraryId: "library-1",
+      summary: "1 plato recategorizado",
+      dishesRecategorized: 1,
+      createdAt: "2026-08-10T12:00:00Z",
+      revertedAt: null,
+    });
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Gestionar tipos de plato" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Tipos de plato" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Editar" }));
+    fireEvent.change(
+      within(dialog).getByRole("textbox", { name: "Renombrar Legumbres" }),
+      {
+        target: { value: "Legumbres y verduras" },
+      },
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocks.updateType).toHaveBeenCalledWith(
+        "type-1",
+        "Legumbres y verduras",
+      ),
+    );
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+    await waitFor(() =>
+      expect(mocks.deleteType).toHaveBeenCalledWith("type-1"),
+    );
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: /Deshacer última recategorización/,
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.undoRecategorization).toHaveBeenCalledWith("run-1"),
+    );
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("informa si Codex no puede aceptar la solicitud", async () => {
+    mocks.requestRecategorization.mockRejectedValueOnce(new Error("offline"));
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Gestionar tipos de plato" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Recategorizar platos" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByText("No se pudo solicitar la recategorización."),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("muestra errores al guardar o eliminar tipos", async () => {
+    mocks.createType.mockRejectedValueOnce(new Error("offline"));
+    mocks.deleteType.mockRejectedValueOnce(new Error("offline"));
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Gestionar tipos de plato" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Tipos de plato" });
+    fireEvent.change(within(dialog).getByLabelText("Nuevo tipo"), {
+      target: { value: "Pasta" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
+    await waitFor(() =>
+      expect(
+        within(dialog).getByText("No se pudo guardar el tipo de plato."),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+    await waitFor(() =>
+      expect(
+        within(dialog).getByText("No se pudo eliminar el tipo de plato."),
+      ).toBeInTheDocument(),
+    );
   });
 });

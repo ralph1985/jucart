@@ -10,7 +10,8 @@ export type RemoteActionName =
   | "normalize_products"
   | "process_tickets"
   | "update_external_prices"
-  | "review_menu_plan";
+  | "review_menu_plan"
+  | "recategorize_menu_dishes";
 
 export type RemoteAction = {
   id: string;
@@ -91,6 +92,23 @@ export async function getLatestRemoteAction(): Promise<RemoteAction | null> {
     )
     .order("created_at", { ascending: false })
     .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapRemoteAction(data as RemoteActionRow) : null;
+}
+
+export async function getRemoteAction(
+  actionId: string,
+): Promise<RemoteAction | null> {
+  const supabase = getClient();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("remote_actions")
+    .select(
+      "id, action, status, result_summary, error_message, created_at, started_at, finished_at",
+    )
+    .eq("id", actionId)
     .maybeSingle();
   if (error) throw error;
   return data ? mapRemoteAction(data as RemoteActionRow) : null;

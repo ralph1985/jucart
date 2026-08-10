@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 import { getSupabaseConfig } from "./supabaseConfig";
+import { createRemoteAction } from "./remoteActions";
 
 export type MenuDishStatus = "pending" | "cooked";
 export type MenuDish = {
@@ -15,6 +16,14 @@ export type MenuDish = {
   updatedAt: string;
 };
 export type MenuDishType = { id: string; name: string };
+export type MenuDishRecategorizationRun = {
+  id: string;
+  libraryId: string;
+  summary: string;
+  dishesRecategorized: number;
+  createdAt: string;
+  revertedAt: string | null;
+};
 
 let client: ReturnType<typeof createClient> | null = null;
 type TableResult = { data: unknown; error: unknown };
@@ -41,6 +50,14 @@ type MenuDishRow = {
   menu_dish_types: { id: string; name: string } | null;
 };
 type MenuDishTypeRow = { id: string; name: string };
+type MenuDishRecategorizationRunRow = {
+  id: string;
+  library_id: string;
+  summary: string;
+  dishes_recategorized: number;
+  created_at: string;
+  reverted_at: string | null;
+};
 
 function getClient() {
   const config = getSupabaseConfig();
@@ -164,4 +181,65 @@ export async function createMenuDishType(libraryId: string, name: string) {
     position: Date.now(),
   }) as unknown as Promise<TableResult>);
   if (error) throw error;
+}
+
+export async function updateMenuDishType(typeId: string, name: string) {
+  const { error } = await (table("menu_dish_types")
+    .update({ name: name.trim() })
+    .eq("id", typeId) as unknown as Promise<TableResult>);
+  if (error) throw error;
+}
+
+export async function deleteMenuDishType(typeId: string) {
+  const { error } = await (table("menu_dish_types")
+    .delete()
+    .eq("id", typeId) as unknown as Promise<TableResult>);
+  if (error) throw error;
+}
+
+export async function requestMenuDishRecategorization(libraryId: string) {
+  return createRemoteAction(
+    "recategorize_menu_dishes",
+    `recategorize_menu_dishes-${libraryId}-${crypto.randomUUID()}`,
+    { libraryId },
+  );
+}
+
+export async function getLatestMenuDishRecategorization(
+  libraryId: string,
+): Promise<MenuDishRecategorizationRun | null> {
+  const { data, error } = await (table("menu_dish_recategorization_runs")
+    .select(
+      "id, library_id, summary, dishes_recategorized, created_at, reverted_at",
+    )
+    .eq("library_id", libraryId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle() as unknown as Promise<TableResult>);
+  if (error) throw error;
+  if (!data) return null;
+  const run = data as MenuDishRecategorizationRunRow;
+  return {
+    id: run.id,
+    libraryId: run.library_id,
+    summary: run.summary,
+    dishesRecategorized: run.dishes_recategorized,
+    createdAt: run.created_at,
+    revertedAt: run.reverted_at,
+  };
+}
+
+export async function undoMenuDishRecategorization(runId: string) {
+  const supabase = getClient() as unknown as {
+    rpc: (
+      functionName: string,
+      args: Record<string, string>,
+    ) => Promise<TableResult>;
+  };
+  const { data, error } = await supabase.rpc(
+    "undo_menu_dish_recategorization",
+    { p_run_id: runId },
+  );
+  if (error) throw error;
+  return Number(data ?? 0);
 }

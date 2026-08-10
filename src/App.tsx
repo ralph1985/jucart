@@ -142,6 +142,8 @@ import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
 import { FreezerView } from "./components/freezer/FreezerView";
+import { HistoryTabs } from "./components/history/HistoryTabs";
+import type { HistoryTab } from "./components/history/HistoryTabs";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -209,7 +211,6 @@ const initialPushNotificationSnapshot: PushNotificationSnapshot = {
 const freezerViewEnabled = import.meta.env.MODE === "test";
 
 type TicketFilter = "all" | ShoppingTicketStatus;
-type HistoryTab = "changes" | "categories" | "normalizations";
 
 type PullRefreshGesture = {
   pointerId: number;
@@ -7979,50 +7980,11 @@ export function App() {
             </button>
           ) : null}
           {!showUnseenHistoryOnly ? (
-            <div className={styles.historyTabs} role="tablist">
-              <button
-                className={
-                  historyTab === "changes"
-                    ? styles.historyTabActive
-                    : styles.historyTab
-                }
-                type="button"
-                role="tab"
-                aria-selected={historyTab === "changes"}
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => handleHistoryTabClick("changes")}
-              >
-                Cambios
-              </button>
-              <button
-                className={
-                  historyTab === "categories"
-                    ? styles.historyTabActive
-                    : styles.historyTab
-                }
-                type="button"
-                role="tab"
-                aria-selected={historyTab === "categories"}
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => handleHistoryTabClick("categories")}
-              >
-                Categorías
-              </button>
-              <button
-                className={
-                  historyTab === "normalizations"
-                    ? styles.historyTabActive
-                    : styles.historyTab
-                }
-                type="button"
-                role="tab"
-                aria-selected={historyTab === "normalizations"}
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => handleHistoryTabClick("normalizations")}
-              >
-                Normalización
-              </button>
-            </div>
+            <HistoryTabs
+              value={historyTab}
+              onChange={handleHistoryTabClick}
+              onButtonPointerDown={handleButtonPointerDown}
+            />
           ) : null}
           {historyTab === "normalizations"
             ? renderProductNormalizationChanges()

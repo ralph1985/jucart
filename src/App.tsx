@@ -1,13 +1,9 @@
 import {
   FormEvent,
   ChangeEvent,
-  CSSProperties,
   FocusEvent,
   KeyboardEvent,
   MouseEvent,
-  PointerEvent,
-  type ReactNode,
-  TouchEvent,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -20,7 +16,7 @@ import useEmblaCarousel from "embla-carousel-react";
 
 import styles from "./App.module.scss";
 import { MenuPlanningView } from "./MenuPlanningView";
-import { formatAppDate, getCurrentAppRelease } from "./appVersion";
+import { getCurrentAppRelease } from "./appVersion";
 import {
   getAuthSnapshot,
   signInWithPassword,
@@ -30,11 +26,9 @@ import {
 import type { AuthSnapshot } from "./auth";
 import {
   addFreezerItem,
-  freezerDrawers,
   FreezerDrawerId,
   FreezerItem,
   getFreezerDrawerName,
-  getFreezerItemsByDrawer,
   isFreezerDrawerId,
   removeFreezerItem,
   sortFreezerItemsByUseFirst,
@@ -44,7 +38,6 @@ import {
   addShoppingItem,
   addShoppingSection,
   CanonicalProductComparisonUnit,
-  compareShoppingItemsForShopping,
   createInitialShoppingHistoryEvents,
   createShoppingHistoryEvent,
   defaultShoppingCategories,
@@ -52,7 +45,6 @@ import {
   defaultShoppingSections,
   findPendingShoppingItemByName,
   getShoppingCategoryName,
-  getShoppingItemCategoryId,
   getQuickShoppingItemSuggestions,
   getRecentShoppingHistoryEvents,
   getUnseenRemoteShoppingHistoryEvents,
@@ -74,7 +66,6 @@ import {
   ShoppingProductCatalogEntry,
   ShoppingRecategorizationChange,
   ShoppingRecategorizationRun,
-  shoppingSectionColors,
   ShoppingSectionColor,
   ShoppingSection,
   ShoppingSectionId,
@@ -131,6 +122,61 @@ import {
   pwaUpdateAvailableEvent,
 } from "./pwaUpdateEvents";
 import { updateBadge } from "./services/badgeService";
+import { AppHeader } from "./components/app/AppHeader";
+import type { SyncStatus } from "./components/app/AppHeader";
+import { AppBottomNav } from "./components/app/AppBottomNav";
+import type { AppView } from "./components/app/AppBottomNav";
+import { PwaUpdateBanner } from "./components/app/PwaUpdateBanner";
+import { FloatingActionButton } from "./components/app/FloatingActionButton";
+import { ShoppingControls } from "./components/shopping/ShoppingControls";
+import { ShoppingBoard } from "./components/shopping/ShoppingBoard";
+import { EditProductDialog } from "./components/shopping/EditProductDialog";
+import { AddProductSheet } from "./components/shopping/AddProductSheet";
+import { CreateSectionSheet } from "./components/shopping/CreateSectionSheet";
+import { SectionsViewShell } from "./components/shopping/SectionsViewShell";
+import { LocalSectionsManager } from "./components/shopping/LocalSectionsManager";
+import { ShoppingListsManager } from "./components/shopping/ShoppingListsManager";
+import { ShoppingBoardLoading } from "./components/shopping/ShoppingBoardLoading";
+import { ShoppingItemsList } from "./components/shopping/ShoppingItemsList";
+import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
+import { useThemePreference } from "./hooks/useThemePreference";
+import { usePullToRefreshGesture } from "./hooks/usePullToRefreshGesture";
+import { useOverlayHistory } from "./hooks/useOverlayHistory";
+import { useSheetDrag } from "./hooks/useSheetDrag";
+import { useBottomSheetOpenAnimation } from "./hooks/useBottomSheetOpenAnimation";
+import { useBottomSheetViewport } from "./hooks/useBottomSheetViewport";
+import { useBottomSheetCloseAnimation } from "./hooks/useBottomSheetCloseAnimation";
+import { useShoppingBoardCarousel } from "./hooks/useShoppingBoardCarousel";
+import { LoginScreen } from "./components/auth/LoginScreen";
+import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
+import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
+import { DeveloperAppContext } from "./components/developer/DeveloperAppContext";
+import { DeveloperViewShell } from "./components/developer/DeveloperViewShell";
+import { DeveloperAuthCard } from "./components/developer/DeveloperAuthCard";
+import { DeveloperBackupCard } from "./components/developer/DeveloperBackupCard";
+import {
+  DeveloperRemoteActionsCard,
+  type DeveloperRemoteActionDefinition,
+} from "./components/developer/DeveloperRemoteActionsCard";
+import { DeveloperPushNotificationCard } from "./components/developer/DeveloperPushNotificationCard";
+import { DeveloperStatusOverview } from "./components/developer/DeveloperStatusOverview";
+import { FreezerView } from "./components/freezer/FreezerView";
+import { FreezerAddSheet } from "./components/freezer/FreezerAddSheet";
+import { FreezerEditSheet } from "./components/freezer/FreezerEditSheet";
+import type { HistoryTab } from "./components/history/HistoryTabs";
+import { HistoryView } from "./components/history/HistoryView";
+import { HistoryEventsList } from "./components/history/HistoryEventsList";
+import { RecategorizationChangesList } from "./components/history/RecategorizationChangesList";
+import { ProductNormalizationChangesList } from "./components/history/ProductNormalizationChangesList";
+import { TicketUploadSheet } from "./components/tickets/TicketUploadSheet";
+import { TicketReviewQueue } from "./components/tickets/TicketReviewQueue";
+import { TicketFilters } from "./components/tickets/TicketFilters";
+import { TicketList } from "./components/tickets/TicketList";
+import { TicketsView } from "./components/tickets/TicketsView";
+import { PriceDetailSheet } from "./components/prices/PriceDetailSheet";
+import { PriceDetailContent } from "./components/prices/PriceDetailContent";
+import { HeaderLogo, Icon } from "./components/ui/Icon";
+import type { IconName } from "./components/ui/Icon";
 
 const selectedSectionStorageKey = "jucart:selected-section-id";
 const showPurchasedItemsStorageKey = "jucart:show-purchased-items";
@@ -144,16 +190,14 @@ const pushInviteDismissedStorageKey = "jucart:push-invite-dismissed";
 const ticketPageSize = 10;
 const priceObservationPageSize = 10;
 
-const remoteActionDefinitions: ReadonlyArray<{
-  name: RemoteActionName;
-  label: string;
-}> = [
-  { name: "recategorize_products", label: "Recategorizar productos" },
-  { name: "normalize_products", label: "Normalizar productos" },
-  { name: "process_tickets", label: "Procesar tickets" },
-  { name: "update_external_prices", label: "Actualizar precios externos" },
-  { name: "supabase_backup", label: "Ejecutar backup" },
-];
+const remoteActionDefinitions: ReadonlyArray<DeveloperRemoteActionDefinition> =
+  [
+    { name: "recategorize_products", label: "Recategorizar productos" },
+    { name: "normalize_products", label: "Normalizar productos" },
+    { name: "process_tickets", label: "Procesar tickets" },
+    { name: "update_external_prices", label: "Actualizar precios externos" },
+    { name: "supabase_backup", label: "Ejecutar backup" },
+  ];
 
 function getRemoteActionLabel(action: string | null | undefined) {
   return (
@@ -195,56 +239,13 @@ const initialPushNotificationSnapshot: PushNotificationSnapshot = {
 // Keep the freezer UI covered by unit tests while it remains hidden in builds.
 const freezerViewEnabled = import.meta.env.MODE === "test";
 
-type AppView =
-  | "shopping"
-  | "menu"
-  | "freezer"
-  | "tickets"
-  | "sections"
-  | "history"
-  | "developer";
-type HistoryTab = "changes" | "categories" | "normalizations";
 type TicketFilter = "all" | ShoppingTicketStatus;
-
-type IconName =
-  | "bell"
-  | "check"
-  | "edit"
-  | "trash"
-  | "undo"
-  | "save"
-  | "close"
-  | "plus"
-  | "list"
-  | "utensils"
-  | "settings"
-  | "arrowUp"
-  | "arrowDown"
-  | "history"
-  | "sync"
-  | "database"
-  | "freezer"
-  | "search"
-  | "ticket"
-  | "upload"
-  | "file"
-  | "clock"
-  | "alert";
-type SyncStatus = "local" | "syncing" | "synced" | "offline";
-type PullRefreshGesture = {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  scrollContainer: HTMLElement | null;
-};
 
 type TimestampedItem = {
   id: string;
   updatedAt: number;
 };
 type HapticFeedback = "light" | "medium" | "success" | "warning";
-type ThemePreference = "auto" | "light" | "dark";
-type ResolvedTheme = Exclude<ThemePreference, "auto">;
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
 type DeveloperSectionId = "auth" | "backup" | "actions" | "push";
 type AppOverlay =
@@ -267,52 +268,6 @@ type BottomSheetOverlay = Extract<
   | "freezer-edit-sheet"
 >;
 
-type DeveloperDisclosureProps = {
-  id: DeveloperSectionId;
-  title: string;
-  summary: string;
-  expanded: boolean;
-  onToggle: (id: DeveloperSectionId) => void;
-  children: ReactNode;
-};
-
-function DeveloperDisclosure({
-  id,
-  title,
-  summary,
-  expanded,
-  onToggle,
-  children,
-}: DeveloperDisclosureProps) {
-  const contentId = `developer-section-${id}`;
-
-  return (
-    <section className={styles.developerDisclosure}>
-      <button
-        className={styles.developerDisclosureButton}
-        type="button"
-        aria-expanded={expanded}
-        aria-controls={contentId}
-        onClick={() => onToggle(id)}
-      >
-        <span className={styles.developerDisclosureCopy}>
-          <span className={styles.developerDisclosureTitle}>{title}</span>
-          <span className={styles.developerDisclosureSummary}>{summary}</span>
-        </span>
-        <span className={styles.developerDisclosureAction} aria-hidden="true">
-          {expanded ? "Ocultar" : "Ver"}
-        </span>
-      </button>
-      <div
-        id={contentId}
-        className={styles.developerDisclosureContent}
-        hidden={!expanded}
-      >
-        {children}
-      </div>
-    </section>
-  );
-}
 type AddProductNotice =
   | { type: "success"; message: string }
   | { type: "error"; message: string }
@@ -325,184 +280,6 @@ const hapticFeedbackPatterns: Record<HapticFeedback, VibratePattern> = {
   warning: [28, 42, 36],
 };
 const overlayHistoryStateKey = "jucartOverlay";
-const themePreferenceStorageKey = "jucart:theme-preference";
-const themePreferenceLabels: Record<ThemePreference, string> = {
-  auto: "Auto",
-  light: "Claro",
-  dark: "Oscuro",
-};
-
-function getStoredThemePreference(): ThemePreference {
-  const preference = window.localStorage.getItem(themePreferenceStorageKey);
-
-  return preference === "light" || preference === "dark" ? preference : "auto";
-}
-
-function getSystemTheme(): ResolvedTheme {
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
-
-function getNextThemePreference(preference: ThemePreference): ThemePreference {
-  if (preference === "auto") {
-    return "light";
-  }
-
-  return preference === "light" ? "dark" : "auto";
-}
-
-function Icon({ name }: { name: IconName }) {
-  const paths: Record<IconName, string[]> = {
-    bell: [
-      "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9",
-      "M13.73 21a2 2 0 0 1-3.46 0",
-    ],
-    check: ["M5 12l4 4L19 6"],
-    edit: ["M12 20h9", "M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"],
-    trash: [
-      "M3 6h18",
-      "M8 6V4h8v2",
-      "M6 6l1 14h10l1-14",
-      "M10 11v5",
-      "M14 11v5",
-    ],
-    undo: ["M9 14l-4-4 4-4", "M5 10h9a5 5 0 1 1 0 10h-2"],
-    save: ["M5 3h12l2 2v16H5z", "M8 3v6h8V3", "M8 17h8"],
-    close: ["M6 6l12 12", "M18 6L6 18"],
-    plus: ["M12 5v14", "M5 12h14"],
-    list: [
-      "M8 6h13",
-      "M8 12h13",
-      "M8 18h13",
-      "M3 6h.01",
-      "M3 12h.01",
-      "M3 18h.01",
-    ],
-    utensils: [
-      "M6 3v7",
-      "M9 3v7",
-      "M12 3v7",
-      "M9 10v11",
-      "M18 3v18",
-      "M15 8h6",
-    ],
-    settings: [
-      "M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
-      "M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c0 .4.21.77.6 1 .3.26.68.4 1.1.4H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51.6z",
-    ],
-    arrowUp: ["M12 19V5", "M5 12l7-7 7 7"],
-    arrowDown: ["M12 5v14", "M19 12l-7 7-7-7"],
-    history: ["M12 8v5l3 2", "M21 12a9 9 0 1 1-3-6.7"],
-    sync: [
-      "M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4",
-      "M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4",
-    ],
-    database: [
-      "M4 6c0 1.7 3.6 3 8 3s8-1.3 8-3-3.6-3-8-3-8 1.3-8 3z",
-      "M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6",
-      "M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6",
-    ],
-    freezer: [
-      "M12 3v18",
-      "M5 6l14 12",
-      "M19 6L5 18",
-      "M7 4l5 3 5-3",
-      "M7 20l5-3 5 3",
-    ],
-    search: [
-      "M21 21l-4.35-4.35",
-      "M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z",
-    ],
-    ticket: [
-      "M4 4h16v4a2 2 0 1 0 0 4v8H4v-8a2 2 0 1 0 0-4z",
-      "M9 8h6",
-      "M9 12h6",
-      "M9 16h4",
-    ],
-    upload: ["M12 16V4", "M7 9l5-5 5 5", "M5 20h14"],
-    file: ["M14 3H6v18h12V7z", "M14 3v4h4", "M8 13h8", "M8 17h5"],
-    clock: ["M12 8v5l3 2", "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"],
-    alert: [
-      "M10.3 4.2 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z",
-      "M12 9v4",
-      "M12 17h.01",
-    ],
-  };
-
-  return (
-    <svg
-      className={styles.buttonIcon}
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-    >
-      {paths[name].map((path) => (
-        <path d={path} key={path} />
-      ))}
-    </svg>
-  );
-}
-
-function HeaderLogo() {
-  return (
-    <svg
-      className={styles.logoMark}
-      aria-hidden="true"
-      viewBox="0 0 64 64"
-      fill="none"
-    >
-      <path
-        d="M13 18h8l5 27h23l6-20H25"
-        stroke="currentColor"
-        strokeWidth="4.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M26 25h24"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        opacity="0.5"
-      />
-      <path
-        d="M29 34h14"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        opacity="0.5"
-      />
-      <path
-        d="M16 18l7-8h18l8 8"
-        stroke="currentColor"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity="0.75"
-      />
-      <path
-        d="M33 42l7-9 6 5"
-        stroke="#dff4ea"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="30" cy="51" r="4.5" fill="currentColor" />
-      <circle cx="48" cy="51" r="4.5" fill="currentColor" />
-      <path
-        d="M8 29h8M10 38h10"
-        stroke="#dff4ea"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 function getInitialSelectedSectionId(): ShoppingSectionId {
   try {
@@ -847,20 +624,6 @@ function createLocalId() {
   }
 
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-}
-
-function compareShoppingItemsForVisibleOrder(
-  firstItem: ShoppingItem,
-  secondItem: ShoppingItem,
-  categories: ShoppingCategory[] = defaultShoppingCategories,
-  productCatalogEntries: ShoppingProductCatalogEntry[] = defaultShoppingProductCatalogEntries,
-) {
-  return compareShoppingItemsForShopping(
-    firstItem,
-    secondItem,
-    categories,
-    productCatalogEntries,
-  );
 }
 
 function shouldAnimate() {
@@ -1415,12 +1178,8 @@ async function getStoredPriceObservations() {
 export function App() {
   const appRelease = useState(getCurrentAppRelease)[0];
   const [activeView, setActiveView] = useState<AppView>("shopping");
-  const [themePreference, setThemePreference] = useState<ThemePreference>(
-    getStoredThemePreference,
-  );
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme);
-  const resolvedTheme =
-    themePreference === "auto" ? systemTheme : themePreference;
+  const { themePreference, resolvedTheme, cycleThemePreference } =
+    useThemePreference();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [freezerItems, setFreezerItems] = useState<FreezerItem[]>([]);
   const [sections, setSections] = useState<ShoppingSection[]>(
@@ -1578,7 +1337,6 @@ export function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isSupabaseConfigured() ? "syncing" : "local",
   );
-  const [pullRefreshDistance, setPullRefreshDistance] = useState(0);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
   const [pullRefreshMessage, setPullRefreshMessage] = useState<string | null>(
     null,
@@ -1622,8 +1380,6 @@ export function App() {
   const [addItemNotes, setAddItemNotes] = useState("");
   const [addProductNotice, setAddProductNotice] =
     useState<AddProductNotice | null>(null);
-  const [sheetKeyboardInset, setSheetKeyboardInset] = useState(0);
-  const [sheetDragOffset, setSheetDragOffset] = useState(0);
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(
     null,
   );
@@ -1681,12 +1437,9 @@ export function App() {
   const hiddenUndoItemRef = useRef<HTMLLIElement>(null);
   const freezerUndoRef = useRef<HTMLDivElement>(null);
   const addSheetOpenRef = useRef(false);
-  const overlayHistoryStackRef = useRef<AppOverlay[]>([]);
   const closeOverlayFromHistoryRef = useRef<
     ((overlay: AppOverlay) => void) | null
   >(null);
-  const ignoreNextOverlayPopRef = useRef(false);
-  const addSheetDragStartYRef = useRef<number | null>(null);
   const pendingAddDraftRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
   const skipNextStoreRef = useRef(true);
@@ -1694,9 +1447,24 @@ export function App() {
   const pendingLocalStoresRef = useRef(0);
   const queuedRemoteRefreshRef = useRef(false);
   const refreshRemoteDataRef = useRef<(() => Promise<void>) | null>(null);
-  const pullRefreshGestureRef = useRef<PullRefreshGesture | null>(null);
-  const pullRefreshRawDistanceRef = useRef(0);
   const pullRefreshMessageTimeoutRef = useRef<number | null>(null);
+  const { consume: consumeOverlayHistory, push: pushOverlayHistory } =
+    useOverlayHistory<AppOverlay>({
+      onPopOverlayRef: closeOverlayFromHistoryRef,
+      stateKey: overlayHistoryStateKey,
+    });
+  const {
+    handleEnd: handleAddSheetDragEnd,
+    handleMove: handleAddSheetDragMove,
+    handleStart: handleAddSheetDragStart,
+    offset: sheetDragOffset,
+    reset: resetSheetDrag,
+  } = useSheetDrag({ onDismiss: closeActiveBottomSheet });
+  const closeBottomSheetWithAnimation = useBottomSheetCloseAnimation({
+    closingOverlay: closingBottomSheet,
+    dragOffset: sheetDragOffset,
+    onStartClosing: setClosingBottomSheet,
+  });
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
   const useFirstFreezerItems = sortFreezerItemsByUseFirst(freezerItems).slice(
@@ -1716,6 +1484,16 @@ export function App() {
     slidesToScroll: 1,
     startIndex: selectedSectionIndex,
   });
+  useShoppingBoardCarousel({
+    api: boardApi,
+    isActive: activeView === "shopping",
+    onSelectSection: setSelectedSectionId,
+    sections,
+    sectionsRef,
+    selectedSectionId,
+    selectedSectionIdRef,
+    shouldAnimate,
+  });
   const editingItem = editingItemId
     ? items.find((item) => item.id === editingItemId)
     : null;
@@ -1729,6 +1507,35 @@ export function App() {
     isSectionAddSheetOpen ||
     isFreezerAddSheetOpen ||
     editingFreezerItem !== null;
+  const bottomSheetFocusKey = isAddSheetOpen
+    ? "add"
+    : isTicketUploadSheetOpen
+      ? "ticket-upload"
+      : selectedPriceProductId !== null
+        ? "price-detail"
+        : editingFreezerItem !== null
+          ? "freezer-edit"
+          : isSectionAddSheetOpen
+            ? "section-add"
+            : isFreezerAddSheetOpen
+              ? "freezer-add"
+              : null;
+  const sheetKeyboardInset = useBottomSheetViewport({
+    focusKey: bottomSheetFocusKey,
+    isOpen: isBottomSheetOpen,
+    onFocus: focusActiveBottomSheet,
+  });
+  const {
+    distance: pullRefreshDistance,
+    handleTouchEnd: handlePullRefreshTouchEnd,
+    handleTouchMove: handlePullRefreshTouchMove,
+    handleTouchStart: handlePullRefreshTouchStart,
+    reset: resetPullRefreshGesture,
+  } = usePullToRefreshGesture({
+    enabled: isLoaded && !isBottomSheetOpen,
+    isRefreshing: isPullRefreshing,
+    onRefresh: () => void refreshCurrentView(),
+  });
   const selectedSectionName =
     sections.find((section) => section.id === selectedSectionId)?.name ??
     "esta lista";
@@ -1906,34 +1713,6 @@ export function App() {
   const markLocalDataChange = useCallback(() => {
     localDataRevisionRef.current += 1;
   }, []);
-
-  useEffect(() => {
-    if (!window.matchMedia) {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = (event: MediaQueryListEvent) => {
-      setSystemTheme(event.matches ? "dark" : "light");
-    };
-
-    mediaQuery.addEventListener("change", handleChange);
-
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
-
-  useEffect(() => {
-    document.body.classList.toggle(
-      "jucart-theme-dark",
-      resolvedTheme === "dark",
-    );
-    document.documentElement.style.colorScheme = resolvedTheme;
-
-    return () => {
-      document.body.classList.remove("jucart-theme-dark");
-      document.documentElement.style.removeProperty("color-scheme");
-    };
-  }, [resolvedTheme]);
 
   useEffect(() => {
     return () => {
@@ -2481,59 +2260,6 @@ export function App() {
   }, [selectedSectionId]);
 
   useEffect(() => {
-    if (!boardApi) {
-      return;
-    }
-
-    const api = boardApi;
-
-    function syncSelectedSection() {
-      const nextSection = sectionsRef.current[api.selectedScrollSnap()];
-
-      if (!nextSection || nextSection.id === selectedSectionIdRef.current) {
-        return;
-      }
-
-      setSelectedSectionId(nextSection.id);
-    }
-
-    api.on("select", syncSelectedSection);
-
-    return () => {
-      api.off("select", syncSelectedSection);
-    };
-  }, [boardApi]);
-
-  useEffect(() => {
-    if (!boardApi || activeView !== "shopping") {
-      return;
-    }
-
-    boardApi.scrollTo(selectedSectionIndex, !shouldAnimate());
-  }, [activeView, boardApi, selectedSectionId, selectedSectionIndex]);
-
-  useEffect(() => {
-    if (!boardApi || activeView !== "shopping") {
-      return;
-    }
-
-    const api = boardApi;
-    const animationFrame = window.requestAnimationFrame(() => {
-      const nextSectionIndex = Math.max(
-        sectionsRef.current.findIndex(
-          (section) => section.id === selectedSectionIdRef.current,
-        ),
-        0,
-      );
-
-      api.reInit();
-      api.scrollTo(nextSectionIndex, true);
-    });
-
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [activeView, boardApi, sections]);
-
-  useEffect(() => {
     if (!isLoaded || hasAnimatedInitialColumnsRef.current) {
       return;
     }
@@ -2769,161 +2495,42 @@ export function App() {
     });
   }, [syncStatus]);
 
-  useLayoutEffect(() => {
-    if (!isAddSheetOpen || closingBottomSheet === "add-sheet") {
-      return;
-    }
-
-    const sheet = addSheetRef.current;
-    const backdrop = addSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, isAddSheetOpen]);
-
-  useLayoutEffect(() => {
-    if (!isFreezerAddSheetOpen || closingBottomSheet === "freezer-add-sheet") {
-      return;
-    }
-
-    const sheet = freezerAddSheetRef.current;
-    const backdrop = freezerAddSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, isFreezerAddSheetOpen]);
-
-  useLayoutEffect(() => {
-    if (
-      !isTicketUploadSheetOpen ||
-      closingBottomSheet === "ticket-upload-sheet"
-    ) {
-      return;
-    }
-
-    const sheet = ticketUploadSheetRef.current;
-    const backdrop = ticketUploadSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, isTicketUploadSheetOpen]);
-
-  useLayoutEffect(() => {
-    if (
-      selectedPriceProductId === null ||
-      closingBottomSheet === "price-detail-sheet"
-    ) {
-      return;
-    }
-
-    const sheet = priceDetailSheetRef.current;
-    const backdrop = priceDetailSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, selectedPriceProductId]);
-
-  useLayoutEffect(() => {
-    if (!isSectionAddSheetOpen || closingBottomSheet === "section-add-sheet") {
-      return;
-    }
-
-    const sheet = sectionAddSheetRef.current;
-    const backdrop = sectionAddSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, isSectionAddSheetOpen]);
-
-  useLayoutEffect(() => {
-    if (!editingFreezerItem || closingBottomSheet === "freezer-edit-sheet") {
-      return;
-    }
-
-    const sheet = freezerEditSheetRef.current;
-    const backdrop = freezerEditSheetBackdropRef.current;
-
-    if (!sheet || !backdrop) {
-      return;
-    }
-
-    runAnimation(backdrop, {
-      opacity: [0, 1],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimation(sheet, {
-      opacity: [0.92, 1],
-      y: ["100%", 0],
-      duration: 260,
-      ease: "outCubic",
-    });
-  }, [closingBottomSheet, editingFreezerItem]);
+  useBottomSheetOpenAnimation({
+    backdropRef: addSheetBackdropRef,
+    isClosing: closingBottomSheet === "add-sheet",
+    isOpen: isAddSheetOpen,
+    sheetRef: addSheetRef,
+  });
+  useBottomSheetOpenAnimation({
+    backdropRef: freezerAddSheetBackdropRef,
+    isClosing: closingBottomSheet === "freezer-add-sheet",
+    isOpen: isFreezerAddSheetOpen,
+    sheetRef: freezerAddSheetRef,
+  });
+  useBottomSheetOpenAnimation({
+    backdropRef: ticketUploadSheetBackdropRef,
+    isClosing: closingBottomSheet === "ticket-upload-sheet",
+    isOpen: isTicketUploadSheetOpen,
+    sheetRef: ticketUploadSheetRef,
+  });
+  useBottomSheetOpenAnimation({
+    backdropRef: priceDetailSheetBackdropRef,
+    isClosing: closingBottomSheet === "price-detail-sheet",
+    isOpen: selectedPriceProductId !== null,
+    sheetRef: priceDetailSheetRef,
+  });
+  useBottomSheetOpenAnimation({
+    backdropRef: sectionAddSheetBackdropRef,
+    isClosing: closingBottomSheet === "section-add-sheet",
+    isOpen: isSectionAddSheetOpen,
+    sheetRef: sectionAddSheetRef,
+  });
+  useBottomSheetOpenAnimation({
+    backdropRef: freezerEditSheetBackdropRef,
+    isClosing: closingBottomSheet === "freezer-edit-sheet",
+    isOpen: editingFreezerItem !== null,
+    sheetRef: freezerEditSheetRef,
+  });
 
   useEffect(() => {
     if (lastRemovedItems.length === 0) {
@@ -3052,105 +2659,6 @@ export function App() {
   }, [isAddSheetOpen]);
 
   useEffect(() => {
-    function handleOverlayPopState() {
-      if (ignoreNextOverlayPopRef.current) {
-        ignoreNextOverlayPopRef.current = false;
-        return;
-      }
-
-      const overlay = overlayHistoryStackRef.current.pop();
-
-      if (!overlay) {
-        return;
-      }
-
-      closeOverlayFromHistoryRef.current?.(overlay);
-    }
-
-    window.addEventListener("popstate", handleOverlayPopState);
-
-    return () => {
-      window.removeEventListener("popstate", handleOverlayPopState);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isBottomSheetOpen) {
-      return;
-    }
-
-    const previousBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    function updateViewportInset() {
-      const visualViewport = window.visualViewport;
-
-      if (!visualViewport) {
-        setSheetKeyboardInset(0);
-        return;
-      }
-
-      setSheetKeyboardInset(
-        Math.max(
-          0,
-          window.innerHeight - visualViewport.height - visualViewport.offsetTop,
-        ),
-      );
-    }
-
-    updateViewportInset();
-    window.visualViewport?.addEventListener("resize", updateViewportInset);
-    window.visualViewport?.addEventListener("scroll", updateViewportInset);
-    const focusFrame = window.requestAnimationFrame(() => {
-      if (isAddSheetOpen) {
-        itemNameInputRef.current?.focus({ preventScroll: true });
-        const textLength = itemNameInputRef.current?.value.length ?? 0;
-        itemNameInputRef.current?.setSelectionRange(textLength, textLength);
-        resizeAddInput();
-        return;
-      }
-
-      if (isTicketUploadSheetOpen) {
-        ticketFileInputRef.current?.focus({ preventScroll: true });
-        return;
-      }
-
-      if (selectedPriceProductId !== null) {
-        priceDetailSheetRef.current?.focus({ preventScroll: true });
-        return;
-      }
-
-      if (editingFreezerItem) {
-        editingFreezerItemNameInputRef.current?.focus({
-          preventScroll: true,
-        });
-        return;
-      }
-
-      if (isSectionAddSheetOpen) {
-        sectionNameInputRef.current?.focus({ preventScroll: true });
-        return;
-      }
-
-      freezerItemNameInputRef.current?.focus({ preventScroll: true });
-    });
-
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      window.cancelAnimationFrame(focusFrame);
-      window.visualViewport?.removeEventListener("resize", updateViewportInset);
-      window.visualViewport?.removeEventListener("scroll", updateViewportInset);
-    };
-  }, [
-    editingFreezerItem,
-    isAddSheetOpen,
-    isBottomSheetOpen,
-    isSectionAddSheetOpen,
-    isTicketUploadSheetOpen,
-    selectedPriceProductId,
-  ]);
-
-  useEffect(() => {
     if (!isAddSheetOpen || !addProductNotice) {
       return;
     }
@@ -3193,10 +2701,7 @@ export function App() {
   }
 
   function handleThemePreferenceChange() {
-    const nextPreference = getNextThemePreference(themePreference);
-
-    setThemePreference(nextPreference);
-    window.localStorage.setItem(themePreferenceStorageKey, nextPreference);
+    cycleThemePreference();
     runHapticFeedback("light");
   }
 
@@ -3228,77 +2733,44 @@ export function App() {
     input.style.height = `${input.scrollHeight}px`;
   }
 
-  function pushOverlayHistory(overlay: AppOverlay) {
-    const stack = overlayHistoryStackRef.current;
-
-    if (stack.at(-1) === overlay) {
+  function focusActiveBottomSheet() {
+    if (isAddSheetOpen) {
+      itemNameInputRef.current?.focus({ preventScroll: true });
+      const textLength = itemNameInputRef.current?.value.length ?? 0;
+      itemNameInputRef.current?.setSelectionRange(textLength, textLength);
+      resizeAddInput();
       return;
     }
 
-    const currentState =
-      typeof window.history.state === "object" && window.history.state !== null
-        ? window.history.state
-        : {};
-
-    stack.push(overlay);
-    window.history.pushState(
-      { ...currentState, [overlayHistoryStateKey]: overlay },
-      "",
-      window.location.href,
-    );
-  }
-
-  function consumeOverlayHistory(overlay: AppOverlay) {
-    const stack = overlayHistoryStackRef.current;
-
-    if (stack.at(-1) !== overlay) {
+    if (isTicketUploadSheetOpen) {
+      ticketFileInputRef.current?.focus({ preventScroll: true });
       return;
     }
 
-    stack.pop();
-    ignoreNextOverlayPopRef.current = true;
-    window.history.back();
-  }
-
-  function closeBottomSheetWithAnimation(
-    overlay: BottomSheetOverlay,
-    sheet: HTMLElement | null,
-    backdrop: HTMLElement | null,
-    closeNow: () => void,
-  ) {
-    if (closingBottomSheet === overlay) {
+    if (selectedPriceProductId !== null) {
+      priceDetailSheetRef.current?.focus({ preventScroll: true });
       return;
     }
 
-    if (!sheet || !backdrop || !shouldAnimate()) {
-      closeNow();
+    if (editingFreezerItem) {
+      editingFreezerItemNameInputRef.current?.focus({ preventScroll: true });
       return;
     }
 
-    setClosingBottomSheet(overlay);
-    runAnimation(backdrop, {
-      opacity: [1, 0],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimationWithCompletion(
-      sheet,
-      {
-        opacity: [1, 0.88],
-        y: [Math.max(sheetDragOffset, 0), "100%"],
-        duration: 220,
-        ease: "inCubic",
-      },
-      closeNow,
-    );
+    if (isSectionAddSheetOpen) {
+      sectionNameInputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
+    freezerItemNameInputRef.current?.focus({ preventScroll: true });
   }
 
   function closeAddSheet(restoreFabFocus = true, syncHistory = true) {
-    closeBottomSheetWithAnimation(
-      "add-sheet",
-      addSheetRef.current,
-      addSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "add-sheet",
+      sheet: addSheetRef.current,
+      backdrop: addSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("add-sheet");
         }
@@ -3306,14 +2778,13 @@ export function App() {
         setIsAddSheetOpen(false);
         setClosingBottomSheet(null);
         setAddProductNotice(null);
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
+        resetSheetDrag();
 
         if (restoreFabFocus) {
           window.requestAnimationFrame(() => addFabRef.current?.focus());
         }
       },
-    );
+    });
   }
 
   function openAddSheet() {
@@ -3327,25 +2798,24 @@ export function App() {
   }
 
   function closeFreezerAddSheet(restoreFabFocus = true, syncHistory = true) {
-    closeBottomSheetWithAnimation(
-      "freezer-add-sheet",
-      freezerAddSheetRef.current,
-      freezerAddSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "freezer-add-sheet",
+      sheet: freezerAddSheetRef.current,
+      backdrop: freezerAddSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("freezer-add-sheet");
         }
 
         setIsFreezerAddSheetOpen(false);
         setClosingBottomSheet(null);
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
+        resetSheetDrag();
 
         if (restoreFabFocus) {
           window.requestAnimationFrame(() => freezerAddFabRef.current?.focus());
         }
       },
-    );
+    });
   }
 
   function openFreezerAddSheet() {
@@ -3355,21 +2825,20 @@ export function App() {
   }
 
   function closePriceDetailSheet(syncHistory = true) {
-    closeBottomSheetWithAnimation(
-      "price-detail-sheet",
-      priceDetailSheetRef.current,
-      priceDetailSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "price-detail-sheet",
+      sheet: priceDetailSheetRef.current,
+      backdrop: priceDetailSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("price-detail-sheet");
         }
 
         setSelectedPriceProductId(null);
         setClosingBottomSheet(null);
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
+        resetSheetDrag();
       },
-    );
+    });
   }
 
   function openPriceDetailSheet(item: ShoppingItem) {
@@ -3384,11 +2853,11 @@ export function App() {
   }
 
   function closeSectionAddSheet(restoreFabFocus = true, syncHistory = true) {
-    closeBottomSheetWithAnimation(
-      "section-add-sheet",
-      sectionAddSheetRef.current,
-      sectionAddSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "section-add-sheet",
+      sheet: sectionAddSheetRef.current,
+      backdrop: sectionAddSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("section-add-sheet");
         }
@@ -3397,14 +2866,13 @@ export function App() {
         setClosingBottomSheet(null);
         setSectionName("");
         setNewSectionColor("mint");
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
+        resetSheetDrag();
 
         if (restoreFabFocus) {
           window.requestAnimationFrame(() => sectionAddFabRef.current?.focus());
         }
       },
-    );
+    });
   }
 
   function openSectionAddSheet() {
@@ -3416,21 +2884,20 @@ export function App() {
   }
 
   function closeFreezerEditSheet(syncHistory = true) {
-    closeBottomSheetWithAnimation(
-      "freezer-edit-sheet",
-      freezerEditSheetRef.current,
-      freezerEditSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "freezer-edit-sheet",
+      sheet: freezerEditSheetRef.current,
+      backdrop: freezerEditSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("freezer-edit-sheet");
         }
 
         resetEditingFreezerItem();
         setClosingBottomSheet(null);
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
+        resetSheetDrag();
       },
-    );
+    });
   }
 
   function closeActiveBottomSheet() {
@@ -3662,31 +3129,6 @@ export function App() {
       event.preventDefault();
       closeActiveBottomSheet();
     }
-  }
-
-  function handleAddSheetDragStart(event: PointerEvent<HTMLDivElement>) {
-    addSheetDragStartYRef.current = event.clientY;
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-
-  function handleAddSheetDragMove(event: PointerEvent<HTMLDivElement>) {
-    if (addSheetDragStartYRef.current === null) {
-      return;
-    }
-
-    setSheetDragOffset(
-      Math.max(0, event.clientY - addSheetDragStartYRef.current),
-    );
-  }
-
-  function handleAddSheetDragEnd() {
-    if (sheetDragOffset > 70) {
-      closeActiveBottomSheet();
-      return;
-    }
-
-    setSheetDragOffset(0);
-    addSheetDragStartYRef.current = null;
   }
 
   function handleViewDuplicateItem(itemId: string) {
@@ -4108,139 +3550,6 @@ export function App() {
     }
   }
 
-  function getPullRefreshScrollContainer(target: EventTarget | null) {
-    let element = target instanceof HTMLElement ? target : null;
-
-    while (element && element !== document.body) {
-      const computedStyle = window.getComputedStyle(element);
-      const canScrollVertically =
-        (computedStyle.overflowY === "auto" ||
-          computedStyle.overflowY === "scroll") &&
-        element.scrollHeight > element.clientHeight;
-
-      if (canScrollVertically) {
-        return element;
-      }
-
-      element = element.parentElement;
-    }
-
-    return document.scrollingElement instanceof HTMLElement
-      ? document.scrollingElement
-      : null;
-  }
-
-  function isPullRefreshExcludedTarget(target: EventTarget | null) {
-    return (
-      target instanceof HTMLElement &&
-      Boolean(
-        target.closest(
-          "button, input, select, textarea, [role=dialog], [data-pull-refresh-ignore]",
-        ),
-      )
-    );
-  }
-
-  function startPullRefreshGesture(
-    pointerId: number,
-    startX: number,
-    startY: number,
-    target: EventTarget | null,
-  ) {
-    if (
-      !isLoaded ||
-      isPullRefreshing ||
-      isBottomSheetOpen ||
-      isPullRefreshExcludedTarget(target)
-    ) {
-      return;
-    }
-
-    const scrollContainer = getPullRefreshScrollContainer(target);
-
-    if (!scrollContainer || scrollContainer.scrollTop > 0) {
-      return;
-    }
-
-    pullRefreshGestureRef.current = {
-      pointerId,
-      startX,
-      startY,
-      scrollContainer,
-    };
-  }
-
-  function updatePullRefreshGesture(
-    pointerId: number,
-    clientX: number,
-    clientY: number,
-    event: { preventDefault: () => void },
-  ) {
-    const gesture = pullRefreshGestureRef.current;
-
-    if (!gesture || gesture.pointerId !== pointerId) {
-      return;
-    }
-
-    if (!gesture.scrollContainer || gesture.scrollContainer.scrollTop > 0) {
-      pullRefreshGestureRef.current = null;
-      setPullRefreshDistance(0);
-      return;
-    }
-
-    const distance = Math.max(0, clientY - gesture.startY);
-    const horizontalDistance = Math.abs(clientX - gesture.startX);
-
-    if (distance < 12) {
-      return;
-    }
-
-    if (horizontalDistance > distance) {
-      finishPullRefreshGesture();
-      return;
-    }
-
-    event.preventDefault();
-    pullRefreshRawDistanceRef.current = distance;
-    setPullRefreshDistance(Math.min(96, distance * 0.48));
-  }
-
-  function handlePullRefreshTouchStart(event: TouchEvent<HTMLElement>) {
-    const touch = event.touches[0];
-
-    if (!touch) {
-      return;
-    }
-
-    startPullRefreshGesture(
-      touch.identifier,
-      touch.clientX,
-      touch.clientY,
-      event.target,
-    );
-  }
-
-  function handlePullRefreshTouchMove(event: TouchEvent<HTMLElement>) {
-    const touch = event.touches[0];
-
-    if (!touch) {
-      return;
-    }
-
-    updatePullRefreshGesture(
-      touch.identifier,
-      touch.clientX,
-      touch.clientY,
-      event,
-    );
-  }
-
-  function finishPullRefreshGesture() {
-    pullRefreshGestureRef.current = null;
-    pullRefreshRawDistanceRef.current = 0;
-    setPullRefreshDistance(0);
-  }
-
   async function refreshLocalShoppingData() {
     const storedData = await getCachedShoppingData();
 
@@ -4305,29 +3614,6 @@ export function App() {
         setPullRefreshMessage(null);
         pullRefreshMessageTimeoutRef.current = null;
       }, 1800);
-    }
-  }
-
-  function finishPullRefresh(pointerId: number) {
-    const gesture = pullRefreshGestureRef.current;
-
-    if (!gesture || gesture.pointerId !== pointerId) {
-      return;
-    }
-
-    const shouldRefresh = pullRefreshRawDistanceRef.current >= 72;
-    finishPullRefreshGesture();
-
-    if (shouldRefresh) {
-      void refreshCurrentView();
-    }
-  }
-
-  function handlePullRefreshTouchEnd(event: TouchEvent<HTMLElement>) {
-    const touch = event.changedTouches[0];
-
-    if (touch) {
-      finishPullRefresh(touch.identifier);
     }
   }
 
@@ -4785,7 +4071,7 @@ export function App() {
     setTicketUploadFiles([]);
     setTicketError(null);
     setTicketUploadNotice(null);
-    setSheetDragOffset(0);
+    resetSheetDrag();
     setIsTicketUploadSheetOpen(true);
     pushOverlayHistory("ticket-upload-sheet");
     window.requestAnimationFrame(() =>
@@ -4799,11 +4085,11 @@ export function App() {
       return;
     }
 
-    closeBottomSheetWithAnimation(
-      "ticket-upload-sheet",
-      ticketUploadSheetRef.current,
-      ticketUploadSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "ticket-upload-sheet",
+      sheet: ticketUploadSheetRef.current,
+      backdrop: ticketUploadSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("ticket-upload-sheet");
         }
@@ -4811,7 +4097,7 @@ export function App() {
         setIsTicketUploadSheetOpen(false);
         setClosingBottomSheet(null);
         setTicketUploadFiles([]);
-        setSheetDragOffset(0);
+        resetSheetDrag();
 
         if (restoreFabFocus) {
           window.requestAnimationFrame(() =>
@@ -4819,7 +4105,7 @@ export function App() {
           );
         }
       },
-    );
+    });
   }
 
   function handleTicketFilesChange(event: ChangeEvent<HTMLInputElement>) {
@@ -5152,15 +4438,8 @@ export function App() {
     }
   }
 
-  function handleSectionNameChange(
-    sectionId: ShoppingSectionId,
-    event: ChangeEvent<HTMLInputElement>,
-  ) {
-    const nextSections = renameShoppingSection(
-      sections,
-      sectionId,
-      event.target.value,
-    );
+  function handleSectionNameChange(sectionId: ShoppingSectionId, name: string) {
+    const nextSections = renameShoppingSection(sections, sectionId, name);
 
     if (nextSections !== sections) {
       markLocalDataChange();
@@ -5249,1424 +4528,24 @@ export function App() {
     selectSection(sectionId);
   }
 
-  function renderUndoItem(removedItems: ShoppingItem[]) {
-    return (
-      <li
-        ref={undoItemRef}
-        className={styles.undoItem}
-        key={`undo-${removedItems[0].id}`}
-      >
-        <span>
-          {removedItems.length === 1
-            ? "Producto borrado."
-            : `${removedItems.length} productos borrados.`}
-        </span>
-        <button
-          className={styles.undoButton}
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handleUndoRemoveItems}
-        >
-          Deshacer
-        </button>
-      </li>
-    );
-  }
-
-  function renderHiddenPurchasedUndoItem(item: ShoppingItem) {
-    return (
-      <li
-        ref={hiddenUndoItemRef}
-        className={styles.undoItem}
-        key={`hidden-purchased-${item.id}`}
-      >
-        <span>Producto marcado como comprado.</span>
-        <button
-          className={styles.undoButton}
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handleUndoHiddenPurchasedItem}
-        >
-          Deshacer
-        </button>
-      </li>
-    );
-  }
-
-  function renderFreezerUseUndoItem() {
-    if (!lastUsedFreezerItem) {
-      return null;
-    }
-
-    return (
-      <div ref={freezerUndoRef} className={styles.freezerUndo} role="status">
-        <span>{lastUsedFreezerItem.name} usado.</span>
-        <button
-          className={styles.undoButton}
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handleUndoUseFreezerItem}
-        >
-          Deshacer
-        </button>
-      </div>
-    );
-  }
-
-  function renderFreezerItemCard(item: FreezerItem) {
-    const availableDrawers = freezerDrawers.filter(
-      (drawer) => drawer.id !== item.drawerId,
-    );
-
-    return (
-      <li
-        ref={(itemElement) => {
-          if (itemElement) {
-            freezerItemRefs.current[item.id] = itemElement;
-          } else {
-            delete freezerItemRefs.current[item.id];
-          }
-        }}
-        className={styles.freezerItem}
-        key={item.id}
-      >
-        <div className={styles.freezerItemBody}>
-          <p className={styles.freezerItemName}>{item.name}</p>
-          <p className={styles.freezerItemMeta}>
-            <span>{getFreezerDrawerName(item.drawerId)}</span>
-            <span>{formatFreezerDate(item.frozenAt)}</span>
-            <span>{getFreezerAgeText(item.frozenAt)}</span>
-            {item.quantity ? <span>{item.quantity}</span> : null}
-          </p>
-        </div>
-        <div className={styles.freezerItemActions}>
-          <button
-            className={styles.iconButton}
-            type="button"
-            aria-label={`Editar ${item.name}`}
-            title="Editar"
-            onPointerDown={handleButtonPointerDown}
-            onClick={() => startEditingFreezerItem(item)}
-          >
-            <Icon name="edit" />
-          </button>
-          {availableDrawers.map((drawer) => (
-            <button
-              className={styles.freezerMoveButton}
-              type="button"
-              key={drawer.id}
-              onPointerDown={handleButtonPointerDown}
-              onClick={() => handleMoveFreezerItem(item.id, drawer.id)}
-            >
-              {drawer.name}
-            </button>
-          ))}
-          <button
-            className={styles.dangerButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={() => handleUseFreezerItem(item.id)}
-          >
-            Usado
-          </button>
-        </div>
-      </li>
-    );
-  }
-
-  function renderFreezerItemList(itemsToRender: FreezerItem[]) {
-    if (itemsToRender.length === 0) {
-      return (
-        <div className={styles.freezerEmpty}>
-          <span className={styles.emptyIcon} aria-hidden="true">
-            <Icon name="freezer" />
-          </span>
-          <p className={styles.emptyTitle}>Sin productos</p>
-          <p className={styles.emptyDescription}>
-            Añade algo cuando guardes comida en el congelador.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <ol className={styles.freezerList}>
-        {itemsToRender.map((item) => renderFreezerItemCard(item))}
-      </ol>
-    );
-  }
-
-  function renderItems(
-    sectionItems: ShoppingItem[],
-    removedSectionItems: ShoppingItem[],
-    hiddenPurchasedItem: ShoppingItem | null,
-    sectionColor: ShoppingSectionColor,
-  ) {
-    const renderedSectionItems = (
-      showPurchasedItems
-        ? sectionItems
-        : sectionItems.filter((item) => !item.purchased)
-    ).filter((item) =>
-      isShoppingSearchActive
-        ? normalizeShoppingSearchQuery(item.name).includes(
-            normalizedShoppingSearchQuery,
-          )
-        : true,
-    );
-
-    if (
-      renderedSectionItems.length === 0 &&
-      removedSectionItems.length === 0 &&
-      !hiddenPurchasedItem
-    ) {
-      return (
-        <div
-          className={`${styles.empty} ${styles[`shoppingListColor${sectionColor}`]}`}
-        >
-          <span className={styles.emptyIcon} aria-hidden="true">
-            <Icon name="list" />
-          </span>
-          <p className={styles.emptyTitle}>
-            {isShoppingSearchActive
-              ? "No hay coincidencias"
-              : "No hay productos"}
-          </p>
-          <p className={styles.emptyDescription}>
-            {isShoppingSearchActive
-              ? "No hay coincidencias con la búsqueda."
-              : sectionItems.length === 0
-                ? "Añade el primero usando el formulario superior."
-                : "Los productos comprados están ocultos."}
-          </p>
-        </div>
-      );
-    }
-
-    const visibleItems = sortShoppingItemsForShopping(
-      renderedSectionItems,
-      categories,
-      productCatalogEntries,
-    );
-    const sortedRemovedItems = [...removedSectionItems].sort(
-      (firstItem, secondItem) =>
-        compareShoppingItemsForVisibleOrder(
-          firstItem,
-          secondItem,
-          categories,
-          productCatalogEntries,
-        ),
-    );
-    const hasPendingItems = sectionItems.some((item) => !item.purchased);
-    const hasPurchasedItems = sectionItems.some((item) => item.purchased);
-    const shouldShowPurchasedDivider = hasPendingItems && hasPurchasedItems;
-    let hasRenderedUndoItem = false;
-    let hasRenderedHiddenPurchasedUndoItem = false;
-    const listItems = visibleItems.flatMap((item, index) => {
-      const itemCategoryId = getShoppingItemCategoryId(
-        item,
-        productCatalogEntries,
-      );
-      const previousItem = visibleItems[index - 1];
-      const shouldRenderCategoryDivider =
-        !previousItem ||
-        previousItem.purchased !== item.purchased ||
-        getShoppingItemCategoryId(previousItem, productCatalogEntries) !==
-          itemCategoryId;
-      const shouldRenderPurchasedDivider =
-        shouldShowPurchasedDivider &&
-        item.purchased &&
-        !visibleItems[index - 1]?.purchased;
-      const itemPriceSummary = item.canonicalProductId
-        ? productPriceCardSummaries.get(item.canonicalProductId)
-        : null;
-      const itemTicketPriceSummary = itemPriceSummary?.ticketSummary ?? null;
-      const itemBestExternalPrice =
-        itemPriceSummary?.bestExternalObservation ?? null;
-      const itemContent = (
-        <li
-          ref={(itemElement) => {
-            if (itemElement) {
-              itemRefs.current[item.id] = itemElement;
-            } else {
-              delete itemRefs.current[item.id];
-            }
-          }}
-          className={
-            item.purchased
-              ? `${styles.item} ${styles.itemPurchased} ${
-                  highlightedItemId === item.id ? styles.itemHighlighted : ""
-                }`
-              : `${styles.item} ${
-                  highlightedItemId === item.id ? styles.itemHighlighted : ""
-                }`
-          }
-          key={item.id}
-          tabIndex={highlightedItemId === item.id ? -1 : undefined}
-        >
-          <button
-            className={
-              item.purchased
-                ? `${styles.itemCheck} ${styles.itemCheckPurchased}`
-                : styles.itemCheck
-            }
-            type="button"
-            aria-label={
-              item.purchased
-                ? `Devolver ${item.name} a pendientes`
-                : `Marcar ${item.name} como comprado`
-            }
-            title={item.purchased ? "Devolver a pendientes" : "Marcar comprado"}
-            onClick={() => handleToggleItem(item.id)}
-          >
-            <Icon name="check" />
-          </button>
-          <span
-            className={
-              item.purchased
-                ? `${styles.itemName} ${styles.itemNamePurchased}`
-                : styles.itemName
-            }
-          >
-            {item.name}
-            {item.quantity ? (
-              <span className={styles.itemQuantity}>
-                {formatShoppingItemQuantity(item.quantity)}
-              </span>
-            ) : null}
-            {item.notes ? (
-              <span className={styles.itemNotes}>{item.notes}</span>
-            ) : null}
-          </span>
-          {itemTicketPriceSummary || itemBestExternalPrice ? (
-            <span
-              className={styles.itemPriceSummary}
-              aria-label={[
-                itemTicketPriceSummary
-                  ? `Último precio real ${formatPriceSummaryValue(
-                      itemTicketPriceSummary.latestPrice,
-                      itemTicketPriceSummary.comparisonUnit,
-                    )}, media real ${formatPriceSummaryValue(
-                      itemTicketPriceSummary.averagePrice,
-                      itemTicketPriceSummary.comparisonUnit,
-                    )}`
-                  : null,
-                itemBestExternalPrice
-                  ? `Mejor precio externo ${formatPriceSummaryValue(
-                      itemBestExternalPrice.observedPrice,
-                      itemBestExternalPrice.comparisonUnit,
-                    )}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(", ")}
-              title={
-                itemTicketPriceSummary
-                  ? `${itemTicketPriceSummary.observationCount} ${
-                      itemTicketPriceSummary.observationCount === 1
-                        ? "observación real"
-                        : "observaciones reales"
-                    }`
-                  : "Solo precio externo"
-              }
-            >
-              {itemTicketPriceSummary ? (
-                <>
-                  <span>
-                    Últ.{" "}
-                    {formatPriceSummaryValue(
-                      itemTicketPriceSummary.latestPrice,
-                      itemTicketPriceSummary.comparisonUnit,
-                    )}
-                  </span>
-                  <span>
-                    Media{" "}
-                    {formatPriceSummaryValue(
-                      itemTicketPriceSummary.averagePrice,
-                      itemTicketPriceSummary.comparisonUnit,
-                    )}
-                  </span>
-                </>
-              ) : null}
-              {itemBestExternalPrice ? (
-                <span className={styles.itemExternalPrice}>
-                  Ext.{" "}
-                  {formatPriceSummaryValue(
-                    itemBestExternalPrice.observedPrice,
-                    itemBestExternalPrice.comparisonUnit,
-                  )}
-                </span>
-              ) : null}
-              <button
-                className={styles.itemPriceDetailButton}
-                type="button"
-                aria-label={`Ver precios de ${item.name}`}
-                title="Ver precios"
-                onPointerDown={handleButtonPointerDown}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  openPriceDetailSheet(item);
-                }}
-              >
-                <Icon name="history" />
-              </button>
-            </span>
-          ) : null}
-          <span className={styles.itemMeta}>
-            {getShoppingUserName(item.addedBy)}
-          </span>
-          <div className={styles.itemActions}>
-            <button
-              className={styles.iconButton}
-              type="button"
-              aria-label={`Editar ${item.name}`}
-              title="Editar"
-              onPointerDown={handleButtonPointerDown}
-              onClick={(event) => {
-                event.stopPropagation();
-                startEditing(item);
-              }}
-            >
-              <Icon name="edit" />
-            </button>
-            <button
-              className={styles.iconButtonDanger}
-              type="button"
-              aria-label={`Eliminar ${item.name}`}
-              title="Eliminar"
-              onPointerDown={handleButtonPointerDown}
-              onClick={(event) => {
-                event.stopPropagation();
-                handleRemoveItem(item.id);
-              }}
-            >
-              <Icon name="trash" />
-            </button>
-          </div>
-        </li>
-      );
-      const purchasedDivider = shouldRenderPurchasedDivider ? (
-        <li className={styles.purchasedDivider} key="purchased-divider">
-          Comprados
-        </li>
-      ) : null;
-      const categoryDivider = shouldRenderCategoryDivider ? (
-        <li
-          className={styles.categoryDivider}
-          key={`${item.purchased ? "purchased" : "pending"}-${itemCategoryId}`}
-        >
-          {getShoppingCategoryName(itemCategoryId, categories)}
-        </li>
-      ) : null;
-      const shouldRenderUndoItem =
-        !hasRenderedUndoItem &&
-        sortedRemovedItems.length > 0 &&
-        compareShoppingItemsForVisibleOrder(
-          sortedRemovedItems[0],
-          item,
-          categories,
-          productCatalogEntries,
-        ) < 0;
-      const shouldRenderHiddenPurchasedUndoItem =
-        !hasRenderedHiddenPurchasedUndoItem &&
-        hiddenPurchasedItem &&
-        compareShoppingItemsForVisibleOrder(
-          hiddenPurchasedItem,
-          item,
-          categories,
-          productCatalogEntries,
-        ) < 0;
-
-      if (shouldRenderUndoItem) {
-        hasRenderedUndoItem = true;
-
-        return sortedRemovedItems[0].purchased
-          ? [
-              purchasedDivider,
-              categoryDivider,
-              renderUndoItem(sortedRemovedItems),
-              itemContent,
-            ]
-          : [
-              renderUndoItem(sortedRemovedItems),
-              purchasedDivider,
-              categoryDivider,
-              itemContent,
-            ];
-      }
-
-      if (shouldRenderHiddenPurchasedUndoItem) {
-        hasRenderedHiddenPurchasedUndoItem = true;
-
-        return [
-          renderHiddenPurchasedUndoItem(hiddenPurchasedItem),
-          purchasedDivider,
-          categoryDivider,
-          itemContent,
-        ];
-      }
-
-      return [purchasedDivider, categoryDivider, itemContent];
-    });
-
-    if (!hasRenderedUndoItem && sortedRemovedItems.length > 0) {
-      listItems.push(renderUndoItem(sortedRemovedItems));
-    }
-
-    if (hiddenPurchasedItem && !hasRenderedHiddenPurchasedUndoItem) {
-      listItems.push(renderHiddenPurchasedUndoItem(hiddenPurchasedItem));
-    }
-
-    return (
-      <ul
-        className={`${styles.list} ${styles[`shoppingListColor${sectionColor}`]}`}
-      >
-        {listItems}
-      </ul>
-    );
-  }
-
-  function renderLoadingItems() {
-    return (
-      <ul className={`${styles.list} ${styles.loadingList}`} aria-hidden="true">
-        {[0, 1, 2].map((itemIndex) => (
-          <li className={styles.loadingItem} key={itemIndex}>
-            <span className={styles.loadingCheck} />
-            <span className={styles.loadingText} />
-            <span className={styles.loadingMeta} />
-            <span className={styles.loadingAction} />
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  function renderLoadingBoard() {
-    return [0, 1, 2].map((columnIndex) => (
-      <article
-        className={`${styles.column} ${styles.loadingColumn}`}
-        aria-hidden="true"
-        key={columnIndex}
-      >
-        <div className={styles.sectionHeader}>
-          <span className={styles.loadingTitle} />
-          <span className={styles.loadingCount} />
-        </div>
-        {renderLoadingItems()}
-      </article>
-    ));
-  }
-
-  function renderHistoryEvents() {
-    if (displayedHistoryEvents.length === 0) {
-      return (
-        <div className={styles.historyEmpty}>
-          <p className={styles.emptyTitle}>
-            {showUnseenHistoryOnly
-              ? "No hay cambios pendientes"
-              : "No hay historial reciente"}
-          </p>
-          <p className={styles.emptyDescription}>
-            {showUnseenHistoryOnly
-              ? "Los cambios de otros dispositivos ya están revisados."
-              : "Las compras y borrados aparecerán aquí durante 30 días."}
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <ol className={styles.historyList}>
-        {displayedHistoryEvents.map((event) => (
-          <li className={styles.historyItem} key={event.id}>
-            <div className={styles.historyItemHeader}>
-              <span className={styles.historyAction}>
-                {getHistoryEventText(event)}
-              </span>
-              <time dateTime={new Date(event.createdAt).toISOString()}>
-                {formatHistoryEventDate(event.createdAt)}
-              </time>
-            </div>
-            <p className={styles.historyProduct}>{event.item.name}</p>
-            <p className={styles.historyMeta}>{getHistoryEventMeta(event)}</p>
-          </li>
-        ))}
-      </ol>
-    );
-  }
-
-  function renderRecategorizationChanges() {
-    if (displayedRecategorizationChanges.length === 0) {
-      return (
-        <div className={styles.historyEmpty}>
-          <p className={styles.emptyTitle}>
-            {showUnseenHistoryOnly
-              ? "No hay recategorizaciones pendientes"
-              : "No hay recategorizaciones"}
-          </p>
-          <p className={styles.emptyDescription}>
-            {showUnseenHistoryOnly
-              ? "Las recategorizaciones ya están revisadas."
-              : "Los cambios automáticos de categoría aparecerán aquí."}
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <ol className={styles.historyList}>
-        {displayedRecategorizationChanges.map((change) => {
-          const run = recategorizationRunsById.get(change.runId);
-          const runSummary = getRecategorizationRunSummary(run);
-
-          return (
-            <li className={styles.historyItem} key={change.id}>
-              <div className={styles.historyItemHeader}>
-                <span className={styles.historyAction}>
-                  Categoría actualizada
-                </span>
-                <time dateTime={new Date(change.createdAt).toISOString()}>
-                  {formatHistoryEventDate(change.createdAt)}
-                </time>
-              </div>
-              <p className={styles.historyProduct}>{change.itemName}</p>
-              <p className={styles.historyMeta}>
-                {getRecategorizationChangeMeta(change, categories)}
-              </p>
-              {change.reason ? (
-                <p className={styles.historyMeta}>{change.reason}</p>
-              ) : null}
-              {runSummary ? (
-                <p className={styles.historyMeta}>{runSummary}</p>
-              ) : null}
-              {change.catalogEntryId ? (
-                <p className={styles.historyMeta}>
-                  Catálogo: {change.catalogEntryId}
-                </p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
-    );
-  }
-
-  function renderProductNormalizationChanges() {
-    if (displayedProductNormalizationChanges.length === 0) {
-      return (
-        <div className={styles.historyEmpty}>
-          <p className={styles.emptyTitle}>
-            {showUnseenHistoryOnly
-              ? "No hay normalizaciones pendientes"
-              : "No hay normalizaciones"}
-          </p>
-          <p className={styles.emptyDescription}>
-            {showUnseenHistoryOnly
-              ? "Las normalizaciones ya están revisadas."
-              : "Las fusiones, renombres y aliases de Codex aparecerán aquí."}
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <ol className={styles.historyList}>
-        {displayedProductNormalizationChanges.map((change) => {
-          const run = productNormalizationRunsById.get(change.runId);
-          const runSummary = getProductNormalizationRunSummary(run);
-          const changeMeta = getProductNormalizationChangeMeta(change);
-
-          return (
-            <li className={styles.historyItem} key={change.id}>
-              <div className={styles.historyItemHeader}>
-                <span className={styles.historyAction}>
-                  {getProductNormalizationActionText(change)}
-                </span>
-                <time dateTime={new Date(change.createdAt).toISOString()}>
-                  {formatHistoryEventDate(change.createdAt)}
-                </time>
-              </div>
-              <p className={styles.historyProduct}>
-                {getProductNormalizationProductText(change)}
-              </p>
-              {changeMeta ? (
-                <p className={styles.historyMeta}>{changeMeta}</p>
-              ) : null}
-              {change.reason ? (
-                <p className={styles.historyMeta}>{change.reason}</p>
-              ) : null}
-              {runSummary ? (
-                <p className={styles.historyMeta}>{runSummary}</p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
-    );
-  }
-
-  function renderDeveloperBackupCard() {
-    const backupStatus = getDeveloperBackupStatus(developerBackupRun);
-    const backupStatusText = getDeveloperBackupStatusText(backupStatus);
-    const hasBackupProblem =
-      backupStatus === "failed" || backupStatus === "stale";
-
-    return (
-      <section className={styles.developerPanel} aria-label="Estado del backup">
-        <div className={styles.developerPanelHeader}>
-          <h3>Backup Supabase</h3>
-          <span
-            className={
-              hasBackupProblem
-                ? styles.developerStatusFailed
-                : styles.developerStatusSuccess
-            }
-          >
-            {backupStatusText}
-          </span>
-        </div>
-        {developerBackupError ? (
-          <p className={styles.error} role="alert">
-            {developerBackupError}
-          </p>
-        ) : null}
-        <dl className={styles.developerMetrics}>
-          <div>
-            <dt>Última copia</dt>
-            <dd>
-              {developerBackupRun
-                ? formatDeveloperDate(developerBackupRun.finishedAt)
-                : "Sin registro"}
-            </dd>
-          </div>
-          <div>
-            <dt>Duración</dt>
-            <dd>
-              {developerBackupRun
-                ? formatDuration(developerBackupRun.durationMs)
-                : "Sin dato"}
-            </dd>
-          </div>
-          <div>
-            <dt>Tamaño</dt>
-            <dd>
-              {developerBackupRun
-                ? formatFileSize(developerBackupRun.fileSizeBytes)
-                : "Sin dato"}
-            </dd>
-          </div>
-          <div>
-            <dt>Copias</dt>
-            <dd>{developerBackupRun?.retainedCount ?? 0}</dd>
-          </div>
-          <div>
-            <dt>Archivo</dt>
-            <dd>{developerBackupRun?.fileName ?? "Sin archivo"}</dd>
-          </div>
-          <div>
-            <dt>SHA-256</dt>
-            <dd>{formatShortHash(developerBackupRun?.sha256 ?? null)}</dd>
-          </div>
-        </dl>
-        {developerBackupRun?.errorMessage ? (
-          <p className={styles.developerNote}>
-            {developerBackupRun.errorMessage}
-          </p>
-        ) : null}
-        {backupStatus === "stale" ? (
-          <p className={styles.developerNote} role="alert">
-            Hace más de 6 horas que no se completa una copia de seguridad.
-          </p>
-        ) : null}
-      </section>
-    );
-  }
-
-  function renderDeveloperRemoteActionsCard() {
-    const status = remoteAction?.status;
-    const statusText =
-      status === "running"
-        ? "Ejecutando"
-        : status === "completed"
-          ? "Completada"
-          : status === "failed"
-            ? "Fallida"
-            : status === "pending"
-              ? "Pendiente"
-              : "Sin órdenes";
-    const hasError = status === "failed" || Boolean(remoteActionError);
-    const isActionRunning = status === "pending" || status === "running";
-
-    return (
-      <section className={styles.developerPanel} aria-label="Acciones remotas">
-        <div className={styles.developerPanelHeader}>
-          <h3>Acciones del servidor</h3>
-          <span
-            className={
-              hasError
-                ? styles.developerStatusFailed
-                : styles.developerStatusSuccess
-            }
-          >
-            {statusText}
-          </span>
-        </div>
-        <p className={styles.developerNote}>
-          El servidor ejecuta tareas autorizadas sin exponer puertos públicos.
-        </p>
-        {remoteActionError ? (
-          <p className={styles.error} role="alert">
-            {remoteActionError}
-          </p>
-        ) : null}
-        {remoteAction?.resultSummary ? (
-          <p className={styles.developerNote}>{remoteAction.resultSummary}</p>
-        ) : null}
-        {remoteAction?.errorMessage ? (
-          <p className={styles.developerNote} role="alert">
-            {remoteAction.errorMessage}
-          </p>
-        ) : null}
-        <div className={styles.developerActions}>
-          {remoteActionDefinitions.map((definition) => (
-            <button
-              key={definition.name}
-              className={
-                definition.name === "supabase_backup"
-                  ? styles.primaryButton
-                  : styles.secondaryButton
-              }
-              type="button"
-              onPointerDown={handleButtonPointerDown}
-              onClick={() => void handleRemoteAction(definition.name)}
-              disabled={isRemoteActionPending || isActionRunning}
-            >
-              {isRemoteActionPending && remoteAction?.action === definition.name
-                ? "Solicitando…"
-                : definition.label}
-            </button>
-          ))}
-        </div>
-      </section>
-    );
-  }
-
-  function renderDeveloperPushNotificationCard() {
-    const isSupabaseAvailable = isSupabaseConfigured();
-    const isSubscribed = pushNotificationSnapshot.status === "subscribed";
-    const isActionDisabled =
-      isPushNotificationActionPending ||
-      isPushNotificationActionDisabled(
-        pushNotificationSnapshot,
-        isSupabaseAvailable,
-      );
-
-    return (
-      <section
-        className={styles.developerPanel}
-        aria-label="Notificaciones push"
-      >
-        <div className={styles.developerPanelHeader}>
-          <h3>Notificaciones push</h3>
-          <span
-            className={
-              isSubscribed
-                ? styles.developerStatusSuccess
-                : styles.developerStatusFailed
-            }
-          >
-            {pushNotificationSnapshot.message}
-          </span>
-        </div>
-        <dl className={styles.developerMetrics}>
-          <div>
-            <dt>Permiso</dt>
-            <dd>{pushNotificationSnapshot.message}</dd>
-          </div>
-          <div>
-            <dt>Supabase</dt>
-            <dd>{isSupabaseAvailable ? "Configurado" : "No configurado"}</dd>
-          </div>
-        </dl>
-        {pushNotificationDiagnostic ? (
-          <div
-            className={
-              pushNotificationDiagnostic.ok
-                ? styles.developerDiagnosticSuccess
-                : styles.developerDiagnosticFailed
-            }
-            role="status"
-          >
-            <p>{pushNotificationDiagnostic.message}</p>
-            <ul>
-              {pushNotificationDiagnostic.details.map((detail) => (
-                <li key={detail}>{detail}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        <div className={styles.developerActions}>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handlePushNotificationDiagnostic}
-            disabled={!isSupabaseAvailable || isPushDiagnosticPending}
-          >
-            Probar registro
-          </button>
-          <button
-            className={
-              isSubscribed ? styles.secondaryButton : styles.primaryButton
-            }
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handlePushNotificationAction}
-            disabled={isActionDisabled}
-          >
-            {getPushNotificationActionText(
-              pushNotificationSnapshot,
-              isSupabaseAvailable,
-            )}
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  function renderDeveloperOverviewCard() {
-    const backupStatus = getDeveloperBackupStatus(developerBackupRun);
-    const backupStatusText = getDeveloperBackupStatusText(backupStatus);
-    const hasBackupProblem =
-      backupStatus === "failed" || backupStatus === "stale";
-    const pushStatus = pushNotificationSnapshot.message;
-    const hasPushProblem =
-      pushNotificationSnapshot.status === "error" ||
-      pushNotificationSnapshot.status === "denied";
-    const hasOperationalProblem =
-      hasBackupProblem || hasPushProblem || syncStatus === "offline";
-
-    return (
-      <section
-        className={styles.developerOverview}
-        aria-label="Resumen operativo"
-      >
-        <div className={styles.developerOverviewHeader}>
-          <div>
-            <p className={styles.developerEyebrow}>Estado general</p>
-            <h3>
-              {hasOperationalProblem ? "Revisar la app" : "Todo en orden"}
-            </h3>
-          </div>
-          <span
-            className={
-              hasOperationalProblem
-                ? styles.developerStatusFailed
-                : styles.developerStatusSuccess
-            }
-          >
-            {hasOperationalProblem ? "Atención" : "Operativa"}
-          </span>
-        </div>
-        <div className={styles.developerOverviewMetrics}>
-          <div>
-            <span>Backup</span>
-            <strong
-              className={hasBackupProblem ? styles.developerMetricWarning : ""}
-            >
-              {backupStatusText}
-            </strong>
-          </div>
-          <div>
-            <span>Sincronización</span>
-            <strong>{getSyncStatusText(syncStatus)}</strong>
-          </div>
-          <div>
-            <span>Push</span>
-            <strong
-              className={hasPushProblem ? styles.developerMetricWarning : ""}
-            >
-              {pushStatus}
-            </strong>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   function toggleDeveloperSection(id: DeveloperSectionId) {
     setOpenDeveloperSection((currentId) => (currentId === id ? null : id));
   }
 
-  function renderPushNotificationInvite() {
-    if (!isPushInviteVisible) {
-      return null;
-    }
-
-    return (
-      <section className={styles.pushInvite} aria-label="Avisos de cambios">
-        <span className={styles.pushInviteIcon} aria-hidden="true">
-          <Icon name="bell" />
-        </span>
-        <div className={styles.pushInviteText}>
-          <h2>Avisos de cambios</h2>
-          <p>
-            Recibe una notificación cuando otro dispositivo cambie la lista.
-          </p>
-        </div>
-        <div className={styles.pushInviteActions}>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handleDismissPushNotificationInvite}
-            disabled={isPushNotificationActionPending}
-          >
-            Ahora no
-          </button>
-          <button
-            className={styles.primaryButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handlePushNotificationAction}
-            disabled={isPushNotificationActionPending}
-          >
-            {pushNotificationSnapshot.status === "error"
-              ? "Reintentar"
-              : "Activar"}
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  function renderLoginScreen() {
-    if (!isSupabaseConfigured()) {
-      return null;
-    }
-
-    if (authSnapshot.status === "loading") {
-      return (
-        <main className={styles.loginScreen} aria-label="Iniciar sesión">
-          <section className={styles.loginCard}>
-            <span className={styles.splashLogo} aria-hidden="true">
-              <HeaderLogo />
-            </span>
-            <p className={styles.splashKicker}>Lista de la compra</p>
-            <h1>Jucart</h1>
-            <p className={styles.loginStatus}>Comprobando sesión…</p>
-          </section>
-        </main>
-      );
-    }
-
-    if (authSnapshot.status === "signed_in" && authSnapshot.user) {
-      return null;
-    }
-
-    return (
-      <main className={styles.loginScreen} aria-label="Iniciar sesión">
-        <section className={styles.loginCard}>
-          <span className={styles.splashLogo} aria-hidden="true">
-            <HeaderLogo />
-          </span>
-          <p className={styles.splashKicker}>Lista de la compra</p>
-          <h1>Jucart</h1>
-          <p className={styles.loginIntro}>
-            Inicia sesión para ver tus listas.
-          </p>
-          <form className={styles.loginForm} onSubmit={handlePasswordSubmit}>
-            <label className={styles.authLabel} htmlFor="auth-email">
-              Email
-            </label>
-            <input
-              id="auth-email"
-              className={styles.authInput}
-              type="email"
-              autoComplete="username"
-              placeholder="Tu email"
-              value={authEmail}
-              onChange={(event) => setAuthEmail(event.target.value)}
-              disabled={isAuthActionPending}
-            />
-            <label className={styles.authLabel} htmlFor="auth-password">
-              Contraseña
-            </label>
-            <input
-              id="auth-password"
-              className={styles.authInput}
-              type="password"
-              autoComplete="current-password"
-              placeholder="Tu contraseña"
-              value={authPassword}
-              onChange={(event) => setAuthPassword(event.target.value)}
-              disabled={isAuthActionPending}
-            />
-            <button
-              className={styles.primaryButton}
-              type="submit"
-              onPointerDown={handleButtonPointerDown}
-              disabled={isAuthActionPending}
-            >
-              {isAuthActionPending ? "Entrando…" : "Entrar"}
-            </button>
-          </form>
-          {authMessage ? (
-            <p className={styles.authMessage} role="status">
-              {authMessage}
-            </p>
-          ) : null}
-          {authSnapshot.error ? (
-            <p className={styles.authMessage} role="alert">
-              {authSnapshot.error}
-            </p>
-          ) : null}
-        </section>
-      </main>
-    );
-  }
-
-  function renderDeveloperAuthCard() {
-    if (authSnapshot.status !== "signed_in" || !authSnapshot.user) {
-      return null;
-    }
-
-    return (
-      <section className={styles.developerPanel} aria-label="Autenticación">
-        <div className={styles.developerPanelHeader}>
-          <h3>Autenticación</h3>
-          <span className={styles.developerStatusSuccess}>Sesión activa</span>
-        </div>
-        <div className={styles.developerAuthRow}>
-          <span className={styles.authStatus}>
-            {authSnapshot.user.email ?? "Sesión iniciada"}
-          </span>
-          <button
-            className={styles.authButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handleSignOut}
-            disabled={isAuthActionPending}
-          >
-            Cerrar sesión
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  function renderShoppingListsCard() {
-    if (authSnapshot.status !== "signed_in" || !authSnapshot.user) {
-      return null;
-    }
-
-    return (
-      <section
-        className={styles.developerPanel}
-        aria-label="Listas disponibles"
-      >
-        <div className={styles.developerPanelHeader}>
-          <h3>Listas</h3>
-          <span className={styles.developerStatusSuccess}>
-            {shoppingLists.length}
-          </span>
-        </div>
-        {shoppingLists.length > 0 ? (
-          <ul className={styles.shoppingListManager}>
-            {shoppingLists.map((list) => {
-              const isOwner = list.currentRole === "owner";
-              const listIndex = shoppingLists.findIndex(
-                (currentList) => currentList.id === list.id,
-              );
-              const listSections = sections.filter((section) =>
-                section.id.startsWith(`${list.id}::`),
-              );
-              const listItems = items.filter((item) =>
-                listSections.some((section) => section.id === item.sectionId),
-              );
-              const hasLoadedSections = listSections.length > 0;
-              const productCount = hasLoadedSections
-                ? listItems.length
-                : (list.productCount ?? 0);
-              const purchasedCount = hasLoadedSections
-                ? listItems.filter((item) => item.purchased).length
-                : 0;
-              const pendingCount = productCount - purchasedCount;
-              const listSection = listSections[0];
-
-              const isExpanded = expandedShoppingListIds.includes(list.id);
-
-              return (
-                <li
-                  key={list.id}
-                  className={`${styles.shoppingListManagerItem} ${listSection ? styles[`shoppingListCardColor${listSection.color}`] : ""}`}
-                >
-                  <div className={styles.shoppingListCardHeader}>
-                    {isOwner ? (
-                      <input
-                        className={styles.input}
-                        aria-label={`Nombre de ${list.name}`}
-                        defaultValue={list.name}
-                        type="text"
-                        onBlur={(event) =>
-                          void handleRenameShoppingList(
-                            list.id,
-                            event.target.value,
-                          )
-                        }
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.currentTarget.blur();
-                          }
-                        }}
-                        disabled={isShoppingListActionPending}
-                      />
-                    ) : (
-                      <strong>{list.name}</strong>
-                    )}
-                    <div className={styles.shoppingListStats}>
-                      <span>{pendingCount} pendientes</span>
-                      <span>{productCount} productos</span>
-                    </div>
-                  </div>
-                  <div className={styles.shoppingListCardActions}>
-                    <button
-                      className={styles.primaryButton}
-                      type="button"
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={() =>
-                        void handleToggleShoppingListMembers(list.id)
-                      }
-                      disabled={isShoppingListActionPending}
-                    >
-                      {isExpanded ? "Ocultar detalles" : "Ver detalles"}
-                    </button>
-                    <button
-                      className={styles.secondaryButton}
-                      type="button"
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={() => handleOpenShoppingList(listSection?.id)}
-                    >
-                      Abrir lista
-                    </button>
-                  </div>
-                  {isExpanded ? (
-                    <div className={styles.shoppingListDetails}>
-                      <div
-                        className={styles.shoppingListMembers}
-                        aria-label={`Miembros de ${list.name}`}
-                        role="region"
-                      >
-                        <strong>Miembros de la lista</strong>
-                        {(shoppingListMembers[list.id] ?? []).map((member) => (
-                          <div
-                            className={styles.shoppingListMember}
-                            key={member.userId}
-                          >
-                            <div>
-                              <strong>
-                                {member.displayName || member.email}
-                              </strong>
-                              <small>{member.email}</small>
-                            </div>
-                            <span className={styles.shoppingListMemberRole}>
-                              {member.role === "owner"
-                                ? "Propietario"
-                                : "Miembro"}
-                            </span>
-                            {isOwner && member.role === "member" ? (
-                              <div className={styles.shoppingListMemberActions}>
-                                <button
-                                  className={styles.authButton}
-                                  type="button"
-                                  onPointerDown={handleButtonPointerDown}
-                                  onClick={() =>
-                                    void handleTransferShoppingListOwnership(
-                                      list,
-                                      member,
-                                    )
-                                  }
-                                  disabled={isShoppingListActionPending}
-                                >
-                                  Transferir
-                                </button>
-                                <button
-                                  className={styles.authButton}
-                                  type="button"
-                                  onPointerDown={handleButtonPointerDown}
-                                  onClick={() =>
-                                    void handleRemoveShoppingListMember(
-                                      list,
-                                      member,
-                                    )
-                                  }
-                                  disabled={isShoppingListActionPending}
-                                >
-                                  Expulsar
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                      <div className={styles.shoppingListAdvanced}>
-                        <div className={styles.shoppingListManagerActions}>
-                          <button
-                            className={styles.iconButton}
-                            type="button"
-                            aria-label={`Subir ${list.name}`}
-                            title="Subir"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleMoveShoppingList(list.id, -1)
-                            }
-                            disabled={
-                              isShoppingListActionPending || listIndex === 0
-                            }
-                          >
-                            <Icon name="arrowUp" />
-                          </button>
-                          <button
-                            className={styles.iconButton}
-                            type="button"
-                            aria-label={`Bajar ${list.name}`}
-                            title="Bajar"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleMoveShoppingList(list.id, 1)
-                            }
-                            disabled={
-                              isShoppingListActionPending ||
-                              listIndex === shoppingLists.length - 1
-                            }
-                          >
-                            <Icon name="arrowDown" />
-                          </button>
-                        </div>
-                        {listSection ? (
-                          <div
-                            className={styles.sectionColorPicker}
-                            aria-label={`Color de ${list.name}`}
-                            role="group"
-                          >
-                            {shoppingSectionColors.map((color) => (
-                              <button
-                                className={`${styles.sectionColorButton} ${styles[`sectionColorSwatch${color}`]}${listSection.color === color ? ` ${styles.sectionColorButtonSelected}` : ""}`}
-                                type="button"
-                                aria-label={`Poner ${list.name} en color ${color}`}
-                                aria-pressed={listSection.color === color}
-                                key={color}
-                                onPointerDown={handleButtonPointerDown}
-                                onClick={() =>
-                                  handleSectionColorChange(
-                                    listSection.id,
-                                    color,
-                                  )
-                                }
-                                disabled={isShoppingListActionPending}
-                              />
-                            ))}
-                          </div>
-                        ) : null}
-                        <div className={styles.shoppingListCodeBlock}>
-                          {isOwner ? (
-                            <>
-                              <span>
-                                Código: <code>{list.joinCode}</code>
-                              </span>
-                              <button
-                                className={styles.authButton}
-                                type="button"
-                                onPointerDown={handleButtonPointerDown}
-                                onClick={() =>
-                                  void handleRegenerateShoppingListCode(list.id)
-                                }
-                                disabled={isShoppingListActionPending}
-                              >
-                                Regenerar
-                              </button>
-                            </>
-                          ) : null}
-                        </div>
-                        {isOwner ? (
-                          <button
-                            className={styles.dangerButton}
-                            type="button"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() => void handleDeleteShoppingList(list)}
-                            disabled={isShoppingListActionPending}
-                          >
-                            <Icon name="trash" /> Borrar lista
-                          </button>
-                        ) : (
-                          <button
-                            className={styles.dangerButton}
-                            type="button"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleLeaveShoppingList(list.id)
-                            }
-                            disabled={isShoppingListActionPending}
-                          >
-                            Abandonar lista
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <div className={styles.shoppingListEmpty}>
-            <p className={styles.authMessage}>No tienes listas compartidas.</p>
-            <button
-              className={styles.primaryButton}
-              type="button"
-              onPointerDown={handleButtonPointerDown}
-              onClick={openSectionAddSheet}
-            >
-              Nueva lista
-            </button>
-          </div>
-        )}
-        {shoppingListMessage ? (
-          <p className={styles.authMessage} role="status">
-            {shoppingListMessage}
-          </p>
-        ) : null}
-      </section>
-    );
-  }
-
-  function renderPwaUpdateBanner() {
-    if (!isPwaUpdateAvailable) {
-      return null;
-    }
-
-    return (
-      <aside className={styles.pwaUpdateBanner} aria-label="Actualización">
-        <div className={styles.pwaUpdateText}>
-          <strong>Hay una versión nueva</strong>
-          <span>
-            Actualiza Jucart para seguir usando la versión más reciente.
-          </span>
-        </div>
-        <button
-          className={styles.primaryButton}
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handlePwaUpdate}
-          disabled={isPwaUpdateApplying}
-        >
-          {isPwaUpdateApplying ? "Actualizando…" : "Actualizar"}
-        </button>
-      </aside>
-    );
-  }
-
   if (isSupabaseConfigured() && authSnapshot.status !== "signed_in") {
-    return renderLoginScreen();
+    return (
+      <LoginScreen
+        authSnapshot={authSnapshot}
+        email={authEmail}
+        password={authPassword}
+        message={authMessage}
+        isPending={isAuthActionPending}
+        onEmailChange={(event) => setAuthEmail(event.target.value)}
+        onPasswordChange={(event) => setAuthPassword(event.target.value)}
+        onSubmit={handlePasswordSubmit}
+        onButtonPointerDown={handleButtonPointerDown}
+      />
+    );
   }
 
   return (
@@ -6674,7 +4553,7 @@ export function App() {
       onTouchStart={handlePullRefreshTouchStart}
       onTouchMove={handlePullRefreshTouchMove}
       onTouchEnd={handlePullRefreshTouchEnd}
-      onTouchCancel={finishPullRefreshGesture}
+      onTouchCancel={resetPullRefreshGesture}
       className={`${styles.app} ${resolvedTheme === "dark" ? styles.appThemeDark : ""} ${
         activeView === "shopping" ? styles.appShopping : ""
       } ${isPushInviteVisible ? styles.appPushInviteVisible : ""}`}
@@ -6714,141 +4593,52 @@ export function App() {
           </p>
         </div>
       ) : null}
-      {renderPwaUpdateBanner()}
-      <section className={styles.header} aria-labelledby="app-title">
-        <div className={styles.brand}>
-          <span className={styles.logo} aria-hidden="true">
-            <HeaderLogo />
-          </span>
-          <div>
-            <p className={styles.kicker}>Lista de la compra</p>
-            <h1 id="app-title">Jucart</h1>
-          </div>
-        </div>
-        <div className={styles.headerMeta}>
-          <dl className={styles.summary} aria-label="Resumen de la lista">
-            <div className={styles.summaryItem}>
-              <dt>Pendientes</dt>
-              <dd>
-                {isLoaded ? (
-                  pendingCount
-                ) : (
-                  <span className={styles.loadingSummaryValue} />
-                )}
-              </dd>
-            </div>
-            <div className={styles.summaryItem}>
-              <dt>Comprados</dt>
-              <dd>
-                {isLoaded ? (
-                  purchasedCount
-                ) : (
-                  <span className={styles.loadingSummaryValue} />
-                )}
-              </dd>
-            </div>
-          </dl>
-          <div className={styles.headerActions}>
-            <p
-              ref={syncStatusRef}
-              className={`${styles.syncStatus} ${styles[`syncStatus${syncStatus}`]}`}
-              aria-live="polite"
-            >
-              {syncStatus === "syncing" ? (
-                <span
-                  className={styles.syncStatusIndicator}
-                  aria-hidden="true"
-                />
-              ) : null}
-              {getSyncStatusText(syncStatus)}
-            </p>
-            <button
-              className={styles.themeToggle}
-              type="button"
-              aria-label={`Tema ${themePreferenceLabels[themePreference]}. Cambiar a ${themePreferenceLabels[getNextThemePreference(themePreference)]}.`}
-              title={`Tema: ${themePreferenceLabels[themePreference]}`}
-              onPointerDown={handleButtonPointerDown}
-              onClick={handleThemePreferenceChange}
-            >
-              <span aria-hidden="true">
-                {themePreference === "auto"
-                  ? "◐"
-                  : themePreference === "light"
-                    ? "☀"
-                    : "☾"}
-              </span>
-              <span>{themePreferenceLabels[themePreference]}</span>
-            </button>
-          </div>
-          <p className={styles.appVersion} aria-label="Versión instalada">
-            v{appRelease.version} · build {formatAppDate(appRelease.buildDate)}{" "}
-            · activa {formatAppDate(appRelease.activatedAt)}
-          </p>
-        </div>
-      </section>
+      <PwaUpdateBanner
+        isAvailable={isPwaUpdateAvailable}
+        isApplying={isPwaUpdateApplying}
+        onButtonPointerDown={handleButtonPointerDown}
+        onUpdate={handlePwaUpdate}
+      />
+      <AppHeader
+        appRelease={appRelease}
+        isLoaded={isLoaded}
+        pendingCount={pendingCount}
+        purchasedCount={purchasedCount}
+        syncStatus={syncStatus}
+        syncStatusRef={syncStatusRef}
+        themePreference={themePreference}
+        onThemePreferenceChange={handleThemePreferenceChange}
+        onButtonPointerDown={handleButtonPointerDown}
+        getSyncStatusText={getSyncStatusText}
+      />
 
       {activeView === "shopping" ? (
-        <section
-          id="shopping-controls"
-          ref={commandPanelRef}
-          className={styles.commandPanel}
-          aria-label="Controles de lista"
-        >
-          <div className={styles.form}>
-            <label className={styles.searchField}>
-              <span className={styles.visuallyHidden}>Buscar productos</span>
-              <span className={styles.searchIcon} aria-hidden="true">
-                <Icon name="search" />
-              </span>
-              <input
-                value={shoppingSearchQuery}
-                onChange={(event) => setShoppingSearchQuery(event.target.value)}
-                type="search"
-                placeholder="Buscar productos"
-                disabled={!isLoaded}
-              />
-              {shoppingSearchQuery ? (
-                <button
-                  className={styles.searchClearButton}
-                  type="button"
-                  aria-label="Limpiar búsqueda"
-                  title="Limpiar búsqueda"
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={() => setShoppingSearchQuery("")}
-                >
-                  <Icon name="close" />
-                </button>
-              ) : null}
-            </label>
-            <div className={styles.addRow}>
-              <button
-                className={styles.iconButton}
-                type="button"
-                aria-label="Borrar comprados"
-                title="Borrar comprados"
-                onPointerDown={handleButtonPointerDown}
-                onClick={handleRemovePurchasedItems}
-                disabled={!isLoaded || selectedPurchasedCount === 0}
-              >
-                <Icon name="trash" />
-              </button>
-              <label className={styles.visibilityToggle}>
-                <input
-                  checked={showPurchasedItems}
-                  onChange={(event) =>
-                    handleShowPurchasedItemsChange(event.target.checked)
-                  }
-                  type="checkbox"
-                  disabled={!isLoaded}
-                />
-                <span>Comprados</span>
-              </label>
-            </div>
-          </div>
-        </section>
+        <ShoppingControls
+          controlsRef={commandPanelRef}
+          isLoaded={isLoaded}
+          query={shoppingSearchQuery}
+          showPurchasedItems={showPurchasedItems}
+          canClearPurchasedItems={selectedPurchasedCount > 0}
+          onQueryChange={(event) => setShoppingSearchQuery(event.target.value)}
+          onClearQuery={() => setShoppingSearchQuery("")}
+          onShowPurchasedItemsChange={(event) =>
+            handleShowPurchasedItemsChange(event.target.checked)
+          }
+          onClearPurchasedItems={handleRemovePurchasedItems}
+          onButtonPointerDown={handleButtonPointerDown}
+        />
       ) : null}
 
-      {activeView === "shopping" ? renderPushNotificationInvite() : null}
+      {activeView === "shopping" ? (
+        <PushNotificationInvite
+          isVisible={isPushInviteVisible}
+          snapshot={pushNotificationSnapshot}
+          isPending={isPushNotificationActionPending}
+          onDismiss={handleDismissPushNotificationInvite}
+          onActivate={handlePushNotificationAction}
+          onButtonPointerDown={handleButtonPointerDown}
+        />
+      ) : null}
 
       {!isLoaded && !isSplashVisible ? (
         <p className={styles.loadingStatus} role="status" aria-live="polite">
@@ -6861,865 +4651,197 @@ export function App() {
       ) : null}
 
       {activeView === "shopping" && !isAddSheetOpen ? (
-        <button
-          ref={addFabRef}
-          className={styles.floatingAddButton}
-          type="button"
-          aria-label="Añadir producto"
-          title="Añadir producto"
-          onPointerDown={handleButtonPointerDown}
-          onClick={openAddSheet}
+        <FloatingActionButton
+          buttonRef={addFabRef}
+          label="Añadir producto"
+          icon="plus"
           disabled={!isLoaded}
-        >
-          <Icon name="plus" />
-        </button>
+          onButtonPointerDown={handleButtonPointerDown}
+          onClick={openAddSheet}
+        />
       ) : null}
 
       {activeView === "tickets" && !isTicketUploadSheetOpen ? (
-        <button
-          ref={ticketUploadFabRef}
-          className={styles.floatingAddButton}
-          type="button"
-          aria-label="Subir ticket"
-          title="Subir ticket"
-          onPointerDown={handleButtonPointerDown}
-          onClick={openTicketUploadSheet}
+        <FloatingActionButton
+          buttonRef={ticketUploadFabRef}
+          label="Subir ticket"
+          icon="upload"
           disabled={!isLoaded}
-        >
-          <Icon name="upload" />
-        </button>
+          onButtonPointerDown={handleButtonPointerDown}
+          onClick={openTicketUploadSheet}
+        />
       ) : null}
 
       {freezerViewEnabled &&
       activeView === "freezer" &&
       !isFreezerAddSheetOpen &&
       !editingFreezerItem ? (
-        <button
-          ref={freezerAddFabRef}
-          className={styles.floatingAddButton}
-          type="button"
-          aria-label="Añadir producto congelado"
-          title="Añadir producto congelado"
-          onPointerDown={handleButtonPointerDown}
-          onClick={openFreezerAddSheet}
+        <FloatingActionButton
+          buttonRef={freezerAddFabRef}
+          label="Añadir producto congelado"
+          icon="plus"
           disabled={!isLoaded}
-        >
-          <Icon name="plus" />
-        </button>
+          onButtonPointerDown={handleButtonPointerDown}
+          onClick={openFreezerAddSheet}
+        />
       ) : null}
 
       {activeView === "sections" && !isSectionAddSheetOpen ? (
-        <button
-          ref={sectionAddFabRef}
-          className={styles.floatingAddButton}
-          type="button"
-          aria-label="Crear lista"
-          title="Crear lista"
-          onPointerDown={handleButtonPointerDown}
-          onClick={openSectionAddSheet}
+        <FloatingActionButton
+          buttonRef={sectionAddFabRef}
+          label="Crear lista"
+          icon="plus"
           disabled={!isLoaded}
-        >
-          <Icon name="plus" />
-        </button>
+          onButtonPointerDown={handleButtonPointerDown}
+          onClick={openSectionAddSheet}
+        />
       ) : null}
 
       {activeView === "shopping" && isAddSheetOpen ? (
-        <div
-          ref={addSheetBackdropRef}
-          className={styles.addSheetBackdrop}
-          style={
-            {
-              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
-            } as CSSProperties
-          }
-          onClick={() => closeAddSheet()}
-        >
-          <form
-            ref={addSheetRef}
-            className={styles.addSheet}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="add-sheet-title"
-            style={
-              {
-                "--sheet-drag-offset": `${sheetDragOffset}px`,
-              } as CSSProperties
-            }
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={handleAddSheetKeyDown}
-            onSubmit={handleSubmit}
-          >
-            <div
-              className={styles.addSheetHandle}
-              aria-label="Cerrar panel de alta"
-              role="button"
-              tabIndex={0}
-              onPointerDown={handleAddSheetDragStart}
-              onPointerMove={handleAddSheetDragMove}
-              onPointerUp={handleAddSheetDragEnd}
-              onPointerCancel={handleAddSheetDragEnd}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  closeAddSheet();
-                }
-              }}
-            >
-              <span />
-            </div>
-            <h2 id="add-sheet-title" className={styles.visuallyHidden}>
-              Añadir producto
-            </h2>
-            <div className={styles.addSheetFields}>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="item-name">
-                  Producto
-                </label>
-                <textarea
-                  id="item-name"
-                  ref={itemNameInputRef}
-                  className={styles.addSheetInput}
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  enterKeyHint="done"
-                  inputMode="text"
-                  rows={1}
-                  spellCheck
-                  value={itemName}
-                  onChange={(event) => handleItemNameChange(event.target.value)}
-                  onInput={(event) =>
-                    handleItemNameChange(event.currentTarget.value)
-                  }
-                  onKeyDown={handleAddInputKeyDown}
-                  onKeyUp={(event) =>
-                    handleItemNameChange(event.currentTarget.value)
-                  }
-                  placeholder="¿Qué necesitas comprar?"
-                  disabled={!isLoaded}
-                />
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="item-notes">
-                  Notas (opcional)
-                </label>
-                <textarea
-                  id="item-notes"
-                  className={styles.input}
-                  rows={2}
-                  value={addItemNotes}
-                  onChange={(event) => setAddItemNotes(event.target.value)}
-                  placeholder="Aclaraciones, marca o formato..."
-                  disabled={!isLoaded}
-                />
-              </div>
-              <div className={styles.addSheetSelectors}>
-                <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="sheet-section-id">
-                    Supermercado
-                  </label>
-                  <select
-                    id="sheet-section-id"
-                    className={styles.select}
-                    value={selectedSectionId}
-                    onChange={(event) =>
-                      selectSection(event.target.value as ShoppingSectionId)
-                    }
-                    disabled={!isLoaded}
-                  >
-                    {sections.map((section) => (
-                      <option key={section.id} value={section.id}>
-                        {section.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="item-quantity">
-                    Cantidad
-                  </label>
-                  <input
-                    id="item-quantity"
-                    className={styles.select}
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    enterKeyHint="done"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={addItemQuantity}
-                    onChange={(event) =>
-                      handleAddItemQuantityChange(event.target.value)
-                    }
-                    onFocus={selectTextOnFocus}
-                    disabled={!isLoaded}
-                    type="text"
-                  />
-                </div>
-              </div>
-            </div>
-            <div
-              className={styles.addSheetSuggestions}
-              role="listbox"
-              aria-label="Sugerencias de productos"
-            >
-              {quickItemSuggestions.map((suggestion) => (
-                <button
-                  className={styles.addSheetSuggestion}
-                  key={`${suggestion.categoryId}-${suggestion.name}`}
-                  type="button"
-                  role="option"
-                  aria-selected="false"
-                  title={getShoppingCategoryName(
-                    suggestion.categoryId,
-                    categories,
-                  )}
-                  onPointerDown={(event) => {
-                    event.preventDefault();
-                    handleButtonPointerDown(event);
-                  }}
-                  onClick={() => handleQuickSuggestionClick(suggestion.name)}
-                  disabled={!isLoaded}
-                >
-                  {suggestion.name}
-                </button>
-              ))}
-            </div>
-            <div className={styles.addSheetFooter}>
-              <p className={styles.addSheetNotice} aria-live="polite">
-                {addProductNotice ? addProductNotice.message : ""}
-              </p>
-              {addProductNotice?.type === "duplicate" ? (
-                <button
-                  className={styles.secondaryButton}
-                  type="button"
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={() =>
-                    handleViewDuplicateItem(addProductNotice.itemId)
-                  }
-                >
-                  Ver producto
-                </button>
-              ) : null}
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-                disabled={!isLoaded}
-              >
-                Añadir
-              </button>
-            </div>
-          </form>
-        </div>
+        <AddProductSheet
+          backdropRef={addSheetBackdropRef}
+          categories={categories}
+          getCategoryName={getShoppingCategoryName}
+          isLoaded={isLoaded}
+          itemName={itemName}
+          itemNameInputRef={itemNameInputRef}
+          keyboardInset={sheetKeyboardInset}
+          notice={addProductNotice}
+          notes={addItemNotes}
+          onButtonPointerDown={handleButtonPointerDown}
+          onClose={closeAddSheet}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          onItemNameChange={handleItemNameChange}
+          onItemNameKeyDown={handleAddInputKeyDown}
+          onNotesChange={setAddItemNotes}
+          onQuantityChange={handleAddItemQuantityChange}
+          onQuantityFocus={selectTextOnFocus}
+          onQuickSuggestion={handleQuickSuggestionClick}
+          onSectionChange={selectSection}
+          onSheetKeyDown={handleAddSheetKeyDown}
+          onSubmit={handleSubmit}
+          onViewDuplicate={handleViewDuplicateItem}
+          quantity={addItemQuantity}
+          quickSuggestions={quickItemSuggestions}
+          sections={sections}
+          selectedSectionId={selectedSectionId}
+          sheetDragOffset={sheetDragOffset}
+          sheetRef={addSheetRef}
+        />
       ) : null}
 
       {activeView === "shopping" && selectedPriceProductId ? (
-        <div
-          ref={priceDetailSheetBackdropRef}
-          className={styles.addSheetBackdrop}
-          style={
-            {
-              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
-            } as CSSProperties
-          }
-          onClick={() => closePriceDetailSheet()}
+        <PriceDetailSheet
+          backdropRef={priceDetailSheetBackdropRef}
+          formatValue={formatPriceSummaryValue}
+          keyboardInset={sheetKeyboardInset}
+          onButtonPointerDown={handleButtonPointerDown}
+          onClose={closePriceDetailSheet}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          productName={selectedPriceProductName}
+          sheetDragOffset={sheetDragOffset}
+          sheetRef={priceDetailSheetRef}
+          summary={selectedPriceSummary}
         >
-          <section
-            ref={priceDetailSheetRef}
-            className={`${styles.addSheet} ${styles.priceDetailSheet}`}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="price-detail-title"
-            tabIndex={-1}
-            style={
-              {
-                "--sheet-drag-offset": `${sheetDragOffset}px`,
-              } as CSSProperties
-            }
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                closePriceDetailSheet();
-              }
-            }}
-          >
-            <div
-              className={styles.addSheetHandle}
-              aria-label="Cerrar detalle de precios"
-              role="button"
-              tabIndex={0}
-              onPointerDown={handleAddSheetDragStart}
-              onPointerMove={handleAddSheetDragMove}
-              onPointerUp={handleAddSheetDragEnd}
-              onPointerCancel={handleAddSheetDragEnd}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  closePriceDetailSheet();
-                }
-              }}
-            >
-              <span />
-            </div>
-            <header className={styles.priceDetailHeader}>
-              <div>
-                <h2 id="price-detail-title">{selectedPriceProductName}</h2>
-                <p>Histórico de precios</p>
-              </div>
-              <button
-                className={styles.iconButton}
-                type="button"
-                aria-label="Cerrar precios"
-                title="Cerrar"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => closePriceDetailSheet()}
-              >
-                <Icon name="close" />
-              </button>
-            </header>
-            {selectedPriceSummary ? (
-              <dl className={styles.priceDetailMetrics}>
-                <div>
-                  <dt>Último</dt>
-                  <dd>
-                    {formatPriceSummaryValue(
-                      selectedPriceSummary.latestPrice,
-                      selectedPriceSummary.comparisonUnit,
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Media</dt>
-                  <dd>
-                    {formatPriceSummaryValue(
-                      selectedPriceSummary.averagePrice,
-                      selectedPriceSummary.comparisonUnit,
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Observaciones</dt>
-                  <dd>{selectedPriceSummary.observationCount}</dd>
-                </div>
-              </dl>
-            ) : null}
-            <div className={styles.priceDetailContent}>
-              {selectedLatestPriceObservation ? (
-                <section
-                  className={styles.priceDetailPanel}
-                  aria-labelledby="price-latest-title"
-                >
-                  <h3 id="price-latest-title">Último precio</h3>
-                  <div className={styles.priceLatestGrid}>
-                    <strong>
-                      {formatPriceSummaryValue(
-                        selectedLatestPriceObservation.observedPrice,
-                        selectedLatestPriceObservation.comparisonUnit,
-                      )}
-                    </strong>
-                    <span>
-                      {sections.find(
-                        (section) =>
-                          section.id ===
-                          selectedLatestPriceObservation.sectionId,
-                      )?.name ?? selectedLatestPriceObservation.sectionId}
-                    </span>
-                    <span>
-                      {formatTicketDate(
-                        selectedLatestPriceObservation.observedAt,
-                      )}
-                    </span>
-                    <span className={selectedPriceDifferenceClassName}>
-                      {selectedPriceDifference === null
-                        ? "Sin anterior"
-                        : formatPriceDifference(
-                            selectedPriceDifference,
-                            selectedLatestPriceObservation.comparisonUnit,
-                          )}
-                    </span>
-                  </div>
-                </section>
-              ) : null}
-              {selectedPriceSectionSummaries.length > 0 ? (
-                <section
-                  className={styles.priceDetailPanel}
-                  aria-labelledby="price-sections-title"
-                >
-                  <h3 id="price-sections-title">Por lista</h3>
-                  <ol className={styles.priceSectionList}>
-                    {selectedPriceSectionSummaries.map((summary) => (
-                      <li key={summary.sectionId}>
-                        <span>
-                          {sections.find(
-                            (section) => section.id === summary.sectionId,
-                          )?.name ?? summary.sectionId}
-                        </span>
-                        <strong>
-                          {formatPriceSummaryValue(
-                            summary.latestPrice,
-                            summary.comparisonUnit,
-                          )}
-                        </strong>
-                        <small>
-                          Media{" "}
-                          {formatPriceSummaryValue(
-                            summary.averagePrice,
-                            summary.comparisonUnit,
-                          )}{" "}
-                          · {summary.observationCount}
-                        </small>
-                      </li>
-                    ))}
-                  </ol>
-                </section>
-              ) : null}
-              {selectedPriceObservations.length > 0 ? (
-                <section
-                  className={styles.priceDetailPanel}
-                  aria-labelledby="price-observations-title"
-                >
-                  <h3 id="price-observations-title">Observaciones</h3>
-                  <ol className={styles.priceObservationList}>
-                    {visibleSelectedPriceObservations.map((observation) => (
-                      <li key={observation.id}>
-                        <span>
-                          {formatTicketDate(observation.observedAt)} ·{" "}
-                          {sections.find(
-                            (section) => section.id === observation.sectionId,
-                          )?.name ?? observation.sectionId}
-                          {observation.source === "external"
-                            ? ` · Externo${
-                                observation.externalProvider
-                                  ? `: ${observation.externalProvider}`
-                                  : ""
-                              }`
-                            : ""}
-                        </span>
-                        <strong>
-                          {formatPriceSummaryValue(
-                            observation.observedPrice,
-                            observation.comparisonUnit,
-                          )}
-                        </strong>
-                        {observation.quantity ? (
-                          <small>{observation.quantity}</small>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ol>
-                  {hiddenSelectedPriceObservationCount > 0 ? (
-                    <button
-                      className={styles.paginationButton}
-                      type="button"
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={showMorePriceObservations}
-                    >
-                      Ver{" "}
-                      {Math.min(
-                        hiddenSelectedPriceObservationCount,
-                        priceObservationPageSize,
-                      )}{" "}
-                      observaciones más
-                    </button>
-                  ) : null}
-                </section>
-              ) : null}
-            </div>
-          </section>
-        </div>
+          <PriceDetailContent
+            formatDate={formatTicketDate}
+            formatDifference={formatPriceDifference}
+            formatValue={formatPriceSummaryValue}
+            hiddenObservationCount={hiddenSelectedPriceObservationCount}
+            latestObservation={selectedLatestPriceObservation}
+            observationPageSize={priceObservationPageSize}
+            observations={visibleSelectedPriceObservations}
+            onButtonPointerDown={handleButtonPointerDown}
+            onShowMore={showMorePriceObservations}
+            priceDifference={selectedPriceDifference}
+            priceDifferenceClassName={selectedPriceDifferenceClassName}
+            sectionSummaries={selectedPriceSectionSummaries}
+            sections={sections}
+          />
+        </PriceDetailSheet>
       ) : null}
 
       {activeView === "tickets" && isTicketUploadSheetOpen ? (
-        <div
-          ref={ticketUploadSheetBackdropRef}
-          className={styles.addSheetBackdrop}
-          style={
-            {
-              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
-            } as CSSProperties
-          }
-          onClick={() => closeTicketUploadSheet()}
-        >
-          <form
-            ref={ticketUploadSheetRef}
-            className={`${styles.addSheet} ${styles.ticketUploadSheet}`}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="ticket-upload-title"
-            style={
-              {
-                "--sheet-drag-offset": `${sheetDragOffset}px`,
-              } as CSSProperties
-            }
-            onClick={(event) => event.stopPropagation()}
-            onSubmit={handleTicketUploadSubmit}
-          >
-            <div
-              className={styles.addSheetHandle}
-              onPointerDown={handleAddSheetDragStart}
-              onPointerMove={handleAddSheetDragMove}
-              onPointerUp={handleAddSheetDragEnd}
-              onPointerCancel={handleAddSheetDragEnd}
-            >
-              <span aria-hidden="true" />
-            </div>
-            <div className={styles.addSheetHeader}>
-              <div>
-                <p className={styles.sheetKicker}>Ticket de compra</p>
-                <h2 id="ticket-upload-title">Subir ticket</h2>
-              </div>
-              <button
-                className={styles.closeButton}
-                type="button"
-                aria-label="Cerrar subida de ticket"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => closeTicketUploadSheet()}
-              >
-                <Icon name="close" />
-              </button>
-            </div>
-            <div className={styles.ticketUploadFields}>
-              <label className={styles.label} htmlFor="ticket-section-id">
-                Supermercado
-              </label>
-              <select
-                id="ticket-section-id"
-                value={ticketUploadSectionId}
-                onChange={(event) =>
-                  setTicketUploadSectionId(event.target.value)
-                }
-                disabled={isTicketUploadPending}
-              >
-                {sections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.name}
-                  </option>
-                ))}
-              </select>
-              <label className={styles.label} htmlFor="ticket-files">
-                Archivos
-              </label>
-              <input
-                id="ticket-files"
-                ref={ticketFileInputRef}
-                type="file"
-                multiple
-                accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"
-                onChange={handleTicketFilesChange}
-                disabled={isTicketUploadPending}
-              />
-              {ticketUploadFiles.length > 0 ? (
-                <ul className={styles.ticketFileList}>
-                  {ticketUploadFiles.map((file, index) => (
-                    <li key={`${file.name}-${file.size}-${index}`}>
-                      <Icon name="file" />
-                      <span>{file.name}</span>
-                      <small>{formatFileSize(file.size)}</small>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {ticketError ? (
-                <p className={styles.error} role="alert">
-                  {ticketError}
-                </p>
-              ) : null}
-            </div>
-            <div className={styles.addSheetActions}>
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => closeTicketUploadSheet()}
-                disabled={isTicketUploadPending}
-              >
-                Cancelar
-              </button>
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-                disabled={
-                  isTicketUploadPending || ticketUploadFiles.length === 0
-                }
-              >
-                <Icon name="upload" />
-                {isTicketUploadPending ? "Subiendo" : "Subir"}
-              </button>
-            </div>
-          </form>
-        </div>
+        <TicketUploadSheet
+          backdropRef={ticketUploadSheetBackdropRef}
+          error={ticketError}
+          files={ticketUploadFiles}
+          fileInputRef={ticketFileInputRef}
+          formatFileSize={formatFileSize}
+          isPending={isTicketUploadPending}
+          keyboardInset={sheetKeyboardInset}
+          onButtonPointerDown={handleButtonPointerDown}
+          onClose={closeTicketUploadSheet}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          onFilesChange={handleTicketFilesChange}
+          onSectionChange={setTicketUploadSectionId}
+          onSubmit={handleTicketUploadSubmit}
+          sectionId={ticketUploadSectionId}
+          sections={sections}
+          sheetDragOffset={sheetDragOffset}
+          sheetRef={ticketUploadSheetRef}
+        />
       ) : null}
 
       {freezerViewEnabled &&
       activeView === "freezer" &&
       isFreezerAddSheetOpen ? (
-        <div
-          ref={freezerAddSheetBackdropRef}
-          className={styles.addSheetBackdrop}
-          style={
-            {
-              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
-            } as CSSProperties
-          }
-          onClick={() => closeFreezerAddSheet()}
-        >
-          <form
-            ref={freezerAddSheetRef}
-            className={`${styles.addSheet} ${styles.addSheetCompact}`}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="freezer-add-sheet-title"
-            style={
-              {
-                "--sheet-drag-offset": `${sheetDragOffset}px`,
-              } as CSSProperties
+        <FreezerAddSheet
+          backdropRef={freezerAddSheetBackdropRef}
+          drawerId={selectedFreezerDrawerId}
+          frozenAt={freezerItemFrozenAt}
+          isLoaded={isLoaded}
+          keyboardInset={sheetKeyboardInset}
+          name={freezerItemName}
+          nameInputRef={freezerItemNameInputRef}
+          onButtonPointerDown={handleButtonPointerDown}
+          onClose={closeFreezerAddSheet}
+          onDrawerChange={(drawerId) => {
+            if (isFreezerDrawerId(drawerId)) {
+              setSelectedFreezerDrawerId(drawerId);
             }
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={handleAddSheetKeyDown}
-            onSubmit={handleFreezerSubmit}
-          >
-            <div
-              className={styles.addSheetHandle}
-              aria-label="Cerrar panel de alta"
-              role="button"
-              tabIndex={0}
-              onPointerDown={handleAddSheetDragStart}
-              onPointerMove={handleAddSheetDragMove}
-              onPointerUp={handleAddSheetDragEnd}
-              onPointerCancel={handleAddSheetDragEnd}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  closeFreezerAddSheet();
-                }
-              }}
-            >
-              <span />
-            </div>
-            <h2 id="freezer-add-sheet-title" className={styles.visuallyHidden}>
-              Añadir producto congelado
-            </h2>
-            <div className={styles.addSheetFields}>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="freezer-item-name">
-                  Producto
-                </label>
-                <input
-                  id="freezer-item-name"
-                  ref={freezerItemNameInputRef}
-                  className={styles.addSheetInput}
-                  autoComplete="off"
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  value={freezerItemName}
-                  onChange={(event) => setFreezerItemName(event.target.value)}
-                  placeholder="Lentejas, caldo, croquetas..."
-                  type="text"
-                  disabled={!isLoaded}
-                />
-              </div>
-              <div className={styles.addSheetSelectors}>
-                <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="freezer-quantity">
-                    Cantidad
-                  </label>
-                  <input
-                    id="freezer-quantity"
-                    className={styles.select}
-                    autoComplete="off"
-                    value={freezerItemQuantity}
-                    onChange={(event) =>
-                      setFreezerItemQuantity(event.target.value)
-                    }
-                    onFocus={selectTextOnFocus}
-                    placeholder="2 raciones"
-                    type="text"
-                    disabled={!isLoaded}
-                  />
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="freezer-drawer-id">
-                    Cajón
-                  </label>
-                  <select
-                    id="freezer-drawer-id"
-                    className={styles.select}
-                    value={selectedFreezerDrawerId}
-                    onChange={(event) => {
-                      const drawerId = event.target.value;
-
-                      if (isFreezerDrawerId(drawerId)) {
-                        setSelectedFreezerDrawerId(drawerId);
-                      }
-                    }}
-                    disabled={!isLoaded}
-                  >
-                    {freezerDrawers.map((drawer) => (
-                      <option key={drawer.id} value={drawer.id}>
-                        {drawer.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="freezer-frozen-at">
-                  Congelado
-                </label>
-                <input
-                  id="freezer-frozen-at"
-                  className={styles.select}
-                  value={freezerItemFrozenAt}
-                  onChange={(event) =>
-                    setFreezerItemFrozenAt(event.target.value)
-                  }
-                  type="date"
-                  disabled={!isLoaded}
-                />
-              </div>
-            </div>
-            <div className={styles.addSheetFooter}>
-              <p className={styles.addSheetNotice} aria-live="polite" />
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => closeFreezerAddSheet()}
-              >
-                Cerrar
-              </button>
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-                disabled={!isLoaded}
-              >
-                Añadir
-              </button>
-            </div>
-          </form>
-        </div>
+          }}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          onFrozenAtChange={setFreezerItemFrozenAt}
+          onNameChange={setFreezerItemName}
+          onQuantityChange={setFreezerItemQuantity}
+          onQuantityFocus={selectTextOnFocus}
+          onSheetKeyDown={handleAddSheetKeyDown}
+          onSubmit={handleFreezerSubmit}
+          quantity={freezerItemQuantity}
+          sheetDragOffset={sheetDragOffset}
+          sheetRef={freezerAddSheetRef}
+        />
       ) : null}
 
       {activeView === "sections" && isSectionAddSheetOpen ? (
-        <div
-          ref={sectionAddSheetBackdropRef}
-          className={styles.addSheetBackdrop}
-          style={
-            {
-              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
-            } as CSSProperties
-          }
-          onClick={() => closeSectionAddSheet()}
-        >
-          <form
-            ref={sectionAddSheetRef}
-            className={`${styles.addSheet} ${styles.addSheetCompact}`}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="section-add-sheet-title"
-            style={
-              {
-                "--sheet-drag-offset": `${sheetDragOffset}px`,
-              } as CSSProperties
-            }
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={handleAddSheetKeyDown}
-            onSubmit={handleSectionSubmit}
-          >
-            <div
-              className={styles.addSheetHandle}
-              aria-label="Cerrar panel de lista"
-              role="button"
-              tabIndex={0}
-              onPointerDown={handleAddSheetDragStart}
-              onPointerMove={handleAddSheetDragMove}
-              onPointerUp={handleAddSheetDragEnd}
-              onPointerCancel={handleAddSheetDragEnd}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  closeSectionAddSheet();
-                }
-              }}
-            >
-              <span />
-            </div>
-            <h2 id="section-add-sheet-title" className={styles.visuallyHidden}>
-              Crear lista
-            </h2>
-            <div className={styles.addSheetFields}>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="section-name">
-                  Nueva lista
-                </label>
-                <input
-                  id="section-name"
-                  ref={sectionNameInputRef}
-                  className={styles.addSheetInput}
-                  autoComplete="off"
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  enterKeyHint="done"
-                  value={sectionName}
-                  onChange={(event) => setSectionName(event.target.value)}
-                  placeholder="Carrefour, frutería..."
-                  type="text"
-                  disabled={!isLoaded}
-                />
-              </div>
-              <div className={styles.formField}>
-                <span className={styles.label}>Color de la lista</span>
-                <div
-                  className={styles.sectionColorPicker}
-                  aria-label="Colores de la lista"
-                  role="group"
-                >
-                  {shoppingSectionColors.map((color) => (
-                    <button
-                      className={
-                        styles.sectionColorButton +
-                        " " +
-                        styles["sectionColorSwatch" + color] +
-                        (newSectionColor === color
-                          ? " " + styles.sectionColorButtonSelected
-                          : "")
-                      }
-                      type="button"
-                      aria-label={
-                        "Seleccionar color " + color + " para la lista"
-                      }
-                      aria-pressed={newSectionColor === color}
-                      key={color}
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={() => setNewSectionColor(color)}
-                      disabled={!isLoaded}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className={styles.addSheetFooter}>
-              <p className={styles.addSheetNotice} aria-live="polite" />
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => closeSectionAddSheet()}
-              >
-                Cerrar
-              </button>
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-                disabled={!isLoaded}
-              >
-                Crear
-              </button>
-            </div>
-          </form>
-        </div>
+        <CreateSectionSheet
+          backdropRef={sectionAddSheetBackdropRef}
+          isLoaded={isLoaded}
+          keyboardInset={sheetKeyboardInset}
+          name={sectionName}
+          nameInputRef={sectionNameInputRef}
+          onButtonPointerDown={handleButtonPointerDown}
+          onClose={closeSectionAddSheet}
+          onColorChange={setNewSectionColor}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          onNameChange={setSectionName}
+          onSheetKeyDown={handleAddSheetKeyDown}
+          onSubmit={handleSectionSubmit}
+          selectedColor={newSectionColor}
+          sheetDragOffset={sheetDragOffset}
+          sheetRef={sectionAddSheetRef}
+        />
       ) : null}
 
       {unseenRemoteHistoryEvents.length > 0 && activeView !== "history" ? (
@@ -7778,358 +4900,115 @@ export function App() {
       ) : null}
 
       {activeView === "shopping" ? (
-        <>
-          <section
-            id="shopping-board"
-            ref={(boardElement) => {
-              shoppingBoardElementRef.current = boardElement;
-              boardRef(boardElement);
-            }}
-            className={styles.board}
-            aria-label="Lista por secciones"
-            tabIndex={0}
-          >
-            <div className={styles.boardTrack}>
-              {!isLoaded
-                ? renderLoadingBoard()
-                : sections.map((section) => {
-                    const sectionItems = items.filter(
-                      (item) => item.sectionId === section.id,
-                    );
-                    const removedSectionItems = lastRemovedItems.filter(
-                      (item) => item.sectionId === section.id,
-                    );
-                    const hiddenPurchasedSectionItem =
-                      lastHiddenPurchasedItem?.sectionId === section.id
-                        ? lastHiddenPurchasedItem
-                        : null;
-                    const pendingCount = sectionItems.filter(
-                      (item) => !item.purchased,
-                    ).length;
-
-                    return (
-                      <article
-                        ref={(column) => {
-                          if (column) {
-                            sectionColumnRefs.current[section.id] = column;
-                          } else {
-                            delete sectionColumnRefs.current[section.id];
-                          }
-                        }}
-                        className={
-                          selectedSectionId === section.id
-                            ? `${styles.column} ${styles[`sectionColor${section.color}`]} ${styles.columnSelected}`
-                            : `${styles.column} ${styles[`sectionColor${section.color}`]}`
-                        }
-                        aria-current={
-                          selectedSectionId === section.id ? "true" : undefined
-                        }
-                        aria-labelledby={`section-${section.id}-title`}
-                        key={section.id}
-                        onClick={() => selectSection(section.id)}
-                        onKeyDown={(event) =>
-                          handleColumnKeyDown(event, section.id)
-                        }
-                        tabIndex={0}
-                      >
-                        <div className={styles.sectionHeader}>
-                          <h2 id={`section-${section.id}-title`}>
-                            <span>{section.name}</span>
-                            <span className={styles.count} aria-hidden="true">
-                              · {pendingCount}
-                            </span>
-                          </h2>
-                          <span className={styles.visuallyHidden}>
-                            {pendingCount} productos pendientes
-                          </span>
-                        </div>
-                        {renderItems(
-                          sectionItems,
-                          removedSectionItems,
-                          hiddenPurchasedSectionItem,
-                          section.color,
-                        )}
-                      </article>
-                    );
-                  })}
-            </div>
-          </section>
-          {isLoaded ? (
-            <nav
-              className={styles.sectionIndicators}
-              aria-label="Listas disponibles"
-            >
-              {sections.map((section) => (
-                <button
-                  ref={(indicator) => {
-                    if (indicator) {
-                      sectionIndicatorRefs.current[section.id] = indicator;
-                    } else {
-                      delete sectionIndicatorRefs.current[section.id];
-                    }
-                  }}
-                  className={
-                    selectedSectionId === section.id
-                      ? styles.sectionIndicatorActive
-                      : styles.sectionIndicator
-                  }
-                  type="button"
-                  aria-current={
-                    selectedSectionId === section.id ? "true" : undefined
-                  }
-                  aria-label={`Ver lista ${section.name}`}
-                  key={section.id}
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={() => selectSection(section.id)}
-                />
-              ))}
-              <span
-                ref={activeSectionIndicatorRef}
-                className={styles.sectionIndicatorThumb}
-                aria-hidden="true"
-              />
-            </nav>
-          ) : (
-            <div className={styles.sectionIndicators} aria-hidden="true">
-              {[0, 1, 2].map((indicatorIndex) => (
-                <span
-                  className={styles.loadingIndicator}
-                  key={indicatorIndex}
-                />
-              ))}
-            </div>
+        <ShoppingBoard
+          activeSectionIndicatorRef={activeSectionIndicatorRef}
+          boardRef={boardRef}
+          isLoaded={isLoaded}
+          items={items}
+          lastHiddenPurchasedItem={lastHiddenPurchasedItem}
+          lastRemovedItems={lastRemovedItems}
+          onButtonPointerDown={handleButtonPointerDown}
+          onColumnKeyDown={handleColumnKeyDown}
+          onSelectSection={selectSection}
+          renderItems={(
+            sectionItems,
+            removedSectionItems,
+            hiddenPurchasedItem,
+            sectionColor,
+          ) => (
+            <ShoppingItemsList
+              categories={categories}
+              formatPrice={formatPriceSummaryValue}
+              formatQuantity={formatShoppingItemQuantity}
+              getUserName={getShoppingUserName}
+              hiddenPurchasedItem={hiddenPurchasedItem}
+              hiddenUndoRef={hiddenUndoItemRef}
+              highlightedItemId={highlightedItemId}
+              isSearchActive={isShoppingSearchActive}
+              itemRefs={itemRefs}
+              normalizedSearchQuery={normalizedShoppingSearchQuery}
+              onButtonPointerDown={handleButtonPointerDown}
+              onEdit={startEditing}
+              onOpenPrice={openPriceDetailSheet}
+              onRemove={handleRemoveItem}
+              onToggle={handleToggleItem}
+              onUndoHiddenPurchased={handleUndoHiddenPurchasedItem}
+              onUndoRemoved={handleUndoRemoveItems}
+              priceSummaries={productPriceCardSummaries}
+              productCatalogEntries={productCatalogEntries}
+              removedItems={removedSectionItems}
+              sectionColor={sectionColor}
+              sectionItems={sectionItems}
+              showPurchasedItems={showPurchasedItems}
+              undoRef={undoItemRef}
+            />
           )}
-        </>
+          loadingBoard={<ShoppingBoardLoading />}
+          sectionColumnRefs={sectionColumnRefs}
+          sectionIndicatorRefs={sectionIndicatorRefs}
+          sections={sections}
+          selectedSectionId={selectedSectionId}
+          shoppingBoardElementRef={shoppingBoardElementRef}
+        />
       ) : null}
 
       {freezerViewEnabled && activeView === "freezer" ? (
-        <section
-          ref={freezerScreenRef}
-          className={styles.freezerScreen}
-          aria-labelledby="freezer-title"
-        >
-          <div className={styles.sectionsHeader}>
-            <h2 id="freezer-title">Congelador</h2>
-            <span className={styles.count}>{freezerItems.length}</span>
-          </div>
-          {renderFreezerUseUndoItem()}
-          <section
-            className={styles.freezerPanel}
-            aria-labelledby="freezer-use-first-title"
-          >
-            <div className={styles.freezerPanelHeader}>
-              <h3 id="freezer-use-first-title">Usar primero</h3>
-              <span>{useFirstFreezerItems.length}</span>
-            </div>
-            {renderFreezerItemList(useFirstFreezerItems)}
-          </section>
-          <div className={styles.freezerDrawers}>
-            {freezerDrawers.map((drawer) => {
-              const drawerItems = getFreezerItemsByDrawer(
-                freezerItems,
-                drawer.id,
-              );
-
-              return (
-                <section
-                  className={styles.freezerPanel}
-                  aria-labelledby={`freezer-drawer-${drawer.id}-title`}
-                  key={drawer.id}
-                >
-                  <div className={styles.freezerPanelHeader}>
-                    <h3 id={`freezer-drawer-${drawer.id}-title`}>
-                      {drawer.name}
-                    </h3>
-                    <span>{drawerItems.length}</span>
-                  </div>
-                  {renderFreezerItemList(drawerItems)}
-                </section>
-              );
-            })}
-          </div>
-        </section>
+        <FreezerView
+          formatAge={getFreezerAgeText}
+          formatDate={formatFreezerDate}
+          getDrawerName={getFreezerDrawerName}
+          itemRefs={freezerItemRefs}
+          items={freezerItems}
+          lastUsedItem={lastUsedFreezerItem}
+          onButtonPointerDown={handleButtonPointerDown}
+          onEdit={startEditingFreezerItem}
+          onMove={handleMoveFreezerItem}
+          onUndoUse={handleUndoUseFreezerItem}
+          onUse={handleUseFreezerItem}
+          screenRef={freezerScreenRef}
+          undoRef={freezerUndoRef}
+          useFirstItems={useFirstFreezerItems}
+        />
       ) : null}
 
       {activeView === "tickets" ? (
-        <section
-          ref={ticketsScreenRef}
-          className={styles.ticketsScreen}
-          aria-labelledby="tickets-title"
+        <TicketsView
+          count={tickets.length}
+          error={ticketError}
+          notice={ticketUploadNotice}
+          screenRef={ticketsScreenRef}
         >
-          <div className={styles.screenTitle}>
-            <h2 id="tickets-title">Tickets</h2>
-            <span className={styles.count}>{tickets.length}</span>
-          </div>
-          {ticketUploadNotice ? (
-            <p className={styles.ticketNotice} role="status">
-              {ticketUploadNotice}
-            </p>
-          ) : null}
-          {ticketError ? (
-            <p className={styles.error} role="alert">
-              {ticketError}
-            </p>
-          ) : null}
-          {ticketReviewEntries.length > 0 ? (
-            <section
-              className={styles.ticketReviewQueue}
-              aria-labelledby="ticket-review-queue-title"
-            >
-              <div className={styles.ticketReviewQueueHeader}>
-                <h3 id="ticket-review-queue-title">Cola de revisión</h3>
-                <span>{ticketReviewEntries.length}</span>
-              </div>
-              <ol className={styles.ticketReviewList}>
-                {ticketReviewEntries.map(({ ticket, line }) => {
-                  const sectionName =
-                    sections.find((section) => section.id === ticket.sectionId)
-                      ?.name ?? ticket.sectionId;
-                  const linePriceText = getTicketLinePriceText(line);
-
-                  return (
-                    <li key={line.id}>
-                      <div>
-                        <strong>{getTicketLineName(line)}</strong>
-                        <span>
-                          {sectionName} · {formatTicketDate(ticket.uploadedAt)}
-                        </span>
-                        {linePriceText ? <small>{linePriceText}</small> : null}
-                        <small>
-                          {line.reviewReason ?? "Necesita revisión"}
-                        </small>
-                      </div>
-                      <div className={styles.ticketReviewActions}>
-                        <label
-                          className={styles.visuallyHidden}
-                          htmlFor={`ticket-line-product-${line.id}`}
-                        >
-                          Producto canónico
-                        </label>
-                        <select
-                          id={`ticket-line-product-${line.id}`}
-                          className={styles.select}
-                          value={ticketReviewProductIds[line.id] ?? ""}
-                          onChange={(event) =>
-                            handleTicketReviewProductChange(
-                              line.id,
-                              event.target.value,
-                            )
-                          }
-                          disabled={
-                            pendingTicketReviewLineId === line.id ||
-                            canonicalProducts.length === 0
-                          }
-                        >
-                          <option value="">Producto</option>
-                          {canonicalProducts.map((product) => (
-                            <option key={product.id} value={product.id}>
-                              {product.name}
-                            </option>
-                          ))}
-                        </select>
-                        <div className={styles.ticketReviewActionButtons}>
-                          <button
-                            className={styles.iconButton}
-                            type="button"
-                            aria-label="Ver"
-                            title="Ver ticket"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() => {
-                              setTicketFilter("all");
-                              setSelectedTicketId(ticket.id);
-                            }}
-                          >
-                            <Icon name="file" />
-                          </button>
-                          <button
-                            className={styles.iconButton}
-                            type="button"
-                            aria-label="Asociar"
-                            title="Asociar producto"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleResolveTicketLine(ticket, line, false)
-                            }
-                            disabled={
-                              pendingTicketReviewLineId === line.id ||
-                              !ticketReviewProductIds[line.id]
-                            }
-                          >
-                            <Icon name="check" />
-                          </button>
-                          <button
-                            className={styles.iconButton}
-                            type="button"
-                            aria-label="Alias"
-                            title="Crear alias"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleResolveTicketLine(ticket, line, true)
-                            }
-                            disabled={
-                              pendingTicketReviewLineId === line.id ||
-                              !ticketReviewProductIds[line.id] ||
-                              !(line.productName ?? line.rawText)?.trim()
-                            }
-                          >
-                            <Icon name="plus" />
-                          </button>
-                          <button
-                            className={styles.iconButtonDanger}
-                            type="button"
-                            aria-label="Excluir"
-                            title="Excluir línea"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleExcludeTicketLine(ticket, line)
-                            }
-                            disabled={pendingTicketReviewLineId === line.id}
-                          >
-                            <Icon name="trash" />
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-          ) : null}
-          <div className={styles.ticketFilters} role="tablist">
-            {(
-              [
-                "all",
-                "pending",
-                "processed",
-                "failed",
-                "needs_review",
-              ] as TicketFilter[]
-            ).map((filter) => (
-              <button
-                key={filter}
-                className={
-                  ticketFilter === filter
-                    ? styles.ticketFilterButtonActive
-                    : styles.ticketFilterButton
-                }
-                type="button"
-                role="tab"
-                aria-selected={ticketFilter === filter}
-                aria-label={getTicketFilterText(filter)}
-                title={getTicketFilterText(filter)}
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => handleTicketFilterChange(filter)}
-              >
-                <Icon name={getTicketFilterIcon(filter)} />
-                <span>{getTicketFilterShortText(filter)}</span>
-              </button>
-            ))}
-          </div>
-          {isTicketsLoading && tickets.length === 0 ? (
-            <p className={styles.loadingStatus} role="status">
-              Cargando tickets...
-            </p>
-          ) : filteredTickets.length === 0 ? (
+          <TicketReviewQueue
+            canonicalProducts={canonicalProducts}
+            entries={ticketReviewEntries}
+            formatDate={formatTicketDate}
+            getLineName={getTicketLineName}
+            getLinePriceText={getTicketLinePriceText}
+            onButtonPointerDown={handleButtonPointerDown}
+            onExclude={(ticket, line) => {
+              void handleExcludeTicketLine(ticket, line);
+            }}
+            onProductChange={handleTicketReviewProductChange}
+            onResolve={(ticket, line, createAlias) => {
+              void handleResolveTicketLine(ticket, line, createAlias);
+            }}
+            onView={(ticketId) => {
+              setTicketFilter("all");
+              setSelectedTicketId(ticketId);
+            }}
+            pendingLineId={pendingTicketReviewLineId}
+            productIds={ticketReviewProductIds}
+            sections={sections}
+          />
+          <TicketFilters
+            getIcon={getTicketFilterIcon}
+            getLabel={getTicketFilterText}
+            getShortLabel={getTicketFilterShortText}
+            onButtonPointerDown={handleButtonPointerDown}
+            onChange={handleTicketFilterChange}
+            value={ticketFilter}
+          />
+          {filteredTickets.length === 0 && !isTicketsLoading ? (
             <div className={styles.historyEmpty}>
               <p>
                 {ticketFilter === "all"
@@ -8138,464 +5017,147 @@ export function App() {
               </p>
             </div>
           ) : (
-            <>
-              <ol className={styles.ticketList}>
-                {visibleTickets.map((ticket) => {
-                  const sectionName =
-                    sections.find((section) => section.id === ticket.sectionId)
-                      ?.name ?? ticket.sectionId;
-                  const isSelected = selectedTicketId === ticket.id;
-
-                  return (
-                    <li className={styles.ticketItem} key={ticket.id}>
-                      <button
-                        className={styles.ticketItemButton}
-                        type="button"
-                        onPointerDown={handleButtonPointerDown}
-                        onClick={() =>
-                          setSelectedTicketId(isSelected ? null : ticket.id)
-                        }
-                        aria-expanded={isSelected}
-                      >
-                        <span className={styles.ticketStatus}>
-                          {getTicketStatusText(ticket.status)}
-                        </span>
-                        <strong>{sectionName}</strong>
-                        <span>
-                          {formatTicketDate(ticket.uploadedAt)} ·{" "}
-                          {getShoppingUserName(ticket.uploadedBy)} ·{" "}
-                          {ticket.fileCount}{" "}
-                          {ticket.fileCount === 1 ? "archivo" : "archivos"}
-                        </span>
-                      </button>
-                      {isSelected ? (
-                        <div className={styles.ticketDetail}>
-                          {ticket.files.length > 0 ? (
-                            <ol
-                              className={styles.ticketFileActions}
-                              aria-label="Archivos del ticket"
-                            >
-                              {ticket.files.map((file) => (
-                                <li key={file.id}>
-                                  <button
-                                    className={styles.ticketFileButton}
-                                    type="button"
-                                    onPointerDown={handleButtonPointerDown}
-                                    onClick={() =>
-                                      void handleOpenTicketFile(file)
-                                    }
-                                  >
-                                    <Icon name="file" />
-                                    <span>{file.fileName}</span>
-                                    <small>
-                                      {formatFileSize(file.sizeBytes)}
-                                    </small>
-                                  </button>
-                                </li>
-                              ))}
-                            </ol>
-                          ) : null}
-                          {ticket.errorMessage ? (
-                            <p className={styles.historyMeta}>
-                              {ticket.errorMessage}
-                            </p>
-                          ) : null}
-                          {ticket.lines.length > 0 ? (
-                            <ol className={styles.ticketLines}>
-                              {ticket.lines.map((line) => {
-                                const selectedCorrectionProductId =
-                                  ticketCorrectionProductIds[line.id] ??
-                                  line.canonicalProductId ??
-                                  "";
-                                const canCorrectLine = !line.needsReview;
-                                const canCreateCorrectionAlias =
-                                  canCorrectLine &&
-                                  Boolean(selectedCorrectionProductId) &&
-                                  Boolean(
-                                    (line.productName ?? line.rawText)?.trim(),
-                                  );
-
-                                return (
-                                  <li
-                                    key={line.id}
-                                    className={
-                                      line.needsReview
-                                        ? styles.ticketLineNeedsReview
-                                        : line.status === "excluded"
-                                          ? styles.ticketLineExcluded
-                                          : styles.ticketLine
-                                    }
-                                  >
-                                    <strong>{getTicketLineName(line)}</strong>
-                                    <span>{getTicketLinePriceText(line)}</span>
-                                    {line.needsReview ? (
-                                      <small>
-                                        {line.reviewReason ??
-                                          "Necesita revisión"}
-                                      </small>
-                                    ) : null}
-                                    {line.status === "excluded" ? (
-                                      <small>Excluida</small>
-                                    ) : null}
-                                    {canCorrectLine ? (
-                                      <div
-                                        className={styles.ticketLineCorrection}
-                                      >
-                                        <label
-                                          className={styles.visuallyHidden}
-                                          htmlFor={`ticket-line-correction-${line.id}`}
-                                        >
-                                          Corregir producto canónico
-                                        </label>
-                                        <select
-                                          id={`ticket-line-correction-${line.id}`}
-                                          className={styles.select}
-                                          value={selectedCorrectionProductId}
-                                          onChange={(event) =>
-                                            handleTicketCorrectionProductChange(
-                                              line,
-                                              event.target.value,
-                                            )
-                                          }
-                                          disabled={
-                                            pendingTicketReviewLineId ===
-                                              line.id ||
-                                            canonicalProducts.length === 0
-                                          }
-                                        >
-                                          <option value="">Producto</option>
-                                          {canonicalProducts.map((product) => (
-                                            <option
-                                              key={product.id}
-                                              value={product.id}
-                                            >
-                                              {product.name}
-                                            </option>
-                                          ))}
-                                        </select>
-                                        <div
-                                          className={
-                                            styles.ticketLineCorrectionButtons
-                                          }
-                                        >
-                                          <button
-                                            className={styles.iconButton}
-                                            type="button"
-                                            aria-label="Corregir asociación"
-                                            title="Corregir asociación"
-                                            onPointerDown={
-                                              handleButtonPointerDown
-                                            }
-                                            onClick={() =>
-                                              void handleCorrectTicketLine(
-                                                ticket,
-                                                line,
-                                                false,
-                                              )
-                                            }
-                                            disabled={
-                                              pendingTicketReviewLineId ===
-                                                line.id ||
-                                              !selectedCorrectionProductId
-                                            }
-                                          >
-                                            <Icon name="check" />
-                                          </button>
-                                          <button
-                                            className={styles.iconButton}
-                                            type="button"
-                                            aria-label="Corregir alias"
-                                            title="Corregir y crear alias"
-                                            onPointerDown={
-                                              handleButtonPointerDown
-                                            }
-                                            onClick={() =>
-                                              void handleCorrectTicketLine(
-                                                ticket,
-                                                line,
-                                                true,
-                                              )
-                                            }
-                                            disabled={
-                                              pendingTicketReviewLineId ===
-                                                line.id ||
-                                              !canCreateCorrectionAlias
-                                            }
-                                          >
-                                            <Icon name="plus" />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ) : null}
-                                  </li>
-                                );
-                              })}
-                            </ol>
-                          ) : (
-                            <p className={styles.historyMeta}>
-                              Las líneas aparecerán tras el procesamiento
-                              nocturno.
-                            </p>
-                          )}
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ol>
-              {hiddenTicketCount > 0 ? (
-                <button
-                  className={styles.paginationButton}
-                  type="button"
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={showMoreTickets}
-                >
-                  Ver {Math.min(hiddenTicketCount, ticketPageSize)} tickets más
-                </button>
-              ) : null}
-            </>
+            <TicketList
+              canonicalProducts={canonicalProducts}
+              formatDate={formatTicketDate}
+              formatFileSize={formatFileSize}
+              getLineName={getTicketLineName}
+              getLinePriceText={getTicketLinePriceText}
+              getStatusText={getTicketStatusText}
+              getUserName={getShoppingUserName}
+              hiddenCount={hiddenTicketCount}
+              isLoading={isTicketsLoading}
+              onButtonPointerDown={handleButtonPointerDown}
+              onCorrectLine={(ticket, line, createAlias) => {
+                void handleCorrectTicketLine(ticket, line, createAlias);
+              }}
+              onCorrectionProductChange={handleTicketCorrectionProductChange}
+              onOpenFile={(file) => {
+                void handleOpenTicketFile(file);
+              }}
+              onSelectedTicketChange={setSelectedTicketId}
+              onShowMore={showMoreTickets}
+              pageSize={ticketPageSize}
+              pendingLineId={pendingTicketReviewLineId}
+              productIds={ticketCorrectionProductIds}
+              sections={sections}
+              selectedTicketId={selectedTicketId}
+              tickets={visibleTickets}
+            />
           )}
-        </section>
+        </TicketsView>
       ) : null}
 
       {activeView === "sections" ? (
-        <section
-          ref={sectionsScreenRef}
-          className={styles.sectionsScreen}
-          aria-labelledby="sections-title"
+        <SectionsViewShell
+          count={
+            isSupabaseConfigured() ? shoppingLists.length : sections.length
+          }
+          screenRef={sectionsScreenRef}
         >
-          <div className={styles.sectionsHeader}>
-            <h2 id="sections-title">Listas</h2>
-            <span className={styles.count}>
-              {isSupabaseConfigured() ? shoppingLists.length : sections.length}
-            </span>
-          </div>
-          {isSupabaseConfigured() ? renderShoppingListsCard() : null}
-          {!isSupabaseConfigured() ? (
-            <>
-              {sectionActionMessage ? (
-                <p className={styles.sectionActionMessage} role="status">
-                  {sectionActionMessage}
-                </p>
-              ) : null}
-              <ol className={styles.shoppingListManager}>
-                {sections.map((section, index) => {
-                  const sectionProductCount = items.filter(
-                    (item) => item.sectionId === section.id,
-                  ).length;
-                  const sectionPendingCount = items.filter(
-                    (item) => item.sectionId === section.id && !item.purchased,
-                  ).length;
-                  const isExpanded = expandedShoppingListIds.includes(
-                    section.id,
-                  );
-
-                  return (
-                    <li
-                      className={
-                        styles.shoppingListManagerItem +
-                        " " +
-                        styles["shoppingListCardColor" + section.color]
-                      }
-                      key={section.id}
-                    >
-                      <div className={styles.shoppingListCardHeader}>
-                        <input
-                          className={styles.input}
-                          aria-label={`Nombre de ${section.name}`}
-                          value={section.name}
-                          onChange={(event) =>
-                            isExpanded
-                              ? handleSectionNameChange(section.id, event)
-                              : undefined
-                          }
-                          disabled={!isLoaded || !isExpanded}
-                          type="text"
-                        />
-                        <div className={styles.shoppingListStats}>
-                          <span>{sectionPendingCount} pendientes</span>
-                          <span>{sectionProductCount} productos</span>
-                        </div>
-                      </div>
-                      <div className={styles.shoppingListCardActions}>
-                        <button
-                          className={styles.primaryButton}
-                          type="button"
-                          onPointerDown={handleButtonPointerDown}
-                          onClick={() =>
-                            setExpandedShoppingListIds((currentIds) =>
-                              currentIds.includes(section.id)
-                                ? currentIds.filter((id) => id !== section.id)
-                                : [...currentIds, section.id],
-                            )
-                          }
-                        >
-                          {isExpanded ? "Ocultar detalles" : "Ver detalles"}
-                        </button>
-                        <button
-                          className={styles.secondaryButton}
-                          type="button"
-                          onPointerDown={handleButtonPointerDown}
-                          onClick={() => handleOpenShoppingList(section.id)}
-                        >
-                          Abrir lista
-                        </button>
-                      </div>
-                      {isExpanded ? (
-                        <div className={styles.shoppingListAdvanced}>
-                          <div
-                            className={styles.sectionColorPicker}
-                            aria-label={`Color de ${section.name}`}
-                            role="group"
-                          >
-                            {shoppingSectionColors.map((color) => (
-                              <button
-                                className={
-                                  styles.sectionColorButton +
-                                  " " +
-                                  styles["sectionColorSwatch" + color] +
-                                  (section.color === color
-                                    ? " " + styles.sectionColorButtonSelected
-                                    : "")
-                                }
-                                type="button"
-                                aria-label={`Poner ${section.name} en color ${color}`}
-                                aria-pressed={section.color === color}
-                                key={color}
-                                onPointerDown={handleButtonPointerDown}
-                                onClick={() =>
-                                  handleSectionColorChange(section.id, color)
-                                }
-                                disabled={!isLoaded}
-                              />
-                            ))}
-                          </div>
-                          <div className={styles.shoppingListManagerActions}>
-                            <button
-                              className={styles.iconButton}
-                              type="button"
-                              aria-label={`Subir ${section.name}`}
-                              title="Subir"
-                              onPointerDown={handleButtonPointerDown}
-                              onClick={() => handleMoveSection(section.id, -1)}
-                              disabled={!isLoaded || index === 0}
-                            >
-                              <Icon name="arrowUp" />
-                            </button>
-                            <button
-                              className={styles.iconButton}
-                              type="button"
-                              aria-label={`Bajar ${section.name}`}
-                              title="Bajar"
-                              onPointerDown={handleButtonPointerDown}
-                              onClick={() => handleMoveSection(section.id, 1)}
-                              disabled={
-                                !isLoaded || index === sections.length - 1
-                              }
-                            >
-                              <Icon name="arrowDown" />
-                            </button>
-                          </div>
-                          <button
-                            className={styles.dangerButton}
-                            type="button"
-                            aria-label={`Borrar ${section.name}`}
-                            title={
-                              sectionProductCount > 0
-                                ? "No se puede borrar una lista con productos"
-                                : "Borrar"
-                            }
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() => handleRemoveSection(section.id)}
-                            disabled={!isLoaded}
-                          >
-                            <Icon name="trash" /> Borrar lista
-                          </button>
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ol>
-            </>
+          {isSupabaseConfigured() &&
+          authSnapshot.status === "signed_in" &&
+          authSnapshot.user ? (
+            <ShoppingListsManager
+              expandedListIds={expandedShoppingListIds}
+              isActionPending={isShoppingListActionPending}
+              items={items}
+              lists={shoppingLists}
+              membersByListId={shoppingListMembers}
+              message={shoppingListMessage}
+              onButtonPointerDown={handleButtonPointerDown}
+              onColorChange={handleSectionColorChange}
+              onCreate={openSectionAddSheet}
+              onDelete={(list) => void handleDeleteShoppingList(list)}
+              onLeave={(listId) => void handleLeaveShoppingList(listId)}
+              onMove={(listId, direction) =>
+                void handleMoveShoppingList(listId, direction)
+              }
+              onOpen={handleOpenShoppingList}
+              onRegenerateCode={(listId) =>
+                void handleRegenerateShoppingListCode(listId)
+              }
+              onRemoveMember={(list, member) =>
+                void handleRemoveShoppingListMember(list, member)
+              }
+              onRename={(listId, name) =>
+                void handleRenameShoppingList(listId, name)
+              }
+              onToggleDetails={(listId) =>
+                void handleToggleShoppingListMembers(listId)
+              }
+              onTransferOwnership={(list, member) =>
+                void handleTransferShoppingListOwnership(list, member)
+              }
+              sections={sections}
+            />
           ) : null}
-        </section>
+          {!isSupabaseConfigured() ? (
+            <LocalSectionsManager
+              actionMessage={sectionActionMessage}
+              expandedSectionIds={expandedShoppingListIds}
+              isLoaded={isLoaded}
+              items={items}
+              onButtonPointerDown={handleButtonPointerDown}
+              onColorChange={handleSectionColorChange}
+              onMove={handleMoveSection}
+              onNameChange={handleSectionNameChange}
+              onOpen={handleOpenShoppingList}
+              onRemove={handleRemoveSection}
+              onToggle={(sectionId) =>
+                setExpandedShoppingListIds((currentIds) =>
+                  currentIds.includes(sectionId)
+                    ? currentIds.filter((id) => id !== sectionId)
+                    : [...currentIds, sectionId],
+                )
+              }
+              sections={sections}
+            />
+          ) : null}
+        </SectionsViewShell>
       ) : null}
 
       {activeView === "history" ? (
-        <section
-          ref={historyScreenRef}
-          className={styles.historyScreen}
-          aria-labelledby="history-title"
+        <HistoryView
+          count={displayedHistoryCount}
+          historyTab={historyTab}
+          onButtonPointerDown={handleButtonPointerDown}
+          onHistoryTabChange={handleHistoryTabClick}
+          onShowFullHistory={showHistoryView}
+          screenRef={historyScreenRef}
+          showUnseenOnly={showUnseenHistoryOnly}
         >
-          <div className={styles.sectionsHeader}>
-            <h2 id="history-title">
-              {showUnseenHistoryOnly ? "Cambios nuevos" : "Historial"}
-            </h2>
-            <span className={styles.count}>{displayedHistoryCount}</span>
-          </div>
-          {showUnseenHistoryOnly ? (
-            <button
-              className={styles.secondaryButton}
-              type="button"
-              onPointerDown={handleButtonPointerDown}
-              onClick={showHistoryView}
-            >
-              Ver historial completo
-            </button>
-          ) : null}
-          {!showUnseenHistoryOnly ? (
-            <div className={styles.historyTabs} role="tablist">
-              <button
-                className={
-                  historyTab === "changes"
-                    ? styles.historyTabActive
-                    : styles.historyTab
-                }
-                type="button"
-                role="tab"
-                aria-selected={historyTab === "changes"}
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => handleHistoryTabClick("changes")}
-              >
-                Cambios
-              </button>
-              <button
-                className={
-                  historyTab === "categories"
-                    ? styles.historyTabActive
-                    : styles.historyTab
-                }
-                type="button"
-                role="tab"
-                aria-selected={historyTab === "categories"}
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => handleHistoryTabClick("categories")}
-              >
-                Categorías
-              </button>
-              <button
-                className={
-                  historyTab === "normalizations"
-                    ? styles.historyTabActive
-                    : styles.historyTab
-                }
-                type="button"
-                role="tab"
-                aria-selected={historyTab === "normalizations"}
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => handleHistoryTabClick("normalizations")}
-              >
-                Normalización
-              </button>
-            </div>
-          ) : null}
-          {historyTab === "normalizations"
-            ? renderProductNormalizationChanges()
-            : historyTab === "categories"
-              ? renderRecategorizationChanges()
-              : renderHistoryEvents()}
-        </section>
+          {historyTab === "normalizations" ? (
+            <ProductNormalizationChangesList
+              changes={displayedProductNormalizationChanges}
+              formatDate={formatHistoryEventDate}
+              getActionText={getProductNormalizationActionText}
+              getChangeMeta={getProductNormalizationChangeMeta}
+              getProductText={getProductNormalizationProductText}
+              getRunSummary={getProductNormalizationRunSummary}
+              runsById={productNormalizationRunsById}
+              showUnseenOnly={showUnseenHistoryOnly}
+            />
+          ) : historyTab === "categories" ? (
+            <RecategorizationChangesList
+              categories={categories}
+              changes={displayedRecategorizationChanges}
+              formatDate={formatHistoryEventDate}
+              getChangeMeta={getRecategorizationChangeMeta}
+              getRunSummary={getRecategorizationRunSummary}
+              runsById={recategorizationRunsById}
+              showUnseenOnly={showUnseenHistoryOnly}
+            />
+          ) : (
+            <HistoryEventsList
+              events={displayedHistoryEvents}
+              formatDate={formatHistoryEventDate}
+              getEventMeta={getHistoryEventMeta}
+              getEventText={getHistoryEventText}
+              showUnseenOnly={showUnseenHistoryOnly}
+            />
+          )}
+        </HistoryView>
       ) : null}
 
       {activeView === "menu" ? <MenuPlanningView /> : null}
@@ -8603,16 +5165,29 @@ export function App() {
       {activeView === "developer" &&
       isCurrentUserAdministrator &&
       (!isSupabaseConfigured() || authSnapshot.status === "signed_in") ? (
-        <section
-          ref={developerScreenRef}
-          className={styles.developerScreen}
-          aria-labelledby="developer-title"
-        >
-          <div className={styles.sectionsHeader}>
-            <h2 id="developer-title">Dev</h2>
-            <span className={styles.count}>Panel operativo</span>
-          </div>
-          {renderDeveloperOverviewCard()}
+        <DeveloperViewShell screenRef={developerScreenRef}>
+          <DeveloperStatusOverview
+            backupStatusText={getDeveloperBackupStatusText(
+              getDeveloperBackupStatus(developerBackupRun),
+            )}
+            hasBackupProblem={
+              getDeveloperBackupStatus(developerBackupRun) === "failed" ||
+              getDeveloperBackupStatus(developerBackupRun) === "stale"
+            }
+            hasOperationalProblem={
+              getDeveloperBackupStatus(developerBackupRun) === "failed" ||
+              getDeveloperBackupStatus(developerBackupRun) === "stale" ||
+              pushNotificationSnapshot.status === "error" ||
+              pushNotificationSnapshot.status === "denied" ||
+              syncStatus === "offline"
+            }
+            hasPushProblem={
+              pushNotificationSnapshot.status === "error" ||
+              pushNotificationSnapshot.status === "denied"
+            }
+            pushStatus={pushNotificationSnapshot.message}
+            syncStatusText={getSyncStatusText(syncStatus)}
+          />
           <DeveloperDisclosure
             id="auth"
             title="Sesión y contexto"
@@ -8620,46 +5195,23 @@ export function App() {
             expanded={openDeveloperSection === "auth"}
             onToggle={toggleDeveloperSection}
           >
-            {renderDeveloperAuthCard()}
-            <section
-              className={styles.developerPanel}
-              aria-label="Información operativa"
-            >
-              <div className={styles.developerPanelHeader}>
-                <h3>App</h3>
-                <span className={styles.developerStatusSuccess}>
-                  {getSyncStatusText(syncStatus)}
-                </span>
-              </div>
-              <dl className={styles.developerMetrics}>
-                <div>
-                  <dt>Almacenamiento</dt>
-                  <dd>{getShoppingItemsStorageMode()}</dd>
-                </div>
-                <div>
-                  <dt>Supabase</dt>
-                  <dd>
-                    {isSupabaseConfigured() ? "Configurado" : "No configurado"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Listas</dt>
-                  <dd>{sections.length}</dd>
-                </div>
-                <div>
-                  <dt>Pendientes</dt>
-                  <dd>{pendingCount}</dd>
-                </div>
-                <div>
-                  <dt>Comprados</dt>
-                  <dd>{purchasedCount}</dd>
-                </div>
-                <div>
-                  <dt>Historial 30 días</dt>
-                  <dd>{recentHistoryEvents.length}</dd>
-                </div>
-              </dl>
-            </section>
+            {authSnapshot.status === "signed_in" && authSnapshot.user ? (
+              <DeveloperAuthCard
+                email={authSnapshot.user.email ?? "Sesión iniciada"}
+                isPending={isAuthActionPending}
+                onButtonPointerDown={handleButtonPointerDown}
+                onSignOut={handleSignOut}
+              />
+            ) : null}
+            <DeveloperAppContext
+              historyCount={recentHistoryEvents.length}
+              pendingCount={pendingCount}
+              purchasedCount={purchasedCount}
+              sectionCount={sections.length}
+              storageMode={getShoppingItemsStorageMode()}
+              supabaseConfigured={isSupabaseConfigured()}
+              syncStatusText={getSyncStatusText(syncStatus)}
+            />
           </DeveloperDisclosure>
           <DeveloperDisclosure
             id="backup"
@@ -8670,7 +5222,22 @@ export function App() {
             expanded={openDeveloperSection === "backup"}
             onToggle={toggleDeveloperSection}
           >
-            {renderDeveloperBackupCard()}
+            <DeveloperBackupCard
+              error={developerBackupError}
+              formatDate={formatDeveloperDate}
+              formatDuration={formatDuration}
+              formatFileSize={formatFileSize}
+              formatHash={formatShortHash}
+              hasBackupProblem={
+                getDeveloperBackupStatus(developerBackupRun) === "failed" ||
+                getDeveloperBackupStatus(developerBackupRun) === "stale"
+              }
+              run={developerBackupRun}
+              status={getDeveloperBackupStatus(developerBackupRun)}
+              statusText={getDeveloperBackupStatusText(
+                getDeveloperBackupStatus(developerBackupRun),
+              )}
+            />
           </DeveloperDisclosure>
           <DeveloperDisclosure
             id="actions"
@@ -8681,7 +5248,14 @@ export function App() {
             expanded={openDeveloperSection === "actions"}
             onToggle={toggleDeveloperSection}
           >
-            {renderDeveloperRemoteActionsCard()}
+            <DeveloperRemoteActionsCard
+              action={remoteAction}
+              definitions={remoteActionDefinitions}
+              error={remoteActionError}
+              isPending={isRemoteActionPending}
+              onAction={(action) => void handleRemoteAction(action)}
+              onButtonPointerDown={handleButtonPointerDown}
+            />
           </DeveloperDisclosure>
           <DeveloperDisclosure
             id="push"
@@ -8690,439 +5264,115 @@ export function App() {
             expanded={openDeveloperSection === "push"}
             onToggle={toggleDeveloperSection}
           >
-            {renderDeveloperPushNotificationCard()}
-          </DeveloperDisclosure>
-        </section>
-      ) : null}
-
-      <nav className={styles.bottomNav} aria-label="Navegación principal">
-        <button
-          className={
-            activeView === "shopping"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={showShoppingView}
-          disabled={!isLoaded}
-        >
-          <Icon name="utensils" />
-          <span>Lista</span>
-        </button>
-        <button
-          className={
-            activeView === "menu"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={() => setActiveView("menu")}
-          disabled={!isLoaded || !isSupabaseConfigured()}
-        >
-          <Icon name="list" />
-          <span>Platos</span>
-        </button>
-        <button
-          className={
-            activeView === "tickets"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={showTicketsView}
-          disabled={!isLoaded}
-        >
-          <Icon name="ticket" />
-          <span>Tickets</span>
-        </button>
-        {freezerViewEnabled ? (
-          <button
-            className={
-              activeView === "freezer"
-                ? styles.bottomNavItemActive
-                : styles.bottomNavItem
-            }
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={() => setActiveView("freezer")}
-            disabled={!isLoaded}
-          >
-            <Icon name="freezer" />
-            <span>Congelador</span>
-          </button>
-        ) : null}
-        <button
-          className={
-            activeView === "sections"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          aria-label="Gestionar listas"
-          onPointerDown={handleButtonPointerDown}
-          onClick={showSectionsView}
-          disabled={!isLoaded}
-        >
-          <Icon name="settings" />
-          <span>Listas</span>
-        </button>
-        <button
-          className={
-            activeView === "history"
-              ? styles.bottomNavItemActive
-              : styles.bottomNavItem
-          }
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={showHistoryView}
-          disabled={!isLoaded}
-        >
-          <Icon name="history" />
-          <span>Historial</span>
-        </button>
-        {isCurrentUserAdministrator &&
-        (!isSupabaseConfigured() || authSnapshot.status === "signed_in") ? (
-          <button
-            className={
-              activeView === "developer"
-                ? styles.bottomNavItemActive
-                : styles.bottomNavItem
-            }
-            type="button"
-            aria-label="Vista de desarrollador"
-            onPointerDown={handleButtonPointerDown}
-            onClick={showDeveloperView}
-            disabled={!isLoaded}
-          >
-            <Icon name="database" />
-            <span>Dev</span>
-          </button>
-        ) : null}
-      </nav>
-
-      {isClearDialogOpen ? (
-        <div
-          className={styles.modalBackdrop}
-          onClick={() => {
-            runHapticFeedback("light");
-            consumeOverlayHistory("clear-dialog");
-            setIsClearDialogOpen(false);
-          }}
-        >
-          <div
-            ref={clearDialogRef}
-            className={styles.modal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="clear-purchased-title"
-            aria-describedby="clear-purchased-description"
-            tabIndex={-1}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                runHapticFeedback("light");
-                consumeOverlayHistory("clear-dialog");
-                setIsClearDialogOpen(false);
+            <DeveloperPushNotificationCard
+              actionText={getPushNotificationActionText(
+                pushNotificationSnapshot,
+                isSupabaseConfigured(),
+              )}
+              diagnostic={pushNotificationDiagnostic}
+              isActionDisabled={
+                isPushNotificationActionPending ||
+                isPushNotificationActionDisabled(
+                  pushNotificationSnapshot,
+                  isSupabaseConfigured(),
+                )
               }
-            }}
-          >
-            <h2 id="clear-purchased-title">Borrar comprados</h2>
-            <p id="clear-purchased-description">{clearPurchasedDescription}</p>
-            <ul
-              className={styles.clearPurchasedList}
-              aria-label="Productos comprados que se borrarán"
-            >
-              {selectedPurchasedItems.map((item) => (
-                <li key={item.id}>
-                  <span>{item.name}</span>
-                  <span>{getShoppingUserName(item.addedBy)}</span>
-                </li>
-              ))}
-            </ul>
-            <div className={styles.modalActions}>
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => {
-                  runHapticFeedback("light");
-                  consumeOverlayHistory("clear-dialog");
-                  setIsClearDialogOpen(false);
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                className={styles.dangerButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={confirmRemovePurchasedItems}
-              >
-                {removePurchasedButtonText}
-              </button>
-            </div>
-          </div>
-        </div>
+              isDiagnosticPending={isPushDiagnosticPending}
+              isSupabaseAvailable={isSupabaseConfigured()}
+              onAction={handlePushNotificationAction}
+              onButtonPointerDown={handleButtonPointerDown}
+              onDiagnostic={handlePushNotificationDiagnostic}
+              snapshot={pushNotificationSnapshot}
+            />
+          </DeveloperDisclosure>
+        </DeveloperViewShell>
       ) : null}
+
+      <AppBottomNav
+        activeView={activeView}
+        isLoaded={isLoaded}
+        freezerViewEnabled={freezerViewEnabled}
+        canOpenMenu={isSupabaseConfigured()}
+        canOpenDeveloper={
+          isCurrentUserAdministrator &&
+          (!isSupabaseConfigured() || authSnapshot.status === "signed_in")
+        }
+        onButtonPointerDown={handleButtonPointerDown}
+        onShopping={showShoppingView}
+        onMenu={() => setActiveView("menu")}
+        onTickets={showTicketsView}
+        onFreezer={() => setActiveView("freezer")}
+        onSections={showSectionsView}
+        onHistory={showHistoryView}
+        onDeveloper={showDeveloperView}
+      />
+
+      <ClearPurchasedDialog
+        isOpen={isClearDialogOpen}
+        dialogRef={clearDialogRef}
+        description={clearPurchasedDescription}
+        items={selectedPurchasedItems}
+        confirmLabel={removePurchasedButtonText}
+        getUserName={(item) => getShoppingUserName(item.addedBy)}
+        onCancel={() => {
+          runHapticFeedback("light");
+          consumeOverlayHistory("clear-dialog");
+          setIsClearDialogOpen(false);
+        }}
+        onConfirm={confirmRemovePurchasedItems}
+        onButtonPointerDown={handleButtonPointerDown}
+      />
 
       {editingItem ? (
-        <div className={styles.modalBackdrop} onClick={cancelEditing}>
-          <form
-            className={`${styles.modal} ${styles.editModal}`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="edit-product-title"
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                cancelEditing();
-              }
-            }}
-            onSubmit={handleEditSubmit}
-          >
-            <h2 id="edit-product-title">Editar {editingItem.name}</h2>
-            <div className={styles.modalForm}>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-item-name">
-                  Producto
-                </label>
-                <input
-                  id="edit-item-name"
-                  className={styles.input}
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  autoFocus
-                  enterKeyHint="done"
-                  inputMode="text"
-                  spellCheck
-                  value={editingItemName}
-                  onChange={(event) => setEditingItemName(event.target.value)}
-                  type="text"
-                />
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-item-notes">
-                  Notas (opcional)
-                </label>
-                <textarea
-                  id="edit-item-notes"
-                  className={styles.input}
-                  rows={2}
-                  value={editingItemNotes}
-                  onChange={(event) => setEditingItemNotes(event.target.value)}
-                  placeholder="Aclaraciones, marca o formato..."
-                />
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-item-quantity">
-                  Cantidad
-                </label>
-                <input
-                  id="edit-item-quantity"
-                  className={styles.input}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  enterKeyHint="done"
-                  inputMode="text"
-                  spellCheck={false}
-                  value={editingItemQuantity}
-                  onChange={(event) =>
-                    setEditingItemQuantity(event.target.value)
-                  }
-                  onFocus={selectTextOnFocus}
-                  placeholder="x2, 1 kg, 2 packs..."
-                  type="text"
-                />
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-section-id">
-                  Sección
-                </label>
-                <select
-                  id="edit-section-id"
-                  className={styles.select}
-                  value={editingSectionId}
-                  onChange={(event) =>
-                    setEditingSectionId(event.target.value as ShoppingSectionId)
-                  }
-                >
-                  {sections.map((section) => (
-                    <option key={section.id} value={section.id}>
-                      {section.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className={styles.modalActions}>
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={cancelEditing}
-              >
-                Cancelar
-              </button>
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-              >
-                Guardar
-              </button>
-            </div>
-          </form>
-        </div>
+        <EditProductDialog
+          item={editingItem}
+          name={editingItemName}
+          notes={editingItemNotes}
+          onButtonPointerDown={handleButtonPointerDown}
+          onCancel={cancelEditing}
+          onNameChange={(event) => setEditingItemName(event.target.value)}
+          onNotesChange={(event) => setEditingItemNotes(event.target.value)}
+          onQuantityChange={(event) =>
+            setEditingItemQuantity(event.target.value)
+          }
+          onQuantityFocus={selectTextOnFocus}
+          onSectionChange={setEditingSectionId}
+          onSubmit={handleEditSubmit}
+          quantity={editingItemQuantity}
+          sectionId={editingSectionId}
+          sections={sections}
+        />
       ) : null}
 
       {freezerViewEnabled && editingFreezerItem ? (
-        <div
-          ref={freezerEditSheetBackdropRef}
-          className={styles.addSheetBackdrop}
-          style={
-            {
-              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
-            } as CSSProperties
-          }
-          onClick={() => closeFreezerEditSheet()}
-        >
-          <form
-            ref={freezerEditSheetRef}
-            className={`${styles.addSheet} ${styles.addSheetCompact}`}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="edit-freezer-title"
-            style={
-              {
-                "--sheet-drag-offset": `${sheetDragOffset}px`,
-              } as CSSProperties
+        <FreezerEditSheet
+          backdropRef={freezerEditSheetBackdropRef}
+          drawerId={editingFreezerDrawerId}
+          frozenAt={editingFreezerFrozenAt}
+          item={editingFreezerItem}
+          keyboardInset={sheetKeyboardInset}
+          name={editingFreezerItemName}
+          nameInputRef={editingFreezerItemNameInputRef}
+          onButtonPointerDown={handleButtonPointerDown}
+          onClose={closeFreezerEditSheet}
+          onDrawerChange={(drawerId) => {
+            if (isFreezerDrawerId(drawerId)) {
+              setEditingFreezerDrawerId(drawerId);
             }
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={handleAddSheetKeyDown}
-            onSubmit={handleFreezerEditSubmit}
-          >
-            <div
-              className={styles.addSheetHandle}
-              aria-label="Cerrar panel de edición"
-              role="button"
-              tabIndex={0}
-              onPointerDown={handleAddSheetDragStart}
-              onPointerMove={handleAddSheetDragMove}
-              onPointerUp={handleAddSheetDragEnd}
-              onPointerCancel={handleAddSheetDragEnd}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  closeFreezerEditSheet();
-                }
-              }}
-            >
-              <span />
-            </div>
-            <h2 id="edit-freezer-title" className={styles.visuallyHidden}>
-              Editar {editingFreezerItem.name}
-            </h2>
-            <div className={styles.addSheetFields}>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-freezer-name">
-                  Producto
-                </label>
-                <input
-                  id="edit-freezer-name"
-                  ref={editingFreezerItemNameInputRef}
-                  className={styles.addSheetInput}
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  value={editingFreezerItemName}
-                  onChange={(event) =>
-                    setEditingFreezerItemName(event.target.value)
-                  }
-                  type="text"
-                />
-              </div>
-              <div className={styles.addSheetSelectors}>
-                <div className={styles.formField}>
-                  <label
-                    className={styles.label}
-                    htmlFor="edit-freezer-quantity"
-                  >
-                    Cantidad
-                  </label>
-                  <input
-                    id="edit-freezer-quantity"
-                    className={styles.select}
-                    autoComplete="off"
-                    value={editingFreezerItemQuantity}
-                    onChange={(event) =>
-                      setEditingFreezerItemQuantity(event.target.value)
-                    }
-                    onFocus={selectTextOnFocus}
-                    placeholder="2 raciones"
-                    type="text"
-                  />
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="edit-freezer-drawer">
-                    Cajón
-                  </label>
-                  <select
-                    id="edit-freezer-drawer"
-                    className={styles.select}
-                    value={editingFreezerDrawerId}
-                    onChange={(event) => {
-                      const drawerId = event.target.value;
-
-                      if (isFreezerDrawerId(drawerId)) {
-                        setEditingFreezerDrawerId(drawerId);
-                      }
-                    }}
-                  >
-                    {freezerDrawers.map((drawer) => (
-                      <option key={drawer.id} value={drawer.id}>
-                        {drawer.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-freezer-date">
-                  Congelado
-                </label>
-                <input
-                  id="edit-freezer-date"
-                  className={styles.select}
-                  value={editingFreezerFrozenAt}
-                  onChange={(event) =>
-                    setEditingFreezerFrozenAt(event.target.value)
-                  }
-                  type="date"
-                />
-              </div>
-            </div>
-            <div className={styles.addSheetFooter}>
-              <p className={styles.addSheetNotice} aria-live="polite" />
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => closeFreezerEditSheet()}
-              >
-                Cancelar
-              </button>
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-              >
-                Guardar
-              </button>
-            </div>
-          </form>
-        </div>
+          }}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          onFrozenAtChange={setEditingFreezerFrozenAt}
+          onNameChange={setEditingFreezerItemName}
+          onQuantityChange={setEditingFreezerItemQuantity}
+          onQuantityFocus={selectTextOnFocus}
+          onSheetKeyDown={handleAddSheetKeyDown}
+          onSubmit={handleFreezerEditSubmit}
+          quantity={editingFreezerItemQuantity}
+          sheetDragOffset={sheetDragOffset}
+          sheetRef={freezerEditSheetRef}
+        />
       ) : null}
     </main>
   );

@@ -140,6 +140,7 @@ import { CreateSectionSheet } from "./components/shopping/CreateSectionSheet";
 import { SectionsViewShell } from "./components/shopping/SectionsViewShell";
 import { LocalSectionsManager } from "./components/shopping/LocalSectionsManager";
 import { ShoppingListsManager } from "./components/shopping/ShoppingListsManager";
+import { ShoppingBoardLoading } from "./components/shopping/ShoppingBoardLoading";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -5359,37 +5360,6 @@ export function App() {
     );
   }
 
-  function renderLoadingItems() {
-    return (
-      <ul className={`${styles.list} ${styles.loadingList}`} aria-hidden="true">
-        {[0, 1, 2].map((itemIndex) => (
-          <li className={styles.loadingItem} key={itemIndex}>
-            <span className={styles.loadingCheck} />
-            <span className={styles.loadingText} />
-            <span className={styles.loadingMeta} />
-            <span className={styles.loadingAction} />
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  function renderLoadingBoard() {
-    return [0, 1, 2].map((columnIndex) => (
-      <article
-        className={`${styles.column} ${styles.loadingColumn}`}
-        aria-hidden="true"
-        key={columnIndex}
-      >
-        <div className={styles.sectionHeader}>
-          <span className={styles.loadingTitle} />
-          <span className={styles.loadingCount} />
-        </div>
-        {renderLoadingItems()}
-      </article>
-    ));
-  }
-
   function toggleDeveloperSection(id: DeveloperSectionId) {
     setOpenDeveloperSection((currentId) => (currentId === id ? null : id));
   }
@@ -5813,7 +5783,7 @@ export function App() {
           onColumnKeyDown={handleColumnKeyDown}
           onSelectSection={selectSection}
           renderItems={renderItems}
-          renderLoadingBoard={renderLoadingBoard}
+          loadingBoard={<ShoppingBoardLoading />}
           sectionColumnRefs={sectionColumnRefs}
           sectionIndicatorRefs={sectionIndicatorRefs}
           sections={sections}

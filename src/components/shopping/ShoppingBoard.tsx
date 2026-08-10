@@ -32,7 +32,7 @@ type ShoppingBoardProps = {
     hiddenPurchasedItem: ShoppingItem | null,
     sectionColor: ShoppingSectionColor,
   ) => ReactNode;
-  renderLoadingBoard: () => ReactNode;
+  loadingBoard: ReactNode;
   sectionColumnRefs: MutableRefObject<Partial<Record<string, HTMLElement>>>;
   sectionIndicatorRefs: MutableRefObject<
     Partial<Record<string, HTMLButtonElement>>
@@ -53,7 +53,7 @@ export function ShoppingBoard({
   onColumnKeyDown,
   onSelectSection,
   renderItems,
-  renderLoadingBoard,
+  loadingBoard,
   sectionColumnRefs,
   sectionIndicatorRefs,
   sections,
@@ -74,7 +74,7 @@ export function ShoppingBoard({
       >
         <div className={styles.boardTrack}>
           {!isLoaded
-            ? renderLoadingBoard()
+            ? loadingBoard
             : sections.map((section) => {
                 const sectionItems = items.filter(
                   (item) => item.sectionId === section.id,

@@ -136,6 +136,8 @@ import type { SyncStatus, ThemePreference } from "./components/app/AppHeader";
 import { AppBottomNav } from "./components/app/AppBottomNav";
 import type { AppView } from "./components/app/AppBottomNav";
 import { PwaUpdateBanner } from "./components/app/PwaUpdateBanner";
+import { FloatingActionButton } from "./components/app/FloatingActionButton";
+import { ShoppingControls } from "./components/shopping/ShoppingControls";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -6523,64 +6525,20 @@ export function App() {
       />
 
       {activeView === "shopping" ? (
-        <section
-          id="shopping-controls"
-          ref={commandPanelRef}
-          className={styles.commandPanel}
-          aria-label="Controles de lista"
-        >
-          <div className={styles.form}>
-            <label className={styles.searchField}>
-              <span className={styles.visuallyHidden}>Buscar productos</span>
-              <span className={styles.searchIcon} aria-hidden="true">
-                <Icon name="search" />
-              </span>
-              <input
-                value={shoppingSearchQuery}
-                onChange={(event) => setShoppingSearchQuery(event.target.value)}
-                type="search"
-                placeholder="Buscar productos"
-                disabled={!isLoaded}
-              />
-              {shoppingSearchQuery ? (
-                <button
-                  className={styles.searchClearButton}
-                  type="button"
-                  aria-label="Limpiar búsqueda"
-                  title="Limpiar búsqueda"
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={() => setShoppingSearchQuery("")}
-                >
-                  <Icon name="close" />
-                </button>
-              ) : null}
-            </label>
-            <div className={styles.addRow}>
-              <button
-                className={styles.iconButton}
-                type="button"
-                aria-label="Borrar comprados"
-                title="Borrar comprados"
-                onPointerDown={handleButtonPointerDown}
-                onClick={handleRemovePurchasedItems}
-                disabled={!isLoaded || selectedPurchasedCount === 0}
-              >
-                <Icon name="trash" />
-              </button>
-              <label className={styles.visibilityToggle}>
-                <input
-                  checked={showPurchasedItems}
-                  onChange={(event) =>
-                    handleShowPurchasedItemsChange(event.target.checked)
-                  }
-                  type="checkbox"
-                  disabled={!isLoaded}
-                />
-                <span>Comprados</span>
-              </label>
-            </div>
-          </div>
-        </section>
+        <ShoppingControls
+          controlsRef={commandPanelRef}
+          isLoaded={isLoaded}
+          query={shoppingSearchQuery}
+          showPurchasedItems={showPurchasedItems}
+          canClearPurchasedItems={selectedPurchasedCount > 0}
+          onQueryChange={(event) => setShoppingSearchQuery(event.target.value)}
+          onClearQuery={() => setShoppingSearchQuery("")}
+          onShowPurchasedItemsChange={(event) =>
+            handleShowPurchasedItemsChange(event.target.checked)
+          }
+          onClearPurchasedItems={handleRemovePurchasedItems}
+          onButtonPointerDown={handleButtonPointerDown}
+        />
       ) : null}
 
       {activeView === "shopping" ? renderPushNotificationInvite() : null}
@@ -6596,66 +6554,50 @@ export function App() {
       ) : null}
 
       {activeView === "shopping" && !isAddSheetOpen ? (
-        <button
-          ref={addFabRef}
-          className={styles.floatingAddButton}
-          type="button"
-          aria-label="Añadir producto"
-          title="Añadir producto"
-          onPointerDown={handleButtonPointerDown}
-          onClick={openAddSheet}
+        <FloatingActionButton
+          buttonRef={addFabRef}
+          label="Añadir producto"
+          icon="plus"
           disabled={!isLoaded}
-        >
-          <Icon name="plus" />
-        </button>
+          onButtonPointerDown={handleButtonPointerDown}
+          onClick={openAddSheet}
+        />
       ) : null}
 
       {activeView === "tickets" && !isTicketUploadSheetOpen ? (
-        <button
-          ref={ticketUploadFabRef}
-          className={styles.floatingAddButton}
-          type="button"
-          aria-label="Subir ticket"
-          title="Subir ticket"
-          onPointerDown={handleButtonPointerDown}
-          onClick={openTicketUploadSheet}
+        <FloatingActionButton
+          buttonRef={ticketUploadFabRef}
+          label="Subir ticket"
+          icon="upload"
           disabled={!isLoaded}
-        >
-          <Icon name="upload" />
-        </button>
+          onButtonPointerDown={handleButtonPointerDown}
+          onClick={openTicketUploadSheet}
+        />
       ) : null}
 
       {freezerViewEnabled &&
       activeView === "freezer" &&
       !isFreezerAddSheetOpen &&
       !editingFreezerItem ? (
-        <button
-          ref={freezerAddFabRef}
-          className={styles.floatingAddButton}
-          type="button"
-          aria-label="Añadir producto congelado"
-          title="Añadir producto congelado"
-          onPointerDown={handleButtonPointerDown}
-          onClick={openFreezerAddSheet}
+        <FloatingActionButton
+          buttonRef={freezerAddFabRef}
+          label="Añadir producto congelado"
+          icon="plus"
           disabled={!isLoaded}
-        >
-          <Icon name="plus" />
-        </button>
+          onButtonPointerDown={handleButtonPointerDown}
+          onClick={openFreezerAddSheet}
+        />
       ) : null}
 
       {activeView === "sections" && !isSectionAddSheetOpen ? (
-        <button
-          ref={sectionAddFabRef}
-          className={styles.floatingAddButton}
-          type="button"
-          aria-label="Crear lista"
-          title="Crear lista"
-          onPointerDown={handleButtonPointerDown}
-          onClick={openSectionAddSheet}
+        <FloatingActionButton
+          buttonRef={sectionAddFabRef}
+          label="Crear lista"
+          icon="plus"
           disabled={!isLoaded}
-        >
-          <Icon name="plus" />
-        </button>
+          onButtonPointerDown={handleButtonPointerDown}
+          onClick={openSectionAddSheet}
+        />
       ) : null}
 
       {activeView === "shopping" && isAddSheetOpen ? (

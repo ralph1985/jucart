@@ -153,6 +153,7 @@ import { HistoryView } from "./components/history/HistoryView";
 import { TicketUploadSheet } from "./components/tickets/TicketUploadSheet";
 import { TicketReviewQueue } from "./components/tickets/TicketReviewQueue";
 import { TicketFilters } from "./components/tickets/TicketFilters";
+import { TicketsView } from "./components/tickets/TicketsView";
 import { PriceDetailSheet } from "./components/prices/PriceDetailSheet";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
@@ -6746,25 +6747,12 @@ export function App() {
       ) : null}
 
       {activeView === "tickets" ? (
-        <section
-          ref={ticketsScreenRef}
-          className={styles.ticketsScreen}
-          aria-labelledby="tickets-title"
+        <TicketsView
+          count={tickets.length}
+          error={ticketError}
+          notice={ticketUploadNotice}
+          screenRef={ticketsScreenRef}
         >
-          <div className={styles.screenTitle}>
-            <h2 id="tickets-title">Tickets</h2>
-            <span className={styles.count}>{tickets.length}</span>
-          </div>
-          {ticketUploadNotice ? (
-            <p className={styles.ticketNotice} role="status">
-              {ticketUploadNotice}
-            </p>
-          ) : null}
-          {ticketError ? (
-            <p className={styles.error} role="alert">
-              {ticketError}
-            </p>
-          ) : null}
           <TicketReviewQueue
             canonicalProducts={canonicalProducts}
             entries={ticketReviewEntries}
@@ -7025,7 +7013,7 @@ export function App() {
               ) : null}
             </>
           )}
-        </section>
+        </TicketsView>
       ) : null}
 
       {activeView === "sections" ? (

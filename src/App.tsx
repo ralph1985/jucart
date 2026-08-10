@@ -4,7 +4,6 @@ import {
   FocusEvent,
   KeyboardEvent,
   MouseEvent,
-  PointerEvent,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -143,6 +142,7 @@ import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog
 import { useThemePreference } from "./hooks/useThemePreference";
 import { usePullToRefreshGesture } from "./hooks/usePullToRefreshGesture";
 import { useOverlayHistory } from "./hooks/useOverlayHistory";
+import { useSheetDrag } from "./hooks/useSheetDrag";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
@@ -1377,7 +1377,6 @@ export function App() {
   const [addProductNotice, setAddProductNotice] =
     useState<AddProductNotice | null>(null);
   const [sheetKeyboardInset, setSheetKeyboardInset] = useState(0);
-  const [sheetDragOffset, setSheetDragOffset] = useState(0);
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(
     null,
   );
@@ -1438,7 +1437,6 @@ export function App() {
   const closeOverlayFromHistoryRef = useRef<
     ((overlay: AppOverlay) => void) | null
   >(null);
-  const addSheetDragStartYRef = useRef<number | null>(null);
   const pendingAddDraftRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
   const skipNextStoreRef = useRef(true);
@@ -1452,6 +1450,13 @@ export function App() {
       onPopOverlayRef: closeOverlayFromHistoryRef,
       stateKey: overlayHistoryStateKey,
     });
+  const {
+    handleEnd: handleAddSheetDragEnd,
+    handleMove: handleAddSheetDragMove,
+    handleStart: handleAddSheetDragStart,
+    offset: sheetDragOffset,
+    reset: resetSheetDrag,
+  } = useSheetDrag({ onDismiss: closeActiveBottomSheet });
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
   const useFirstFreezerItems = sortFreezerItemsByUseFirst(freezerItems).slice(
@@ -2986,8 +2991,7 @@ export function App() {
         setIsAddSheetOpen(false);
         setClosingBottomSheet(null);
         setAddProductNotice(null);
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
+        resetSheetDrag();
 
         if (restoreFabFocus) {
           window.requestAnimationFrame(() => addFabRef.current?.focus());
@@ -3018,8 +3022,7 @@ export function App() {
 
         setIsFreezerAddSheetOpen(false);
         setClosingBottomSheet(null);
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
+        resetSheetDrag();
 
         if (restoreFabFocus) {
           window.requestAnimationFrame(() => freezerAddFabRef.current?.focus());
@@ -3046,8 +3049,7 @@ export function App() {
 
         setSelectedPriceProductId(null);
         setClosingBottomSheet(null);
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
+        resetSheetDrag();
       },
     );
   }
@@ -3077,8 +3079,7 @@ export function App() {
         setClosingBottomSheet(null);
         setSectionName("");
         setNewSectionColor("mint");
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
+        resetSheetDrag();
 
         if (restoreFabFocus) {
           window.requestAnimationFrame(() => sectionAddFabRef.current?.focus());
@@ -3107,8 +3108,7 @@ export function App() {
 
         resetEditingFreezerItem();
         setClosingBottomSheet(null);
-        setSheetDragOffset(0);
-        addSheetDragStartYRef.current = null;
+        resetSheetDrag();
       },
     );
   }
@@ -3342,31 +3342,6 @@ export function App() {
       event.preventDefault();
       closeActiveBottomSheet();
     }
-  }
-
-  function handleAddSheetDragStart(event: PointerEvent<HTMLDivElement>) {
-    addSheetDragStartYRef.current = event.clientY;
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-
-  function handleAddSheetDragMove(event: PointerEvent<HTMLDivElement>) {
-    if (addSheetDragStartYRef.current === null) {
-      return;
-    }
-
-    setSheetDragOffset(
-      Math.max(0, event.clientY - addSheetDragStartYRef.current),
-    );
-  }
-
-  function handleAddSheetDragEnd() {
-    if (sheetDragOffset > 70) {
-      closeActiveBottomSheet();
-      return;
-    }
-
-    setSheetDragOffset(0);
-    addSheetDragStartYRef.current = null;
   }
 
   function handleViewDuplicateItem(itemId: string) {
@@ -4309,7 +4284,7 @@ export function App() {
     setTicketUploadFiles([]);
     setTicketError(null);
     setTicketUploadNotice(null);
-    setSheetDragOffset(0);
+    resetSheetDrag();
     setIsTicketUploadSheetOpen(true);
     pushOverlayHistory("ticket-upload-sheet");
     window.requestAnimationFrame(() =>
@@ -4335,7 +4310,7 @@ export function App() {
         setIsTicketUploadSheetOpen(false);
         setClosingBottomSheet(null);
         setTicketUploadFiles([]);
-        setSheetDragOffset(0);
+        resetSheetDrag();
 
         if (restoreFabFocus) {
           window.requestAnimationFrame(() =>

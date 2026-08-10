@@ -71,7 +71,6 @@ import {
   ShoppingProductCatalogEntry,
   ShoppingRecategorizationChange,
   ShoppingRecategorizationRun,
-  shoppingSectionColors,
   ShoppingSectionColor,
   ShoppingSection,
   ShoppingSectionId,
@@ -141,6 +140,7 @@ import { AddProductSheet } from "./components/shopping/AddProductSheet";
 import { CreateSectionSheet } from "./components/shopping/CreateSectionSheet";
 import { SectionsViewShell } from "./components/shopping/SectionsViewShell";
 import { LocalSectionsManager } from "./components/shopping/LocalSectionsManager";
+import { ShoppingListsManager } from "./components/shopping/ShoppingListsManager";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -5649,282 +5649,37 @@ export function App() {
     }
 
     return (
-      <section
-        className={styles.developerPanel}
-        aria-label="Listas disponibles"
-      >
-        <div className={styles.developerPanelHeader}>
-          <h3>Listas</h3>
-          <span className={styles.developerStatusSuccess}>
-            {shoppingLists.length}
-          </span>
-        </div>
-        {shoppingLists.length > 0 ? (
-          <ul className={styles.shoppingListManager}>
-            {shoppingLists.map((list) => {
-              const isOwner = list.currentRole === "owner";
-              const listIndex = shoppingLists.findIndex(
-                (currentList) => currentList.id === list.id,
-              );
-              const listSections = sections.filter((section) =>
-                section.id.startsWith(`${list.id}::`),
-              );
-              const listItems = items.filter((item) =>
-                listSections.some((section) => section.id === item.sectionId),
-              );
-              const hasLoadedSections = listSections.length > 0;
-              const productCount = hasLoadedSections
-                ? listItems.length
-                : (list.productCount ?? 0);
-              const purchasedCount = hasLoadedSections
-                ? listItems.filter((item) => item.purchased).length
-                : 0;
-              const pendingCount = productCount - purchasedCount;
-              const listSection = listSections[0];
-
-              const isExpanded = expandedShoppingListIds.includes(list.id);
-
-              return (
-                <li
-                  key={list.id}
-                  className={`${styles.shoppingListManagerItem} ${listSection ? styles[`shoppingListCardColor${listSection.color}`] : ""}`}
-                >
-                  <div className={styles.shoppingListCardHeader}>
-                    {isOwner ? (
-                      <input
-                        className={styles.input}
-                        aria-label={`Nombre de ${list.name}`}
-                        defaultValue={list.name}
-                        type="text"
-                        onBlur={(event) =>
-                          void handleRenameShoppingList(
-                            list.id,
-                            event.target.value,
-                          )
-                        }
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.currentTarget.blur();
-                          }
-                        }}
-                        disabled={isShoppingListActionPending}
-                      />
-                    ) : (
-                      <strong>{list.name}</strong>
-                    )}
-                    <div className={styles.shoppingListStats}>
-                      <span>{pendingCount} pendientes</span>
-                      <span>{productCount} productos</span>
-                    </div>
-                  </div>
-                  <div className={styles.shoppingListCardActions}>
-                    <button
-                      className={styles.primaryButton}
-                      type="button"
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={() =>
-                        void handleToggleShoppingListMembers(list.id)
-                      }
-                      disabled={isShoppingListActionPending}
-                    >
-                      {isExpanded ? "Ocultar detalles" : "Ver detalles"}
-                    </button>
-                    <button
-                      className={styles.secondaryButton}
-                      type="button"
-                      onPointerDown={handleButtonPointerDown}
-                      onClick={() => handleOpenShoppingList(listSection?.id)}
-                    >
-                      Abrir lista
-                    </button>
-                  </div>
-                  {isExpanded ? (
-                    <div className={styles.shoppingListDetails}>
-                      <div
-                        className={styles.shoppingListMembers}
-                        aria-label={`Miembros de ${list.name}`}
-                        role="region"
-                      >
-                        <strong>Miembros de la lista</strong>
-                        {(shoppingListMembers[list.id] ?? []).map((member) => (
-                          <div
-                            className={styles.shoppingListMember}
-                            key={member.userId}
-                          >
-                            <div>
-                              <strong>
-                                {member.displayName || member.email}
-                              </strong>
-                              <small>{member.email}</small>
-                            </div>
-                            <span className={styles.shoppingListMemberRole}>
-                              {member.role === "owner"
-                                ? "Propietario"
-                                : "Miembro"}
-                            </span>
-                            {isOwner && member.role === "member" ? (
-                              <div className={styles.shoppingListMemberActions}>
-                                <button
-                                  className={styles.authButton}
-                                  type="button"
-                                  onPointerDown={handleButtonPointerDown}
-                                  onClick={() =>
-                                    void handleTransferShoppingListOwnership(
-                                      list,
-                                      member,
-                                    )
-                                  }
-                                  disabled={isShoppingListActionPending}
-                                >
-                                  Transferir
-                                </button>
-                                <button
-                                  className={styles.authButton}
-                                  type="button"
-                                  onPointerDown={handleButtonPointerDown}
-                                  onClick={() =>
-                                    void handleRemoveShoppingListMember(
-                                      list,
-                                      member,
-                                    )
-                                  }
-                                  disabled={isShoppingListActionPending}
-                                >
-                                  Expulsar
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                      <div className={styles.shoppingListAdvanced}>
-                        <div className={styles.shoppingListManagerActions}>
-                          <button
-                            className={styles.iconButton}
-                            type="button"
-                            aria-label={`Subir ${list.name}`}
-                            title="Subir"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleMoveShoppingList(list.id, -1)
-                            }
-                            disabled={
-                              isShoppingListActionPending || listIndex === 0
-                            }
-                          >
-                            <Icon name="arrowUp" />
-                          </button>
-                          <button
-                            className={styles.iconButton}
-                            type="button"
-                            aria-label={`Bajar ${list.name}`}
-                            title="Bajar"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleMoveShoppingList(list.id, 1)
-                            }
-                            disabled={
-                              isShoppingListActionPending ||
-                              listIndex === shoppingLists.length - 1
-                            }
-                          >
-                            <Icon name="arrowDown" />
-                          </button>
-                        </div>
-                        {listSection ? (
-                          <div
-                            className={styles.sectionColorPicker}
-                            aria-label={`Color de ${list.name}`}
-                            role="group"
-                          >
-                            {shoppingSectionColors.map((color) => (
-                              <button
-                                className={`${styles.sectionColorButton} ${styles[`sectionColorSwatch${color}`]}${listSection.color === color ? ` ${styles.sectionColorButtonSelected}` : ""}`}
-                                type="button"
-                                aria-label={`Poner ${list.name} en color ${color}`}
-                                aria-pressed={listSection.color === color}
-                                key={color}
-                                onPointerDown={handleButtonPointerDown}
-                                onClick={() =>
-                                  handleSectionColorChange(
-                                    listSection.id,
-                                    color,
-                                  )
-                                }
-                                disabled={isShoppingListActionPending}
-                              />
-                            ))}
-                          </div>
-                        ) : null}
-                        <div className={styles.shoppingListCodeBlock}>
-                          {isOwner ? (
-                            <>
-                              <span>
-                                Código: <code>{list.joinCode}</code>
-                              </span>
-                              <button
-                                className={styles.authButton}
-                                type="button"
-                                onPointerDown={handleButtonPointerDown}
-                                onClick={() =>
-                                  void handleRegenerateShoppingListCode(list.id)
-                                }
-                                disabled={isShoppingListActionPending}
-                              >
-                                Regenerar
-                              </button>
-                            </>
-                          ) : null}
-                        </div>
-                        {isOwner ? (
-                          <button
-                            className={styles.dangerButton}
-                            type="button"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() => void handleDeleteShoppingList(list)}
-                            disabled={isShoppingListActionPending}
-                          >
-                            <Icon name="trash" /> Borrar lista
-                          </button>
-                        ) : (
-                          <button
-                            className={styles.dangerButton}
-                            type="button"
-                            onPointerDown={handleButtonPointerDown}
-                            onClick={() =>
-                              void handleLeaveShoppingList(list.id)
-                            }
-                            disabled={isShoppingListActionPending}
-                          >
-                            Abandonar lista
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <div className={styles.shoppingListEmpty}>
-            <p className={styles.authMessage}>No tienes listas compartidas.</p>
-            <button
-              className={styles.primaryButton}
-              type="button"
-              onPointerDown={handleButtonPointerDown}
-              onClick={openSectionAddSheet}
-            >
-              Nueva lista
-            </button>
-          </div>
-        )}
-        {shoppingListMessage ? (
-          <p className={styles.authMessage} role="status">
-            {shoppingListMessage}
-          </p>
-        ) : null}
-      </section>
+      <ShoppingListsManager
+        expandedListIds={expandedShoppingListIds}
+        isActionPending={isShoppingListActionPending}
+        items={items}
+        lists={shoppingLists}
+        membersByListId={shoppingListMembers}
+        message={shoppingListMessage}
+        onButtonPointerDown={handleButtonPointerDown}
+        onColorChange={handleSectionColorChange}
+        onCreate={openSectionAddSheet}
+        onDelete={(list) => void handleDeleteShoppingList(list)}
+        onLeave={(listId) => void handleLeaveShoppingList(listId)}
+        onMove={(listId, direction) =>
+          void handleMoveShoppingList(listId, direction)
+        }
+        onOpen={handleOpenShoppingList}
+        onRegenerateCode={(listId) =>
+          void handleRegenerateShoppingListCode(listId)
+        }
+        onRemoveMember={(list, member) =>
+          void handleRemoveShoppingListMember(list, member)
+        }
+        onRename={(listId, name) => void handleRenameShoppingList(listId, name)}
+        onToggleDetails={(listId) =>
+          void handleToggleShoppingListMembers(listId)
+        }
+        onTransferOwnership={(list, member) =>
+          void handleTransferShoppingListOwnership(list, member)
+        }
+        sections={sections}
+      />
     );
   }
 

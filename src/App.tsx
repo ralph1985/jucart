@@ -139,6 +139,8 @@ import { PwaUpdateBanner } from "./components/app/PwaUpdateBanner";
 import { FloatingActionButton } from "./components/app/FloatingActionButton";
 import { ShoppingControls } from "./components/shopping/ShoppingControls";
 import { useThemePreference } from "./hooks/useThemePreference";
+import { LoginScreen } from "./components/auth/LoginScreen";
+import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -5959,134 +5961,6 @@ export function App() {
     setOpenDeveloperSection((currentId) => (currentId === id ? null : id));
   }
 
-  function renderPushNotificationInvite() {
-    if (!isPushInviteVisible) {
-      return null;
-    }
-
-    return (
-      <section className={styles.pushInvite} aria-label="Avisos de cambios">
-        <span className={styles.pushInviteIcon} aria-hidden="true">
-          <Icon name="bell" />
-        </span>
-        <div className={styles.pushInviteText}>
-          <h2>Avisos de cambios</h2>
-          <p>
-            Recibe una notificación cuando otro dispositivo cambie la lista.
-          </p>
-        </div>
-        <div className={styles.pushInviteActions}>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handleDismissPushNotificationInvite}
-            disabled={isPushNotificationActionPending}
-          >
-            Ahora no
-          </button>
-          <button
-            className={styles.primaryButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={handlePushNotificationAction}
-            disabled={isPushNotificationActionPending}
-          >
-            {pushNotificationSnapshot.status === "error"
-              ? "Reintentar"
-              : "Activar"}
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  function renderLoginScreen() {
-    if (!isSupabaseConfigured()) {
-      return null;
-    }
-
-    if (authSnapshot.status === "loading") {
-      return (
-        <main className={styles.loginScreen} aria-label="Iniciar sesión">
-          <section className={styles.loginCard}>
-            <span className={styles.splashLogo} aria-hidden="true">
-              <HeaderLogo />
-            </span>
-            <p className={styles.splashKicker}>Lista de la compra</p>
-            <h1>Jucart</h1>
-            <p className={styles.loginStatus}>Comprobando sesión…</p>
-          </section>
-        </main>
-      );
-    }
-
-    if (authSnapshot.status === "signed_in" && authSnapshot.user) {
-      return null;
-    }
-
-    return (
-      <main className={styles.loginScreen} aria-label="Iniciar sesión">
-        <section className={styles.loginCard}>
-          <span className={styles.splashLogo} aria-hidden="true">
-            <HeaderLogo />
-          </span>
-          <p className={styles.splashKicker}>Lista de la compra</p>
-          <h1>Jucart</h1>
-          <p className={styles.loginIntro}>
-            Inicia sesión para ver tus listas.
-          </p>
-          <form className={styles.loginForm} onSubmit={handlePasswordSubmit}>
-            <label className={styles.authLabel} htmlFor="auth-email">
-              Email
-            </label>
-            <input
-              id="auth-email"
-              className={styles.authInput}
-              type="email"
-              autoComplete="username"
-              placeholder="Tu email"
-              value={authEmail}
-              onChange={(event) => setAuthEmail(event.target.value)}
-              disabled={isAuthActionPending}
-            />
-            <label className={styles.authLabel} htmlFor="auth-password">
-              Contraseña
-            </label>
-            <input
-              id="auth-password"
-              className={styles.authInput}
-              type="password"
-              autoComplete="current-password"
-              placeholder="Tu contraseña"
-              value={authPassword}
-              onChange={(event) => setAuthPassword(event.target.value)}
-              disabled={isAuthActionPending}
-            />
-            <button
-              className={styles.primaryButton}
-              type="submit"
-              onPointerDown={handleButtonPointerDown}
-              disabled={isAuthActionPending}
-            >
-              {isAuthActionPending ? "Entrando…" : "Entrar"}
-            </button>
-          </form>
-          {authMessage ? (
-            <p className={styles.authMessage} role="status">
-              {authMessage}
-            </p>
-          ) : null}
-          {authSnapshot.error ? (
-            <p className={styles.authMessage} role="alert">
-              {authSnapshot.error}
-            </p>
-          ) : null}
-        </section>
-      </main>
-    );
-  }
-
   function renderDeveloperAuthCard() {
     if (authSnapshot.status !== "signed_in" || !authSnapshot.user) {
       return null;
@@ -6402,7 +6276,19 @@ export function App() {
   }
 
   if (isSupabaseConfigured() && authSnapshot.status !== "signed_in") {
-    return renderLoginScreen();
+    return (
+      <LoginScreen
+        authSnapshot={authSnapshot}
+        email={authEmail}
+        password={authPassword}
+        message={authMessage}
+        isPending={isAuthActionPending}
+        onEmailChange={(event) => setAuthEmail(event.target.value)}
+        onPasswordChange={(event) => setAuthPassword(event.target.value)}
+        onSubmit={handlePasswordSubmit}
+        onButtonPointerDown={handleButtonPointerDown}
+      />
+    );
   }
 
   return (
@@ -6486,7 +6372,16 @@ export function App() {
         />
       ) : null}
 
-      {activeView === "shopping" ? renderPushNotificationInvite() : null}
+      {activeView === "shopping" ? (
+        <PushNotificationInvite
+          isVisible={isPushInviteVisible}
+          snapshot={pushNotificationSnapshot}
+          isPending={isPushNotificationActionPending}
+          onDismiss={handleDismissPushNotificationInvite}
+          onActivate={handlePushNotificationAction}
+          onButtonPointerDown={handleButtonPointerDown}
+        />
+      ) : null}
 
       {!isLoaded && !isSplashVisible ? (
         <p className={styles.loadingStatus} role="status" aria-live="polite">

@@ -142,6 +142,7 @@ import { ShoppingItemsList } from "./components/shopping/ShoppingItemsList";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { usePullToRefreshGesture } from "./hooks/usePullToRefreshGesture";
+import { useOverlayHistory } from "./hooks/useOverlayHistory";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
@@ -1434,11 +1435,9 @@ export function App() {
   const hiddenUndoItemRef = useRef<HTMLLIElement>(null);
   const freezerUndoRef = useRef<HTMLDivElement>(null);
   const addSheetOpenRef = useRef(false);
-  const overlayHistoryStackRef = useRef<AppOverlay[]>([]);
   const closeOverlayFromHistoryRef = useRef<
     ((overlay: AppOverlay) => void) | null
   >(null);
-  const ignoreNextOverlayPopRef = useRef(false);
   const addSheetDragStartYRef = useRef<number | null>(null);
   const pendingAddDraftRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
@@ -1448,6 +1447,11 @@ export function App() {
   const queuedRemoteRefreshRef = useRef(false);
   const refreshRemoteDataRef = useRef<(() => Promise<void>) | null>(null);
   const pullRefreshMessageTimeoutRef = useRef<number | null>(null);
+  const { consume: consumeOverlayHistory, push: pushOverlayHistory } =
+    useOverlayHistory<AppOverlay>({
+      onPopOverlayRef: closeOverlayFromHistoryRef,
+      stateKey: overlayHistoryStateKey,
+    });
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
   const useFirstFreezerItems = sortFreezerItemsByUseFirst(freezerItems).slice(
@@ -2786,29 +2790,6 @@ export function App() {
   }, [isAddSheetOpen]);
 
   useEffect(() => {
-    function handleOverlayPopState() {
-      if (ignoreNextOverlayPopRef.current) {
-        ignoreNextOverlayPopRef.current = false;
-        return;
-      }
-
-      const overlay = overlayHistoryStackRef.current.pop();
-
-      if (!overlay) {
-        return;
-      }
-
-      closeOverlayFromHistoryRef.current?.(overlay);
-    }
-
-    window.addEventListener("popstate", handleOverlayPopState);
-
-    return () => {
-      window.removeEventListener("popstate", handleOverlayPopState);
-    };
-  }, []);
-
-  useEffect(() => {
     if (!isBottomSheetOpen) {
       return;
     }
@@ -2957,38 +2938,6 @@ export function App() {
 
     input.style.height = "auto";
     input.style.height = `${input.scrollHeight}px`;
-  }
-
-  function pushOverlayHistory(overlay: AppOverlay) {
-    const stack = overlayHistoryStackRef.current;
-
-    if (stack.at(-1) === overlay) {
-      return;
-    }
-
-    const currentState =
-      typeof window.history.state === "object" && window.history.state !== null
-        ? window.history.state
-        : {};
-
-    stack.push(overlay);
-    window.history.pushState(
-      { ...currentState, [overlayHistoryStateKey]: overlay },
-      "",
-      window.location.href,
-    );
-  }
-
-  function consumeOverlayHistory(overlay: AppOverlay) {
-    const stack = overlayHistoryStackRef.current;
-
-    if (stack.at(-1) !== overlay) {
-      return;
-    }
-
-    stack.pop();
-    ignoreNextOverlayPopRef.current = true;
-    window.history.back();
   }
 
   function closeBottomSheetWithAnimation(

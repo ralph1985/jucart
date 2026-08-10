@@ -208,8 +208,8 @@ const initialPushNotificationSnapshot: PushNotificationSnapshot = {
 // Keep the freezer UI covered by unit tests while it remains hidden in builds.
 const freezerViewEnabled = import.meta.env.MODE === "test";
 
-type HistoryTab = "changes" | "categories" | "normalizations";
 type TicketFilter = "all" | ShoppingTicketStatus;
+type HistoryTab = "changes" | "categories" | "normalizations";
 
 type PullRefreshGesture = {
   pointerId: number;

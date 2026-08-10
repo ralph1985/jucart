@@ -138,6 +138,7 @@ import type { AppView } from "./components/app/AppBottomNav";
 import { PwaUpdateBanner } from "./components/app/PwaUpdateBanner";
 import { FloatingActionButton } from "./components/app/FloatingActionButton";
 import { ShoppingControls } from "./components/shopping/ShoppingControls";
+import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
@@ -8231,70 +8232,21 @@ export function App() {
         onDeveloper={showDeveloperView}
       />
 
-      {isClearDialogOpen ? (
-        <div
-          className={styles.modalBackdrop}
-          onClick={() => {
-            runHapticFeedback("light");
-            consumeOverlayHistory("clear-dialog");
-            setIsClearDialogOpen(false);
-          }}
-        >
-          <div
-            ref={clearDialogRef}
-            className={styles.modal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="clear-purchased-title"
-            aria-describedby="clear-purchased-description"
-            tabIndex={-1}
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                runHapticFeedback("light");
-                consumeOverlayHistory("clear-dialog");
-                setIsClearDialogOpen(false);
-              }
-            }}
-          >
-            <h2 id="clear-purchased-title">Borrar comprados</h2>
-            <p id="clear-purchased-description">{clearPurchasedDescription}</p>
-            <ul
-              className={styles.clearPurchasedList}
-              aria-label="Productos comprados que se borrarán"
-            >
-              {selectedPurchasedItems.map((item) => (
-                <li key={item.id}>
-                  <span>{item.name}</span>
-                  <span>{getShoppingUserName(item.addedBy)}</span>
-                </li>
-              ))}
-            </ul>
-            <div className={styles.modalActions}>
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => {
-                  runHapticFeedback("light");
-                  consumeOverlayHistory("clear-dialog");
-                  setIsClearDialogOpen(false);
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                className={styles.dangerButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={confirmRemovePurchasedItems}
-              >
-                {removePurchasedButtonText}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ClearPurchasedDialog
+        isOpen={isClearDialogOpen}
+        dialogRef={clearDialogRef}
+        description={clearPurchasedDescription}
+        items={selectedPurchasedItems}
+        confirmLabel={removePurchasedButtonText}
+        getUserName={(item) => getShoppingUserName(item.addedBy)}
+        onCancel={() => {
+          runHapticFeedback("light");
+          consumeOverlayHistory("clear-dialog");
+          setIsClearDialogOpen(false);
+        }}
+        onConfirm={confirmRemovePurchasedItems}
+        onButtonPointerDown={handleButtonPointerDown}
+      />
 
       {editingItem ? (
         <div className={styles.modalBackdrop} onClick={cancelEditing}>

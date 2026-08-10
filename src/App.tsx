@@ -161,6 +161,7 @@ import { FreezerAddSheet } from "./components/freezer/FreezerAddSheet";
 import { FreezerEditSheet } from "./components/freezer/FreezerEditSheet";
 import type { HistoryTab } from "./components/history/HistoryTabs";
 import { HistoryView } from "./components/history/HistoryView";
+import { HistoryEventsList } from "./components/history/HistoryEventsList";
 import { TicketUploadSheet } from "./components/tickets/TicketUploadSheet";
 import { TicketReviewQueue } from "./components/tickets/TicketReviewQueue";
 import { TicketFilters } from "./components/tickets/TicketFilters";
@@ -5491,44 +5492,6 @@ export function App() {
     ));
   }
 
-  function renderHistoryEvents() {
-    if (displayedHistoryEvents.length === 0) {
-      return (
-        <div className={styles.historyEmpty}>
-          <p className={styles.emptyTitle}>
-            {showUnseenHistoryOnly
-              ? "No hay cambios pendientes"
-              : "No hay historial reciente"}
-          </p>
-          <p className={styles.emptyDescription}>
-            {showUnseenHistoryOnly
-              ? "Los cambios de otros dispositivos ya están revisados."
-              : "Las compras y borrados aparecerán aquí durante 30 días."}
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <ol className={styles.historyList}>
-        {displayedHistoryEvents.map((event) => (
-          <li className={styles.historyItem} key={event.id}>
-            <div className={styles.historyItemHeader}>
-              <span className={styles.historyAction}>
-                {getHistoryEventText(event)}
-              </span>
-              <time dateTime={new Date(event.createdAt).toISOString()}>
-                {formatHistoryEventDate(event.createdAt)}
-              </time>
-            </div>
-            <p className={styles.historyProduct}>{event.item.name}</p>
-            <p className={styles.historyMeta}>{getHistoryEventMeta(event)}</p>
-          </li>
-        ))}
-      </ol>
-    );
-  }
-
   function renderRecategorizationChanges() {
     if (displayedRecategorizationChanges.length === 0) {
       return (
@@ -6201,11 +6164,19 @@ export function App() {
           screenRef={historyScreenRef}
           showUnseenOnly={showUnseenHistoryOnly}
         >
-          {historyTab === "normalizations"
-            ? renderProductNormalizationChanges()
-            : historyTab === "categories"
-              ? renderRecategorizationChanges()
-              : renderHistoryEvents()}
+          {historyTab === "normalizations" ? (
+            renderProductNormalizationChanges()
+          ) : historyTab === "categories" ? (
+            renderRecategorizationChanges()
+          ) : (
+            <HistoryEventsList
+              events={displayedHistoryEvents}
+              formatDate={formatHistoryEventDate}
+              getEventMeta={getHistoryEventMeta}
+              getEventText={getHistoryEventText}
+              showUnseenOnly={showUnseenHistoryOnly}
+            />
+          )}
         </HistoryView>
       ) : null}
 

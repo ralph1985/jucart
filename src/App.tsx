@@ -135,6 +135,7 @@ import { AppHeader } from "./components/app/AppHeader";
 import type { SyncStatus, ThemePreference } from "./components/app/AppHeader";
 import { AppBottomNav } from "./components/app/AppBottomNav";
 import type { AppView } from "./components/app/AppBottomNav";
+import { PwaUpdateBanner } from "./components/app/PwaUpdateBanner";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
 
@@ -6453,32 +6454,6 @@ export function App() {
     );
   }
 
-  function renderPwaUpdateBanner() {
-    if (!isPwaUpdateAvailable) {
-      return null;
-    }
-
-    return (
-      <aside className={styles.pwaUpdateBanner} aria-label="Actualización">
-        <div className={styles.pwaUpdateText}>
-          <strong>Hay una versión nueva</strong>
-          <span>
-            Actualiza Jucart para seguir usando la versión más reciente.
-          </span>
-        </div>
-        <button
-          className={styles.primaryButton}
-          type="button"
-          onPointerDown={handleButtonPointerDown}
-          onClick={handlePwaUpdate}
-          disabled={isPwaUpdateApplying}
-        >
-          {isPwaUpdateApplying ? "Actualizando…" : "Actualizar"}
-        </button>
-      </aside>
-    );
-  }
-
   if (isSupabaseConfigured() && authSnapshot.status !== "signed_in") {
     return renderLoginScreen();
   }
@@ -6528,7 +6503,12 @@ export function App() {
           </p>
         </div>
       ) : null}
-      {renderPwaUpdateBanner()}
+      <PwaUpdateBanner
+        isAvailable={isPwaUpdateAvailable}
+        isApplying={isPwaUpdateApplying}
+        onButtonPointerDown={handleButtonPointerDown}
+        onUpdate={handlePwaUpdate}
+      />
       <AppHeader
         appRelease={appRelease}
         isLoaded={isLoaded}

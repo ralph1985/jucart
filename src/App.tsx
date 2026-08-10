@@ -136,6 +136,7 @@ import type { AppView } from "./components/app/AppBottomNav";
 import { PwaUpdateBanner } from "./components/app/PwaUpdateBanner";
 import { FloatingActionButton } from "./components/app/FloatingActionButton";
 import { ShoppingControls } from "./components/shopping/ShoppingControls";
+import { ShoppingBoard } from "./components/shopping/ShoppingBoard";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -7251,128 +7252,24 @@ export function App() {
       ) : null}
 
       {activeView === "shopping" ? (
-        <>
-          <section
-            id="shopping-board"
-            ref={(boardElement) => {
-              shoppingBoardElementRef.current = boardElement;
-              boardRef(boardElement);
-            }}
-            className={styles.board}
-            aria-label="Lista por secciones"
-            tabIndex={0}
-          >
-            <div className={styles.boardTrack}>
-              {!isLoaded
-                ? renderLoadingBoard()
-                : sections.map((section) => {
-                    const sectionItems = items.filter(
-                      (item) => item.sectionId === section.id,
-                    );
-                    const removedSectionItems = lastRemovedItems.filter(
-                      (item) => item.sectionId === section.id,
-                    );
-                    const hiddenPurchasedSectionItem =
-                      lastHiddenPurchasedItem?.sectionId === section.id
-                        ? lastHiddenPurchasedItem
-                        : null;
-                    const pendingCount = sectionItems.filter(
-                      (item) => !item.purchased,
-                    ).length;
-
-                    return (
-                      <article
-                        ref={(column) => {
-                          if (column) {
-                            sectionColumnRefs.current[section.id] = column;
-                          } else {
-                            delete sectionColumnRefs.current[section.id];
-                          }
-                        }}
-                        className={
-                          selectedSectionId === section.id
-                            ? `${styles.column} ${styles[`sectionColor${section.color}`]} ${styles.columnSelected}`
-                            : `${styles.column} ${styles[`sectionColor${section.color}`]}`
-                        }
-                        aria-current={
-                          selectedSectionId === section.id ? "true" : undefined
-                        }
-                        aria-labelledby={`section-${section.id}-title`}
-                        key={section.id}
-                        onClick={() => selectSection(section.id)}
-                        onKeyDown={(event) =>
-                          handleColumnKeyDown(event, section.id)
-                        }
-                        tabIndex={0}
-                      >
-                        <div className={styles.sectionHeader}>
-                          <h2 id={`section-${section.id}-title`}>
-                            <span>{section.name}</span>
-                            <span className={styles.count} aria-hidden="true">
-                              · {pendingCount}
-                            </span>
-                          </h2>
-                          <span className={styles.visuallyHidden}>
-                            {pendingCount} productos pendientes
-                          </span>
-                        </div>
-                        {renderItems(
-                          sectionItems,
-                          removedSectionItems,
-                          hiddenPurchasedSectionItem,
-                          section.color,
-                        )}
-                      </article>
-                    );
-                  })}
-            </div>
-          </section>
-          {isLoaded ? (
-            <nav
-              className={styles.sectionIndicators}
-              aria-label="Listas disponibles"
-            >
-              {sections.map((section) => (
-                <button
-                  ref={(indicator) => {
-                    if (indicator) {
-                      sectionIndicatorRefs.current[section.id] = indicator;
-                    } else {
-                      delete sectionIndicatorRefs.current[section.id];
-                    }
-                  }}
-                  className={
-                    selectedSectionId === section.id
-                      ? styles.sectionIndicatorActive
-                      : styles.sectionIndicator
-                  }
-                  type="button"
-                  aria-current={
-                    selectedSectionId === section.id ? "true" : undefined
-                  }
-                  aria-label={`Ver lista ${section.name}`}
-                  key={section.id}
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={() => selectSection(section.id)}
-                />
-              ))}
-              <span
-                ref={activeSectionIndicatorRef}
-                className={styles.sectionIndicatorThumb}
-                aria-hidden="true"
-              />
-            </nav>
-          ) : (
-            <div className={styles.sectionIndicators} aria-hidden="true">
-              {[0, 1, 2].map((indicatorIndex) => (
-                <span
-                  className={styles.loadingIndicator}
-                  key={indicatorIndex}
-                />
-              ))}
-            </div>
-          )}
-        </>
+        <ShoppingBoard
+          activeSectionIndicatorRef={activeSectionIndicatorRef}
+          boardRef={boardRef}
+          isLoaded={isLoaded}
+          items={items}
+          lastHiddenPurchasedItem={lastHiddenPurchasedItem}
+          lastRemovedItems={lastRemovedItems}
+          onButtonPointerDown={handleButtonPointerDown}
+          onColumnKeyDown={handleColumnKeyDown}
+          onSelectSection={selectSection}
+          renderItems={renderItems}
+          renderLoadingBoard={renderLoadingBoard}
+          sectionColumnRefs={sectionColumnRefs}
+          sectionIndicatorRefs={sectionIndicatorRefs}
+          sections={sections}
+          selectedSectionId={selectedSectionId}
+          shoppingBoardElementRef={shoppingBoardElementRef}
+        />
       ) : null}
 
       {freezerViewEnabled && activeView === "freezer" ? (

@@ -145,6 +145,7 @@ import { useOverlayHistory } from "./hooks/useOverlayHistory";
 import { useSheetDrag } from "./hooks/useSheetDrag";
 import { useBottomSheetOpenAnimation } from "./hooks/useBottomSheetOpenAnimation";
 import { useBottomSheetViewport } from "./hooks/useBottomSheetViewport";
+import { useBottomSheetCloseAnimation } from "./hooks/useBottomSheetCloseAnimation";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { PushNotificationInvite } from "./components/push/PushNotificationInvite";
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
@@ -1458,6 +1459,11 @@ export function App() {
     offset: sheetDragOffset,
     reset: resetSheetDrag,
   } = useSheetDrag({ onDismiss: closeActiveBottomSheet });
+  const closeBottomSheetWithAnimation = useBottomSheetCloseAnimation({
+    closingOverlay: closingBottomSheet,
+    dragOffset: sheetDragOffset,
+    onStartClosing: setClosingBottomSheet,
+  });
   const pendingCount = items.filter((item) => !item.purchased).length;
   const purchasedCount = items.filter((item) => item.purchased).length;
   const useFirstFreezerItems = sortFreezerItemsByUseFirst(freezerItems).slice(
@@ -2801,45 +2807,12 @@ export function App() {
     freezerItemNameInputRef.current?.focus({ preventScroll: true });
   }
 
-  function closeBottomSheetWithAnimation(
-    overlay: BottomSheetOverlay,
-    sheet: HTMLElement | null,
-    backdrop: HTMLElement | null,
-    closeNow: () => void,
-  ) {
-    if (closingBottomSheet === overlay) {
-      return;
-    }
-
-    if (!sheet || !backdrop || !shouldAnimate()) {
-      closeNow();
-      return;
-    }
-
-    setClosingBottomSheet(overlay);
-    runAnimation(backdrop, {
-      opacity: [1, 0],
-      duration: 180,
-      ease: "outCubic",
-    });
-    runAnimationWithCompletion(
-      sheet,
-      {
-        opacity: [1, 0.88],
-        y: [Math.max(sheetDragOffset, 0), "100%"],
-        duration: 220,
-        ease: "inCubic",
-      },
-      closeNow,
-    );
-  }
-
   function closeAddSheet(restoreFabFocus = true, syncHistory = true) {
-    closeBottomSheetWithAnimation(
-      "add-sheet",
-      addSheetRef.current,
-      addSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "add-sheet",
+      sheet: addSheetRef.current,
+      backdrop: addSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("add-sheet");
         }
@@ -2853,7 +2826,7 @@ export function App() {
           window.requestAnimationFrame(() => addFabRef.current?.focus());
         }
       },
-    );
+    });
   }
 
   function openAddSheet() {
@@ -2867,11 +2840,11 @@ export function App() {
   }
 
   function closeFreezerAddSheet(restoreFabFocus = true, syncHistory = true) {
-    closeBottomSheetWithAnimation(
-      "freezer-add-sheet",
-      freezerAddSheetRef.current,
-      freezerAddSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "freezer-add-sheet",
+      sheet: freezerAddSheetRef.current,
+      backdrop: freezerAddSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("freezer-add-sheet");
         }
@@ -2884,7 +2857,7 @@ export function App() {
           window.requestAnimationFrame(() => freezerAddFabRef.current?.focus());
         }
       },
-    );
+    });
   }
 
   function openFreezerAddSheet() {
@@ -2894,11 +2867,11 @@ export function App() {
   }
 
   function closePriceDetailSheet(syncHistory = true) {
-    closeBottomSheetWithAnimation(
-      "price-detail-sheet",
-      priceDetailSheetRef.current,
-      priceDetailSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "price-detail-sheet",
+      sheet: priceDetailSheetRef.current,
+      backdrop: priceDetailSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("price-detail-sheet");
         }
@@ -2907,7 +2880,7 @@ export function App() {
         setClosingBottomSheet(null);
         resetSheetDrag();
       },
-    );
+    });
   }
 
   function openPriceDetailSheet(item: ShoppingItem) {
@@ -2922,11 +2895,11 @@ export function App() {
   }
 
   function closeSectionAddSheet(restoreFabFocus = true, syncHistory = true) {
-    closeBottomSheetWithAnimation(
-      "section-add-sheet",
-      sectionAddSheetRef.current,
-      sectionAddSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "section-add-sheet",
+      sheet: sectionAddSheetRef.current,
+      backdrop: sectionAddSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("section-add-sheet");
         }
@@ -2941,7 +2914,7 @@ export function App() {
           window.requestAnimationFrame(() => sectionAddFabRef.current?.focus());
         }
       },
-    );
+    });
   }
 
   function openSectionAddSheet() {
@@ -2953,11 +2926,11 @@ export function App() {
   }
 
   function closeFreezerEditSheet(syncHistory = true) {
-    closeBottomSheetWithAnimation(
-      "freezer-edit-sheet",
-      freezerEditSheetRef.current,
-      freezerEditSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "freezer-edit-sheet",
+      sheet: freezerEditSheetRef.current,
+      backdrop: freezerEditSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("freezer-edit-sheet");
         }
@@ -2966,7 +2939,7 @@ export function App() {
         setClosingBottomSheet(null);
         resetSheetDrag();
       },
-    );
+    });
   }
 
   function closeActiveBottomSheet() {
@@ -4154,11 +4127,11 @@ export function App() {
       return;
     }
 
-    closeBottomSheetWithAnimation(
-      "ticket-upload-sheet",
-      ticketUploadSheetRef.current,
-      ticketUploadSheetBackdropRef.current,
-      () => {
+    closeBottomSheetWithAnimation({
+      overlay: "ticket-upload-sheet",
+      sheet: ticketUploadSheetRef.current,
+      backdrop: ticketUploadSheetBackdropRef.current,
+      onClose: () => {
         if (syncHistory) {
           consumeOverlayHistory("ticket-upload-sheet");
         }
@@ -4174,7 +4147,7 @@ export function App() {
           );
         }
       },
-    );
+    });
   }
 
   function handleTicketFilesChange(event: ChangeEvent<HTMLInputElement>) {

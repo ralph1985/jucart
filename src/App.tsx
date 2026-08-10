@@ -138,6 +138,7 @@ import { FloatingActionButton } from "./components/app/FloatingActionButton";
 import { ShoppingControls } from "./components/shopping/ShoppingControls";
 import { ShoppingBoard } from "./components/shopping/ShoppingBoard";
 import { EditProductDialog } from "./components/shopping/EditProductDialog";
+import { AddProductSheet } from "./components/shopping/AddProductSheet";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -6401,192 +6402,38 @@ export function App() {
       ) : null}
 
       {activeView === "shopping" && isAddSheetOpen ? (
-        <div
-          ref={addSheetBackdropRef}
-          className={styles.addSheetBackdrop}
-          style={
-            {
-              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
-            } as CSSProperties
-          }
-          onClick={() => closeAddSheet()}
-        >
-          <form
-            ref={addSheetRef}
-            className={styles.addSheet}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="add-sheet-title"
-            style={
-              {
-                "--sheet-drag-offset": `${sheetDragOffset}px`,
-              } as CSSProperties
-            }
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={handleAddSheetKeyDown}
-            onSubmit={handleSubmit}
-          >
-            <div
-              className={styles.addSheetHandle}
-              aria-label="Cerrar panel de alta"
-              role="button"
-              tabIndex={0}
-              onPointerDown={handleAddSheetDragStart}
-              onPointerMove={handleAddSheetDragMove}
-              onPointerUp={handleAddSheetDragEnd}
-              onPointerCancel={handleAddSheetDragEnd}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  closeAddSheet();
-                }
-              }}
-            >
-              <span />
-            </div>
-            <h2 id="add-sheet-title" className={styles.visuallyHidden}>
-              Añadir producto
-            </h2>
-            <div className={styles.addSheetFields}>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="item-name">
-                  Producto
-                </label>
-                <textarea
-                  id="item-name"
-                  ref={itemNameInputRef}
-                  className={styles.addSheetInput}
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  enterKeyHint="done"
-                  inputMode="text"
-                  rows={1}
-                  spellCheck
-                  value={itemName}
-                  onChange={(event) => handleItemNameChange(event.target.value)}
-                  onInput={(event) =>
-                    handleItemNameChange(event.currentTarget.value)
-                  }
-                  onKeyDown={handleAddInputKeyDown}
-                  onKeyUp={(event) =>
-                    handleItemNameChange(event.currentTarget.value)
-                  }
-                  placeholder="¿Qué necesitas comprar?"
-                  disabled={!isLoaded}
-                />
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="item-notes">
-                  Notas (opcional)
-                </label>
-                <textarea
-                  id="item-notes"
-                  className={styles.input}
-                  rows={2}
-                  value={addItemNotes}
-                  onChange={(event) => setAddItemNotes(event.target.value)}
-                  placeholder="Aclaraciones, marca o formato..."
-                  disabled={!isLoaded}
-                />
-              </div>
-              <div className={styles.addSheetSelectors}>
-                <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="sheet-section-id">
-                    Supermercado
-                  </label>
-                  <select
-                    id="sheet-section-id"
-                    className={styles.select}
-                    value={selectedSectionId}
-                    onChange={(event) =>
-                      selectSection(event.target.value as ShoppingSectionId)
-                    }
-                    disabled={!isLoaded}
-                  >
-                    {sections.map((section) => (
-                      <option key={section.id} value={section.id}>
-                        {section.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="item-quantity">
-                    Cantidad
-                  </label>
-                  <input
-                    id="item-quantity"
-                    className={styles.select}
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    enterKeyHint="done"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={addItemQuantity}
-                    onChange={(event) =>
-                      handleAddItemQuantityChange(event.target.value)
-                    }
-                    onFocus={selectTextOnFocus}
-                    disabled={!isLoaded}
-                    type="text"
-                  />
-                </div>
-              </div>
-            </div>
-            <div
-              className={styles.addSheetSuggestions}
-              role="listbox"
-              aria-label="Sugerencias de productos"
-            >
-              {quickItemSuggestions.map((suggestion) => (
-                <button
-                  className={styles.addSheetSuggestion}
-                  key={`${suggestion.categoryId}-${suggestion.name}`}
-                  type="button"
-                  role="option"
-                  aria-selected="false"
-                  title={getShoppingCategoryName(
-                    suggestion.categoryId,
-                    categories,
-                  )}
-                  onPointerDown={(event) => {
-                    event.preventDefault();
-                    handleButtonPointerDown(event);
-                  }}
-                  onClick={() => handleQuickSuggestionClick(suggestion.name)}
-                  disabled={!isLoaded}
-                >
-                  {suggestion.name}
-                </button>
-              ))}
-            </div>
-            <div className={styles.addSheetFooter}>
-              <p className={styles.addSheetNotice} aria-live="polite">
-                {addProductNotice ? addProductNotice.message : ""}
-              </p>
-              {addProductNotice?.type === "duplicate" ? (
-                <button
-                  className={styles.secondaryButton}
-                  type="button"
-                  onPointerDown={handleButtonPointerDown}
-                  onClick={() =>
-                    handleViewDuplicateItem(addProductNotice.itemId)
-                  }
-                >
-                  Ver producto
-                </button>
-              ) : null}
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-                disabled={!isLoaded}
-              >
-                Añadir
-              </button>
-            </div>
-          </form>
-        </div>
+        <AddProductSheet
+          backdropRef={addSheetBackdropRef}
+          categories={categories}
+          getCategoryName={getShoppingCategoryName}
+          isLoaded={isLoaded}
+          itemName={itemName}
+          itemNameInputRef={itemNameInputRef}
+          keyboardInset={sheetKeyboardInset}
+          notice={addProductNotice}
+          notes={addItemNotes}
+          onButtonPointerDown={handleButtonPointerDown}
+          onClose={closeAddSheet}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          onItemNameChange={handleItemNameChange}
+          onItemNameKeyDown={handleAddInputKeyDown}
+          onNotesChange={setAddItemNotes}
+          onQuantityChange={handleAddItemQuantityChange}
+          onQuantityFocus={selectTextOnFocus}
+          onQuickSuggestion={handleQuickSuggestionClick}
+          onSectionChange={selectSection}
+          onSheetKeyDown={handleAddSheetKeyDown}
+          onSubmit={handleSubmit}
+          onViewDuplicate={handleViewDuplicateItem}
+          quantity={addItemQuantity}
+          quickSuggestions={quickItemSuggestions}
+          sections={sections}
+          selectedSectionId={selectedSectionId}
+          sheetDragOffset={sheetDragOffset}
+          sheetRef={addSheetRef}
+        />
       ) : null}
 
       {activeView === "shopping" && selectedPriceProductId ? (

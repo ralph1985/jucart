@@ -137,6 +137,7 @@ import { PwaUpdateBanner } from "./components/app/PwaUpdateBanner";
 import { FloatingActionButton } from "./components/app/FloatingActionButton";
 import { ShoppingControls } from "./components/shopping/ShoppingControls";
 import { ShoppingBoard } from "./components/shopping/ShoppingBoard";
+import { EditProductDialog } from "./components/shopping/EditProductDialog";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { LoginScreen } from "./components/auth/LoginScreen";
@@ -7879,113 +7880,24 @@ export function App() {
       />
 
       {editingItem ? (
-        <div className={styles.modalBackdrop} onClick={cancelEditing}>
-          <form
-            className={`${styles.modal} ${styles.editModal}`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="edit-product-title"
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                cancelEditing();
-              }
-            }}
-            onSubmit={handleEditSubmit}
-          >
-            <h2 id="edit-product-title">Editar {editingItem.name}</h2>
-            <div className={styles.modalForm}>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-item-name">
-                  Producto
-                </label>
-                <input
-                  id="edit-item-name"
-                  className={styles.input}
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  autoFocus
-                  enterKeyHint="done"
-                  inputMode="text"
-                  spellCheck
-                  value={editingItemName}
-                  onChange={(event) => setEditingItemName(event.target.value)}
-                  type="text"
-                />
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-item-notes">
-                  Notas (opcional)
-                </label>
-                <textarea
-                  id="edit-item-notes"
-                  className={styles.input}
-                  rows={2}
-                  value={editingItemNotes}
-                  onChange={(event) => setEditingItemNotes(event.target.value)}
-                  placeholder="Aclaraciones, marca o formato..."
-                />
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-item-quantity">
-                  Cantidad
-                </label>
-                <input
-                  id="edit-item-quantity"
-                  className={styles.input}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  enterKeyHint="done"
-                  inputMode="text"
-                  spellCheck={false}
-                  value={editingItemQuantity}
-                  onChange={(event) =>
-                    setEditingItemQuantity(event.target.value)
-                  }
-                  onFocus={selectTextOnFocus}
-                  placeholder="x2, 1 kg, 2 packs..."
-                  type="text"
-                />
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="edit-section-id">
-                  Sección
-                </label>
-                <select
-                  id="edit-section-id"
-                  className={styles.select}
-                  value={editingSectionId}
-                  onChange={(event) =>
-                    setEditingSectionId(event.target.value as ShoppingSectionId)
-                  }
-                >
-                  {sections.map((section) => (
-                    <option key={section.id} value={section.id}>
-                      {section.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className={styles.modalActions}>
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={cancelEditing}
-              >
-                Cancelar
-              </button>
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-              >
-                Guardar
-              </button>
-            </div>
-          </form>
-        </div>
+        <EditProductDialog
+          item={editingItem}
+          name={editingItemName}
+          notes={editingItemNotes}
+          onButtonPointerDown={handleButtonPointerDown}
+          onCancel={cancelEditing}
+          onNameChange={(event) => setEditingItemName(event.target.value)}
+          onNotesChange={(event) => setEditingItemNotes(event.target.value)}
+          onQuantityChange={(event) =>
+            setEditingItemQuantity(event.target.value)
+          }
+          onQuantityFocus={selectTextOnFocus}
+          onSectionChange={setEditingSectionId}
+          onSubmit={handleEditSubmit}
+          quantity={editingItemQuantity}
+          sectionId={editingSectionId}
+          sections={sections}
+        />
       ) : null}
 
       {freezerViewEnabled && editingFreezerItem ? (

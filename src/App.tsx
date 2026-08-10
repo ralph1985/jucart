@@ -147,6 +147,7 @@ import { PushNotificationInvite } from "./components/push/PushNotificationInvite
 import { DeveloperDisclosure } from "./components/developer/DeveloperDisclosure";
 import { DeveloperAppContext } from "./components/developer/DeveloperAppContext";
 import { FreezerView } from "./components/freezer/FreezerView";
+import { FreezerAddSheet } from "./components/freezer/FreezerAddSheet";
 import type { HistoryTab } from "./components/history/HistoryTabs";
 import { HistoryView } from "./components/history/HistoryView";
 import { TicketUploadSheet } from "./components/tickets/TicketUploadSheet";
@@ -6680,152 +6681,34 @@ export function App() {
       {freezerViewEnabled &&
       activeView === "freezer" &&
       isFreezerAddSheetOpen ? (
-        <div
-          ref={freezerAddSheetBackdropRef}
-          className={styles.addSheetBackdrop}
-          style={
-            {
-              "--sheet-keyboard-inset": `${sheetKeyboardInset}px`,
-            } as CSSProperties
-          }
-          onClick={() => closeFreezerAddSheet()}
-        >
-          <form
-            ref={freezerAddSheetRef}
-            className={`${styles.addSheet} ${styles.addSheetCompact}`}
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="freezer-add-sheet-title"
-            style={
-              {
-                "--sheet-drag-offset": `${sheetDragOffset}px`,
-              } as CSSProperties
+        <FreezerAddSheet
+          backdropRef={freezerAddSheetBackdropRef}
+          drawerId={selectedFreezerDrawerId}
+          frozenAt={freezerItemFrozenAt}
+          isLoaded={isLoaded}
+          keyboardInset={sheetKeyboardInset}
+          name={freezerItemName}
+          nameInputRef={freezerItemNameInputRef}
+          onButtonPointerDown={handleButtonPointerDown}
+          onClose={closeFreezerAddSheet}
+          onDrawerChange={(drawerId) => {
+            if (isFreezerDrawerId(drawerId)) {
+              setSelectedFreezerDrawerId(drawerId);
             }
-            onClick={(event) => event.stopPropagation()}
-            onKeyDown={handleAddSheetKeyDown}
-            onSubmit={handleFreezerSubmit}
-          >
-            <div
-              className={styles.addSheetHandle}
-              aria-label="Cerrar panel de alta"
-              role="button"
-              tabIndex={0}
-              onPointerDown={handleAddSheetDragStart}
-              onPointerMove={handleAddSheetDragMove}
-              onPointerUp={handleAddSheetDragEnd}
-              onPointerCancel={handleAddSheetDragEnd}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  closeFreezerAddSheet();
-                }
-              }}
-            >
-              <span />
-            </div>
-            <h2 id="freezer-add-sheet-title" className={styles.visuallyHidden}>
-              Añadir producto congelado
-            </h2>
-            <div className={styles.addSheetFields}>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="freezer-item-name">
-                  Producto
-                </label>
-                <input
-                  id="freezer-item-name"
-                  ref={freezerItemNameInputRef}
-                  className={styles.addSheetInput}
-                  autoComplete="off"
-                  autoCapitalize="sentences"
-                  autoCorrect="on"
-                  value={freezerItemName}
-                  onChange={(event) => setFreezerItemName(event.target.value)}
-                  placeholder="Lentejas, caldo, croquetas..."
-                  type="text"
-                  disabled={!isLoaded}
-                />
-              </div>
-              <div className={styles.addSheetSelectors}>
-                <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="freezer-quantity">
-                    Cantidad
-                  </label>
-                  <input
-                    id="freezer-quantity"
-                    className={styles.select}
-                    autoComplete="off"
-                    value={freezerItemQuantity}
-                    onChange={(event) =>
-                      setFreezerItemQuantity(event.target.value)
-                    }
-                    onFocus={selectTextOnFocus}
-                    placeholder="2 raciones"
-                    type="text"
-                    disabled={!isLoaded}
-                  />
-                </div>
-                <div className={styles.formField}>
-                  <label className={styles.label} htmlFor="freezer-drawer-id">
-                    Cajón
-                  </label>
-                  <select
-                    id="freezer-drawer-id"
-                    className={styles.select}
-                    value={selectedFreezerDrawerId}
-                    onChange={(event) => {
-                      const drawerId = event.target.value;
-
-                      if (isFreezerDrawerId(drawerId)) {
-                        setSelectedFreezerDrawerId(drawerId);
-                      }
-                    }}
-                    disabled={!isLoaded}
-                  >
-                    {freezerDrawers.map((drawer) => (
-                      <option key={drawer.id} value={drawer.id}>
-                        {drawer.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className={styles.formField}>
-                <label className={styles.label} htmlFor="freezer-frozen-at">
-                  Congelado
-                </label>
-                <input
-                  id="freezer-frozen-at"
-                  className={styles.select}
-                  value={freezerItemFrozenAt}
-                  onChange={(event) =>
-                    setFreezerItemFrozenAt(event.target.value)
-                  }
-                  type="date"
-                  disabled={!isLoaded}
-                />
-              </div>
-            </div>
-            <div className={styles.addSheetFooter}>
-              <p className={styles.addSheetNotice} aria-live="polite" />
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onPointerDown={handleButtonPointerDown}
-                onClick={() => closeFreezerAddSheet()}
-              >
-                Cerrar
-              </button>
-              <button
-                className={styles.primaryButton}
-                type="submit"
-                onPointerDown={handleButtonPointerDown}
-                disabled={!isLoaded}
-              >
-                Añadir
-              </button>
-            </div>
-          </form>
-        </div>
+          }}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          onFrozenAtChange={setFreezerItemFrozenAt}
+          onNameChange={setFreezerItemName}
+          onQuantityChange={setFreezerItemQuantity}
+          onQuantityFocus={selectTextOnFocus}
+          onSheetKeyDown={handleAddSheetKeyDown}
+          onSubmit={handleFreezerSubmit}
+          quantity={freezerItemQuantity}
+          sheetDragOffset={sheetDragOffset}
+          sheetRef={freezerAddSheetRef}
+        />
       ) : null}
 
       {activeView === "sections" && isSectionAddSheetOpen ? (

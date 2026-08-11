@@ -295,6 +295,7 @@ describe("MenuPlanningView", () => {
     await waitFor(() =>
       expect(mocks.createType).toHaveBeenCalledWith("library-1", "Pasta"),
     );
+    fireEvent.click(screen.getByRole("tab", { name: "Categorías" }));
 
     fireEvent.click(
       screen.getByRole("button", { name: "Recategorizar platos" }),
@@ -349,6 +350,7 @@ describe("MenuPlanningView", () => {
     await waitFor(() =>
       expect(mocks.deleteType).toHaveBeenCalledWith("type-1"),
     );
+    fireEvent.click(within(dialog).getByRole("tab", { name: "Categorías" }));
     fireEvent.click(
       within(dialog).getByRole("button", {
         name: /Deshacer última recategorización/,
@@ -373,6 +375,7 @@ describe("MenuPlanningView", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Gestionar tipos de plato" }),
     );
+    fireEvent.click(screen.getByRole("tab", { name: "Categorías" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Recategorizar platos" }),
     );
@@ -425,6 +428,7 @@ describe("MenuPlanningView", () => {
       screen.getByRole("button", { name: "Gestionar tipos de plato" }),
     );
     const dialog = screen.getByRole("dialog", { name: "Tipos de plato" });
+    fireEvent.click(within(dialog).getByRole("tab", { name: "Categorías" }));
 
     fireEvent.change(within(dialog).getByLabelText("Nueva categoría"), {
       target: { value: "Verduras" },
@@ -484,6 +488,7 @@ describe("MenuPlanningView", () => {
       screen.getByRole("button", { name: "Gestionar tipos de plato" }),
     );
     const dialog = screen.getByRole("dialog", { name: "Tipos de plato" });
+    fireEvent.click(within(dialog).getByRole("tab", { name: "Categorías" }));
     fireEvent.change(within(dialog).getByLabelText("Nueva categoría"), {
       target: { value: "Verduras" },
     });

@@ -1531,6 +1531,18 @@ h2 {
   );
 }
 
+.ticketUploadSheetFrame {
+  max-height: min(
+    calc(
+      100dvh - var(--sheet-keyboard-inset, 0px) - max(
+          1.25rem,
+          env(safe-area-inset-bottom, 0px)
+        )
+    ),
+    34rem
+  );
+}
+
 .confirmSheet {
   min-height: 0;
 }

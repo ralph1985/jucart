@@ -10,6 +10,7 @@ import type {
 import styles from "../../App.module.scss";
 import type { ShoppingSection } from "../../shoppingItems";
 import { Icon } from "../ui/Icon";
+import { BottomSheetFrame } from "../ui/BottomSheetFrame";
 
 type TicketUploadSheetProps = {
   error: string | null;
@@ -29,7 +30,7 @@ type TicketUploadSheetProps = {
   sectionId: string;
   sections: ShoppingSection[];
   sheetDragOffset: number;
-  sheetRef: Ref<HTMLFormElement>;
+  sheetRef: Ref<HTMLElement>;
   backdropRef: Ref<HTMLDivElement>;
 };
 
@@ -55,50 +56,25 @@ export function TicketUploadSheet({
   sheetRef,
 }: TicketUploadSheetProps) {
   return (
-    <div
-      ref={backdropRef}
-      className={styles.addSheetBackdrop}
+    <BottomSheetFrame
+      ariaLabelledBy="ticket-upload-title"
+      backdropRef={backdropRef}
+      className={styles.ticketUploadSheetFrame}
+      closeLabel="Cerrar subida de ticket"
+      dragOffset={sheetDragOffset}
+      handleLabel="Cerrar subida de ticket"
+      onClose={onClose}
+      onDragEnd={onDragEnd}
+      onDragMove={onDragMove}
+      onDragStart={onDragStart}
+      sheetRef={sheetRef}
       style={
         { "--sheet-keyboard-inset": `${keyboardInset}px` } as CSSProperties
       }
-      onClick={onClose}
+      subtitle="Ticket de compra"
+      title="Subir ticket"
     >
-      <form
-        ref={sheetRef}
-        className={`${styles.addSheet} ${styles.ticketUploadSheet}`}
-        role="dialog"
-        aria-modal="false"
-        aria-labelledby="ticket-upload-title"
-        style={
-          { "--sheet-drag-offset": `${sheetDragOffset}px` } as CSSProperties
-        }
-        onClick={(event) => event.stopPropagation()}
-        onSubmit={onSubmit}
-      >
-        <div
-          className={styles.addSheetHandle}
-          onPointerDown={onDragStart}
-          onPointerMove={onDragMove}
-          onPointerUp={onDragEnd}
-          onPointerCancel={onDragEnd}
-        >
-          <span aria-hidden="true" />
-        </div>
-        <div className={styles.addSheetHeader}>
-          <div>
-            <p className={styles.sheetKicker}>Ticket de compra</p>
-            <h2 id="ticket-upload-title">Subir ticket</h2>
-          </div>
-          <button
-            className={styles.closeButton}
-            type="button"
-            aria-label="Cerrar subida de ticket"
-            onPointerDown={onButtonPointerDown}
-            onClick={onClose}
-          >
-            <Icon name="close" />
-          </button>
-        </div>
+      <form className={styles.ticketUploadSheet} onSubmit={onSubmit}>
         <div className={styles.ticketUploadFields}>
           <label className={styles.label} htmlFor="ticket-section-id">
             Supermercado
@@ -165,6 +141,6 @@ export function TicketUploadSheet({
           </button>
         </div>
       </form>
-    </div>
+    </BottomSheetFrame>
   );
 }

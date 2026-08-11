@@ -1497,7 +1497,7 @@ export function App() {
   const freezerAddSheetBackdropRef = useRef<HTMLDivElement>(null);
   const freezerAddSheetRef = useRef<HTMLElement>(null);
   const ticketUploadSheetBackdropRef = useRef<HTMLDivElement>(null);
-  const ticketUploadSheetRef = useRef<HTMLFormElement>(null);
+  const ticketUploadSheetRef = useRef<HTMLElement>(null);
   const priceDetailSheetBackdropRef = useRef<HTMLDivElement>(null);
   const priceDetailSheetRef = useRef<HTMLElement>(null);
   const ticketFileInputRef = useRef<HTMLInputElement>(null);

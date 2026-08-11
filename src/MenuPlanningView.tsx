@@ -128,6 +128,7 @@ export function MenuPlanningView() {
   const [modalMessage, setModalMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const typesModalRef = useRef<HTMLElement>(null);
+  const classificationBackdropRef = useRef<HTMLDivElement>(null);
   const typesTriggerRef = useRef<HTMLButtonElement>(null);
   const dishSheetBackdropRef = useRef<HTMLDivElement>(null);
   const dishSheetRef = useRef<HTMLElement>(null);
@@ -153,6 +154,15 @@ export function MenuPlanningView() {
     reset: resetConfirmationDrag,
   } = useSheetDrag({
     onDismiss: () => closeConfirmation(),
+  });
+  const {
+    handleEnd: handleClassificationDragEnd,
+    handleMove: handleClassificationDragMove,
+    handleStart: handleClassificationDragStart,
+    offset: classificationDragOffset,
+    reset: resetClassificationDrag,
+  } = useSheetDrag({
+    onDismiss: () => closeTypesModal(),
   });
 
   const loadCollection = useCallback(async (nextLibraryId: string) => {
@@ -513,6 +523,7 @@ export function MenuPlanningView() {
   function closeTypesModal() {
     setIsTypesModalOpen(false);
     setEditingTypeIdInModal(null);
+    resetClassificationDrag();
   }
 
   async function requestRecategorization() {
@@ -926,286 +937,262 @@ export function MenuPlanningView() {
       ) : null}
 
       {isTypesModalOpen ? (
-        <div className="menuModalBackdrop" onClick={closeTypesModal}>
-          <section
-            ref={typesModalRef}
-            className="menuTypesModal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="menu-classification-title"
-            tabIndex={-1}
-            onClick={(event) => event.stopPropagation()}
+        <BottomSheetFrame
+          ariaLabelledBy="menu-classification-title"
+          backdropRef={classificationBackdropRef}
+          className="menuTypesModal"
+          dragOffset={classificationDragOffset}
+          handleLabel="Cerrar gestión de clasificación"
+          onClose={closeTypesModal}
+          onDragEnd={handleClassificationDragEnd}
+          onDragMove={handleClassificationDragMove}
+          onDragStart={handleClassificationDragStart}
+          sheetRef={typesModalRef}
+          title={
+            classificationTab === "types"
+              ? "Tipos de plato"
+              : "Categorías culinarias"
+          }
+          subtitle="Mantén separadas las reglas de organización para encontrar cada plato sin esfuerzo."
+          tabIndex={-1}
+        >
+          <div
+            className="menuClassificationTabs"
+            role="tablist"
+            aria-label="Clasificación"
           >
             <button
-              className="menuModalHandle"
+              className={classificationTab === "types" ? "isActive" : ""}
               type="button"
-              aria-label="Cerrar gestión de clasificación"
-              onClick={closeTypesModal}
+              role="tab"
+              aria-selected={classificationTab === "types"}
+              onClick={() => {
+                setClassificationTab("types");
+                setModalMessage("");
+              }}
             >
-              <span />
+              Tipos
             </button>
-            <header className="menuTypesModalHeader">
-              <div>
-                <p className="menuPlanningEyebrow">Biblioteca compartida</p>
-                <h3 id="menu-classification-title">
-                  {classificationTab === "types"
-                    ? "Tipos de plato"
-                    : "Categorías culinarias"}
-                </h3>
-              </div>
-              <button
-                className="menuModalCloseButton"
-                type="button"
-                aria-label="Cerrar gestión de clasificación"
-                onClick={closeTypesModal}
-              >
-                ×
-              </button>
-            </header>
-            <p className="menuTypesModalIntro">
-              Mantén separadas las reglas de organización para que cada plato
-              sea fácil de encontrar.
-            </p>
-            <div
-              className="menuClassificationTabs"
-              role="tablist"
-              aria-label="Clasificación"
+            <button
+              className={classificationTab === "categories" ? "isActive" : ""}
+              type="button"
+              role="tab"
+              aria-selected={classificationTab === "categories"}
+              onClick={() => {
+                setClassificationTab("categories");
+                setModalMessage("");
+              }}
             >
-              <button
-                className={classificationTab === "types" ? "isActive" : ""}
-                type="button"
-                role="tab"
-                aria-selected={classificationTab === "types"}
-                onClick={() => {
-                  setClassificationTab("types");
-                  setModalMessage("");
-                }}
-              >
-                Tipos
-              </button>
-              <button
-                className={classificationTab === "categories" ? "isActive" : ""}
-                type="button"
-                role="tab"
-                aria-selected={classificationTab === "categories"}
-                onClick={() => {
-                  setClassificationTab("categories");
-                  setModalMessage("");
-                }}
-              >
-                Categorías
-              </button>
-            </div>
-            {classificationTab === "types" ? (
-              <>
-                <div className="menuTypeList">
-                  {dishTypes.map((type) =>
-                    editingTypeIdInModal === type.id ? (
-                      <form
-                        className="menuTypeRow"
-                        key={type.id}
-                        onSubmit={(event) => void saveDishType(event, type)}
-                      >
-                        <input
-                          aria-label={`Renombrar ${type.name}`}
-                          value={editingTypeName}
-                          onChange={(event) =>
-                            setEditingTypeName(event.target.value)
-                          }
-                          autoFocus
-                        />
-                        <button type="submit">Guardar</button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingTypeIdInModal(null)}
-                        >
-                          Cancelar
-                        </button>
-                      </form>
-                    ) : (
-                      <div className="menuTypeRow" key={type.id}>
-                        <span>
-                          <strong>{type.name}</strong>
-                          <small>{typeUsage.get(type.id) ?? 0} platos</small>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingTypeIdInModal(type.id);
-                            setEditingTypeName(type.name);
-                          }}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void removeDishType(type)}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    ),
-                  )}
-                </div>
-                <form className="menuTypeAddForm" onSubmit={addDishType}>
-                  <label htmlFor="new-dish-type">Nuevo tipo</label>
-                  <div>
-                    <input
-                      id="new-dish-type"
-                      value={newTypeName}
-                      onChange={(event) => setNewTypeName(event.target.value)}
-                      placeholder="Pasta, pescado…"
-                    />
-                    <button type="submit" disabled={!newTypeName.trim()}>
-                      Añadir
-                    </button>
-                  </div>
-                </form>
-              </>
-            ) : null}
-            {classificationTab === "categories" ? (
-              <section
-                className="menuCategoryManager"
-                aria-labelledby="menu-categories-title"
-              >
-                <div className="menuManagerSectionHeader">
-                  <div>
-                    <p className="menuPlanningEyebrow">Nueva clasificación</p>
-                    <h4 id="menu-categories-title">Categorías culinarias</h4>
-                  </div>
-                  <span>{dishCategories.length}</span>
-                </div>
-                <p className="menuTypesModalIntro">
-                  Puedes asignar varias categorías a cada plato para encontrar
-                  ideas por ingrediente o preparación.
-                </p>
-                <div className="menuCategoryList">
-                  {dishCategories.map((category) =>
-                    editingCategoryId === category.id ? (
-                      <form
-                        className="menuTypeRow"
-                        key={category.id}
-                        onSubmit={(event) =>
-                          void saveDishCategory(event, category)
-                        }
-                      >
-                        <input
-                          aria-label={`Renombrar categoría ${category.name}`}
-                          value={editingCategoryName}
-                          onChange={(event) =>
-                            setEditingCategoryName(event.target.value)
-                          }
-                          autoFocus
-                        />
-                        <button type="submit">Guardar</button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingCategoryId(null)}
-                        >
-                          Cancelar
-                        </button>
-                      </form>
-                    ) : (
-                      <div className="menuTypeRow" key={category.id}>
-                        <span>
-                          <strong>{category.name}</strong>
-                          <small>
-                            {categoryUsage.get(category.id) ?? 0} platos
-                          </small>
-                        </span>
-                        <button
-                          type="button"
-                          aria-label={`Editar categoría ${category.name}`}
-                          onClick={() => {
-                            setEditingCategoryId(category.id);
-                            setEditingCategoryName(category.name);
-                          }}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Eliminar categoría ${category.name}`}
-                          onClick={() => void removeDishCategory(category)}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    ),
-                  )}
-                </div>
-                <form className="menuTypeAddForm" onSubmit={addDishCategory}>
-                  <label htmlFor="new-dish-category">Nueva categoría</label>
-                  <div>
-                    <input
-                      id="new-dish-category"
-                      value={newCategoryName}
-                      onChange={(event) =>
-                        setNewCategoryName(event.target.value)
-                      }
-                      placeholder="Pasta, verduras…"
-                    />
-                    <button
-                      type="submit"
-                      aria-label="Añadir categoría"
-                      disabled={!newCategoryName.trim()}
+              Categorías
+            </button>
+          </div>
+          {classificationTab === "types" ? (
+            <>
+              <div className="menuTypeList">
+                {dishTypes.map((type) =>
+                  editingTypeIdInModal === type.id ? (
+                    <form
+                      className="menuTypeRow"
+                      key={type.id}
+                      onSubmit={(event) => void saveDishType(event, type)}
                     >
-                      Añadir
-                    </button>
-                  </div>
-                </form>
-              </section>
-            ) : null}
-            {classificationTab === "categories" ? (
-              <section
-                className="menuRecategorizationPanel"
-                aria-label="Recategorización con Codex"
-              >
-                <h4>Recategorizar con Codex</h4>
-                <p>
-                  Analiza los nombres y asigna automáticamente los tipos más
-                  claros.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void requestRecategorization()}
-                  disabled={recategorizationRunning || dishes.length === 0}
-                >
-                  {recategorizationRunning
-                    ? "Recategorizando…"
-                    : "Recategorizar platos"}
-                </button>
-                {remoteAction?.status === "failed" ? (
-                  <p role="alert">
-                    {remoteAction.errorMessage ?? "La recategorización falló."}
-                  </p>
-                ) : null}
-                {remoteAction?.status === "completed" ? (
-                  <p role="status">
-                    {remoteAction.resultSummary ??
-                      latestRun?.summary ??
-                      "Recategorización completada."}
-                  </p>
-                ) : null}
-                {latestRun && !latestRun.revertedAt ? (
-                  <button
-                    className="menuUndoRecategorizationButton"
-                    type="button"
-                    onClick={() => void undoRecategorization()}
-                  >
-                    Deshacer última recategorización (
-                    {latestRun.dishesRecategorized})
+                      <input
+                        aria-label={`Renombrar ${type.name}`}
+                        value={editingTypeName}
+                        onChange={(event) =>
+                          setEditingTypeName(event.target.value)
+                        }
+                        autoFocus
+                      />
+                      <button type="submit">Guardar</button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingTypeIdInModal(null)}
+                      >
+                        Cancelar
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="menuTypeRow" key={type.id}>
+                      <span>
+                        <strong>{type.name}</strong>
+                        <small>{typeUsage.get(type.id) ?? 0} platos</small>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingTypeIdInModal(type.id);
+                          setEditingTypeName(type.name);
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void removeDishType(type)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  ),
+                )}
+              </div>
+              <form className="menuTypeAddForm" onSubmit={addDishType}>
+                <label htmlFor="new-dish-type">Nuevo tipo</label>
+                <div>
+                  <input
+                    id="new-dish-type"
+                    value={newTypeName}
+                    onChange={(event) => setNewTypeName(event.target.value)}
+                    placeholder="Pasta, pescado…"
+                  />
+                  <button type="submit" disabled={!newTypeName.trim()}>
+                    Añadir
                   </button>
-                ) : null}
-              </section>
-            ) : null}
-            {modalMessage ? (
-              <p className="menuPlanningMessage" role="status">
-                {modalMessage}
+                </div>
+              </form>
+            </>
+          ) : null}
+          {classificationTab === "categories" ? (
+            <section
+              className="menuCategoryManager"
+              aria-labelledby="menu-categories-title"
+            >
+              <div className="menuManagerSectionHeader">
+                <div>
+                  <p className="menuPlanningEyebrow">Nueva clasificación</p>
+                  <h4 id="menu-categories-title">Categorías culinarias</h4>
+                </div>
+                <span>{dishCategories.length}</span>
+              </div>
+              <p className="menuTypesModalIntro">
+                Puedes asignar varias categorías a cada plato para encontrar
+                ideas por ingrediente o preparación.
               </p>
-            ) : null}
-          </section>
-        </div>
+              <div className="menuCategoryList">
+                {dishCategories.map((category) =>
+                  editingCategoryId === category.id ? (
+                    <form
+                      className="menuTypeRow"
+                      key={category.id}
+                      onSubmit={(event) =>
+                        void saveDishCategory(event, category)
+                      }
+                    >
+                      <input
+                        aria-label={`Renombrar categoría ${category.name}`}
+                        value={editingCategoryName}
+                        onChange={(event) =>
+                          setEditingCategoryName(event.target.value)
+                        }
+                        autoFocus
+                      />
+                      <button type="submit">Guardar</button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingCategoryId(null)}
+                      >
+                        Cancelar
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="menuTypeRow" key={category.id}>
+                      <span>
+                        <strong>{category.name}</strong>
+                        <small>
+                          {categoryUsage.get(category.id) ?? 0} platos
+                        </small>
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Editar categoría ${category.name}`}
+                        onClick={() => {
+                          setEditingCategoryId(category.id);
+                          setEditingCategoryName(category.name);
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Eliminar categoría ${category.name}`}
+                        onClick={() => void removeDishCategory(category)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  ),
+                )}
+              </div>
+              <form className="menuTypeAddForm" onSubmit={addDishCategory}>
+                <label htmlFor="new-dish-category">Nueva categoría</label>
+                <div>
+                  <input
+                    id="new-dish-category"
+                    value={newCategoryName}
+                    onChange={(event) => setNewCategoryName(event.target.value)}
+                    placeholder="Pasta, verduras…"
+                  />
+                  <button
+                    type="submit"
+                    aria-label="Añadir categoría"
+                    disabled={!newCategoryName.trim()}
+                  >
+                    Añadir
+                  </button>
+                </div>
+              </form>
+            </section>
+          ) : null}
+          {classificationTab === "categories" ? (
+            <section
+              className="menuRecategorizationPanel"
+              aria-label="Recategorización con Codex"
+            >
+              <h4>Recategorizar con Codex</h4>
+              <p>
+                Analiza los nombres y asigna automáticamente los tipos más
+                claros.
+              </p>
+              <button
+                type="button"
+                onClick={() => void requestRecategorization()}
+                disabled={recategorizationRunning || dishes.length === 0}
+              >
+                {recategorizationRunning
+                  ? "Recategorizando…"
+                  : "Recategorizar platos"}
+              </button>
+              {remoteAction?.status === "failed" ? (
+                <p role="alert">
+                  {remoteAction.errorMessage ?? "La recategorización falló."}
+                </p>
+              ) : null}
+              {remoteAction?.status === "completed" ? (
+                <p role="status">
+                  {remoteAction.resultSummary ??
+                    latestRun?.summary ??
+                    "Recategorización completada."}
+                </p>
+              ) : null}
+              {latestRun && !latestRun.revertedAt ? (
+                <button
+                  className="menuUndoRecategorizationButton"
+                  type="button"
+                  onClick={() => void undoRecategorization()}
+                >
+                  Deshacer última recategorización (
+                  {latestRun.dishesRecategorized})
+                </button>
+              ) : null}
+            </section>
+          ) : null}
+          {modalMessage ? (
+            <p className="menuPlanningMessage" role="status">
+              {modalMessage}
+            </p>
+          ) : null}
+        </BottomSheetFrame>
       ) : null}
     </section>
   );

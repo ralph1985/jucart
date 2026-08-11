@@ -1387,7 +1387,120 @@ h2 {
         max(0.85rem, env(safe-area-inset-bottom, 0px))
     )
     max(0.55rem, env(safe-area-inset-left, 0px));
-  background: rgb(15 23 42 / 28%);
+  background: rgb(15 23 42 / 36%);
+  backdrop-filter: blur(0.2rem);
+}
+
+.bottomSheetBackdrop {
+  position: fixed;
+  z-index: 24;
+  inset: 0;
+  display: grid;
+  align-items: end;
+  padding: 0.75rem max(0.55rem, env(safe-area-inset-right, 0px))
+    max(0.75rem, env(safe-area-inset-bottom, 0px))
+    max(0.55rem, env(safe-area-inset-left, 0px));
+  background: rgb(15 23 42 / 36%);
+  backdrop-filter: blur(0.2rem);
+}
+
+.bottomSheet {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  width: min(100%, 42rem);
+  max-height: min(44rem, calc(100dvh - 1.5rem));
+  min-height: 14rem;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 1.2rem 1.2rem 0.9rem 0.9rem;
+  background: var(--surface);
+  box-shadow: 0 -1rem 3rem rgb(15 23 42 / 22%);
+  transform: translateY(var(--sheet-drag-offset, 0px));
+}
+
+.bottomSheetHandle {
+  display: grid;
+  width: 100%;
+  min-height: 2rem;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  cursor: grab;
+}
+
+.bottomSheetHandle span {
+  width: 2.8rem;
+  height: 0.28rem;
+  border-radius: 999rem;
+  background: var(--color-border-strong);
+}
+
+.bottomSheetHandle:active {
+  cursor: grabbing;
+}
+
+.bottomSheetHeader {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1.1rem 0.85rem;
+}
+
+.bottomSheetHeader h2,
+.bottomSheetHeader p {
+  margin: 0;
+}
+
+.bottomSheetHeader h2 {
+  color: var(--color-text-strong);
+  font-size: 1.3rem;
+  letter-spacing: -0.02em;
+}
+
+.bottomSheetHeader p {
+  margin-top: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.bottomSheetClose {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--surface-muted);
+  color: var(--color-text-muted);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bottomSheetContent {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 1.1rem 1.1rem;
+}
+
+.bottomSheetContent form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.bottomSheetFooter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin: 1rem -1.1rem -1.1rem;
+  border-top: 1px solid var(--color-border);
+  padding: 0.85rem 1.1rem max(0.85rem, env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
 }
 
 .addSheet {
@@ -1407,10 +1520,10 @@ h2 {
   min-height: 17rem;
   margin: 0 auto;
   border: 1px solid rgb(148 163 184 / 28%);
-  border-radius: 0.85rem 0.85rem 0 0;
+  border-radius: 1.2rem 1.2rem 0.9rem 0.9rem;
   padding: 0.48rem 0.78rem 1rem;
   background: var(--surface);
-  box-shadow: 0 -0.9rem 2.2rem rgb(15 23 42 / 16%);
+  box-shadow: 0 -1rem 3rem rgb(15 23 42 / 22%);
   transform: translateY(var(--sheet-drag-offset, 0px));
 }
 
@@ -3608,6 +3721,20 @@ h2 {
 }
 
 @media (max-width: 38rem) {
+  .modalBackdrop {
+    align-items: end;
+    padding: 0.75rem max(0.55rem, env(safe-area-inset-right, 0px))
+      max(0.75rem, env(safe-area-inset-bottom, 0px))
+      max(0.55rem, env(safe-area-inset-left, 0px));
+  }
+
+  .modal {
+    width: min(100%, 42rem);
+    max-height: min(36rem, calc(100dvh - 1.5rem));
+    overflow-y: auto;
+    border-radius: 1.2rem 1.2rem 0.9rem 0.9rem;
+  }
+
   .formOptions {
     display: block;
   }

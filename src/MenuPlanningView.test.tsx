@@ -115,10 +115,11 @@ describe("MenuPlanningView", () => {
     expect(screen.getByText("por cocinar")).toBeInTheDocument();
     expect(screen.queryByText("Tortilla")).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Añadir un plato"), {
+    fireEvent.click(screen.getByRole("button", { name: /Añadir un plato/ }));
+    fireEvent.change(screen.getByLabelText("Nombre del plato"), {
       target: { value: "Macarrones" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Añadir plato" }));
     await waitFor(() =>
       expect(mocks.createDish).toHaveBeenCalledWith(
         "library-1",
@@ -150,10 +151,10 @@ describe("MenuPlanningView", () => {
     expect(screen.getByText(/9 ago 2026/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Editar: Tortilla" }));
-    fireEvent.change(screen.getByLabelText("Editar Tortilla"), {
+    fireEvent.change(screen.getByLabelText("Nombre del plato"), {
       target: { value: "Tortilla de patata" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     await waitFor(() =>
       expect(mocks.updateDish).toHaveBeenCalledWith(
         "dish-2",
@@ -263,7 +264,9 @@ describe("MenuPlanningView", () => {
         screen.getByText("No se pudo cargar la biblioteca de platos."),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByRole("button", { name: "Añadir" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Añadir un plato/ }),
+    ).toBeDisabled();
   });
 
   it("gestiona tipos desde una modal y solicita la recategorización", async () => {
@@ -282,7 +285,7 @@ describe("MenuPlanningView", () => {
     fireEvent.change(screen.getByLabelText("Nuevo tipo"), {
       target: { value: "Pasta" },
     });
-    fireEvent.click(screen.getAllByRole("button", { name: "Añadir" })[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Añadir" }));
     await waitFor(() =>
       expect(mocks.createType).toHaveBeenCalledWith("library-1", "Pasta"),
     );

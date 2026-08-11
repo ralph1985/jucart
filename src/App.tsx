@@ -279,6 +279,7 @@ type BottomSheetOverlay = Extract<
   | "section-add-sheet"
   | "freezer-add-sheet"
   | "freezer-edit-sheet"
+  | "edit-dialog"
 >;
 
 type AddProductNotice =
@@ -1484,6 +1485,8 @@ export function App() {
   const ticketFileInputRef = useRef<HTMLInputElement>(null);
   const freezerEditSheetBackdropRef = useRef<HTMLDivElement>(null);
   const freezerEditSheetRef = useRef<HTMLFormElement>(null);
+  const editItemSheetBackdropRef = useRef<HTMLDivElement>(null);
+  const editItemSheetRef = useRef<HTMLElement>(null);
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
   const freezerItemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
   const clearDialogRef = useRef<HTMLDivElement>(null);
@@ -1578,7 +1581,8 @@ export function App() {
     selectedPriceProductId !== null ||
     isSectionAddSheetOpen ||
     isFreezerAddSheetOpen ||
-    editingFreezerItem !== null;
+    editingFreezerItem !== null ||
+    editingItem !== null;
   const bottomSheetFocusKey = isAddSheetOpen
     ? "add"
     : isTicketUploadSheetOpen
@@ -1587,11 +1591,13 @@ export function App() {
         ? "price-detail"
         : editingFreezerItem !== null
           ? "freezer-edit"
-          : isSectionAddSheetOpen
-            ? "section-add"
-            : isFreezerAddSheetOpen
-              ? "freezer-add"
-              : null;
+          : editingItem !== null
+            ? "edit-item"
+            : isSectionAddSheetOpen
+              ? "section-add"
+              : isFreezerAddSheetOpen
+                ? "freezer-add"
+                : null;
   const sheetKeyboardInset = useBottomSheetViewport({
     focusKey: bottomSheetFocusKey,
     isOpen: isBottomSheetOpen,
@@ -2668,6 +2674,12 @@ export function App() {
     isOpen: editingFreezerItem !== null,
     sheetRef: freezerEditSheetRef,
   });
+  useBottomSheetOpenAnimation({
+    backdropRef: editItemSheetBackdropRef,
+    isClosing: closingBottomSheet === "edit-dialog",
+    isOpen: editingItem !== null,
+    sheetRef: editItemSheetRef,
+  });
 
   useEffect(() => {
     if (lastRemovedItems.length === 0) {
@@ -2894,6 +2906,11 @@ export function App() {
       return;
     }
 
+    if (editingItem) {
+      document.getElementById("edit-item-name")?.focus({ preventScroll: true });
+      return;
+    }
+
     if (isSectionAddSheetOpen) {
       sectionNameInputRef.current?.focus({ preventScroll: true });
       return;
@@ -3065,6 +3082,11 @@ export function App() {
 
     if (editingFreezerItem) {
       closeFreezerEditSheet();
+      return;
+    }
+
+    if (editingItem) {
+      cancelEditing();
     }
   }
 
@@ -5535,10 +5557,15 @@ export function App() {
       {editingItem ? (
         <EditProductDialog
           item={editingItem}
+          backdropRef={editItemSheetBackdropRef}
+          dragOffset={sheetDragOffset}
           name={editingItemName}
           notes={editingItemNotes}
           onButtonPointerDown={handleButtonPointerDown}
           onCancel={cancelEditing}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
           onNameChange={(event) => setEditingItemName(event.target.value)}
           onNotesChange={(event) => setEditingItemNotes(event.target.value)}
           onQuantityChange={(event) =>
@@ -5550,6 +5577,7 @@ export function App() {
           quantity={editingItemQuantity}
           sectionId={editingSectionId}
           sections={sections}
+          sheetRef={editItemSheetRef}
         />
       ) : null}
 

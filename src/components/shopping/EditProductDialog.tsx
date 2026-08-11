@@ -4,9 +4,11 @@ import type {
   FormEvent,
   KeyboardEvent,
   PointerEvent,
+  RefObject,
 } from "react";
 
 import styles from "../../App.module.scss";
+import { BottomSheetFrame } from "../ui/BottomSheetFrame";
 import type {
   ShoppingItem,
   ShoppingSection,
@@ -15,10 +17,15 @@ import type {
 
 type EditProductDialogProps = {
   item: ShoppingItem;
+  backdropRef: RefObject<HTMLDivElement | null>;
+  dragOffset: number;
   name: string;
   notes: string;
   onButtonPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
   onCancel: () => void;
+  onDragEnd: (event: PointerEvent<HTMLDivElement>) => void;
+  onDragMove: (event: PointerEvent<HTMLDivElement>) => void;
+  onDragStart: (event: PointerEvent<HTMLDivElement>) => void;
   onNameChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onNotesChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
   onQuantityChange: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -28,14 +35,20 @@ type EditProductDialogProps = {
   quantity: string;
   sectionId: ShoppingSectionId;
   sections: ShoppingSection[];
+  sheetRef: RefObject<HTMLElement | null>;
 };
 
 export function EditProductDialog({
   item,
+  backdropRef,
+  dragOffset,
   name,
   notes,
   onButtonPointerDown,
   onCancel,
+  onDragEnd,
+  onDragMove,
+  onDragStart,
   onNameChange,
   onNotesChange,
   onQuantityChange,
@@ -45,21 +58,27 @@ export function EditProductDialog({
   quantity,
   sectionId,
   sections,
+  sheetRef,
 }: EditProductDialogProps) {
   return (
-    <div className={styles.modalBackdrop} onClick={onCancel}>
+    <BottomSheetFrame
+      ariaLabelledBy="edit-product-title"
+      backdropRef={backdropRef}
+      dragOffset={dragOffset}
+      onClose={onCancel}
+      onDragEnd={onDragEnd}
+      onDragMove={onDragMove}
+      onDragStart={onDragStart}
+      sheetRef={sheetRef}
+      title={`Editar ${item.name}`}
+      subtitle="Actualiza los datos sin perder de vista la lista."
+    >
       <form
-        className={`${styles.modal} ${styles.editModal}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="edit-product-title"
-        onClick={(event) => event.stopPropagation()}
         onKeyDown={(event: KeyboardEvent<HTMLFormElement>) => {
           if (event.key === "Escape") onCancel();
         }}
         onSubmit={onSubmit}
       >
-        <h2 id="edit-product-title">Editar {item.name}</h2>
         <div className={styles.modalForm}>
           <div className={styles.formField}>
             <label className={styles.label} htmlFor="edit-item-name">
@@ -131,7 +150,7 @@ export function EditProductDialog({
             </select>
           </div>
         </div>
-        <div className={styles.modalActions}>
+        <div className={`${styles.modalActions} ${styles.bottomSheetFooter}`}>
           <button
             className={styles.secondaryButton}
             type="button"
@@ -149,6 +168,6 @@ export function EditProductDialog({
           </button>
         </div>
       </form>
-    </div>
+    </BottomSheetFrame>
   );
 }

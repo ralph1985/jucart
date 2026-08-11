@@ -31,6 +31,8 @@ import type {
   MenuDishRecategorizationRun,
   MenuDishType,
 } from "./menuPlanning";
+import { useSheetDrag } from "./hooks/useSheetDrag";
+import { BottomSheetFrame } from "./components/ui/BottomSheetFrame";
 import { getRemoteAction } from "./remoteActions";
 import type { RemoteAction } from "./remoteActions";
 
@@ -97,6 +99,7 @@ export function MenuPlanningView() {
   const [editingCategoryIds, setEditingCategoryIds] = useState<string[]>([]);
   const [newTypeName, setNewTypeName] = useState("");
   const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
+  const [isDishSheetOpen, setIsDishSheetOpen] = useState(false);
   const [editingTypeIdInModal, setEditingTypeIdInModal] = useState<
     string | null
   >(null);
@@ -114,7 +117,20 @@ export function MenuPlanningView() {
   const [isSaving, setIsSaving] = useState(false);
   const typesModalRef = useRef<HTMLElement>(null);
   const typesTriggerRef = useRef<HTMLButtonElement>(null);
+  const dishSheetBackdropRef = useRef<HTMLDivElement>(null);
+  const dishSheetRef = useRef<HTMLElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const dishTriggerRef = useRef<HTMLButtonElement>(null);
+
+  const {
+    handleEnd: handleDishSheetDragEnd,
+    handleMove: handleDishSheetDragMove,
+    handleStart: handleDishSheetDragStart,
+    offset: dishSheetDragOffset,
+    reset: resetDishSheetDrag,
+  } = useSheetDrag({
+    onDismiss: () => closeDishSheet(),
+  });
 
   const loadCollection = useCallback(async (nextLibraryId: string) => {
     setMessage("Cargando platos…");
@@ -260,8 +276,10 @@ export function MenuPlanningView() {
       );
       setDishes((current) => [dish, ...current]);
       setDishName("");
+      setDishTypeId("");
       setDishCategoryIds([]);
       setMessage("Plato añadido.");
+      closeDishSheet();
     } catch {
       setMessage(
         "No se pudo guardar el plato. Comprueba que no esté repetido.",
@@ -298,6 +316,22 @@ export function MenuPlanningView() {
     setEditingName(dish.name);
     setEditingTypeId(dish.dishTypeId ?? "");
     setEditingCategoryIds(dish.categories.map((category) => category.id));
+    setIsDishSheetOpen(true);
+  }
+
+  function openDishSheet() {
+    setEditingId(null);
+    setDishName("");
+    setDishTypeId("");
+    setDishCategoryIds([]);
+    setIsDishSheetOpen(true);
+  }
+
+  function closeDishSheet() {
+    setIsDishSheetOpen(false);
+    setEditingId(null);
+    resetDishSheetDrag();
+    window.setTimeout(() => dishTriggerRef.current?.focus(), 0);
   }
 
   async function saveEdit(event: FormEvent, dish: MenuDish) {
@@ -315,7 +349,7 @@ export function MenuPlanningView() {
           currentDish.id === updated.id ? updated : currentDish,
         ),
       );
-      setEditingId(null);
+      closeDishSheet();
       setMessage("Plato actualizado.");
     } catch {
       setMessage("No se pudo actualizar el plato.");
@@ -466,6 +500,10 @@ export function MenuPlanningView() {
     }
   }
 
+  const editingDish = editingId
+    ? (dishes.find((dish) => dish.id === editingId) ?? null)
+    : null;
+
   return (
     <section aria-labelledby="menu-title" className="menuPlanningScreen">
       <header className="menuPlanningHeader">
@@ -484,66 +522,22 @@ export function MenuPlanningView() {
         </div>
       </header>
 
-      <form onSubmit={addDish} className="menuAddDishForm">
+      <button
+        ref={dishTriggerRef}
+        className="menuAddDishForm menuAddDishTrigger"
+        type="button"
+        onClick={openDishSheet}
+        disabled={!libraryId}
+      >
         <div className="menuAddDishHeading">
           <div>
-            <label htmlFor="new-dish">Añadir un plato</label>
+            <strong>Añadir un plato</strong>
             <p>Una idea para decidir la semana sin empezar desde cero.</p>
           </div>
           <span>{pendingCount} por cocinar</span>
         </div>
-        <div className="menuAddDishControls">
-          <input
-            id="new-dish"
-            value={dishName}
-            onChange={(event) => setDishName(event.target.value)}
-            placeholder="Lentejas, tortilla de patata…"
-            disabled={!libraryId || isSaving}
-          />
-          <select
-            aria-label="Tipo del nuevo plato"
-            value={dishTypeId}
-            onChange={(event) => setDishTypeId(event.target.value)}
-            disabled={!libraryId || isSaving}
-          >
-            <option value="">Sin tipo</option>
-            {collectionTypes.map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.name}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Categorías del nuevo plato"
-            multiple
-            value={dishCategoryIds}
-            onChange={(event) =>
-              setDishCategoryIds(
-                [...event.target.selectedOptions].map((option) => option.value),
-              )
-            }
-            disabled={!libraryId || isSaving}
-          >
-            {dishCategories.length === 0 ? (
-              <option value="" disabled>
-                Sin categorías
-              </option>
-            ) : (
-              dishCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))
-            )}
-          </select>
-          <button
-            type="submit"
-            disabled={!dishName.trim() || !libraryId || isSaving}
-          >
-            Añadir
-          </button>
-        </div>
-      </form>
+        <span className="menuAddDishTriggerAction">Abrir editor</span>
+      </button>
 
       <div
         className="menuDishTabs"
@@ -634,7 +628,7 @@ export function MenuPlanningView() {
         {visibleDishes.length > 0 ? (
           visibleDishes.map((dish) => (
             <article className="menuDishRow" key={dish.id}>
-              {editingId === dish.id ? (
+              {editingId === dish.id && !isDishSheetOpen ? (
                 <form
                   className="menuDishEditForm"
                   onSubmit={(event) => void saveEdit(event, dish)}
@@ -760,6 +754,99 @@ export function MenuPlanningView() {
         )}
       </section>
 
+      {isDishSheetOpen ? (
+        <BottomSheetFrame
+          ariaLabelledBy="menu-dish-sheet-title"
+          backdropRef={dishSheetBackdropRef}
+          dragOffset={dishSheetDragOffset}
+          onClose={closeDishSheet}
+          onDragEnd={handleDishSheetDragEnd}
+          onDragMove={handleDishSheetDragMove}
+          onDragStart={handleDishSheetDragStart}
+          sheetRef={dishSheetRef}
+          title={editingDish ? `Editar ${editingDish.name}` : "Añadir un plato"}
+          subtitle="Define el tipo y las categorías para encontrarlo más tarde."
+        >
+          <form
+            className="menuDishSheetForm"
+            onSubmit={(event) =>
+              editingDish
+                ? void saveEdit(event, editingDish)
+                : void addDish(event)
+            }
+          >
+            <label className="menuFilterField">
+              Nombre del plato
+              <input
+                id="new-dish"
+                autoFocus
+                value={editingDish ? editingName : dishName}
+                onChange={(event) =>
+                  editingDish
+                    ? setEditingName(event.target.value)
+                    : setDishName(event.target.value)
+                }
+                placeholder="Lentejas, tortilla de patata…"
+                disabled={isSaving}
+              />
+            </label>
+            <label className="menuFilterField">
+              Tipo funcional
+              <select
+                value={editingDish ? editingTypeId : dishTypeId}
+                onChange={(event) =>
+                  editingDish
+                    ? setEditingTypeId(event.target.value)
+                    : setDishTypeId(event.target.value)
+                }
+                disabled={isSaving}
+              >
+                <option value="">Sin tipo</option>
+                {collectionTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="menuFilterField">
+              Categorías culinarias
+              <select
+                multiple
+                value={editingDish ? editingCategoryIds : dishCategoryIds}
+                onChange={(event) => {
+                  const values = [...event.target.selectedOptions].map(
+                    (option) => option.value,
+                  );
+                  if (editingDish) setEditingCategoryIds(values);
+                  else setDishCategoryIds(values);
+                }}
+                disabled={isSaving}
+              >
+                {dishCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="bottomSheetFooter">
+              <button type="button" onClick={closeDishSheet}>
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  !(editingDish ? editingName : dishName).trim() || isSaving
+                }
+              >
+                {editingDish ? "Guardar cambios" : "Añadir plato"}
+              </button>
+            </div>
+          </form>
+        </BottomSheetFrame>
+      ) : null}
+
       <button
         ref={typesTriggerRef}
         className="menuManageTypesButton"
@@ -786,6 +873,14 @@ export function MenuPlanningView() {
             tabIndex={-1}
             onClick={(event) => event.stopPropagation()}
           >
+            <button
+              className="menuModalHandle"
+              type="button"
+              aria-label="Cerrar gestión de clasificación"
+              onClick={closeTypesModal}
+            >
+              <span />
+            </button>
             <header className="menuTypesModalHeader">
               <div>
                 <p className="menuPlanningEyebrow">Biblioteca compartida</p>

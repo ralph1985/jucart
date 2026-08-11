@@ -1493,7 +1493,7 @@ export function App() {
   const addSheetBackdropRef = useRef<HTMLDivElement>(null);
   const addSheetRef = useRef<HTMLFormElement>(null);
   const sectionAddSheetBackdropRef = useRef<HTMLDivElement>(null);
-  const sectionAddSheetRef = useRef<HTMLFormElement>(null);
+  const sectionAddSheetRef = useRef<HTMLElement>(null);
   const freezerAddSheetBackdropRef = useRef<HTMLDivElement>(null);
   const freezerAddSheetRef = useRef<HTMLFormElement>(null);
   const ticketUploadSheetBackdropRef = useRef<HTMLDivElement>(null);

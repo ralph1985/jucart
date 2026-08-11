@@ -8,6 +8,7 @@ import type {
 } from "react";
 
 import styles from "../../App.module.scss";
+import { BottomSheetFrame } from "../ui/BottomSheetFrame";
 import {
   shoppingSectionColors,
   type ShoppingSectionColor,
@@ -30,7 +31,7 @@ type CreateSectionSheetProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   selectedColor: ShoppingSectionColor;
   sheetDragOffset: number;
-  sheetRef: Ref<HTMLFormElement>;
+  sheetRef: RefObject<HTMLElement | null>;
   nameLabel?: string;
   submitLabel?: string;
   title?: string;
@@ -59,48 +60,22 @@ export function CreateSectionSheet({
   title = "Crear lista",
 }: CreateSectionSheetProps) {
   return (
-    <div
-      ref={backdropRef}
-      className={styles.addSheetBackdrop}
+    <BottomSheetFrame
+      ariaLabelledBy="section-add-sheet-title"
+      backdropRef={backdropRef}
+      className={`${styles.addSheet} ${styles.addSheetCompact}`}
+      dragOffset={sheetDragOffset}
+      onClose={onClose}
+      onDragEnd={onDragEnd}
+      onDragMove={onDragMove}
+      onDragStart={onDragStart}
+      sheetRef={sheetRef}
       style={
         { "--sheet-keyboard-inset": `${keyboardInset}px` } as CSSProperties
       }
-      onClick={onClose}
+      title={title}
     >
-      <form
-        ref={sheetRef}
-        className={`${styles.addSheet} ${styles.addSheetCompact}`}
-        role="dialog"
-        aria-modal="false"
-        aria-labelledby="section-add-sheet-title"
-        style={
-          { "--sheet-drag-offset": `${sheetDragOffset}px` } as CSSProperties
-        }
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={onSheetKeyDown}
-        onSubmit={onSubmit}
-      >
-        <div
-          className={styles.addSheetHandle}
-          aria-label="Cerrar panel de lista"
-          role="button"
-          tabIndex={0}
-          onPointerDown={onDragStart}
-          onPointerMove={onDragMove}
-          onPointerUp={onDragEnd}
-          onPointerCancel={onDragEnd}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onClose();
-            }
-          }}
-        >
-          <span />
-        </div>
-        <h2 id="section-add-sheet-title" className={styles.visuallyHidden}>
-          {title}
-        </h2>
+      <form onKeyDown={onSheetKeyDown} onSubmit={onSubmit}>
         <div className={styles.addSheetFields}>
           <div className={styles.formField}>
             <label className={styles.label} htmlFor="section-name">
@@ -163,6 +138,6 @@ export function CreateSectionSheet({
           </button>
         </div>
       </form>
-    </div>
+    </BottomSheetFrame>
   );
 }

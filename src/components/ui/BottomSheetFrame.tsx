@@ -1,11 +1,17 @@
-import type { CSSProperties, PointerEvent, ReactNode, RefObject } from "react";
+import type {
+  CSSProperties,
+  KeyboardEventHandler,
+  PointerEvent,
+  ReactNode,
+  Ref,
+} from "react";
 
 import styles from "../../App.module.scss";
 
 type BottomSheetFrameProps = {
   ariaDescribedBy?: string;
   ariaLabelledBy: string;
-  backdropRef: RefObject<HTMLDivElement | null>;
+  backdropRef: Ref<HTMLDivElement>;
   children: ReactNode;
   className?: string;
   dragOffset?: number;
@@ -13,7 +19,10 @@ type BottomSheetFrameProps = {
   onDragEnd?: (event: PointerEvent<HTMLDivElement>) => void;
   onDragMove?: (event: PointerEvent<HTMLDivElement>) => void;
   onDragStart?: (event: PointerEvent<HTMLDivElement>) => void;
-  sheetRef: RefObject<HTMLElement | null>;
+  onKeyDown?: KeyboardEventHandler<HTMLElement>;
+  sheetRef: Ref<HTMLElement>;
+  style?: CSSProperties;
+  tabIndex?: number;
   title: string;
   subtitle?: string;
 };
@@ -29,7 +38,10 @@ export function BottomSheetFrame({
   onDragEnd,
   onDragMove,
   onDragStart,
+  onKeyDown,
   sheetRef,
+  style,
+  tabIndex,
   subtitle,
   title,
 }: BottomSheetFrameProps) {
@@ -46,8 +58,15 @@ export function BottomSheetFrame({
         aria-modal="true"
         aria-labelledby={ariaLabelledBy}
         aria-describedby={ariaDescribedBy}
-        style={{ "--sheet-drag-offset": `${dragOffset}px` } as CSSProperties}
+        style={
+          {
+            ...style,
+            "--sheet-drag-offset": `${dragOffset}px`,
+          } as CSSProperties
+        }
+        tabIndex={tabIndex}
         onClick={(event) => event.stopPropagation()}
+        onKeyDown={onKeyDown}
       >
         <button
           className={styles.bottomSheetHandle}

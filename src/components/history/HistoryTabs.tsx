@@ -2,7 +2,8 @@ import type { PointerEventHandler } from "react";
 
 import styles from "../../App.module.scss";
 
-export type HistoryTab = "changes" | "categories" | "normalizations";
+export type HistoryTab =
+  "changes" | "categories" | "menu-categories" | "normalizations";
 
 type HistoryTabsProps = {
   value: HistoryTab;
@@ -13,6 +14,7 @@ type HistoryTabsProps = {
 const tabs: ReadonlyArray<{ value: HistoryTab; label: string }> = [
   { value: "changes", label: "Cambios" },
   { value: "categories", label: "Categorías" },
+  { value: "menu-categories", label: "Tipos de plato" },
   { value: "normalizations", label: "Normalización" },
 ];
 

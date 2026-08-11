@@ -24,6 +24,16 @@ export type MenuDishRecategorizationRun = {
   createdAt: string;
   revertedAt: string | null;
 };
+export type MenuDishRecategorizationChange = {
+  id: string;
+  runId: string;
+  dishId: string | null;
+  dishName: string;
+  previousTypeId: string | null;
+  nextTypeId: string | null;
+  reason: string;
+  createdAt: string;
+};
 
 let client: ReturnType<typeof createClient> | null = null;
 type TableResult = { data: unknown; error: unknown };
@@ -57,6 +67,16 @@ type MenuDishRecategorizationRunRow = {
   dishes_recategorized: number;
   created_at: string;
   reverted_at: string | null;
+};
+type MenuDishRecategorizationChangeRow = {
+  id: string;
+  run_id: string;
+  dish_id: string | null;
+  dish_name: string;
+  previous_type_id: string | null;
+  next_type_id: string | null;
+  reason: string;
+  created_at: string;
 };
 
 function getClient() {
@@ -226,6 +246,51 @@ export async function getLatestMenuDishRecategorization(
     dishesRecategorized: run.dishes_recategorized,
     createdAt: run.created_at,
     revertedAt: run.reverted_at,
+  };
+}
+
+export async function getMenuDishRecategorizationHistory(libraryId: string) {
+  const [runsResult, changesResult] = await Promise.all([
+    table("menu_dish_recategorization_runs")
+      .select(
+        "id, library_id, summary, dishes_recategorized, created_at, reverted_at",
+      )
+      .eq("library_id", libraryId)
+      .order("created_at", { ascending: false })
+      .limit(100) as unknown as Promise<TableResult>,
+    table("menu_dish_recategorization_changes")
+      .select(
+        "id, run_id, dish_id, dish_name, previous_type_id, next_type_id, reason, created_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(500) as unknown as Promise<TableResult>,
+  ]);
+  if (runsResult.error) throw runsResult.error;
+  if (changesResult.error) throw changesResult.error;
+
+  return {
+    runs: ((runsResult.data ?? []) as MenuDishRecategorizationRunRow[]).map(
+      (run) => ({
+        id: run.id,
+        libraryId: run.library_id,
+        summary: run.summary,
+        dishesRecategorized: run.dishes_recategorized,
+        createdAt: run.created_at,
+        revertedAt: run.reverted_at,
+      }),
+    ),
+    changes: (
+      (changesResult.data ?? []) as MenuDishRecategorizationChangeRow[]
+    ).map((change) => ({
+      id: change.id,
+      runId: change.run_id,
+      dishId: change.dish_id,
+      dishName: change.dish_name,
+      previousTypeId: change.previous_type_id,
+      nextTypeId: change.next_type_id,
+      reason: change.reason,
+      createdAt: change.created_at,
+    })),
   };
 }
 

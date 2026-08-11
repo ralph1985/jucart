@@ -168,6 +168,7 @@ import { HistoryView } from "./components/history/HistoryView";
 import { HistoryEventsList } from "./components/history/HistoryEventsList";
 import { RecategorizationChangesList } from "./components/history/RecategorizationChangesList";
 import { ProductNormalizationChangesList } from "./components/history/ProductNormalizationChangesList";
+import { MenuDishRecategorizationChangesList } from "./components/history/MenuDishRecategorizationChangesList";
 import { TicketUploadSheet } from "./components/tickets/TicketUploadSheet";
 import { TicketReviewQueue } from "./components/tickets/TicketReviewQueue";
 import { TicketFilters } from "./components/tickets/TicketFilters";
@@ -177,6 +178,16 @@ import { PriceDetailSheet } from "./components/prices/PriceDetailSheet";
 import { PriceDetailContent } from "./components/prices/PriceDetailContent";
 import { HeaderLogo, Icon } from "./components/ui/Icon";
 import type { IconName } from "./components/ui/Icon";
+import {
+  getMenuDishLibrary,
+  getMenuDishTypes,
+  getMenuDishRecategorizationHistory,
+} from "./menuPlanning";
+import type {
+  MenuDishRecategorizationChange,
+  MenuDishRecategorizationRun,
+  MenuDishType,
+} from "./menuPlanning";
 
 const selectedSectionStorageKey = "jucart:selected-section-id";
 const showPurchasedItemsStorageKey = "jucart:show-purchased-items";
@@ -186,6 +197,8 @@ const lastSeenRecategorizationChangeAtStorageKey =
   "jucart:last-seen-recategorizations-at";
 const lastSeenProductNormalizationChangeAtStorageKey =
   "jucart:last-seen-product-normalizations-at";
+const lastSeenMenuDishRecategorizationChangeAtStorageKey =
+  "jucart:last-seen-menu-dish-recategorizations-at";
 const pushInviteDismissedStorageKey = "jucart:push-invite-dismissed";
 const ticketPageSize = 10;
 const priceObservationPageSize = 10;
@@ -607,6 +620,12 @@ function getInitialLastSeenProductNormalizationChangeAt() {
   );
 }
 
+function getInitialLastSeenMenuDishRecategorizationChangeAt() {
+  return getInitialStoredTimestamp(
+    lastSeenMenuDishRecategorizationChangeAtStorageKey,
+  );
+}
+
 function getInitialStoredTimestamp(storageKey: string) {
   try {
     const rawValue = window.localStorage.getItem(storageKey);
@@ -753,6 +772,21 @@ function getRecategorizationRunSummary(
   return `${run.itemsRecategorized} productos · ${run.catalogEntriesAdded} entradas catálogo`;
 }
 
+function getMenuDishRecategorizationChangeMeta(
+  change: MenuDishRecategorizationChange,
+  dishTypes: MenuDishType[],
+) {
+  const typeNames = new Map(dishTypes.map((type) => [type.id, type.name]));
+  return `${typeNames.get(change.previousTypeId ?? "") ?? "Sin tipo"} → ${typeNames.get(change.nextTypeId ?? "") ?? "Sin tipo"}`;
+}
+
+function getMenuDishRecategorizationRunSummary(
+  run: MenuDishRecategorizationRun | undefined,
+) {
+  if (!run) return "";
+  return `${run.dishesRecategorized} platos recategorizados`;
+}
+
 function getProductNormalizationActionText(
   change: ShoppingProductNormalizationChange,
 ) {
@@ -853,6 +887,31 @@ function getUnseenProductNormalizationChanges(
 ) {
   return getRecentProductNormalizationChanges(changes, now).filter(
     (change) => change.createdAt > lastSeenProductNormalizationChangeAt,
+  );
+}
+
+function getRecentMenuDishRecategorizationChanges(
+  changes: MenuDishRecategorizationChange[],
+  now: () => number = () => Date.now(),
+) {
+  const cutoff = now() - 30 * 24 * 60 * 60 * 1000;
+
+  return [...changes]
+    .filter((change) => new Date(change.createdAt).getTime() >= cutoff)
+    .sort(
+      (firstChange, secondChange) =>
+        new Date(secondChange.createdAt).getTime() -
+        new Date(firstChange.createdAt).getTime(),
+    );
+}
+
+function getUnseenMenuDishRecategorizationChanges(
+  changes: MenuDishRecategorizationChange[],
+  lastSeenChangeAt: number,
+  now: () => number = () => Date.now(),
+) {
+  return getRecentMenuDishRecategorizationChanges(changes, now).filter(
+    (change) => new Date(change.createdAt).getTime() > lastSeenChangeAt,
   );
 }
 
@@ -1211,6 +1270,11 @@ export function App() {
   >([]);
   const [productNormalizationChanges, setProductNormalizationChanges] =
     useState<ShoppingProductNormalizationChange[]>([]);
+  const [menuDishRecategorizationRuns, setMenuDishRecategorizationRuns] =
+    useState<MenuDishRecategorizationRun[]>([]);
+  const [menuDishRecategorizationChanges, setMenuDishRecategorizationChanges] =
+    useState<MenuDishRecategorizationChange[]>([]);
+  const [menuDishTypes, setMenuDishTypes] = useState<MenuDishType[]>([]);
   const [tickets, setTickets] = useState<ShoppingTicket[]>([]);
   const [priceObservations, setPriceObservations] = useState<
     ShoppingPriceObservation[]
@@ -1254,6 +1318,10 @@ export function App() {
     lastSeenProductNormalizationChangeAt,
     setLastSeenProductNormalizationChangeAt,
   ] = useState(getInitialLastSeenProductNormalizationChangeAt);
+  const [
+    lastSeenMenuDishRecategorizationChangeAt,
+    setLastSeenMenuDishRecategorizationChangeAt,
+  ] = useState(getInitialLastSeenMenuDishRecategorizationChangeAt);
   const [showUnseenHistoryOnly, setShowUnseenHistoryOnly] = useState(false);
   const [historyTab, setHistoryTab] = useState<HistoryTab>("changes");
   const [unseenHistoryEventsForView, setUnseenHistoryEventsForView] = useState<
@@ -1267,6 +1335,10 @@ export function App() {
     unseenProductNormalizationChangesForView,
     setUnseenProductNormalizationChangesForView,
   ] = useState<ShoppingProductNormalizationChange[]>([]);
+  const [
+    unseenMenuDishRecategorizationChangesForView,
+    setUnseenMenuDishRecategorizationChangesForView,
+  ] = useState<MenuDishRecategorizationChange[]>([]);
   const [itemName, setItemName] = useState("");
   const [freezerItemName, setFreezerItemName] = useState("");
   const [freezerItemQuantity, setFreezerItemQuantity] = useState("");
@@ -1651,6 +1723,13 @@ export function App() {
       productNormalizationChanges,
       lastSeenProductNormalizationChangeAt,
     );
+  const recentMenuDishRecategorizationChanges =
+    getRecentMenuDishRecategorizationChanges(menuDishRecategorizationChanges);
+  const unseenMenuDishRecategorizationChanges =
+    getUnseenMenuDishRecategorizationChanges(
+      menuDishRecategorizationChanges,
+      lastSeenMenuDishRecategorizationChangeAt,
+    );
   const displayedHistoryEvents = showUnseenHistoryOnly
     ? unseenHistoryEventsForView
     : recentHistoryEvents;
@@ -1660,18 +1739,26 @@ export function App() {
   const displayedProductNormalizationChanges = showUnseenHistoryOnly
     ? unseenProductNormalizationChangesForView
     : recentProductNormalizationChanges;
+  const displayedMenuDishRecategorizationChanges = showUnseenHistoryOnly
+    ? unseenMenuDishRecategorizationChangesForView
+    : recentMenuDishRecategorizationChanges;
   const recategorizationRunsById = new Map(
     recategorizationRuns.map((run) => [run.id, run]),
   );
   const productNormalizationRunsById = new Map(
     productNormalizationRuns.map((run) => [run.id, run]),
   );
+  const menuDishRecategorizationRunsById = new Map(
+    menuDishRecategorizationRuns.map((run) => [run.id, run]),
+  );
   const displayedHistoryCount =
     historyTab === "normalizations"
       ? displayedProductNormalizationChanges.length
       : historyTab === "categories"
         ? displayedRecategorizationChanges.length
-        : displayedHistoryEvents.length;
+        : historyTab === "menu-categories"
+          ? displayedMenuDishRecategorizationChanges.length
+          : displayedHistoryEvents.length;
   const removePurchasedButtonText =
     selectedPurchasedCount === 1
       ? "Borrar 1 producto"
@@ -2166,6 +2253,45 @@ export function App() {
   }, [isLoaded]);
 
   useEffect(() => {
+    if (!isLoaded || !isSupabaseConfigured()) {
+      return;
+    }
+
+    let isActive = true;
+
+    async function refreshMenuDishRecategorizationHistory() {
+      try {
+        const libraryId = await getMenuDishLibrary();
+        const [history, types] = await Promise.all([
+          getMenuDishRecategorizationHistory(libraryId),
+          getMenuDishTypes(libraryId),
+        ]);
+        if (!isActive) return;
+        setMenuDishRecategorizationRuns(history.runs);
+        setMenuDishRecategorizationChanges(history.changes);
+        setMenuDishTypes(types);
+      } catch {
+        if (isActive) {
+          setMenuDishRecategorizationRuns([]);
+          setMenuDishRecategorizationChanges([]);
+          setMenuDishTypes([]);
+        }
+      }
+    }
+
+    void refreshMenuDishRecategorizationHistory();
+    const intervalId = window.setInterval(
+      refreshMenuDishRecategorizationHistory,
+      30_000,
+    );
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
+  }, [isLoaded]);
+
+  useEffect(() => {
     try {
       window.localStorage.setItem(selectedSectionStorageKey, selectedSectionId);
     } catch {
@@ -2250,6 +2376,17 @@ export function App() {
       return;
     }
   }, [lastSeenProductNormalizationChangeAt]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        lastSeenMenuDishRecategorizationChangeAtStorageKey,
+        String(lastSeenMenuDishRecategorizationChangeAt),
+      );
+    } catch {
+      return;
+    }
+  }, [lastSeenMenuDishRecategorizationChangeAt]);
 
   useEffect(() => {
     sectionsRef.current = sections;
@@ -4021,6 +4158,7 @@ export function App() {
     setUnseenHistoryEventsForView([]);
     setUnseenRecategorizationChangesForView([]);
     setUnseenProductNormalizationChangesForView([]);
+    setUnseenMenuDishRecategorizationChangesForView([]);
     runHapticFeedback("light");
   }
 
@@ -4031,6 +4169,7 @@ export function App() {
     setUnseenHistoryEventsForView([]);
     setUnseenRecategorizationChangesForView([]);
     setUnseenProductNormalizationChangesForView([]);
+    setUnseenMenuDishRecategorizationChangesForView([]);
     runHapticFeedback("light");
   }
 
@@ -4041,6 +4180,7 @@ export function App() {
     setUnseenHistoryEventsForView([]);
     setUnseenRecategorizationChangesForView([]);
     setUnseenProductNormalizationChangesForView([]);
+    setUnseenMenuDishRecategorizationChangesForView([]);
     runHapticFeedback("light");
   }
 
@@ -4348,6 +4488,7 @@ export function App() {
     setUnseenHistoryEventsForView([]);
     setUnseenRecategorizationChangesForView([]);
     setUnseenProductNormalizationChangesForView([]);
+    setUnseenMenuDishRecategorizationChangesForView([]);
     void refreshDeveloperBackupRun();
     runHapticFeedback("light");
   }
@@ -4362,6 +4503,7 @@ export function App() {
     setUnseenHistoryEventsForView(unseenRemoteHistoryEvents);
     setUnseenRecategorizationChangesForView([]);
     setUnseenProductNormalizationChangesForView([]);
+    setUnseenMenuDishRecategorizationChangesForView([]);
     setShowUnseenHistoryOnly(true);
     setHistoryTab("changes");
     setActiveView("history");
@@ -4378,6 +4520,7 @@ export function App() {
     setUnseenHistoryEventsForView([]);
     setUnseenRecategorizationChangesForView(unseenRecategorizationChanges);
     setUnseenProductNormalizationChangesForView([]);
+    setUnseenMenuDishRecategorizationChangesForView([]);
     setShowUnseenHistoryOnly(true);
     setHistoryTab("categories");
     setActiveView("history");
@@ -4396,6 +4539,7 @@ export function App() {
     setUnseenProductNormalizationChangesForView(
       unseenProductNormalizationChanges,
     );
+    setUnseenMenuDishRecategorizationChangesForView([]);
     setShowUnseenHistoryOnly(true);
     setHistoryTab("normalizations");
     setActiveView("history");
@@ -4436,6 +4580,41 @@ export function App() {
         ),
       );
     }
+
+    if (
+      nextTab === "menu-categories" &&
+      recentMenuDishRecategorizationChanges.length > 0
+    ) {
+      setLastSeenMenuDishRecategorizationChangeAt(
+        Math.max(
+          ...recentMenuDishRecategorizationChanges.map((change) =>
+            new Date(change.createdAt).getTime(),
+          ),
+          lastSeenMenuDishRecategorizationChangeAt,
+        ),
+      );
+    }
+  }
+
+  function showUnseenMenuDishRecategorizationView() {
+    const latestUnseenEventAt = Math.max(
+      ...unseenMenuDishRecategorizationChanges.map((change) =>
+        new Date(change.createdAt).getTime(),
+      ),
+      lastSeenMenuDishRecategorizationChangeAt,
+    );
+
+    setLastSeenMenuDishRecategorizationChangeAt(latestUnseenEventAt);
+    setUnseenHistoryEventsForView([]);
+    setUnseenRecategorizationChangesForView([]);
+    setUnseenProductNormalizationChangesForView([]);
+    setUnseenMenuDishRecategorizationChangesForView(
+      unseenMenuDishRecategorizationChanges,
+    );
+    setShowUnseenHistoryOnly(true);
+    setHistoryTab("menu-categories");
+    setActiveView("history");
+    runHapticFeedback("light");
   }
 
   function handleSectionNameChange(sectionId: ShoppingSectionId, name: string) {
@@ -4899,6 +5078,25 @@ export function App() {
         </section>
       ) : null}
 
+      {unseenMenuDishRecategorizationChanges.length > 0 &&
+      activeView !== "history" ? (
+        <section className={styles.remoteChangesBanner} role="status">
+          <span>
+            {unseenMenuDishRecategorizationChanges.length === 1
+              ? "Hay 1 recategorización nueva de platos."
+              : `Hay ${unseenMenuDishRecategorizationChanges.length} recategorizaciones nuevas de platos.`}
+          </span>
+          <button
+            className={styles.undoButton}
+            type="button"
+            onPointerDown={handleButtonPointerDown}
+            onClick={showUnseenMenuDishRecategorizationView}
+          >
+            Ver tipos de plato
+          </button>
+        </section>
+      ) : null}
+
       {activeView === "shopping" ? (
         <ShoppingBoard
           activeSectionIndicatorRef={activeSectionIndicatorRef}
@@ -5146,6 +5344,17 @@ export function App() {
               getChangeMeta={getRecategorizationChangeMeta}
               getRunSummary={getRecategorizationRunSummary}
               runsById={recategorizationRunsById}
+              showUnseenOnly={showUnseenHistoryOnly}
+            />
+          ) : historyTab === "menu-categories" ? (
+            <MenuDishRecategorizationChangesList
+              changes={displayedMenuDishRecategorizationChanges}
+              formatDate={formatHistoryEventDate}
+              getChangeMeta={(change) =>
+                getMenuDishRecategorizationChangeMeta(change, menuDishTypes)
+              }
+              getRunSummary={getMenuDishRecategorizationRunSummary}
+              runsById={menuDishRecategorizationRunsById}
               showUnseenOnly={showUnseenHistoryOnly}
             />
           ) : (

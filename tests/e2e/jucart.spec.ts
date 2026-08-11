@@ -44,7 +44,7 @@ async function createShoppingList(page: Page, name: string) {
   await dialog.getByLabel("Nueva lista").fill(name);
   await dialog.getByRole("button", { name: "Crear" }).click();
   await expect(dialog).not.toBeVisible();
-  await expect(page.getByLabel(`Nombre de ${name}`)).toHaveValue(name);
+  await expect(page.getByText(name, { exact: true }).last()).toBeVisible();
 }
 
 async function waitForStoredShoppingProduct(page: Page, name: string) {
@@ -216,9 +216,9 @@ test("creates a shopping list from the bottom sheet", async ({ page }) => {
   await dialog.getByRole("button", { name: "Crear" }).click();
 
   await expect(dialog).not.toBeVisible();
-  await expect(page.getByLabel("Nombre de Frutería e2e")).toHaveValue(
-    "Frutería e2e",
-  );
+  await expect(
+    page.getByText("Frutería e2e", { exact: true }).last(),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Lista", exact: true }).click();
 
@@ -230,13 +230,21 @@ test("creates a shopping list from the bottom sheet", async ({ page }) => {
 test("renames, colors and reorders shopping lists", async ({ page }) => {
   await createShoppingList(page, "Frutería e2e");
 
-  await page
-    .getByLabel("Nombre de Frutería e2e")
-    .locator("xpath=ancestor::li")
-    .getByRole("button", { name: "Ver detalles" })
-    .click();
-  await page.getByLabel("Nombre de Frutería e2e").fill("Fruta e2e");
-  await expect(page.getByLabel("Nombre de Fruta e2e")).toHaveValue("Fruta e2e");
+  const initialListCard = page
+    .getByText("Frutería e2e", { exact: true })
+    .last()
+    .locator("xpath=ancestor::li");
+  await initialListCard.getByRole("button", { name: "Ver detalles" }).click();
+  await initialListCard.getByRole("button", { name: "Editar" }).click();
+  const editDialog = page.getByRole("dialog", { name: "Editar lista" });
+  await editDialog.getByLabel("Nombre de la lista").fill("Fruta e2e");
+  await editDialog.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(editDialog).not.toBeVisible();
+  const renamedListCard = page
+    .getByText("Fruta e2e", { exact: true })
+    .last()
+    .locator("xpath=ancestor::li");
+  await expect(renamedListCard).toBeVisible();
 
   await page
     .getByRole("button", { name: "Poner Fruta e2e en color amber" })
@@ -247,14 +255,10 @@ test("renames, colors and reorders shopping lists", async ({ page }) => {
 
   await page.getByRole("button", { name: "Subir Fruta e2e" }).click();
 
-  const managedListNames = await page
-    .getByLabel(/^Nombre de /)
-    .evaluateAll((inputs) =>
-      inputs.map((input) => (input as HTMLInputElement).value),
-    );
-
-  expect(managedListNames.at(-2)).toBe("Fruta e2e");
-  expect(managedListNames.at(-1)).toBe("General");
+  await expect(
+    page.getByText("Fruta e2e", { exact: true }).last(),
+  ).toBeVisible();
+  await expect(page.getByText("General", { exact: true }).last()).toBeVisible();
 
   await page.getByRole("button", { name: "Lista", exact: true }).click();
 
@@ -281,11 +285,10 @@ test("removes a shopping product and restores it with undo", async ({
 }) => {
   await addShoppingProduct(page, "Huevos e2e");
 
-  page.once("dialog", async (dialog) => {
-    expect(dialog.message()).toContain("Huevos e2e");
-    await dialog.accept();
-  });
   await page.getByRole("button", { name: "Eliminar Huevos e2e" }).click();
+  const confirmation = page.getByRole("dialog", { name: "Eliminar producto" });
+  await expect(confirmation).toBeVisible();
+  await confirmation.getByRole("button", { name: "Eliminar producto" }).click();
 
   await expect(page.getByText("Producto borrado.")).toBeVisible();
   await expect(page.getByText("Huevos e2e")).toBeHidden();

@@ -1,90 +1,86 @@
-import type {
-  KeyboardEventHandler,
-  PointerEventHandler,
-  RefObject,
-} from "react";
+import type { PointerEventHandler, RefObject } from "react";
 
 import styles from "../../App.module.scss";
 import type { ShoppingItem } from "../../shoppingItems";
+import { BottomSheetFrame } from "../ui/BottomSheetFrame";
 
 type ClearPurchasedDialogProps = {
   isOpen: boolean;
-  dialogRef: RefObject<HTMLDivElement | null>;
+  backdropRef: RefObject<HTMLDivElement | null>;
   description: string;
   items: ShoppingItem[];
   confirmLabel: string;
   getUserName: (item: ShoppingItem) => string;
   onCancel: () => void;
   onConfirm: () => void;
-  onButtonPointerDown: PointerEventHandler<HTMLButtonElement>;
+  onDragEnd: PointerEventHandler<HTMLDivElement>;
+  onDragMove: PointerEventHandler<HTMLDivElement>;
+  onDragStart: PointerEventHandler<HTMLDivElement>;
+  sheetRef: RefObject<HTMLElement | null>;
+  dragOffset: number;
 };
 
 export function ClearPurchasedDialog({
   isOpen,
-  dialogRef,
+  backdropRef,
   description,
   items,
   confirmLabel,
   getUserName,
   onCancel,
   onConfirm,
-  onButtonPointerDown,
+  onDragEnd,
+  onDragMove,
+  onDragStart,
+  sheetRef,
+  dragOffset,
 }: ClearPurchasedDialogProps) {
   if (!isOpen) {
     return null;
   }
 
-  const handleKeyDown: KeyboardEventHandler<HTMLDivElement> = (event) => {
-    if (event.key === "Escape") {
-      onCancel();
-    }
-  };
-
   return (
-    <div className={styles.modalBackdrop} onClick={onCancel}>
-      <div
-        ref={dialogRef}
-        className={styles.modal}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="clear-purchased-title"
-        aria-describedby="clear-purchased-description"
-        tabIndex={-1}
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={handleKeyDown}
+    <BottomSheetFrame
+      ariaDescribedBy="clear-purchased-description"
+      ariaLabelledBy="clear-purchased-title"
+      backdropRef={backdropRef}
+      dragOffset={dragOffset}
+      onClose={onCancel}
+      onDragEnd={onDragEnd}
+      onDragMove={onDragMove}
+      onDragStart={onDragStart}
+      sheetRef={sheetRef}
+      title="Borrar comprados"
+      subtitle={description}
+      className={styles.clearPurchasedSheet}
+    >
+      <ul
+        className={styles.clearPurchasedList}
+        aria-label="Productos comprados que se borrarán"
       >
-        <h2 id="clear-purchased-title">Borrar comprados</h2>
-        <p id="clear-purchased-description">{description}</p>
-        <ul
-          className={styles.clearPurchasedList}
-          aria-label="Productos comprados que se borrarán"
+        {items.map((item) => (
+          <li key={item.id}>
+            <span>{item.name}</span>
+            <span>{getUserName(item)}</span>
+          </li>
+        ))}
+      </ul>
+      <div className={styles.modalActions}>
+        <button
+          className={styles.secondaryButton}
+          type="button"
+          onClick={onCancel}
         >
-          {items.map((item) => (
-            <li key={item.id}>
-              <span>{item.name}</span>
-              <span>{getUserName(item)}</span>
-            </li>
-          ))}
-        </ul>
-        <div className={styles.modalActions}>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onPointerDown={onButtonPointerDown}
-            onClick={onCancel}
-          >
-            Cancelar
-          </button>
-          <button
-            className={styles.dangerButton}
-            type="button"
-            onPointerDown={onButtonPointerDown}
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </button>
-        </div>
+          Cancelar
+        </button>
+        <button
+          className={styles.dangerButton}
+          type="button"
+          onClick={onConfirm}
+        >
+          {confirmLabel}
+        </button>
       </div>
-    </div>
+    </BottomSheetFrame>
   );
 }

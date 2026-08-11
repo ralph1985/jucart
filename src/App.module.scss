@@ -1503,6 +1503,10 @@ h2 {
   background: var(--surface);
 }
 
+.clearPurchasedSheet {
+  min-height: 0;
+}
+
 .confirmSheet {
   min-height: 0;
 }

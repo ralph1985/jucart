@@ -281,6 +281,7 @@ type BottomSheetOverlay = Extract<
   | "section-add-sheet"
   | "freezer-add-sheet"
   | "freezer-edit-sheet"
+  | "clear-dialog"
   | "edit-dialog"
   | "confirm-sheet"
 >;
@@ -1506,7 +1507,8 @@ export function App() {
   const editItemSheetRef = useRef<HTMLElement>(null);
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
   const freezerItemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
-  const clearDialogRef = useRef<HTMLDivElement>(null);
+  const clearSheetBackdropRef = useRef<HTMLDivElement>(null);
+  const clearSheetRef = useRef<HTMLElement>(null);
   const confirmationSheetBackdropRef = useRef<HTMLDivElement>(null);
   const confirmationSheetRef = useRef<HTMLElement>(null);
   const sectionNameInputRef = useRef<HTMLInputElement>(null);
@@ -1602,6 +1604,7 @@ export function App() {
     isFreezerAddSheetOpen ||
     editingFreezerItem !== null ||
     editingItem !== null ||
+    isClearDialogOpen ||
     confirmationRequest !== null;
   const bottomSheetFocusKey = isAddSheetOpen
     ? "add"
@@ -1613,13 +1616,15 @@ export function App() {
           ? "freezer-edit"
           : editingItem !== null
             ? "edit-item"
-            : confirmationRequest !== null
-              ? "confirm"
-              : isSectionAddSheetOpen
-                ? "section-add"
-                : isFreezerAddSheetOpen
-                  ? "freezer-add"
-                  : null;
+            : isClearDialogOpen
+              ? "clear-dialog"
+              : confirmationRequest !== null
+                ? "confirm"
+                : isSectionAddSheetOpen
+                  ? "section-add"
+                  : isFreezerAddSheetOpen
+                    ? "freezer-add"
+                    : null;
   const sheetKeyboardInset = useBottomSheetViewport({
     focusKey: bottomSheetFocusKey,
     isOpen: isBottomSheetOpen,
@@ -2797,7 +2802,7 @@ export function App() {
       return;
     }
 
-    clearDialogRef.current?.focus();
+    clearSheetRef.current?.focus();
   }, [isClearDialogOpen]);
 
   useEffect(() => {
@@ -2936,6 +2941,11 @@ export function App() {
 
     if (editingItem) {
       document.getElementById("edit-item-name")?.focus({ preventScroll: true });
+      return;
+    }
+
+    if (isClearDialogOpen) {
+      clearSheetRef.current?.focus({ preventScroll: true });
       return;
     }
 
@@ -3129,6 +3139,13 @@ export function App() {
   }
 
   function closeActiveBottomSheet() {
+    if (isClearDialogOpen) {
+      consumeOverlayHistory("clear-dialog");
+      setIsClearDialogOpen(false);
+      resetSheetDrag();
+      return;
+    }
+
     if (confirmationRequest) {
       closeConfirmation();
       return;
@@ -5704,8 +5721,9 @@ export function App() {
 
       <ClearPurchasedDialog
         isOpen={isClearDialogOpen}
-        dialogRef={clearDialogRef}
+        backdropRef={clearSheetBackdropRef}
         description={clearPurchasedDescription}
+        dragOffset={sheetDragOffset}
         items={selectedPurchasedItems}
         confirmLabel={removePurchasedButtonText}
         getUserName={(item) => getShoppingUserName(item.addedBy)}
@@ -5715,7 +5733,10 @@ export function App() {
           setIsClearDialogOpen(false);
         }}
         onConfirm={confirmRemovePurchasedItems}
-        onButtonPointerDown={handleButtonPointerDown}
+        onDragEnd={handleAddSheetDragEnd}
+        onDragMove={handleAddSheetDragMove}
+        onDragStart={handleAddSheetDragStart}
+        sheetRef={clearSheetRef}
       />
 
       {confirmationRequest ? (

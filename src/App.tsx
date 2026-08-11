@@ -5106,7 +5106,6 @@ export function App() {
           backdropRef={priceDetailSheetBackdropRef}
           formatValue={formatPriceSummaryValue}
           keyboardInset={sheetKeyboardInset}
-          onButtonPointerDown={handleButtonPointerDown}
           onClose={closePriceDetailSheet}
           onDragEnd={handleAddSheetDragEnd}
           onDragMove={handleAddSheetDragMove}

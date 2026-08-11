@@ -1495,14 +1495,14 @@ export function App() {
   const sectionAddSheetBackdropRef = useRef<HTMLDivElement>(null);
   const sectionAddSheetRef = useRef<HTMLElement>(null);
   const freezerAddSheetBackdropRef = useRef<HTMLDivElement>(null);
-  const freezerAddSheetRef = useRef<HTMLFormElement>(null);
+  const freezerAddSheetRef = useRef<HTMLElement>(null);
   const ticketUploadSheetBackdropRef = useRef<HTMLDivElement>(null);
   const ticketUploadSheetRef = useRef<HTMLFormElement>(null);
   const priceDetailSheetBackdropRef = useRef<HTMLDivElement>(null);
   const priceDetailSheetRef = useRef<HTMLElement>(null);
   const ticketFileInputRef = useRef<HTMLInputElement>(null);
   const freezerEditSheetBackdropRef = useRef<HTMLDivElement>(null);
-  const freezerEditSheetRef = useRef<HTMLFormElement>(null);
+  const freezerEditSheetRef = useRef<HTMLElement>(null);
   const editItemSheetBackdropRef = useRef<HTMLDivElement>(null);
   const editItemSheetRef = useRef<HTMLElement>(null);
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});

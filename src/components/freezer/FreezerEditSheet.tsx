@@ -14,6 +14,7 @@ import {
   type FreezerDrawerId,
   type FreezerItem,
 } from "../../freezerItems";
+import { BottomSheetFrame } from "../ui/BottomSheetFrame";
 
 type FreezerEditSheetProps = {
   backdropRef: Ref<HTMLDivElement>;
@@ -37,7 +38,7 @@ type FreezerEditSheetProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   quantity: string;
   sheetDragOffset: number;
-  sheetRef: Ref<HTMLFormElement>;
+  sheetRef: Ref<HTMLElement>;
 };
 
 export function FreezerEditSheet({
@@ -65,48 +66,23 @@ export function FreezerEditSheet({
   sheetRef,
 }: FreezerEditSheetProps) {
   return (
-    <div
-      ref={backdropRef}
-      className={styles.addSheetBackdrop}
+    <BottomSheetFrame
+      ariaLabelledBy="edit-freezer-title"
+      backdropRef={backdropRef}
+      className={styles.freezerSheetFrame}
+      dragOffset={sheetDragOffset}
+      handleLabel="Cerrar panel de edición"
+      onClose={onClose}
+      onDragEnd={onDragEnd}
+      onDragMove={onDragMove}
+      onDragStart={onDragStart}
+      sheetRef={sheetRef}
       style={
         { "--sheet-keyboard-inset": `${keyboardInset}px` } as CSSProperties
       }
-      onClick={onClose}
+      title={`Editar ${item.name}`}
     >
-      <form
-        ref={sheetRef}
-        className={`${styles.addSheet} ${styles.addSheetCompact}`}
-        role="dialog"
-        aria-modal="false"
-        aria-labelledby="edit-freezer-title"
-        style={
-          { "--sheet-drag-offset": `${sheetDragOffset}px` } as CSSProperties
-        }
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={onSheetKeyDown}
-        onSubmit={onSubmit}
-      >
-        <div
-          className={styles.addSheetHandle}
-          aria-label="Cerrar panel de edición"
-          role="button"
-          tabIndex={0}
-          onPointerDown={onDragStart}
-          onPointerMove={onDragMove}
-          onPointerUp={onDragEnd}
-          onPointerCancel={onDragEnd}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onClose();
-            }
-          }}
-        >
-          <span />
-        </div>
-        <h2 id="edit-freezer-title" className={styles.visuallyHidden}>
-          Editar {item.name}
-        </h2>
+      <form onKeyDown={onSheetKeyDown} onSubmit={onSubmit}>
         <div className={styles.addSheetFields}>
           <div className={styles.formField}>
             <label className={styles.label} htmlFor="edit-freezer-name">
@@ -189,6 +165,6 @@ export function FreezerEditSheet({
           </button>
         </div>
       </form>
-    </div>
+    </BottomSheetFrame>
   );
 }

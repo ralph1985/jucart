@@ -10,6 +10,7 @@ import type {
 
 import styles from "../../App.module.scss";
 import { freezerDrawers, type FreezerDrawerId } from "../../freezerItems";
+import { BottomSheetFrame } from "../ui/BottomSheetFrame";
 
 type FreezerAddSheetProps = {
   backdropRef: Ref<HTMLDivElement>;
@@ -33,7 +34,7 @@ type FreezerAddSheetProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   quantity: string;
   sheetDragOffset: number;
-  sheetRef: Ref<HTMLFormElement>;
+  sheetRef: Ref<HTMLElement>;
 };
 
 export function FreezerAddSheet({
@@ -61,48 +62,23 @@ export function FreezerAddSheet({
   sheetRef,
 }: FreezerAddSheetProps) {
   return (
-    <div
-      ref={backdropRef}
-      className={styles.addSheetBackdrop}
+    <BottomSheetFrame
+      ariaLabelledBy="freezer-add-sheet-title"
+      backdropRef={backdropRef}
+      className={styles.freezerSheetFrame}
+      dragOffset={sheetDragOffset}
+      handleLabel="Cerrar panel de alta"
+      onClose={onClose}
+      onDragEnd={onDragEnd}
+      onDragMove={onDragMove}
+      onDragStart={onDragStart}
+      sheetRef={sheetRef}
       style={
         { "--sheet-keyboard-inset": `${keyboardInset}px` } as CSSProperties
       }
-      onClick={onClose}
+      title="Añadir producto congelado"
     >
-      <form
-        ref={sheetRef}
-        className={`${styles.addSheet} ${styles.addSheetCompact}`}
-        role="dialog"
-        aria-modal="false"
-        aria-labelledby="freezer-add-sheet-title"
-        style={
-          { "--sheet-drag-offset": `${sheetDragOffset}px` } as CSSProperties
-        }
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={onSheetKeyDown}
-        onSubmit={onSubmit}
-      >
-        <div
-          className={styles.addSheetHandle}
-          aria-label="Cerrar panel de alta"
-          role="button"
-          tabIndex={0}
-          onPointerDown={onDragStart}
-          onPointerMove={onDragMove}
-          onPointerUp={onDragEnd}
-          onPointerCancel={onDragEnd}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onClose();
-            }
-          }}
-        >
-          <span />
-        </div>
-        <h2 id="freezer-add-sheet-title" className={styles.visuallyHidden}>
-          Añadir producto congelado
-        </h2>
+      <form onKeyDown={onSheetKeyDown} onSubmit={onSubmit}>
         <div className={styles.addSheetFields}>
           <div className={styles.formField}>
             <label className={styles.label} htmlFor="freezer-item-name">
@@ -192,6 +168,6 @@ export function FreezerAddSheet({
           </button>
         </div>
       </form>
-    </div>
+    </BottomSheetFrame>
   );
 }

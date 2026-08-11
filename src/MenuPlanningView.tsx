@@ -9,20 +9,25 @@ import {
 
 import {
   createMenuDish,
+  createMenuDishCategory,
   createMenuDishType,
   deleteMenuDish,
   deleteMenuDishType,
   getLatestMenuDishRecategorization,
   getMenuDishLibrary,
+  getMenuDishCategories,
   getMenuDishTypes,
   getMenuDishes,
   requestMenuDishRecategorization,
   undoMenuDishRecategorization,
   updateMenuDish,
+  updateMenuDishCategory,
   updateMenuDishType,
+  deleteMenuDishCategory,
 } from "./menuPlanning";
 import type {
   MenuDish,
+  MenuDishCategory,
   MenuDishRecategorizationRun,
   MenuDishType,
 } from "./menuPlanning";
@@ -78,19 +83,29 @@ export function MenuPlanningView() {
   const [libraryId, setLibraryId] = useState("");
   const [dishes, setDishes] = useState<MenuDish[]>([]);
   const [dishTypes, setDishTypes] = useState<MenuDishType[]>([]);
+  const [dishCategories, setDishCategories] = useState<MenuDishCategory[]>([]);
   const [dishName, setDishName] = useState("");
   const [dishTypeId, setDishTypeId] = useState("");
+  const [dishCategoryIds, setDishCategoryIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<DishTab>("pending");
   const [typeFilter, setTypeFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editingTypeId, setEditingTypeId] = useState("");
+  const [editingCategoryIds, setEditingCategoryIds] = useState<string[]>([]);
   const [newTypeName, setNewTypeName] = useState("");
   const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
   const [editingTypeIdInModal, setEditingTypeIdInModal] = useState<
     string | null
   >(null);
   const [editingTypeName, setEditingTypeName] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
+    null,
+  );
+  const [editingCategoryName, setEditingCategoryName] = useState("");
   const [remoteAction, setRemoteAction] = useState<RemoteAction | null>(null);
   const [latestRun, setLatestRun] =
     useState<MenuDishRecategorizationRun | null>(null);
@@ -104,13 +119,16 @@ export function MenuPlanningView() {
   const loadCollection = useCallback(async (nextLibraryId: string) => {
     setMessage("Cargando platos…");
     try {
-      const [nextDishes, nextTypes, nextRun] = await Promise.all([
-        getMenuDishes(nextLibraryId),
-        getMenuDishTypes(nextLibraryId),
-        getLatestMenuDishRecategorization(nextLibraryId),
-      ]);
+      const [nextDishes, nextTypes, nextCategories, nextRun] =
+        await Promise.all([
+          getMenuDishes(nextLibraryId),
+          getMenuDishTypes(nextLibraryId),
+          getMenuDishCategories(nextLibraryId),
+          getLatestMenuDishRecategorization(nextLibraryId),
+        ]);
       setDishes(nextDishes);
       setDishTypes(nextTypes);
+      setDishCategories(nextCategories);
       setLatestRun(nextRun);
       setMessage("");
     } catch {
@@ -168,15 +186,23 @@ export function MenuPlanningView() {
 
   const collectionDishes = libraryId ? dishes : null;
   const collectionTypes = libraryId ? dishTypes : [];
-  const visibleDishes = useMemo(
-    () =>
-      (collectionDishes ?? []).filter(
-        (dish) =>
-          dish.status === activeTab &&
-          (!typeFilter || dish.dishTypeId === typeFilter),
-      ),
-    [activeTab, collectionDishes, typeFilter],
-  );
+  const visibleDishes = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLocaleLowerCase("es");
+    return (collectionDishes ?? []).filter((dish) => {
+      const matchesQuery =
+        !normalizedQuery ||
+        `${dish.name} ${dish.categories.map((category) => category.name).join(" ")}`
+          .toLocaleLowerCase("es")
+          .includes(normalizedQuery);
+      return (
+        dish.status === activeTab &&
+        matchesQuery &&
+        (!typeFilter || dish.dishTypeId === typeFilter) &&
+        (!categoryFilter ||
+          dish.categories.some((category) => category.id === categoryFilter))
+      );
+    });
+  }, [activeTab, categoryFilter, collectionDishes, searchQuery, typeFilter]);
   const pendingCount = (collectionDishes ?? []).filter(
     (dish) => dish.status === "pending",
   ).length;
@@ -193,6 +219,20 @@ export function MenuPlanningView() {
       ),
     [dishTypes, dishes],
   );
+  const categoryUsage = useMemo(
+    () =>
+      new Map(
+        dishCategories.map((category) => [
+          category.id,
+          dishes.filter((dish) =>
+            dish.categories.some(
+              (dishCategory) => dishCategory.id === category.id,
+            ),
+          ).length,
+        ]),
+      ),
+    [dishCategories, dishes],
+  );
   const statusMessage = message;
   const recategorizationRunning =
     remoteAction?.status === "pending" || remoteAction?.status === "running";
@@ -207,9 +247,11 @@ export function MenuPlanningView() {
         libraryId,
         dishName,
         dishTypeId || null,
+        dishCategoryIds,
       );
       setDishes((current) => [dish, ...current]);
       setDishName("");
+      setDishCategoryIds([]);
       setMessage("Plato añadido.");
     } catch {
       setMessage(
@@ -246,6 +288,7 @@ export function MenuPlanningView() {
     setEditingId(dish.id);
     setEditingName(dish.name);
     setEditingTypeId(dish.dishTypeId ?? "");
+    setEditingCategoryIds(dish.categories.map((category) => category.id));
   }
 
   async function saveEdit(event: FormEvent, dish: MenuDish) {
@@ -256,6 +299,7 @@ export function MenuPlanningView() {
       const updated = await updateMenuDish(dish.id, {
         name: editingName,
         dishTypeId: editingTypeId || null,
+        categoryIds: editingCategoryIds,
       });
       setDishes((current) =>
         current.map((currentDish) =>
@@ -294,6 +338,52 @@ export function MenuPlanningView() {
       setModalMessage("Tipo de plato añadido.");
     } catch {
       setModalMessage("No se pudo guardar el tipo de plato.");
+    }
+  }
+
+  async function addDishCategory(event: FormEvent) {
+    event.preventDefault();
+    if (!libraryId || !newCategoryName.trim()) return;
+    try {
+      await createMenuDishCategory(libraryId, newCategoryName);
+      setNewCategoryName("");
+      setDishCategories(await getMenuDishCategories(libraryId));
+      setModalMessage("Categoría culinaria añadida.");
+    } catch {
+      setModalMessage("No se pudo guardar la categoría culinaria.");
+    }
+  }
+
+  async function saveDishCategory(
+    event: FormEvent,
+    category: MenuDishCategory,
+  ) {
+    event.preventDefault();
+    if (!editingCategoryName.trim()) return;
+    try {
+      await updateMenuDishCategory(category.id, editingCategoryName);
+      setDishCategories(await getMenuDishCategories(libraryId));
+      setEditingCategoryId(null);
+      setModalMessage("Categoría culinaria actualizada.");
+    } catch {
+      setModalMessage("No se pudo actualizar la categoría culinaria.");
+    }
+  }
+
+  async function removeDishCategory(category: MenuDishCategory) {
+    if (
+      !window.confirm(
+        `¿Eliminar «${category.name}»? Se quitará de los platos, pero no se borrarán platos.`,
+      )
+    )
+      return;
+    try {
+      await deleteMenuDishCategory(category.id);
+      setDishCategories(await getMenuDishCategories(libraryId));
+      setDishes(await getMenuDishes(libraryId));
+      setModalMessage("Categoría culinaria eliminada.");
+    } catch {
+      setModalMessage("No se pudo eliminar la categoría culinaria.");
     }
   }
 
@@ -408,6 +498,29 @@ export function MenuPlanningView() {
               </option>
             ))}
           </select>
+          <select
+            aria-label="Categorías del nuevo plato"
+            multiple
+            value={dishCategoryIds}
+            onChange={(event) =>
+              setDishCategoryIds(
+                [...event.target.selectedOptions].map((option) => option.value),
+              )
+            }
+            disabled={!libraryId || isSaving}
+          >
+            {dishCategories.length === 0 ? (
+              <option value="" disabled>
+                Sin categorías
+              </option>
+            ) : (
+              dishCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))
+            )}
+          </select>
           <button
             type="submit"
             disabled={!dishName.trim() || !libraryId || isSaving}
@@ -440,22 +553,49 @@ export function MenuPlanningView() {
         </button>
       </div>
 
-      {collectionTypes.length > 0 ? (
-        <label className="menuFilterField">
-          Filtrar por tipo
-          <select
-            value={typeFilter}
-            onChange={(event) => setTypeFilter(event.target.value)}
-          >
-            <option value="">Todos los tipos</option>
-            {collectionTypes.map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.name}
-              </option>
-            ))}
-          </select>
+      <div className="menuDishFilters">
+        <label className="menuFilterField menuSearchField">
+          Buscar platos
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Buscar por nombre o categoría…"
+          />
         </label>
-      ) : null}
+        {collectionTypes.length > 0 ? (
+          <label className="menuFilterField">
+            Tipo funcional
+            <select
+              value={typeFilter}
+              onChange={(event) => setTypeFilter(event.target.value)}
+            >
+              <option value="">Todos los tipos</option>
+              {collectionTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        {dishCategories.length > 0 ? (
+          <label className="menuFilterField">
+            Categoría culinaria
+            <select
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+            >
+              <option value="">Todas las categorías</option>
+              {dishCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
 
       <section
         className="menuDishList"
@@ -490,6 +630,24 @@ export function MenuPlanningView() {
                       </option>
                     ))}
                   </select>
+                  <select
+                    aria-label={`Categorías de ${dish.name}`}
+                    multiple
+                    value={editingCategoryIds}
+                    onChange={(event) =>
+                      setEditingCategoryIds(
+                        [...event.target.selectedOptions].map(
+                          (option) => option.value,
+                        ),
+                      )
+                    }
+                  >
+                    {dishCategories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
                   <button type="submit">Guardar</button>
                   <button type="button" onClick={() => setEditingId(null)}>
                     Cancelar
@@ -505,6 +663,13 @@ export function MenuPlanningView() {
                         ? ` · ${formatCookedAt(dish.cookedAt)}`
                         : ""}
                     </span>
+                    {dish.categories.length > 0 ? (
+                      <div className="menuDishTags" aria-label="Categorías">
+                        {dish.categories.map((category) => (
+                          <span key={category.id}>{category.name}</span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="menuDishActions">
                     <button
@@ -660,6 +825,95 @@ export function MenuPlanningView() {
                 </button>
               </div>
             </form>
+            <section
+              className="menuCategoryManager"
+              aria-labelledby="menu-categories-title"
+            >
+              <div className="menuManagerSectionHeader">
+                <div>
+                  <p className="menuPlanningEyebrow">Nueva clasificación</p>
+                  <h4 id="menu-categories-title">Categorías culinarias</h4>
+                </div>
+                <span>{dishCategories.length}</span>
+              </div>
+              <p className="menuTypesModalIntro">
+                Puedes asignar varias categorías a cada plato para encontrar
+                ideas por ingrediente o preparación.
+              </p>
+              <div className="menuCategoryList">
+                {dishCategories.map((category) =>
+                  editingCategoryId === category.id ? (
+                    <form
+                      className="menuTypeRow"
+                      key={category.id}
+                      onSubmit={(event) =>
+                        void saveDishCategory(event, category)
+                      }
+                    >
+                      <input
+                        aria-label={`Renombrar categoría ${category.name}`}
+                        value={editingCategoryName}
+                        onChange={(event) =>
+                          setEditingCategoryName(event.target.value)
+                        }
+                        autoFocus
+                      />
+                      <button type="submit">Guardar</button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingCategoryId(null)}
+                      >
+                        Cancelar
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="menuTypeRow" key={category.id}>
+                      <span>
+                        <strong>{category.name}</strong>
+                        <small>
+                          {categoryUsage.get(category.id) ?? 0} platos
+                        </small>
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Editar categoría ${category.name}`}
+                        onClick={() => {
+                          setEditingCategoryId(category.id);
+                          setEditingCategoryName(category.name);
+                        }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Eliminar categoría ${category.name}`}
+                        onClick={() => void removeDishCategory(category)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  ),
+                )}
+              </div>
+              <form className="menuTypeAddForm" onSubmit={addDishCategory}>
+                <label htmlFor="new-dish-category">Nueva categoría</label>
+                <div>
+                  <input
+                    id="new-dish-category"
+                    value={newCategoryName}
+                    onChange={(event) => setNewCategoryName(event.target.value)}
+                    placeholder="Pasta, verduras…"
+                  />
+                  <button
+                    type="submit"
+                    aria-label="Añadir categoría"
+                    disabled={!newCategoryName.trim()}
+                  >
+                    Añadir
+                  </button>
+                </div>
+              </form>
+            </section>
             <section
               className="menuRecategorizationPanel"
               aria-label="Recategorización con Codex"

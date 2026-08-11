@@ -11,3 +11,4 @@ coverage
 *.tsbuildinfo
 var/backups/
 var/log/
+/Comidas.xlsx

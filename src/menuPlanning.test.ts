@@ -14,6 +14,10 @@ import {
   createMenuDish,
   createMenuDishType,
   deleteMenuDish,
+  getMenuDishCategories,
+  createMenuDishCategory,
+  updateMenuDishCategory,
+  deleteMenuDishCategory,
   getMenuDishLibrary,
   getMenuDishes,
   getMenuDishTypes,
@@ -57,6 +61,16 @@ const row = {
   created_at: "2026-08-10T10:00:00Z",
   updated_at: "2026-08-10T10:00:00Z",
   menu_dish_types: { id: "type-1", name: "Legumbres" },
+  menu_dish_category_links: [
+    {
+      position: 0,
+      menu_dish_categories: {
+        id: "category-1",
+        name: "Legumbres",
+        position: 0,
+      },
+    },
+  ],
 };
 
 describe("menuPlanning", () => {
@@ -77,7 +91,9 @@ describe("menuPlanning", () => {
         ? query({ id: "library-1" })
         : name === "menu_dish_types"
           ? query([{ id: "type-1", name: "Legumbres" }])
-          : query([row]),
+          : name === "menu_dish_categories"
+            ? query([{ id: "category-1", name: "Legumbres", position: 0 }])
+            : query([row]),
     );
     await expect(getMenuDishLibrary()).resolves.toBe("library-1");
     await expect(getMenuDishes("library-1")).resolves.toEqual([
@@ -85,6 +101,42 @@ describe("menuPlanning", () => {
     ]);
     await expect(getMenuDishTypes("library-1")).resolves.toEqual([
       { id: "type-1", name: "Legumbres" },
+    ]);
+    await expect(getMenuDishCategories("library-1")).resolves.toEqual([
+      { id: "category-1", name: "Legumbres", position: 0 },
+    ]);
+  });
+
+  it("rechaza una biblioteca sin identificador", async () => {
+    mocks.from.mockReturnValue(query(null));
+    await expect(getMenuDishLibrary()).rejects.toThrow(
+      "No tienes una biblioteca de platos compartida.",
+    );
+  });
+
+  it("tolera platos antiguos sin tipo ni categorías", async () => {
+    mocks.from.mockReturnValue(
+      query([
+        {
+          ...row,
+          menu_dish_types: null,
+          menu_dish_category_links: [
+            { position: 0, menu_dish_categories: null },
+          ],
+        },
+      ]),
+    );
+    await expect(getMenuDishes("library-1")).resolves.toEqual([
+      expect.objectContaining({ typeName: null, categories: [] }),
+    ]);
+  });
+
+  it("tolera respuestas remotas sin la relación de categorías", async () => {
+    mocks.from.mockReturnValue(
+      query([{ ...row, menu_dish_category_links: undefined }]),
+    );
+    await expect(getMenuDishes("library-1")).resolves.toEqual([
+      expect.objectContaining({ categories: [] }),
     ]);
   });
 
@@ -99,6 +151,7 @@ describe("menuPlanning", () => {
       updateMenuDish("dish-1", {
         status: "cooked",
         cookedAt: "2026-08-10T12:00:00Z",
+        categoryIds: ["category-1"],
       }),
     ).resolves.toMatchObject({
       id: "dish-1",
@@ -107,6 +160,13 @@ describe("menuPlanning", () => {
     await expect(
       createMenuDishType("library-1", " Pasta "),
     ).resolves.toBeUndefined();
+    await expect(
+      createMenuDishCategory("library-1", " Verduras "),
+    ).resolves.toBeUndefined();
+    await expect(
+      updateMenuDishCategory("category-1", " Hortalizas "),
+    ).resolves.toBeUndefined();
+    await expect(deleteMenuDishCategory("category-1")).resolves.toBeUndefined();
   });
 
   it("gestiona tipos y recategorización remota con deshacer", async () => {

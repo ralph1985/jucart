@@ -14,9 +14,13 @@ const mocks = vi.hoisted(() => ({
   updateDish: vi.fn(),
   deleteDish: vi.fn(),
   getTypes: vi.fn(),
+  getCategories: vi.fn(),
   createType: vi.fn(),
+  createCategory: vi.fn(),
   updateType: vi.fn(),
+  updateCategory: vi.fn(),
   deleteType: vi.fn(),
+  deleteCategory: vi.fn(),
   getLatestRun: vi.fn(),
   requestRecategorization: vi.fn(),
   undoRecategorization: vi.fn(),
@@ -30,9 +34,13 @@ vi.mock("./menuPlanning", () => ({
   updateMenuDish: mocks.updateDish,
   deleteMenuDish: mocks.deleteDish,
   getMenuDishTypes: mocks.getTypes,
+  getMenuDishCategories: mocks.getCategories,
   createMenuDishType: mocks.createType,
+  createMenuDishCategory: mocks.createCategory,
   updateMenuDishType: mocks.updateType,
+  updateMenuDishCategory: mocks.updateCategory,
   deleteMenuDishType: mocks.deleteType,
+  deleteMenuDishCategory: mocks.deleteCategory,
   getLatestMenuDishRecategorization: mocks.getLatestRun,
   requestMenuDishRecategorization: mocks.requestRecategorization,
   undoMenuDishRecategorization: mocks.undoRecategorization,
@@ -52,6 +60,7 @@ const pendingDish = {
   cookedAt: null,
   createdAt: "2026-08-10T10:00:00Z",
   updatedAt: "2026-08-10T10:00:00Z",
+  categories: [],
 } as const;
 const cookedDish = {
   ...pendingDish,
@@ -67,6 +76,9 @@ describe("MenuPlanningView", () => {
     mocks.getLibrary.mockResolvedValue("library-1");
     mocks.getDishes.mockResolvedValue([pendingDish, cookedDish]);
     mocks.getTypes.mockResolvedValue([{ id: "type-1", name: "Legumbres" }]);
+    mocks.getCategories.mockResolvedValue([
+      { id: "category-1", name: "Legumbres", position: 0 },
+    ]);
     mocks.createDish.mockResolvedValue({
       ...pendingDish,
       id: "dish-3",
@@ -82,8 +94,11 @@ describe("MenuPlanningView", () => {
       }),
     );
     mocks.createType.mockResolvedValue(undefined);
+    mocks.createCategory.mockResolvedValue(undefined);
     mocks.updateType.mockResolvedValue(undefined);
+    mocks.updateCategory.mockResolvedValue(undefined);
     mocks.deleteType.mockResolvedValue(undefined);
+    mocks.deleteCategory.mockResolvedValue(undefined);
     mocks.getLatestRun.mockResolvedValue(null);
     mocks.requestRecategorization.mockResolvedValue("action-1");
     mocks.undoRecategorization.mockResolvedValue(1);
@@ -109,6 +124,7 @@ describe("MenuPlanningView", () => {
         "library-1",
         "Macarrones",
         null,
+        [],
       ),
     );
 
@@ -151,6 +167,20 @@ describe("MenuPlanningView", () => {
     await waitFor(() =>
       expect(mocks.deleteDish).toHaveBeenCalledWith("dish-2"),
     );
+  });
+
+  it("busca platos por nombre y mantiene el filtro de estado", async () => {
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
+    );
+
+    fireEvent.change(screen.getByLabelText("Buscar platos"), {
+      target: { value: "tortilla" },
+    });
+    expect(screen.queryByText("Lentejas")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /Cocinados/ }));
+    expect(screen.getByText("Tortilla")).toBeInTheDocument();
   });
 
   it("gestiona tipos y errores de carga", async () => {
@@ -301,6 +331,92 @@ describe("MenuPlanningView", () => {
     await waitFor(() =>
       expect(
         within(dialog).getByText("No se pudo eliminar el tipo de plato."),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("gestiona categorías culinarias desde la biblioteca", async () => {
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Gestionar tipos de plato" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Tipos de plato" });
+
+    fireEvent.change(within(dialog).getByLabelText("Nueva categoría"), {
+      target: { value: "Verduras" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Añadir categoría" }),
+    );
+    await waitFor(() =>
+      expect(mocks.createCategory).toHaveBeenCalledWith(
+        "library-1",
+        "Verduras",
+      ),
+    );
+
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: "Editar categoría Legumbres",
+      }),
+    );
+    fireEvent.change(
+      within(dialog).getByRole("textbox", {
+        name: "Renombrar categoría Legumbres",
+      }),
+      { target: { value: "Hortalizas" } },
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar" }));
+    await waitFor(() =>
+      expect(mocks.updateCategory).toHaveBeenCalledWith(
+        "category-1",
+        "Hortalizas",
+      ),
+    );
+
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: "Eliminar categoría Legumbres",
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.deleteCategory).toHaveBeenCalledWith("category-1"),
+    );
+  });
+
+  it("informa errores al guardar o eliminar categorías", async () => {
+    mocks.createCategory.mockRejectedValueOnce(new Error("offline"));
+    mocks.deleteCategory.mockRejectedValueOnce(new Error("offline"));
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Gestionar tipos de plato" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Tipos de plato" });
+    fireEvent.change(within(dialog).getByLabelText("Nueva categoría"), {
+      target: { value: "Verduras" },
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Añadir categoría" }),
+    );
+    await waitFor(() =>
+      expect(
+        within(dialog).getByText("No se pudo guardar la categoría culinaria."),
+      ).toBeInTheDocument(),
+    );
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: "Eliminar categoría Legumbres",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        within(dialog).getByText("No se pudo eliminar la categoría culinaria."),
       ).toBeInTheDocument(),
     );
   });

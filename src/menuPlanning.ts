@@ -14,8 +14,10 @@ export type MenuDish = {
   cookedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  categories: MenuDishCategory[];
 };
 export type MenuDishType = { id: string; name: string };
+export type MenuDishCategory = { id: string; name: string; position: number };
 export type MenuDishRecategorizationRun = {
   id: string;
   libraryId: string;
@@ -58,8 +60,13 @@ type MenuDishRow = {
   created_at: string;
   updated_at: string;
   menu_dish_types: { id: string; name: string } | null;
+  menu_dish_category_links: Array<{
+    position: number;
+    menu_dish_categories: MenuDishCategoryRow | null;
+  }>;
 };
 type MenuDishTypeRow = { id: string; name: string };
+type MenuDishCategoryRow = { id: string; name: string; position: number };
 type MenuDishRecategorizationRunRow = {
   id: string;
   library_id: string;
@@ -101,11 +108,19 @@ function mapDish(row: MenuDishRow): MenuDish {
     cookedAt: row.cooked_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    categories: (row.menu_dish_category_links ?? [])
+      .filter((link) => link.menu_dish_categories)
+      .sort((left, right) => left.position - right.position)
+      .map((link) => ({
+        id: link.menu_dish_categories!.id,
+        name: link.menu_dish_categories!.name,
+        position: link.menu_dish_categories!.position,
+      })),
   };
 }
 
 const dishColumns =
-  "id, library_id, name, dish_type_id, status, cooked_at, created_at, updated_at, menu_dish_types(id, name)";
+  "id, library_id, name, dish_type_id, status, cooked_at, created_at, updated_at, menu_dish_types(id, name), menu_dish_category_links(position, menu_dish_categories(id, name, position))";
 
 export async function getMenuDishLibrary(): Promise<string> {
   const { data, error } = await (table("menu_dish_libraries")
@@ -135,6 +150,7 @@ export async function createMenuDish(
   libraryId: string,
   name: string,
   dishTypeId: string | null,
+  categoryIds: string[] = [],
 ): Promise<MenuDish> {
   const { data, error } = await (table("menu_dishes")
     .insert({
@@ -148,7 +164,39 @@ export async function createMenuDish(
     .single() as unknown as Promise<TableResult>);
   if (error) throw error;
   if (!data) throw new Error("No se pudo guardar el plato.");
+  const dish = mapDish(data as MenuDishRow);
+  await replaceMenuDishCategories(dish.id, categoryIds);
+  return getMenuDish(dish.id);
+}
+
+async function getMenuDish(dishId: string): Promise<MenuDish> {
+  const { data, error } = await (table("menu_dishes")
+    .select(dishColumns)
+    .eq("id", dishId)
+    .single() as unknown as Promise<TableResult>);
+  if (error) throw error;
+  if (!data) throw new Error("No se pudo cargar el plato.");
   return mapDish(data as MenuDishRow);
+}
+
+async function replaceMenuDishCategories(
+  dishId: string,
+  categoryIds: string[],
+) {
+  const { error: deleteError } = await (table("menu_dish_category_links")
+    .delete()
+    .eq("dish_id", dishId) as unknown as Promise<TableResult>);
+  if (deleteError) throw deleteError;
+  const uniqueCategoryIds = [...new Set(categoryIds)];
+  if (uniqueCategoryIds.length === 0) return;
+  const { error } = await (table("menu_dish_category_links").insert(
+    uniqueCategoryIds.map((categoryId, position) => ({
+      dish_id: dishId,
+      category_id: categoryId,
+      position,
+    })),
+  ) as unknown as Promise<TableResult>);
+  if (error) throw error;
 }
 
 export async function updateMenuDish(
@@ -158,6 +206,7 @@ export async function updateMenuDish(
     dishTypeId?: string | null;
     status?: MenuDishStatus;
     cookedAt?: string | null;
+    categoryIds?: string[];
   },
 ): Promise<MenuDish> {
   const update: Record<string, unknown> = {};
@@ -172,7 +221,9 @@ export async function updateMenuDish(
     .single() as unknown as Promise<TableResult>);
   if (error) throw error;
   if (!data) throw new Error("No se pudo actualizar el plato.");
-  return mapDish(data as MenuDishRow);
+  if (values.categoryIds !== undefined)
+    await replaceMenuDishCategories(dishId, values.categoryIds);
+  return getMenuDish(dishId);
 }
 
 export async function deleteMenuDish(dishId: string) {
@@ -214,6 +265,42 @@ export async function deleteMenuDishType(typeId: string) {
   const { error } = await (table("menu_dish_types")
     .delete()
     .eq("id", typeId) as unknown as Promise<TableResult>);
+  if (error) throw error;
+}
+
+export async function getMenuDishCategories(libraryId: string) {
+  const { data, error } = await (table("menu_dish_categories")
+    .select("id, name, position")
+    .eq("library_id", libraryId)
+    .order("position", { ascending: true }) as unknown as Promise<TableResult>);
+  if (error) throw error;
+  return ((data ?? []) as MenuDishCategoryRow[]).map((category) => ({
+    id: category.id,
+    name: category.name,
+    position: category.position,
+  }));
+}
+
+export async function createMenuDishCategory(libraryId: string, name: string) {
+  const { error } = await (table("menu_dish_categories").insert({
+    library_id: libraryId,
+    name: name.trim(),
+    position: Date.now(),
+  }) as unknown as Promise<TableResult>);
+  if (error) throw error;
+}
+
+export async function updateMenuDishCategory(categoryId: string, name: string) {
+  const { error } = await (table("menu_dish_categories")
+    .update({ name: name.trim() })
+    .eq("id", categoryId) as unknown as Promise<TableResult>);
+  if (error) throw error;
+}
+
+export async function deleteMenuDishCategory(categoryId: string) {
+  const { error } = await (table("menu_dish_categories")
+    .delete()
+    .eq("id", categoryId) as unknown as Promise<TableResult>);
   if (error) throw error;
 }
 

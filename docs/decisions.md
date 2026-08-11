@@ -246,3 +246,9 @@ La actualización externa de precios del Hito 35 se ejecuta solo como script man
 En v1, cuando exista histórico suficiente, cada tarjeta de producto en la lista de compra debe mostrar en pequeño el último precio global y el precio medio global. La tarjeta también debe ofrecer un botón para abrir el detalle ampliado de precios del producto en un bottom sheet. Ese detalle muestra desglose por supermercado o lista, diferencia exacta en euros frente al precio anterior y todas las observaciones históricas disponibles del producto, sin convertir la bandeja de tickets en la superficie principal de análisis. Una vista global de Precios queda para una fase v2 junto con posibles actualizaciones desde APIs externas.
 
 La revisión de líneas dudosas y aliases propuestos por Codex vive en la vista Tickets, no en el bottom sheet de producto. Desde Tickets se puede aceptar una asociación o dejar una línea fuera del análisis. Al aceptar manualmente una asociación de línea con producto canónico, se crea automáticamente un alias para futuras normalizaciones. Las líneas excluidas se conservan visibles como `Excluida` en el ticket.
+
+## Biblioteca de platos y categorías culinarias
+
+La biblioteca de platos conserva el tipo funcional existente (`Entrante`, `Principal`, `Guarnición`, etc.) y añade categorías culinarias independientes. Un plato puede tener varias categorías, por ejemplo `Pollo` y `Verduras`. Estas categorías viven en `menu_dish_categories` y se relacionan mediante `menu_dish_category_links`, con RLS vinculada a la biblioteca compartida.
+
+La importación inicial de `Comidas.xlsx` es conservadora: mantiene los platos y estados existentes, usa coincidencias normalizadas solo como ayuda, y deja fusiones o clasificaciones dudosas para revisión manual. El Excel es una fuente inicial privada; después Jucart es la fuente principal. El archivo no se versiona.

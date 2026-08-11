@@ -16,8 +16,8 @@ type LocalSectionsManagerProps = {
   items: ShoppingItem[];
   onButtonPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
   onColorChange: (sectionId: string, color: ShoppingSectionColor) => void;
+  onEdit: (section: ShoppingSection) => void;
   onMove: (sectionId: string, direction: -1 | 1) => void;
-  onNameChange: (sectionId: string, name: string) => void;
   onOpen: (sectionId: string) => void;
   onRemove: (sectionId: string) => void;
   onToggle: (sectionId: string) => void;
@@ -31,8 +31,8 @@ export function LocalSectionsManager({
   items,
   onButtonPointerDown,
   onColorChange,
+  onEdit,
   onMove,
-  onNameChange,
   onOpen,
   onRemove,
   onToggle,
@@ -61,18 +61,7 @@ export function LocalSectionsManager({
               key={section.id}
             >
               <div className={styles.shoppingListCardHeader}>
-                <input
-                  className={styles.input}
-                  aria-label={`Nombre de ${section.name}`}
-                  value={section.name}
-                  onChange={(event) =>
-                    isExpanded
-                      ? onNameChange(section.id, event.target.value)
-                      : undefined
-                  }
-                  disabled={!isLoaded || !isExpanded}
-                  type="text"
-                />
+                <strong>{section.name}</strong>
                 <div className={styles.shoppingListStats}>
                   <span>{sectionPendingCount} pendientes</span>
                   <span>{sectionProductCount} productos</span>
@@ -94,6 +83,15 @@ export function LocalSectionsManager({
                   onClick={() => onOpen(section.id)}
                 >
                   Abrir lista
+                </button>
+                <button
+                  className={styles.secondaryButton}
+                  type="button"
+                  onPointerDown={onButtonPointerDown}
+                  onClick={() => onEdit(section)}
+                  disabled={!isLoaded}
+                >
+                  Editar
                 </button>
               </div>
               {isExpanded ? (

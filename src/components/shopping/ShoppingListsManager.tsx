@@ -21,12 +21,12 @@ type ShoppingListsManagerProps = {
   onColorChange: (sectionId: string, color: ShoppingSectionColor) => void;
   onCreate: () => void;
   onDelete: (list: ShoppingList) => void;
+  onEdit: (list: ShoppingList) => void;
   onLeave: (listId: string) => void;
   onMove: (listId: string, direction: -1 | 1) => void;
   onOpen: (sectionId: string | undefined) => void;
   onRegenerateCode: (listId: string) => void;
   onRemoveMember: (list: ShoppingList, member: ShoppingListMember) => void;
-  onRename: (listId: string, name: string) => void;
   onToggleDetails: (listId: string) => void;
   onTransferOwnership: (list: ShoppingList, member: ShoppingListMember) => void;
   sections: ShoppingSection[];
@@ -43,12 +43,12 @@ export function ShoppingListsManager({
   onColorChange,
   onCreate,
   onDelete,
+  onEdit,
   onLeave,
   onMove,
   onOpen,
   onRegenerateCode,
   onRemoveMember,
-  onRename,
   onToggleDetails,
   onTransferOwnership,
   sections,
@@ -86,23 +86,7 @@ export function ShoppingListsManager({
                 className={`${styles.shoppingListManagerItem} ${listSection ? styles[`shoppingListCardColor${listSection.color}`] : ""}`}
               >
                 <div className={styles.shoppingListCardHeader}>
-                  {isOwner ? (
-                    <input
-                      className={styles.input}
-                      aria-label={`Nombre de ${list.name}`}
-                      defaultValue={list.name}
-                      type="text"
-                      onBlur={(event) => onRename(list.id, event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.currentTarget.blur();
-                        }
-                      }}
-                      disabled={isActionPending}
-                    />
-                  ) : (
-                    <strong>{list.name}</strong>
-                  )}
+                  <strong>{list.name}</strong>
                   <div className={styles.shoppingListStats}>
                     <span>{pendingCount} pendientes</span>
                     <span>{productCount} productos</span>
@@ -126,6 +110,16 @@ export function ShoppingListsManager({
                   >
                     Abrir lista
                   </button>
+                  {isOwner ? (
+                    <button
+                      className={styles.secondaryButton}
+                      type="button"
+                      onPointerDown={onButtonPointerDown}
+                      onClick={() => onEdit(list)}
+                    >
+                      Editar
+                    </button>
+                  ) : null}
                 </div>
                 {isExpanded ? (
                   <div className={styles.shoppingListDetails}>

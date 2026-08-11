@@ -31,6 +31,9 @@ type CreateSectionSheetProps = {
   selectedColor: ShoppingSectionColor;
   sheetDragOffset: number;
   sheetRef: Ref<HTMLFormElement>;
+  nameLabel?: string;
+  submitLabel?: string;
+  title?: string;
 };
 
 export function CreateSectionSheet({
@@ -51,6 +54,9 @@ export function CreateSectionSheet({
   selectedColor,
   sheetDragOffset,
   sheetRef,
+  nameLabel = "Nueva lista",
+  submitLabel = "Crear",
+  title = "Crear lista",
 }: CreateSectionSheetProps) {
   return (
     <div
@@ -93,12 +99,12 @@ export function CreateSectionSheet({
           <span />
         </div>
         <h2 id="section-add-sheet-title" className={styles.visuallyHidden}>
-          Crear lista
+          {title}
         </h2>
         <div className={styles.addSheetFields}>
           <div className={styles.formField}>
             <label className={styles.label} htmlFor="section-name">
-              Nueva lista
+              {nameLabel}
             </label>
             <input
               id="section-name"
@@ -153,7 +159,7 @@ export function CreateSectionSheet({
             onPointerDown={onButtonPointerDown}
             disabled={!isLoaded}
           >
-            Crear
+            {submitLabel}
           </button>
         </div>
       </form>

@@ -1364,6 +1364,11 @@ export function App() {
   const [sectionActionMessage, setSectionActionMessage] = useState<
     string | null
   >(null);
+  const [editingShoppingSectionId, setEditingShoppingSectionId] =
+    useState<ShoppingSectionId | null>(null);
+  const [editingShoppingListId, setEditingShoppingListId] = useState<
+    string | null
+  >(null);
   const [selectedSectionId, setSelectedSectionId] = useState<ShoppingSectionId>(
     getInitialSelectedSectionId,
   );
@@ -3048,6 +3053,8 @@ export function App() {
         setClosingBottomSheet(null);
         setSectionName("");
         setNewSectionColor("mint");
+        setEditingShoppingSectionId(null);
+        setEditingShoppingListId(null);
         resetSheetDrag();
 
         if (restoreFabFocus) {
@@ -3058,10 +3065,35 @@ export function App() {
   }
 
   function openSectionAddSheet() {
+    setEditingShoppingSectionId(null);
+    setEditingShoppingListId(null);
     pushOverlayHistory("section-add-sheet");
     flushSync(() => {
       setIsSectionAddSheetOpen(true);
     });
+    runHapticFeedback("light");
+  }
+
+  function openSectionEditSheet(section: ShoppingSection) {
+    setEditingShoppingSectionId(section.id);
+    setEditingShoppingListId(null);
+    setSectionName(section.name);
+    setNewSectionColor(section.color);
+    pushOverlayHistory("section-add-sheet");
+    setIsSectionAddSheetOpen(true);
+    runHapticFeedback("light");
+  }
+
+  function openShoppingListEditSheet(list: ShoppingList) {
+    const listSection = sections.find((section) =>
+      section.id.startsWith(`${list.id}::`),
+    );
+    setEditingShoppingSectionId(null);
+    setEditingShoppingListId(list.id);
+    setSectionName(list.name);
+    setNewSectionColor(listSection?.color ?? "mint");
+    pushOverlayHistory("section-add-sheet");
+    setIsSectionAddSheetOpen(true);
     runHapticFeedback("light");
   }
 
@@ -4058,6 +4090,31 @@ export function App() {
   }
 
   async function handleCreateShoppingList() {
+    if (editingShoppingListId) {
+      await handleRenameShoppingList(editingShoppingListId, sectionName);
+      if (sectionName.trim()) {
+        const listSection = sections.find((section) =>
+          section.id.startsWith(`${editingShoppingListId}::`),
+        );
+        if (listSection && listSection.color !== newSectionColor) {
+          handleSectionColorChange(listSection.id, newSectionColor);
+        }
+        closeSectionAddSheet();
+      }
+      return;
+    }
+
+    if (editingShoppingSectionId) {
+      if (!sectionName.trim()) {
+        setSectionActionMessage("El nombre de la lista no puede estar vacío.");
+        return;
+      }
+      handleSectionNameChange(editingShoppingSectionId, sectionName);
+      handleSectionColorChange(editingShoppingSectionId, newSectionColor);
+      closeSectionAddSheet();
+      return;
+    }
+
     if (isSupabaseConfigured()) {
       setIsShoppingListActionPending(true);
       setShoppingListMessage(null);
@@ -5124,6 +5181,11 @@ export function App() {
           keyboardInset={sheetKeyboardInset}
           name={sectionName}
           nameInputRef={sectionNameInputRef}
+          nameLabel={
+            editingShoppingSectionId || editingShoppingListId
+              ? "Nombre de la lista"
+              : "Nueva lista"
+          }
           onButtonPointerDown={handleButtonPointerDown}
           onClose={closeSectionAddSheet}
           onColorChange={setNewSectionColor}
@@ -5136,6 +5198,16 @@ export function App() {
           selectedColor={newSectionColor}
           sheetDragOffset={sheetDragOffset}
           sheetRef={sectionAddSheetRef}
+          submitLabel={
+            editingShoppingSectionId || editingShoppingListId
+              ? "Guardar cambios"
+              : "Crear"
+          }
+          title={
+            editingShoppingSectionId || editingShoppingListId
+              ? "Editar lista"
+              : "Crear lista"
+          }
         />
       ) : null}
 
@@ -5383,6 +5455,7 @@ export function App() {
               onColorChange={handleSectionColorChange}
               onCreate={openSectionAddSheet}
               onDelete={(list) => void handleDeleteShoppingList(list)}
+              onEdit={openShoppingListEditSheet}
               onLeave={(listId) => void handleLeaveShoppingList(listId)}
               onMove={(listId, direction) =>
                 void handleMoveShoppingList(listId, direction)
@@ -5393,9 +5466,6 @@ export function App() {
               }
               onRemoveMember={(list, member) =>
                 void handleRemoveShoppingListMember(list, member)
-              }
-              onRename={(listId, name) =>
-                void handleRenameShoppingList(listId, name)
               }
               onToggleDetails={(listId) =>
                 void handleToggleShoppingListMembers(listId)
@@ -5415,7 +5485,7 @@ export function App() {
               onButtonPointerDown={handleButtonPointerDown}
               onColorChange={handleSectionColorChange}
               onMove={handleMoveSection}
-              onNameChange={handleSectionNameChange}
+              onEdit={openSectionEditSheet}
               onOpen={handleOpenShoppingList}
               onRemove={handleRemoveSection}
               onToggle={(sectionId) =>

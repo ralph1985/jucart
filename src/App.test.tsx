@@ -743,15 +743,21 @@ describe("App", () => {
     expect(
       await screen.findByRole("region", { name: "Listas disponibles" }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Nombre de Casa")).toHaveValue("Casa");
 
     fireEvent.click(screen.getAllByRole("button", { name: "Ver detalles" })[0]);
     expect(screen.getByText("AB12CD34")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Nombre de Casa"), {
-      target: { value: "Casa nueva" },
-    });
-    fireEvent.blur(screen.getByLabelText("Nombre de Casa"));
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    const editListDialog = screen.getByRole("dialog", { name: "Editar lista" });
+    fireEvent.change(
+      within(editListDialog).getByLabelText("Nombre de la lista"),
+      {
+        target: { value: "Casa nueva" },
+      },
+    );
+    fireEvent.click(
+      within(editListDialog).getByRole("button", { name: "Guardar cambios" }),
+    );
     await waitFor(() =>
       expect(shoppingListMocks.renameShoppingList).toHaveBeenCalledWith(
         "list-1",
@@ -3570,7 +3576,7 @@ describe("App", () => {
       within(createListDialog).getByRole("button", { name: "Crear" }),
     );
 
-    expect(screen.getByLabelText("Nombre de Frutería")).toHaveValue("Frutería");
+    expect(screen.getByText("Frutería")).toBeInTheDocument();
     expect(
       screen.queryByRole("dialog", { name: "Crear lista" }),
     ).not.toBeInTheDocument();
@@ -3582,9 +3588,9 @@ describe("App", () => {
     expect(
       screen.getByRole("button", { name: "Poner Frutería en color amber" }),
     ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      screen.getByLabelText("Nombre de Frutería").closest("li")?.className,
-    ).toContain("shoppingListCardColoramber");
+    expect(screen.getByText("Frutería").closest("li")?.className).toContain(
+      "shoppingListCardColoramber",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Lista" }));
 
@@ -3600,34 +3606,46 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Gestionar listas" }));
 
-    const generalCard = screen
-      .getByLabelText("Nombre de General")
-      .closest("li");
+    const generalCard = screen.getByText("General").closest("li");
     fireEvent.click(
       within(generalCard as HTMLElement).getByRole("button", {
         name: "Ver detalles",
       }),
     );
-    fireEvent.change(screen.getByLabelText("Nombre de General"), {
-      target: { value: "Varios" },
+    fireEvent.click(
+      within(generalCard as HTMLElement).getByRole("button", {
+        name: "Editar",
+      }),
+    );
+    const editGeneralDialog = screen.getByRole("dialog", {
+      name: "Editar lista",
     });
+    fireEvent.change(
+      within(editGeneralDialog).getByLabelText("Nombre de la lista"),
+      {
+        target: { value: "Varios" },
+      },
+    );
+    fireEvent.click(
+      within(editGeneralDialog).getByRole("button", {
+        name: "Guardar cambios",
+      }),
+    );
 
-    expect(screen.getByLabelText("Nombre de Varios")).toHaveValue("Varios");
+    expect(screen.getByText("Varios")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Subir Frutería" }));
 
-    const listNameInputs = screen
-      .getAllByLabelText(/^Nombre de /)
-      .map((input) => (input as HTMLInputElement).value);
+    const listNames = Array.from(
+      screen.getByRole("list").querySelectorAll("li strong"),
+    ).map((element) => element.textContent);
 
-    expect(listNameInputs.at(-2)).toBe("Frutería");
-    expect(listNameInputs.at(-1)).toBe("Varios");
+    expect(listNames.at(-2)).toBe("Frutería");
+    expect(listNames.at(-1)).toBe("Varios");
 
     fireEvent.click(screen.getByRole("button", { name: "Borrar Frutería" }));
 
-    expect(
-      screen.queryByLabelText("Nombre de Frutería"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Frutería")).not.toBeInTheDocument();
   });
 
   it("does not allow removing shopping lists with products", async () => {
@@ -3647,7 +3665,7 @@ describe("App", () => {
     expect(
       screen.getByText("No se puede borrar Mercadona porque tiene productos."),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Nombre de Mercadona")).toBeInTheDocument();
+    expect(screen.getByText("Mercadona")).toBeInTheDocument();
   });
 
   it("uses haptic feedback for high-intent actions", async () => {

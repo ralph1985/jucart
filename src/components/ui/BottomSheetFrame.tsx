@@ -13,6 +13,8 @@ type BottomSheetFrameProps = {
   ariaLabelledBy: string;
   backdropRef: Ref<HTMLDivElement>;
   children: ReactNode;
+  closeLabel?: string;
+  handleLabel?: string;
   className?: string;
   dragOffset?: number;
   onClose: () => void;
@@ -32,6 +34,8 @@ export function BottomSheetFrame({
   ariaLabelledBy,
   backdropRef,
   children,
+  closeLabel = "Cerrar panel",
+  handleLabel = "Arrastrar para cerrar panel",
   className,
   dragOffset = 0,
   onClose,
@@ -66,12 +70,15 @@ export function BottomSheetFrame({
         }
         tabIndex={tabIndex}
         onClick={(event) => event.stopPropagation()}
-        onKeyDown={onKeyDown}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") onClose();
+          onKeyDown?.(event);
+        }}
       >
         <button
           className={styles.bottomSheetHandle}
           type="button"
-          aria-label="Cerrar panel"
+          aria-label={handleLabel}
           onPointerDown={(event) =>
             onDragStart?.(event as unknown as PointerEvent<HTMLDivElement>)
           }
@@ -84,6 +91,12 @@ export function BottomSheetFrame({
           onPointerCancel={(event) =>
             onDragEnd?.(event as unknown as PointerEvent<HTMLDivElement>)
           }
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onClose();
+            }
+          }}
           onClick={onClose}
         >
           <span />
@@ -96,7 +109,7 @@ export function BottomSheetFrame({
           <button
             className={styles.bottomSheetClose}
             type="button"
-            aria-label="Cerrar panel"
+            aria-label={closeLabel}
             onClick={onClose}
           >
             ×

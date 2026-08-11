@@ -33,10 +33,17 @@ import type {
 } from "./menuPlanning";
 import { useSheetDrag } from "./hooks/useSheetDrag";
 import { BottomSheetFrame } from "./components/ui/BottomSheetFrame";
+import { ConfirmSheet } from "./components/ui/ConfirmSheet";
 import { getRemoteAction } from "./remoteActions";
 import type { RemoteAction } from "./remoteActions";
 
 type DishTab = "pending" | "cooked";
+type DishConfirmation = {
+  confirmLabel: string;
+  description: string;
+  onConfirm: () => void;
+  title: string;
+};
 type DishIconName = "check" | "edit" | "trash" | "undo";
 
 const dateFormatter = new Intl.DateTimeFormat("es-ES", {
@@ -100,6 +107,8 @@ export function MenuPlanningView() {
   const [newTypeName, setNewTypeName] = useState("");
   const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
   const [isDishSheetOpen, setIsDishSheetOpen] = useState(false);
+  const [dishConfirmation, setDishConfirmation] =
+    useState<DishConfirmation | null>(null);
   const [editingTypeIdInModal, setEditingTypeIdInModal] = useState<
     string | null
   >(null);
@@ -119,6 +128,8 @@ export function MenuPlanningView() {
   const typesTriggerRef = useRef<HTMLButtonElement>(null);
   const dishSheetBackdropRef = useRef<HTMLDivElement>(null);
   const dishSheetRef = useRef<HTMLElement>(null);
+  const confirmationBackdropRef = useRef<HTMLDivElement>(null);
+  const confirmationSheetRef = useRef<HTMLElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const dishTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -130,6 +141,15 @@ export function MenuPlanningView() {
     reset: resetDishSheetDrag,
   } = useSheetDrag({
     onDismiss: () => closeDishSheet(),
+  });
+  const {
+    handleEnd: handleConfirmationDragEnd,
+    handleMove: handleConfirmationDragMove,
+    handleStart: handleConfirmationDragStart,
+    offset: confirmationDragOffset,
+    reset: resetConfirmationDrag,
+  } = useSheetDrag({
+    onDismiss: () => closeConfirmation(),
   });
 
   const loadCollection = useCallback(async (nextLibraryId: string) => {
@@ -334,6 +354,15 @@ export function MenuPlanningView() {
     window.setTimeout(() => dishTriggerRef.current?.focus(), 0);
   }
 
+  function askForConfirmation(confirmation: DishConfirmation) {
+    setDishConfirmation(confirmation);
+  }
+
+  function closeConfirmation() {
+    setDishConfirmation(null);
+    resetConfirmationDrag();
+  }
+
   async function saveEdit(event: FormEvent, dish: MenuDish) {
     event.preventDefault();
     if (!editingName.trim() || isSaving) return;
@@ -358,17 +387,23 @@ export function MenuPlanningView() {
     }
   }
 
-  async function removeDish(dish: MenuDish) {
-    if (!window.confirm(`¿Eliminar «${dish.name}» de la biblioteca?`)) return;
-    try {
-      await deleteMenuDish(dish.id);
-      setDishes((current) =>
-        current.filter((currentDish) => currentDish.id !== dish.id),
-      );
-      setMessage("Plato eliminado.");
-    } catch {
-      setMessage("No se pudo eliminar el plato.");
-    }
+  function removeDish(dish: MenuDish) {
+    askForConfirmation({
+      title: "Eliminar plato",
+      description: `Se eliminará «${dish.name}» de la biblioteca.`,
+      confirmLabel: "Eliminar plato",
+      onConfirm: () => {
+        closeConfirmation();
+        void deleteMenuDish(dish.id)
+          .then(() => {
+            setDishes((current) =>
+              current.filter((currentDish) => currentDish.id !== dish.id),
+            );
+            setMessage("Plato eliminado.");
+          })
+          .catch(() => setMessage("No se pudo eliminar el plato."));
+      },
+    });
   }
 
   async function addDishType(event: FormEvent) {
@@ -413,21 +448,24 @@ export function MenuPlanningView() {
     }
   }
 
-  async function removeDishCategory(category: MenuDishCategory) {
-    if (
-      !window.confirm(
-        `¿Eliminar «${category.name}»? Se quitará de los platos, pero no se borrarán platos.`,
-      )
-    )
-      return;
-    try {
-      await deleteMenuDishCategory(category.id);
-      setDishCategories(await getMenuDishCategories(libraryId));
-      setDishes(await getMenuDishes(libraryId));
-      setModalMessage("Categoría culinaria eliminada.");
-    } catch {
-      setModalMessage("No se pudo eliminar la categoría culinaria.");
-    }
+  function removeDishCategory(category: MenuDishCategory) {
+    askForConfirmation({
+      title: "Eliminar categoría",
+      description: `«${category.name}» se quitará de los platos, pero no se borrará ningún plato.`,
+      confirmLabel: "Eliminar categoría",
+      onConfirm: () => {
+        closeConfirmation();
+        void deleteMenuDishCategory(category.id)
+          .then(async () => {
+            setDishCategories(await getMenuDishCategories(libraryId));
+            setDishes(await getMenuDishes(libraryId));
+            setModalMessage("Categoría culinaria eliminada.");
+          })
+          .catch(() =>
+            setModalMessage("No se pudo eliminar la categoría culinaria."),
+          );
+      },
+    });
   }
 
   async function saveDishType(event: FormEvent, type: MenuDishType) {
@@ -443,19 +481,24 @@ export function MenuPlanningView() {
     }
   }
 
-  async function removeDishType(type: MenuDishType) {
-    if (
-      !window.confirm(`¿Eliminar «${type.name}»? Los platos quedarán sin tipo.`)
-    )
-      return;
-    try {
-      await deleteMenuDishType(type.id);
-      setDishTypes(await getMenuDishTypes(libraryId));
-      setDishes(await getMenuDishes(libraryId));
-      setModalMessage("Tipo de plato eliminado.");
-    } catch {
-      setModalMessage("No se pudo eliminar el tipo de plato.");
-    }
+  function removeDishType(type: MenuDishType) {
+    askForConfirmation({
+      title: "Eliminar tipo de plato",
+      description: `«${type.name}» se eliminará y los platos quedarán sin tipo.`,
+      confirmLabel: "Eliminar tipo",
+      onConfirm: () => {
+        closeConfirmation();
+        void deleteMenuDishType(type.id)
+          .then(async () => {
+            setDishTypes(await getMenuDishTypes(libraryId));
+            setDishes(await getMenuDishes(libraryId));
+            setModalMessage("Tipo de plato eliminado.");
+          })
+          .catch(() =>
+            setModalMessage("No se pudo eliminar el tipo de plato."),
+          );
+      },
+    });
   }
 
   function openTypesModal() {
@@ -860,6 +903,22 @@ export function MenuPlanningView() {
         <p className="menuPlanningMessage" role="status">
           {statusMessage}
         </p>
+      ) : null}
+
+      {dishConfirmation ? (
+        <ConfirmSheet
+          backdropRef={confirmationBackdropRef}
+          confirmLabel={dishConfirmation.confirmLabel}
+          description={dishConfirmation.description}
+          dragOffset={confirmationDragOffset}
+          onCancel={closeConfirmation}
+          onConfirm={dishConfirmation.onConfirm}
+          onDragEnd={handleConfirmationDragEnd}
+          onDragMove={handleConfirmationDragMove}
+          onDragStart={handleConfirmationDragStart}
+          sheetRef={confirmationSheetRef}
+          title={dishConfirmation.title}
+        />
       ) : null}
 
       {isTypesModalOpen ? (

@@ -139,6 +139,7 @@ import { ShoppingListsManager } from "./components/shopping/ShoppingListsManager
 import { ShoppingBoardLoading } from "./components/shopping/ShoppingBoardLoading";
 import { ShoppingItemsList } from "./components/shopping/ShoppingItemsList";
 import { ClearPurchasedDialog } from "./components/shopping/ClearPurchasedDialog";
+import { ConfirmSheet } from "./components/ui/ConfirmSheet";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { usePullToRefreshGesture } from "./hooks/usePullToRefreshGesture";
 import { useOverlayHistory } from "./hooks/useOverlayHistory";
@@ -269,7 +270,8 @@ type AppOverlay =
   | "freezer-add-sheet"
   | "freezer-edit-sheet"
   | "clear-dialog"
-  | "edit-dialog";
+  | "edit-dialog"
+  | "confirm-sheet";
 
 type BottomSheetOverlay = Extract<
   AppOverlay,
@@ -280,12 +282,20 @@ type BottomSheetOverlay = Extract<
   | "freezer-add-sheet"
   | "freezer-edit-sheet"
   | "edit-dialog"
+  | "confirm-sheet"
 >;
 
 type AddProductNotice =
   | { type: "success"; message: string }
   | { type: "error"; message: string }
   | { type: "duplicate"; message: string; itemId: string };
+
+type ConfirmationRequest = {
+  confirmLabel: string;
+  description: string;
+  onConfirm: () => void;
+  title: string;
+};
 
 const hapticFeedbackPatterns: Record<HapticFeedback, VibratePattern> = {
   light: 10,
@@ -1444,6 +1454,8 @@ export function App() {
   const [lastHiddenPurchasedItem, setLastHiddenPurchasedItem] =
     useState<ShoppingItem | null>(null);
   const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+  const [confirmationRequest, setConfirmationRequest] =
+    useState<ConfirmationRequest | null>(null);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isSectionAddSheetOpen, setIsSectionAddSheetOpen] = useState(false);
   const [isFreezerAddSheetOpen, setIsFreezerAddSheetOpen] = useState(false);
@@ -1490,6 +1502,8 @@ export function App() {
   const itemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
   const freezerItemRefs = useRef<Partial<Record<string, HTMLElement>>>({});
   const clearDialogRef = useRef<HTMLDivElement>(null);
+  const confirmationSheetBackdropRef = useRef<HTMLDivElement>(null);
+  const confirmationSheetRef = useRef<HTMLElement>(null);
   const sectionNameInputRef = useRef<HTMLInputElement>(null);
   const sectionColumnRefs = useRef<
     Partial<Record<ShoppingSectionId, HTMLElement>>
@@ -1582,7 +1596,8 @@ export function App() {
     isSectionAddSheetOpen ||
     isFreezerAddSheetOpen ||
     editingFreezerItem !== null ||
-    editingItem !== null;
+    editingItem !== null ||
+    confirmationRequest !== null;
   const bottomSheetFocusKey = isAddSheetOpen
     ? "add"
     : isTicketUploadSheetOpen
@@ -1593,11 +1608,13 @@ export function App() {
           ? "freezer-edit"
           : editingItem !== null
             ? "edit-item"
-            : isSectionAddSheetOpen
-              ? "section-add"
-              : isFreezerAddSheetOpen
-                ? "freezer-add"
-                : null;
+            : confirmationRequest !== null
+              ? "confirm"
+              : isSectionAddSheetOpen
+                ? "section-add"
+                : isFreezerAddSheetOpen
+                  ? "freezer-add"
+                  : null;
   const sheetKeyboardInset = useBottomSheetViewport({
     focusKey: bottomSheetFocusKey,
     isOpen: isBottomSheetOpen,
@@ -2680,6 +2697,12 @@ export function App() {
     isOpen: editingItem !== null,
     sheetRef: editItemSheetRef,
   });
+  useBottomSheetOpenAnimation({
+    backdropRef: confirmationSheetBackdropRef,
+    isClosing: closingBottomSheet === "confirm-sheet",
+    isOpen: confirmationRequest !== null,
+    sheetRef: confirmationSheetRef,
+  });
 
   useEffect(() => {
     if (lastRemovedItems.length === 0) {
@@ -2911,6 +2934,11 @@ export function App() {
       return;
     }
 
+    if (confirmationRequest) {
+      confirmationSheetRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
     if (isSectionAddSheetOpen) {
       sectionNameInputRef.current?.focus({ preventScroll: true });
       return;
@@ -3054,7 +3082,26 @@ export function App() {
     });
   }
 
+  function openConfirmation(request: ConfirmationRequest) {
+    pushOverlayHistory("confirm-sheet");
+    setConfirmationRequest(request);
+    runHapticFeedback("warning");
+  }
+
+  function closeConfirmation(syncHistory = true) {
+    if (syncHistory) {
+      consumeOverlayHistory("confirm-sheet");
+    }
+    setConfirmationRequest(null);
+    resetSheetDrag();
+  }
+
   function closeActiveBottomSheet() {
+    if (confirmationRequest) {
+      closeConfirmation();
+      return;
+    }
+
     if (isAddSheetOpen) {
       closeAddSheet();
       return;
@@ -3104,6 +3151,11 @@ export function App() {
 
       if (overlay === "clear-dialog") {
         setIsClearDialogOpen(false);
+        return;
+      }
+
+      if (overlay === "confirm-sheet") {
+        closeConfirmation(false);
         return;
       }
 
@@ -3457,19 +3509,19 @@ export function App() {
       return;
     }
 
-    const shouldRemove = window.confirm(
-      `"${removedItem.name}" se borrará de la lista. Si no queda asociado a un producto canónico, se perderá su uso en el análisis de precios.`,
-    );
-
-    if (!shouldRemove) {
-      return;
-    }
-
-    runHapticFeedback("warning");
-    setLastRemovedItems([removedItem]);
-    setLastHiddenPurchasedItem(null);
-    addHistoryEvent(removedItem, "deleted");
-    setItems(removeShoppingItem(items, itemId));
+    openConfirmation({
+      title: "Eliminar producto",
+      description: `"${removedItem.name}" se borrará de la lista. Si no está asociado a un producto canónico, también se perderá su uso en el análisis de precios.`,
+      confirmLabel: "Eliminar producto",
+      onConfirm: () => {
+        closeConfirmation();
+        runHapticFeedback("warning");
+        setLastRemovedItems([removedItem]);
+        setLastHiddenPurchasedItem(null);
+        addHistoryEvent(removedItem, "deleted");
+        setItems(removeShoppingItem(items, itemId));
+      },
+    });
   }
 
   function handleUndoRemoveItems() {
@@ -3815,12 +3867,8 @@ export function App() {
     }
   }
 
-  async function handleRemoteAction(action: RemoteActionName) {
+  async function executeRemoteAction(action: RemoteActionName) {
     const label = getRemoteActionLabel(action);
-    if (!window.confirm(`¿Quieres ejecutar «${label}» ahora?`)) {
-      return;
-    }
-
     setIsRemoteActionPending(true);
     setRemoteActionError(null);
 
@@ -3849,6 +3897,19 @@ export function App() {
     } finally {
       setIsRemoteActionPending(false);
     }
+  }
+
+  function handleRemoteAction(action: RemoteActionName) {
+    const label = getRemoteActionLabel(action);
+    openConfirmation({
+      title: "Ejecutar acción remota",
+      description: `¿Quieres ejecutar «${label}» ahora?`,
+      confirmLabel: "Ejecutar ahora",
+      onConfirm: () => {
+        closeConfirmation();
+        void executeRemoteAction(action);
+      },
+    });
   }
 
   async function handlePushNotificationAction() {
@@ -4035,14 +4096,10 @@ export function App() {
     closeSectionAddSheet();
   }
 
-  async function handleRemoveShoppingListMember(
+  async function executeRemoveShoppingListMember(
     list: ShoppingList,
     member: ShoppingListMember,
   ) {
-    if (!window.confirm(`¿Expulsar a ${member.email} de ${list.name}?`)) {
-      return;
-    }
-
     setIsShoppingListActionPending(true);
     setShoppingListMessage(null);
 
@@ -4072,18 +4129,25 @@ export function App() {
     }
   }
 
-  async function handleTransferShoppingListOwnership(
+  function handleRemoveShoppingListMember(
     list: ShoppingList,
     member: ShoppingListMember,
   ) {
-    if (
-      !window.confirm(
-        `¿Transferir la propiedad de ${list.name} a ${member.email}? Dejarás de poder administrarla.`,
-      )
-    ) {
-      return;
-    }
+    openConfirmation({
+      title: "Expulsar miembro",
+      description: `¿Quieres expulsar a ${member.email} de ${list.name}?`,
+      confirmLabel: "Expulsar miembro",
+      onConfirm: () => {
+        closeConfirmation();
+        void executeRemoveShoppingListMember(list, member);
+      },
+    });
+  }
 
+  async function executeTransferShoppingListOwnership(
+    list: ShoppingList,
+    member: ShoppingListMember,
+  ) {
     setIsShoppingListActionPending(true);
     setShoppingListMessage(null);
 
@@ -4109,6 +4173,21 @@ export function App() {
     }
   }
 
+  function handleTransferShoppingListOwnership(
+    list: ShoppingList,
+    member: ShoppingListMember,
+  ) {
+    openConfirmation({
+      title: "Transferir propiedad",
+      description: `La propiedad de ${list.name} pasará a ${member.email}. Dejarás de poder administrarla.`,
+      confirmLabel: "Transferir propiedad",
+      onConfirm: () => {
+        closeConfirmation();
+        void executeTransferShoppingListOwnership(list, member);
+      },
+    });
+  }
+
   async function handleLeaveShoppingList(listId: string) {
     setIsShoppingListActionPending(true);
     setShoppingListMessage(null);
@@ -4125,15 +4204,11 @@ export function App() {
     }
   }
 
-  async function handleDeleteShoppingList(list: ShoppingList) {
+  async function executeDeleteShoppingList(list: ShoppingList) {
     if (list.productCount > 0 || list.memberCount > 0) {
       setShoppingListMessage(
         `No se puede borrar ${list.name} porque tiene productos o usuarios suscritos.`,
       );
-      return;
-    }
-
-    if (!window.confirm(`¿Borrar la lista ${list.name}?`)) {
       return;
     }
 
@@ -4150,6 +4225,25 @@ export function App() {
     } finally {
       setIsShoppingListActionPending(false);
     }
+  }
+
+  function handleDeleteShoppingList(list: ShoppingList) {
+    if (list.productCount > 0 || list.memberCount > 0) {
+      setShoppingListMessage(
+        `No se puede borrar ${list.name} porque tiene productos o usuarios suscritos.`,
+      );
+      return;
+    }
+
+    openConfirmation({
+      title: "Borrar lista",
+      description: `Se borrará la lista ${list.name}.`,
+      confirmLabel: "Borrar lista",
+      onConfirm: () => {
+        closeConfirmation();
+        void executeDeleteShoppingList(list);
+      },
+    });
   }
 
   function handlePwaUpdate() {
@@ -5553,6 +5647,22 @@ export function App() {
         onConfirm={confirmRemovePurchasedItems}
         onButtonPointerDown={handleButtonPointerDown}
       />
+
+      {confirmationRequest ? (
+        <ConfirmSheet
+          backdropRef={confirmationSheetBackdropRef}
+          confirmLabel={confirmationRequest.confirmLabel}
+          description={confirmationRequest.description}
+          dragOffset={sheetDragOffset}
+          onCancel={closeConfirmation}
+          onConfirm={confirmationRequest.onConfirm}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          sheetRef={confirmationSheetRef}
+          title={confirmationRequest.title}
+        />
+      ) : null}
 
       {editingItem ? (
         <EditProductDialog

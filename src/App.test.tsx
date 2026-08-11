@@ -628,14 +628,19 @@ describe("App", () => {
       screen.getByRole("button", { name: "Actualizar precios externos" }),
     ).toBeInTheDocument();
 
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     fireEvent.click(screen.getByRole("button", { name: "Ejecutar backup" }));
-    expect(window.confirm).toHaveBeenCalledWith(
-      "¿Quieres ejecutar «Ejecutar backup» ahora?",
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Ejecutar acción remota" }),
+      ).getByRole("button", { name: "Cancelar" }),
     );
 
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     fireEvent.click(screen.getByRole("button", { name: "Ejecutar backup" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Ejecutar acción remota" }),
+      ).getByRole("button", { name: "Ejecutar ahora" }),
+    );
     await waitFor(() =>
       expect(
         screen.getByText("No se pudo solicitar «Ejecutar backup»."),
@@ -647,6 +652,11 @@ describe("App", () => {
       .mockResolvedValue("action-2");
     fireEvent.click(
       screen.getByRole("button", { name: "Normalizar productos" }),
+    );
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Ejecutar acción remota" }),
+      ).getByRole("button", { name: "Ejecutar ahora" }),
     );
     await waitFor(() =>
       expect(createRemoteActionSpy).toHaveBeenCalledWith(
@@ -767,8 +777,12 @@ describe("App", () => {
       screen.getByRole("button", { name: "Expulsar" }),
     ).toBeInTheDocument();
 
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     fireEvent.click(screen.getByRole("button", { name: "Expulsar" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Expulsar miembro" }),
+      ).getByRole("button", { name: "Expulsar miembro" }),
+    );
     await waitFor(() =>
       expect(shoppingListMocks.removeShoppingListMember).toHaveBeenCalledWith(
         "list-1",
@@ -1245,6 +1259,11 @@ describe("App", () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Eliminar producto" }),
+      ).getByRole("button", { name: "Eliminar producto" }),
+    );
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
   });
 
@@ -2302,6 +2321,11 @@ describe("App", () => {
     await screen.findByText("Leche");
 
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Eliminar producto" }),
+      ).getByRole("button", { name: "Eliminar producto" }),
+    );
 
     const mercadonaColumn = screen
       .getByRole("heading", { name: "Mercadona" })
@@ -2350,6 +2374,11 @@ describe("App", () => {
 
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Eliminar producto" }),
+      ).getByRole("button", { name: "Eliminar producto" }),
+    );
 
     expect(screen.getByText("Producto borrado.")).toBeInTheDocument();
 
@@ -3649,6 +3678,11 @@ describe("App", () => {
     expect(vibrate).toHaveBeenLastCalledWith(18);
 
     fireEvent.click(screen.getByRole("button", { name: "Eliminar Leche" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Eliminar producto" }),
+      ).getByRole("button", { name: "Eliminar producto" }),
+    );
 
     expect(vibrate).toHaveBeenLastCalledWith([28, 42, 36]);
 

@@ -165,6 +165,12 @@ describe("MenuPlanningView", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Eliminar: Tortilla de patata" }),
     );
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Eliminar plato" })).getByRole(
+        "button",
+        { name: "Eliminar plato" },
+      ),
+    );
     await waitFor(() =>
       expect(mocks.deleteDish).toHaveBeenCalledWith("dish-2"),
     );
@@ -335,6 +341,11 @@ describe("MenuPlanningView", () => {
     );
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Eliminar tipo de plato" }),
+      ).getByRole("button", { name: "Eliminar tipo" }),
+    );
     await waitFor(() =>
       expect(mocks.deleteType).toHaveBeenCalledWith("type-1"),
     );
@@ -393,6 +404,11 @@ describe("MenuPlanningView", () => {
       ).toBeInTheDocument(),
     );
     fireEvent.click(within(dialog).getByRole("button", { name: "Eliminar" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Eliminar tipo de plato" }),
+      ).getByRole("button", { name: "Eliminar tipo" }),
+    );
     await waitFor(() =>
       expect(
         within(dialog).getByText("No se pudo eliminar el tipo de plato."),
@@ -447,6 +463,11 @@ describe("MenuPlanningView", () => {
         name: "Eliminar categoría Legumbres",
       }),
     );
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Eliminar categoría" }),
+      ).getByRole("button", { name: "Eliminar categoría" }),
+    );
     await waitFor(() =>
       expect(mocks.deleteCategory).toHaveBeenCalledWith("category-1"),
     );
@@ -478,6 +499,11 @@ describe("MenuPlanningView", () => {
       within(dialog).getByRole("button", {
         name: "Eliminar categoría Legumbres",
       }),
+    );
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Eliminar categoría" }),
+      ).getByRole("button", { name: "Eliminar categoría" }),
     );
     await waitFor(() =>
       expect(

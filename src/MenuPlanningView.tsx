@@ -236,6 +236,15 @@ export function MenuPlanningView() {
   const statusMessage = message;
   const recategorizationRunning =
     remoteAction?.status === "pending" || remoteAction?.status === "running";
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() || typeFilter || categoryFilter,
+  );
+
+  function clearFilters() {
+    setSearchQuery("");
+    setTypeFilter("");
+    setCategoryFilter("");
+  }
 
   async function addDish(event: FormEvent) {
     event.preventDefault();
@@ -476,7 +485,13 @@ export function MenuPlanningView() {
       </header>
 
       <form onSubmit={addDish} className="menuAddDishForm">
-        <label htmlFor="new-dish">Añadir un plato</label>
+        <div className="menuAddDishHeading">
+          <div>
+            <label htmlFor="new-dish">Añadir un plato</label>
+            <p>Una idea para decidir la semana sin empezar desde cero.</p>
+          </div>
+          <span>{pendingCount} por cocinar</span>
+        </div>
         <div className="menuAddDishControls">
           <input
             id="new-dish"
@@ -597,6 +612,18 @@ export function MenuPlanningView() {
         ) : null}
       </div>
 
+      <div className="menuFilterSummary" aria-live="polite">
+        <span>
+          {visibleDishes.length}{" "}
+          {visibleDishes.length === 1 ? "plato" : "platos"} visibles
+        </span>
+        {hasActiveFilters ? (
+          <button type="button" onClick={clearFilters}>
+            Limpiar filtros
+          </button>
+        ) : null}
+      </div>
+
       <section
         className="menuDishList"
         aria-live="polite"
@@ -711,11 +738,25 @@ export function MenuPlanningView() {
             </article>
           ))
         ) : message ? null : (
-          <p className="menuEmptyState">
-            {activeTab === "pending"
-              ? "Todavía no hay platos por cocinar."
-              : "Aún no hay platos cocinados."}
-          </p>
+          <div className="menuEmptyState">
+            <strong>
+              {hasActiveFilters
+                ? "No hay platos con estos filtros."
+                : activeTab === "pending"
+                  ? "Todavía no hay platos por cocinar."
+                  : "Aún no hay platos cocinados."}
+            </strong>
+            <span>
+              {hasActiveFilters
+                ? "Prueba otra combinación o vuelve a ver toda la biblioteca."
+                : "Añade una idea arriba para empezar a llenar la semana."}
+            </span>
+            {hasActiveFilters ? (
+              <button type="button" onClick={clearFilters}>
+                Ver todos los platos
+              </button>
+            ) : null}
+          </div>
         )}
       </section>
 

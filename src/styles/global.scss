@@ -531,3 +531,342 @@ select {
     min-height: 2.75rem;
   }
 }
+
+/* Menu library: turn the catalogue into a calm weekly decision surface. */
+.menuPlanningScreen {
+  width: min(100%, 58rem);
+  padding: 1.1rem max(1rem, env(safe-area-inset-right, 0px))
+    calc(7rem + env(safe-area-inset-bottom, 0px))
+    max(1rem, env(safe-area-inset-left, 0px));
+}
+
+.menuPlanningHeader {
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.menuPlanningHeader h2 {
+  color: var(--color-text-strong);
+  font-size: clamp(2rem, 7vw, 3rem);
+  letter-spacing: -0.07em;
+  line-height: 0.95;
+}
+
+.menuPlanningHeader p:not(.menuPlanningEyebrow) {
+  margin-top: 0.55rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.menuPlanningCounts {
+  grid-template-columns: repeat(2, minmax(5.2rem, 1fr));
+  gap: 0.45rem;
+  min-width: 11rem;
+  text-align: left;
+}
+
+.menuPlanningCounts span {
+  display: grid;
+  gap: 0.08rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.82rem;
+  padding: 0.55rem 0.62rem;
+  background: color-mix(in srgb, var(--surface) 78%, var(--surface-muted));
+  font-size: 0.68rem;
+  line-height: 1.15;
+}
+
+.menuPlanningCounts strong {
+  font-size: 1.3rem;
+  letter-spacing: -0.04em;
+}
+
+.menuAddDishForm {
+  gap: 0.75rem;
+  margin-top: 1rem;
+  border: 1px solid
+    color-mix(in srgb, var(--color-accent) 24%, var(--color-border));
+  border-radius: 1rem;
+  padding: 0.9rem;
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--surface));
+  box-shadow: 0 0.45rem 1rem var(--surface-shadow);
+}
+
+.menuAddDishHeading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.menuAddDishHeading label {
+  display: block;
+  color: var(--color-text-strong);
+  font-size: 0.98rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.menuAddDishHeading p {
+  margin: 0.18rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.menuAddDishHeading > span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 0.28rem 0.5rem;
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--surface));
+  color: var(--color-accent-strong);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.menuAddDishControls {
+  grid-template-columns: minmax(0, 1fr) 8.5rem 9rem auto;
+  align-items: stretch;
+}
+
+.menuAddDishControls input,
+.menuAddDishControls select,
+.menuFilterField input,
+.menuFilterField select,
+.menuDishEditForm input,
+.menuDishEditForm select {
+  min-height: 2.7rem;
+  border-radius: 0.72rem;
+  background: var(--surface);
+}
+
+.menuAddDishControls input {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 0.16rem
+    color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.menuAddDishControls select[multiple],
+.menuDishEditForm select[multiple] {
+  min-height: 2.7rem;
+}
+
+.menuAddDishControls button {
+  min-width: 5rem;
+  border-radius: 0.72rem;
+  background: var(--color-accent);
+  box-shadow: 0 0.35rem 0.75rem
+    color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.menuDishTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.3rem;
+  margin-top: 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.85rem;
+  padding: 0.28rem;
+  background: var(--surface-muted);
+}
+
+.menuDishTabs button {
+  min-height: 2.55rem;
+  border: 0;
+  border-radius: 0.62rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.menuDishTabs button[aria-selected="true"] {
+  border: 0;
+  background: var(--surface);
+  color: var(--color-accent-strong);
+  box-shadow: 0 0.25rem 0.65rem var(--surface-shadow);
+}
+
+.menuDishTabs span {
+  min-width: 1.45rem;
+  min-height: 1.45rem;
+  margin-left: 0.25rem;
+  background: color-mix(in srgb, var(--color-accent) 11%, var(--surface-muted));
+  font-size: 0.68rem;
+}
+
+.menuDishFilters {
+  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(8rem, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  padding: 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--surface-muted) 72%, transparent);
+}
+
+.menuFilterField {
+  gap: 0.28rem;
+  margin-top: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+}
+
+.menuFilterSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.1rem;
+  color: var(--color-text-muted);
+  font-size: 0.73rem;
+}
+
+.menuFilterSummary button,
+.menuEmptyState button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.38rem 0.62rem;
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--surface));
+  color: var(--color-accent-strong);
+  font-size: 0.72rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.menuDishList {
+  gap: 0.65rem;
+  margin-top: 0.1rem;
+}
+
+.menuDishRow {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 5.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.9rem;
+  padding: 0.78rem 0.82rem;
+  background: var(--surface);
+  box-shadow: 0 0.3rem 0.8rem var(--surface-shadow);
+}
+
+.menuDishCopy {
+  min-width: 0;
+  gap: 0.28rem;
+}
+
+.menuDishCopy strong {
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.menuDishCopy > span {
+  font-size: 0.74rem;
+}
+
+.menuDishTags {
+  gap: 0.24rem;
+  margin-top: 0.1rem;
+}
+
+.menuDishTags span {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.64rem;
+}
+
+.menuDishActions {
+  flex: 0 0 auto;
+  gap: 0.3rem;
+}
+
+.menuDishIconButton {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.72rem;
+}
+
+.menuDishActions button:first-child {
+  background: color-mix(in srgb, var(--color-accent) 9%, var(--surface));
+}
+
+.menuEmptyState {
+  display: grid;
+  justify-items: start;
+  gap: 0.35rem;
+  margin: 0;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 0.9rem;
+  padding: 1.15rem;
+  background: color-mix(in srgb, var(--surface-muted) 72%, transparent);
+}
+
+.menuEmptyState strong {
+  color: var(--color-text-strong);
+  font-size: 0.94rem;
+}
+
+.menuEmptyState span {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.menuEmptyState button {
+  margin-top: 0.25rem;
+}
+
+.menuManageTypesButton {
+  align-self: start;
+  margin-top: 0.35rem;
+  border-radius: 0.72rem;
+  padding: 0.64rem 0.78rem;
+  font-size: 0.78rem;
+}
+
+.menuPlanningMessage {
+  margin: 0;
+  min-height: 1.2rem;
+  font-size: 0.76rem;
+}
+
+.menuTypesModal {
+  border-radius: 1.25rem;
+  padding: 1.2rem;
+  box-shadow: 0 1.5rem 4rem var(--surface-shadow-strong);
+}
+
+@media (max-width: 600px) {
+  .menuPlanningScreen {
+    padding-top: 0.8rem;
+  }
+
+  .menuPlanningHeader {
+    align-items: stretch;
+  }
+
+  .menuPlanningCounts {
+    width: 100%;
+  }
+
+  .menuAddDishControls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .menuAddDishControls input,
+  .menuAddDishControls select[multiple],
+  .menuAddDishControls button {
+    grid-column: 1 / -1;
+  }
+
+  .menuAddDishControls select {
+    min-width: 0;
+  }
+
+  .menuDishRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.7rem;
+  }
+
+  .menuDishActions {
+    justify-content: flex-end;
+  }
+}

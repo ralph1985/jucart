@@ -183,6 +183,68 @@ describe("MenuPlanningView", () => {
     expect(screen.getByText("Tortilla")).toBeInTheDocument();
   });
 
+  it("limpia los filtros y explica cuando no hay coincidencias", async () => {
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
+    );
+
+    fireEvent.change(screen.getByLabelText("Buscar platos"), {
+      target: { value: "pizza" },
+    });
+    expect(
+      screen.getByText("No hay platos con estos filtros."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Limpiar filtros" }));
+
+    expect(screen.getByText("Lentejas")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No hay platos con estos filtros."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("muestra el contexto de resultados al filtrar por tipo y categoría", async () => {
+    mocks.getDishes.mockResolvedValue([
+      pendingDish,
+      { ...pendingDish, id: "dish-3", name: "Garbanzos" },
+      cookedDish,
+    ]);
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(screen.getByText("Garbanzos")).toBeInTheDocument(),
+    );
+
+    expect(screen.getByText("2 platos visibles")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Tipo funcional"), {
+      target: { value: "type-1" },
+    });
+    fireEvent.change(screen.getByLabelText("Categoría culinaria"), {
+      target: { value: "category-1" },
+    });
+    expect(
+      screen.getByText("No hay platos con estos filtros."),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ver todos los platos" }),
+    );
+    expect(screen.getByText("2 platos visibles")).toBeInTheDocument();
+  });
+
+  it("explica la biblioteca vacía sin filtros", async () => {
+    mocks.getDishes.mockResolvedValue([]);
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(
+        screen.getByText("Todavía no hay platos por cocinar."),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(
+        "Añade una idea arriba para empezar a llenar la semana.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("gestiona tipos y errores de carga", async () => {
     mocks.getDishes.mockRejectedValueOnce(new Error("offline"));
     render(<MenuPlanningView />);

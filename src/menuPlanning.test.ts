@@ -18,6 +18,7 @@ import {
   getMenuDishes,
   getMenuDishTypes,
   getLatestMenuDishRecategorization,
+  getMenuDishRecategorizationHistory,
   requestMenuDishRecategorization,
   undoMenuDishRecategorization,
   updateMenuDishType,
@@ -140,5 +141,68 @@ describe("menuPlanning", () => {
     expect(mocks.rpc).toHaveBeenCalledWith("undo_menu_dish_recategorization", {
       p_run_id: "run-1",
     });
+  });
+
+  it("carga el histórico de recategorización de platos", async () => {
+    mocks.from.mockImplementation((name: string) =>
+      name === "menu_dish_recategorization_runs"
+        ? query([
+            {
+              id: "run-1",
+              library_id: "library-1",
+              summary: "1 plato",
+              dishes_recategorized: 1,
+              created_at: "2026-08-10T12:00:00Z",
+              reverted_at: null,
+            },
+          ])
+        : query([
+            {
+              id: "change-1",
+              run_id: "run-1",
+              dish_id: "dish-1",
+              dish_name: "Lentejas",
+              previous_type_id: null,
+              next_type_id: "type-1",
+              reason: "El nombre lo indica con claridad.",
+              created_at: "2026-08-10T12:00:00Z",
+            },
+          ]),
+    );
+
+    await expect(
+      getMenuDishRecategorizationHistory("library-1"),
+    ).resolves.toEqual({
+      runs: [expect.objectContaining({ id: "run-1" })],
+      changes: [
+        expect.objectContaining({
+          id: "change-1",
+          dishName: "Lentejas",
+          nextTypeId: "type-1",
+        }),
+      ],
+    });
+  });
+
+  it("propaga errores al cargar el histórico de platos", async () => {
+    mocks.from.mockImplementation((name: string) =>
+      query(null, new Error(`${name} failed`)),
+    );
+
+    await expect(
+      getMenuDishRecategorizationHistory("library-1"),
+    ).rejects.toThrow("menu_dish_recategorization_runs failed");
+  });
+
+  it("propaga errores de cambios al cargar el histórico", async () => {
+    mocks.from.mockImplementation((name: string) =>
+      name === "menu_dish_recategorization_runs"
+        ? query([])
+        : query(null, new Error("changes failed")),
+    );
+
+    await expect(
+      getMenuDishRecategorizationHistory("library-1"),
+    ).rejects.toThrow("changes failed");
   });
 });

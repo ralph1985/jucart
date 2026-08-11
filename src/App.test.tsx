@@ -21,6 +21,7 @@ import {
 import * as shoppingItemsSupabase from "./shoppingItemsSupabase";
 import * as remoteActions from "./remoteActions";
 import * as supabaseConfig from "./supabaseConfig";
+import * as menuPlanning from "./menuPlanning";
 import type { ShoppingData } from "./shoppingItemsDb";
 
 const authMocks = vi.hoisted(() => ({
@@ -3221,7 +3222,6 @@ describe("App", () => {
       screen.getByRole("button", { name: "Marcar Leche como comprado" }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Historial" }));
-
     expect(
       screen.getByRole("heading", { name: "Historial" }),
     ).toBeInTheDocument();
@@ -3229,6 +3229,11 @@ describe("App", () => {
     expect(screen.getByText("Producto añadido")).toBeInTheDocument();
     expect(screen.getAllByText("Leche")).toHaveLength(2);
     expect(screen.getAllByText("Mercadona · Rafa")).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Tipos de plato" }));
+    expect(
+      screen.getByText("No hay recategorizaciones de platos"),
+    ).toBeInTheDocument();
   });
 
   it("shows recategorization changes in the history categories tab", async () => {
@@ -3334,6 +3339,67 @@ describe("App", () => {
     expect(
       screen.queryByText("Hay 1 recategorización nueva."),
     ).not.toBeInTheDocument();
+  });
+
+  it("notifies unseen menu dish recategorizations and opens their history", async () => {
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(menuPlanning, "getMenuDishLibrary").mockResolvedValue("library-1");
+    vi.spyOn(menuPlanning, "getMenuDishTypes").mockResolvedValue([
+      { id: "type-1", name: "Legumbres" },
+    ]);
+    vi.spyOn(
+      menuPlanning,
+      "getMenuDishRecategorizationHistory",
+    ).mockResolvedValue({
+      runs: [
+        {
+          id: "run-1",
+          libraryId: "library-1",
+          summary: "1 plato",
+          dishesRecategorized: 1,
+          createdAt: new Date(Date.now() - 1000).toISOString(),
+          revertedAt: null,
+        },
+      ],
+      changes: [
+        {
+          id: "change-1",
+          runId: "run-1",
+          dishId: "dish-1",
+          dishName: "Lentejas",
+          previousTypeId: null,
+          nextTypeId: "type-1",
+          reason: "El nombre lo indica con claridad.",
+          createdAt: new Date(Date.now() - 1000).toISOString(),
+        },
+        {
+          id: "change-2",
+          runId: "run-1",
+          dishId: "dish-2",
+          dishName: "Pasta",
+          previousTypeId: "type-1",
+          nextTypeId: "type-1",
+          reason: "El nombre lo indica con claridad.",
+          createdAt: new Date(Date.now() - 2000).toISOString(),
+        },
+      ],
+    });
+
+    render(<App />);
+
+    await waitForAddFab();
+    expect(
+      await screen.findByText("Hay 2 recategorizaciones nuevas de platos."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver tipos de plato" }));
+
+    expect(screen.getAllByText("Plato recategorizado")).toHaveLength(2);
+    expect(screen.getByText("Lentejas")).toBeInTheDocument();
+    expect(screen.getByText("Sin tipo → Legumbres")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("El nombre lo indica con claridad."),
+    ).toHaveLength(2);
   });
 
   it("shows product normalization changes in their history tab", async () => {

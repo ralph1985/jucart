@@ -10,6 +10,7 @@ import type {
 } from "react";
 
 import styles from "../../App.module.scss";
+import { BottomSheetFrame } from "../ui/BottomSheetFrame";
 import type {
   QuickShoppingItemSuggestion,
   ShoppingCategory,
@@ -48,7 +49,7 @@ type AddProductSheetProps = {
   sections: ShoppingSection[];
   selectedSectionId: ShoppingSectionId;
   sheetDragOffset: number;
-  sheetRef: Ref<HTMLFormElement>;
+  sheetRef: Ref<HTMLElement>;
   backdropRef: Ref<HTMLDivElement>;
   isLoaded: boolean;
   getCategoryName: (
@@ -90,48 +91,23 @@ export function AddProductSheet({
   sheetRef,
 }: AddProductSheetProps) {
   return (
-    <div
-      ref={backdropRef}
-      className={styles.addSheetBackdrop}
+    <BottomSheetFrame
+      ariaLabelledBy="add-sheet-title"
+      backdropRef={backdropRef}
+      className={styles.addProductSheetFrame}
+      dragOffset={sheetDragOffset}
+      onClose={onClose}
+      onDragEnd={onDragEnd}
+      onDragMove={onDragMove}
+      onDragStart={onDragStart}
+      sheetRef={sheetRef}
       style={
         { "--sheet-keyboard-inset": `${keyboardInset}px` } as CSSProperties
       }
-      onClick={onClose}
+      title="Añadir producto"
+      subtitle="Añade rápido y déjalo listo para tu próxima compra."
     >
-      <form
-        ref={sheetRef}
-        className={styles.addSheet}
-        role="dialog"
-        aria-modal="false"
-        aria-labelledby="add-sheet-title"
-        style={
-          { "--sheet-drag-offset": `${sheetDragOffset}px` } as CSSProperties
-        }
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={onSheetKeyDown}
-        onSubmit={onSubmit}
-      >
-        <div
-          className={styles.addSheetHandle}
-          aria-label="Cerrar panel de alta"
-          role="button"
-          tabIndex={0}
-          onPointerDown={onDragStart}
-          onPointerMove={onDragMove}
-          onPointerUp={onDragEnd}
-          onPointerCancel={onDragEnd}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onClose();
-            }
-          }}
-        >
-          <span />
-        </div>
-        <h2 id="add-sheet-title" className={styles.visuallyHidden}>
-          Añadir producto
-        </h2>
+      <form onKeyDown={onSheetKeyDown} onSubmit={onSubmit}>
         <div className={styles.addSheetFields}>
           <div className={styles.formField}>
             <label className={styles.label} htmlFor="item-name">
@@ -262,6 +238,6 @@ export function AddProductSheet({
           </button>
         </div>
       </form>
-    </div>
+    </BottomSheetFrame>
   );
 }

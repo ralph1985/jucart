@@ -1491,7 +1491,7 @@ export function App() {
   const developerScreenRef = useRef<HTMLElement>(null);
   const splashScreenRef = useRef<HTMLDivElement>(null);
   const addSheetBackdropRef = useRef<HTMLDivElement>(null);
-  const addSheetRef = useRef<HTMLFormElement>(null);
+  const addSheetRef = useRef<HTMLElement>(null);
   const sectionAddSheetBackdropRef = useRef<HTMLDivElement>(null);
   const sectionAddSheetRef = useRef<HTMLElement>(null);
   const freezerAddSheetBackdropRef = useRef<HTMLDivElement>(null);

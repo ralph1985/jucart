@@ -12,7 +12,7 @@ describe("appVersion", () => {
       () => new Date("2026-07-28T10:30:00.000Z"),
     );
 
-    expect(release.version).toBe("0.13.0");
+    expect(release.version).toBe("0.14.0");
     expect(release.activatedAt).toBe("2026-07-28T10:30:00.000Z");
     expect(window.localStorage.getItem("jucart:app-release")).toContain(
       "2026-07-28T10:30:00.000Z",

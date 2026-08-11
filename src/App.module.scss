@@ -2,18 +2,18 @@
   --header-height: calc(4.1rem + env(safe-area-inset-top, 0px));
   --command-height: 3.45rem;
   --bottom-nav-height: calc(4.75rem + env(safe-area-inset-bottom, 0px));
-  --surface: #ffffff;
-  --surface-muted: #f8fafc;
-  --surface-subtle: #eef3f1;
-  --surface-inset: #f1f5f9;
-  --color-text: #17212b;
-  --color-text-strong: #102033;
-  --color-text-muted: #536b7c;
-  --color-text-subtle: #718096;
-  --color-border: rgb(148 163 184 / 28%);
-  --color-border-strong: rgb(148 163 184 / 42%);
-  --color-accent: #167c5a;
-  --color-accent-strong: #126548;
+  --surface: #fffefa;
+  --surface-muted: #f5f7f3;
+  --surface-subtle: #e9f0eb;
+  --surface-inset: #edf2ee;
+  --color-text: #26332d;
+  --color-text-strong: #17251f;
+  --color-text-muted: #617068;
+  --color-text-subtle: #829087;
+  --color-border: rgb(77 105 88 / 19%);
+  --color-border-strong: rgb(77 105 88 / 34%);
+  --color-accent: #227653;
+  --color-accent-strong: #185b3e;
   --color-focus: #2f80ed;
   --color-on-accent: #ffffff;
   --color-success-bg: #edf7ed;
@@ -28,13 +28,13 @@
   --color-price-text: #7a4f01;
   --radius-control: 0.5rem;
   --radius-surface: 0.75rem;
-  --app-bg-start: #eef3f1;
-  --app-bg-mid: #f7f8fa;
-  --app-bg-end: #f2f4f6;
-  --surface-shadow: rgb(15 23 42 / 5%);
-  --surface-shadow-strong: rgb(15 23 42 / 6%);
-  --action-muted: #64748b;
-  --action-muted-bg: rgb(226 232 240 / 54%);
+  --app-bg-start: #e8f0e9;
+  --app-bg-mid: #f4f6f1;
+  --app-bg-end: #eef1ec;
+  --surface-shadow: rgb(28 54 40 / 7%);
+  --surface-shadow-strong: rgb(28 54 40 / 12%);
+  --action-muted: #65766d;
+  --action-muted-bg: rgb(213 225 216 / 58%);
   --action-danger-muted: #b45353;
   --action-danger-bg: rgb(254 226 226 / 58%);
 
@@ -54,6 +54,323 @@
   overflow-x: hidden;
   overscroll-behavior-y: contain;
   touch-action: pan-y;
+}
+
+/* Editorial pantry refresh: shared visual language for the daily flow and
+ * supporting views. This layer deliberately reuses the existing contracts. */
+.app {
+  letter-spacing: -0.008em;
+}
+
+.app .header {
+  min-height: 4.45rem;
+  border-bottom-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  padding-top: calc(0.48rem + env(safe-area-inset-top, 0px));
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  box-shadow: 0 0.8rem 2rem var(--surface-shadow);
+}
+
+.app .brand {
+  gap: 0.7rem;
+}
+
+.app .logo {
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 0.92rem;
+  background: var(--color-accent);
+  box-shadow: 0 0.5rem 1rem
+    color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+.app .kicker {
+  margin-bottom: 0.08rem;
+  color: var(--color-accent-strong);
+  font-size: 0.62rem;
+  letter-spacing: 0.095em;
+}
+
+.app .brand h1 {
+  font-size: 1.38rem;
+  letter-spacing: -0.045em;
+}
+
+.app .summary {
+  gap: 0.35rem;
+}
+
+.app .summaryItem {
+  min-width: 3.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.72rem;
+  padding: 0.3rem 0.45rem;
+  background: color-mix(in srgb, var(--surface-muted) 84%, transparent);
+}
+
+.app .summaryItem dt {
+  font-size: 0.58rem;
+  letter-spacing: 0.045em;
+}
+
+.app .summaryItem dd {
+  font-size: 1rem;
+}
+
+.app .commandPanel {
+  min-height: 3.7rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+  background: color-mix(in srgb, var(--surface-subtle) 91%, transparent);
+  box-shadow: 0 0.5rem 1.2rem var(--surface-shadow);
+}
+
+.app .searchField {
+  min-height: 2.65rem;
+  border-color: var(--color-border-strong);
+  border-radius: 0.85rem;
+  background: var(--surface);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 55%);
+}
+
+.app .searchField input {
+  font-size: 0.88rem;
+}
+
+.app .visibilityToggle {
+  min-height: 2.35rem;
+  border-color: var(--color-border);
+  border-radius: 0.78rem;
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+}
+
+.app .bottomNav {
+  min-height: var(--bottom-nav-height);
+  border-top-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  padding-top: 0.42rem;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 -0.8rem 2rem var(--surface-shadow);
+}
+
+.app .bottomNavItem,
+.app .bottomNavItemActive {
+  min-height: 3.35rem;
+  border-radius: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.app .bottomNavItemActive {
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--surface));
+  color: var(--color-accent-strong);
+}
+
+.app .bottomNavItem span,
+.app .bottomNavItemActive span {
+  font-size: 0.64rem;
+  font-weight: 850;
+}
+
+.app .floatingAddButton {
+  width: 3.55rem;
+  height: 3.55rem;
+  border-radius: 1.15rem;
+  background: var(--color-accent);
+  box-shadow:
+    0 0 0 0.35rem color-mix(in srgb, var(--color-accent) 12%, transparent),
+    0 0.75rem 1.5rem color-mix(in srgb, var(--color-accent) 24%, transparent);
+}
+
+.app .board {
+  padding-top: 0.25rem;
+}
+
+.app .boardTrack {
+  gap: 0.9rem;
+}
+
+.app .column {
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent) 19%,
+    var(--color-border)
+  );
+  border-radius: 1.05rem;
+  padding: 0.82rem;
+  box-shadow: 0 0.7rem 1.5rem var(--surface-shadow);
+}
+
+.app .columnSelected {
+  border-color: var(--color-accent);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent),
+    0 0.85rem 1.8rem var(--surface-shadow-strong);
+}
+
+.app .sectionHeader {
+  margin-bottom: 0.7rem;
+  padding-inline: 0.16rem;
+}
+
+.app .sectionHeader h2 {
+  font-size: 1.05rem;
+  letter-spacing: -0.035em;
+}
+
+.app .sectionHeader .count {
+  color: var(--color-accent-strong);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.app .list {
+  gap: 0.55rem;
+  border-radius: 0.78rem;
+  padding: 0.38rem 0.35rem calc(1rem + var(--floating-add-clearance, 0rem));
+}
+
+.app .item {
+  min-height: 5.7rem;
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent) 12%,
+    var(--color-border)
+  );
+  border-radius: 0.82rem;
+  padding: 0.65rem;
+  box-shadow: 0 0.25rem 0.75rem var(--surface-shadow);
+}
+
+.app .itemPurchased {
+  min-height: 5rem;
+  background: color-mix(in srgb, var(--surface-inset) 84%, var(--surface));
+  box-shadow: none;
+}
+
+.app .itemCheck {
+  width: 2.05rem;
+  height: 2.05rem;
+  border-width: 1.5px;
+}
+
+.app .itemName {
+  font-size: 1.02rem;
+  letter-spacing: -0.02em;
+}
+
+.app .itemNamePurchased {
+  font-size: 0.96rem;
+}
+
+.app .itemMeta,
+.app .itemPriceSummary {
+  font-size: 0.68rem;
+}
+
+.app .itemActions {
+  gap: 0.3rem;
+}
+
+.app .iconButton,
+.app .iconButtonDanger {
+  border-radius: 0.68rem;
+}
+
+.app .categoryDivider,
+.app .purchasedDivider {
+  padding-inline: 0.12rem;
+  letter-spacing: 0.055em;
+}
+
+.app .categoryDivider {
+  color: var(--color-accent-strong);
+  font-size: 0.62rem;
+}
+
+.app .empty {
+  padding: 1.25rem 0.8rem;
+}
+
+.app .emptyIcon {
+  width: 2.35rem;
+  height: 2.35rem;
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--surface));
+}
+
+.app .emptyTitle {
+  color: var(--color-text-strong);
+  font-size: 0.96rem;
+}
+
+.app .screenTitle,
+.app .sectionsHeader {
+  align-items: baseline;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.72rem;
+}
+
+.app .screenTitle h2,
+.app .sectionsHeader h2 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: clamp(1.55rem, 5vw, 2rem);
+  letter-spacing: -0.055em;
+}
+
+.app .screenTitle .count,
+.app .sectionsHeader .count {
+  color: var(--color-accent-strong);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.app .ticketsScreen,
+.app .sectionsScreen,
+.app .historyScreen,
+.app .developerScreen,
+.app .freezerScreen {
+  gap: 1rem;
+  padding-top: 0.75rem;
+}
+
+.app .ticketItem,
+.app .historyItem,
+.app .shoppingListManagerItem,
+.app .freezerPanel,
+.app .developerPanel,
+.app .sectionManagerItem {
+  border-radius: 0.9rem;
+  border-color: var(--color-border);
+  box-shadow: 0 0.45rem 1rem var(--surface-shadow);
+}
+
+.app .ticketFilters,
+.app .historyTabs {
+  border-radius: 0.82rem;
+  border-color: var(--color-border);
+  background: color-mix(in srgb, var(--surface-muted) 86%, transparent);
+}
+
+.app .ticketFilterButtonActive,
+.app .historyTabActive {
+  border-radius: 0.65rem;
+  color: var(--color-accent-strong);
+  box-shadow: 0 0.25rem 0.7rem var(--surface-shadow);
+}
+
+.app .addSheet,
+.app .modal,
+.app .priceDetailPanel {
+  border-color: var(--color-border-strong);
+  border-radius: 1.25rem;
+  box-shadow: 0 1.2rem 3rem var(--surface-shadow-strong);
+}
+
+@media (min-width: 42rem) {
+  .app .header,
+  .app .commandPanel {
+    padding-right: max(calc((100% - 80rem) / 2), 1.25rem);
+    padding-left: max(calc((100% - 80rem) / 2), 1.25rem);
+  }
 }
 
 .appShopping {

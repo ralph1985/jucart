@@ -96,6 +96,7 @@ export function AddProductSheet({
       backdropRef={backdropRef}
       className={styles.addProductSheetFrame}
       dragOffset={sheetDragOffset}
+      handleLabel="Cerrar panel de alta"
       onClose={onClose}
       onDragEnd={onDragEnd}
       onDragMove={onDragMove}

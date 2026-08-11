@@ -12,6 +12,7 @@
     "backup:supabase:cron:install": "scripts/install-supabase-backup-cron.sh",
     "recategorize:codex": "scripts/recategorize-with-codex.sh",
     "recategorize:codex:cron:install": "scripts/install-codex-recategorization-cron.sh",
+    "recategorize:menu-dishes:cron:install": "scripts/install-codex-menu-dish-recategorization-cron.sh",
     "normalize:codex": "scripts/normalize-products-with-codex.sh",
     "normalize:codex:cron:install": "scripts/install-codex-product-normalization-cron.sh",
     "tickets:process": "scripts/process-tickets-with-codex.sh",

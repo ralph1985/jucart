@@ -14,6 +14,7 @@ export type MenuDish = {
   cookedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  rating: number | null;
   categories: MenuDishCategory[];
 };
 export type MenuDishType = { id: string; name: string };
@@ -59,6 +60,7 @@ type MenuDishRow = {
   cooked_at: string | null;
   created_at: string;
   updated_at: string;
+  rating: number | null;
   menu_dish_types: { id: string; name: string } | null;
   menu_dish_category_links: Array<{
     position: number;
@@ -108,6 +110,7 @@ function mapDish(row: MenuDishRow): MenuDish {
     cookedAt: row.cooked_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    rating: row.rating ?? null,
     categories: (row.menu_dish_category_links ?? [])
       .filter((link) => link.menu_dish_categories)
       .sort((left, right) => left.position - right.position)
@@ -120,7 +123,7 @@ function mapDish(row: MenuDishRow): MenuDish {
 }
 
 const dishColumns =
-  "id, library_id, name, dish_type_id, status, cooked_at, created_at, updated_at, menu_dish_types(id, name), menu_dish_category_links(position, menu_dish_categories(id, name, position))";
+  "id, library_id, name, dish_type_id, status, cooked_at, rating, created_at, updated_at, menu_dish_types(id, name), menu_dish_category_links(position, menu_dish_categories(id, name, position))";
 
 export async function getMenuDishLibrary(): Promise<string> {
   const { data, error } = await (table("menu_dish_libraries")
@@ -206,6 +209,7 @@ export async function updateMenuDish(
     dishTypeId?: string | null;
     status?: MenuDishStatus;
     cookedAt?: string | null;
+    rating?: number | null;
     categoryIds?: string[];
   },
 ): Promise<MenuDish> {
@@ -214,6 +218,7 @@ export async function updateMenuDish(
   if (values.dishTypeId !== undefined) update.dish_type_id = values.dishTypeId;
   if (values.status !== undefined) update.status = values.status;
   if (values.cookedAt !== undefined) update.cooked_at = values.cookedAt;
+  if (values.rating !== undefined) update.rating = values.rating;
   const { data, error } = await (table("menu_dishes")
     .update(update)
     .eq("id", dishId)

@@ -60,6 +60,7 @@ const pendingDish = {
   cookedAt: null,
   createdAt: "2026-08-10T10:00:00Z",
   updatedAt: "2026-08-10T10:00:00Z",
+  rating: null,
   categories: [],
 } as const;
 const cookedDish = {
@@ -68,6 +69,7 @@ const cookedDish = {
   name: "Tortilla",
   status: "cooked",
   cookedAt: "2026-08-09T18:00:00Z",
+  rating: 4,
 } as const;
 
 describe("MenuPlanningView", () => {
@@ -208,6 +210,47 @@ describe("MenuPlanningView", () => {
     expect(
       screen.queryByText("No hay platos con estos filtros."),
     ).not.toBeInTheDocument();
+  });
+
+  it("permite puntuar, quitar la nota y ordenar por valoración", async () => {
+    mocks.getDishes.mockResolvedValue([
+      pendingDish,
+      cookedDish,
+      { ...cookedDish, id: "dish-3", name: "Arroz", rating: 2 },
+    ]);
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
+    );
+
+    const ratingGroup = screen.getByRole("group", {
+      name: "Valorar Lentejas",
+    });
+    fireEvent.click(
+      within(ratingGroup).getByRole("button", {
+        name: "Valorar Lentejas con 5 estrellas",
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.updateDish).toHaveBeenCalledWith("dish-1", { rating: 5 }),
+    );
+
+    fireEvent.click(
+      within(ratingGroup).getByRole("button", {
+        name: "Quitar valoración de Lentejas",
+      }),
+    );
+    await waitFor(() =>
+      expect(mocks.updateDish).toHaveBeenCalledWith("dish-1", { rating: null }),
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /Cocinados/ }));
+    fireEvent.change(screen.getByLabelText("Ordenar platos"), {
+      target: { value: "rating-desc" },
+    });
+    const cookedRows = [...document.querySelectorAll(".menuDishRow")];
+    expect(cookedRows[0]).toHaveTextContent("Tortilla");
+    expect(cookedRows[1]).toHaveTextContent("Arroz");
   });
 
   it("muestra el contexto de resultados al filtrar por tipo y categoría", async () => {

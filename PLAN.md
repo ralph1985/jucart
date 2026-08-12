@@ -597,3 +597,14 @@ Objetivo: permitir que las personas reciban versiones nuevas sin borrar manualme
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 
 La versión visible actual es `0.12.0`. El coordinador revisará periódicamente si los cambios acumulados justifican una nueva versión y preguntará antes de modificarla.
+
+## Hito 43 — Valoración compartida de platos
+
+Objetivo: permitir valorar las ideas de la biblioteca común para decidir más rápido qué cocinar.
+
+- [x] Añadir una valoración compartida y opcional de una a cinco estrellas por plato.
+- [x] Permitir puntuar y quitar la valoración desde cada fila de la biblioteca.
+- [x] Mostrar la valoración de forma accesible en platos pendientes y cocinados.
+- [x] Permitir ordenar los platos por mejor o peor valoración, dejando los no valorados al final.
+- [x] Mantener la compatibilidad con platos existentes sin valoración.
+- [x] Añadir tests de persistencia, edición, borrado y ordenación de valoraciones.

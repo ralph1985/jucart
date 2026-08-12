@@ -60,6 +60,7 @@ const row = {
   cooked_at: null,
   created_at: "2026-08-10T10:00:00Z",
   updated_at: "2026-08-10T10:00:00Z",
+  rating: null,
   menu_dish_types: { id: "type-1", name: "Legumbres" },
   menu_dish_category_links: [
     {
@@ -151,6 +152,7 @@ describe("menuPlanning", () => {
       updateMenuDish("dish-1", {
         status: "cooked",
         cookedAt: "2026-08-10T12:00:00Z",
+        rating: 4,
         categoryIds: ["category-1"],
       }),
     ).resolves.toMatchObject({

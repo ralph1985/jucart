@@ -38,6 +38,7 @@ import { getRemoteAction } from "./remoteActions";
 import type { RemoteAction } from "./remoteActions";
 
 type DishTab = "pending" | "cooked";
+type DishSort = "default" | "rating-desc" | "rating-asc";
 type ClassificationTab = "types" | "categories";
 type DishConfirmation = {
   confirmLabel: string;
@@ -89,6 +90,46 @@ function DishIcon({ name }: { name: DishIconName }) {
   );
 }
 
+function DishRating({
+  dish,
+  onRate,
+}: {
+  dish: MenuDish;
+  onRate: (rating: number) => void;
+}) {
+  return (
+    <div
+      className="menuDishRating"
+      role="group"
+      aria-label={`Valorar ${dish.name}`}
+    >
+      {Array.from({ length: 5 }, (_, index) => {
+        const rating = index + 1;
+        const isSelected = dish.rating === rating;
+        return (
+          <button
+            className="menuDishRatingButton"
+            type="button"
+            aria-label={
+              isSelected
+                ? `Quitar valoración de ${dish.name}`
+                : `Valorar ${dish.name} con ${rating} ${rating === 1 ? "estrella" : "estrellas"}`
+            }
+            aria-pressed={isSelected}
+            title={isSelected ? "Quitar valoración" : `Valorar con ${rating}`}
+            onClick={() => onRate(isSelected ? 0 : rating)}
+          >
+            {dish.rating !== null && rating <= dish.rating ? "★" : "☆"}
+          </button>
+        );
+      })}
+      {dish.rating !== null ? (
+        <span className="menuDishRatingValue">{dish.rating}/5</span>
+      ) : null}
+    </div>
+  );
+}
+
 export function MenuPlanningView() {
   const [libraryId, setLibraryId] = useState("");
   const [dishes, setDishes] = useState<MenuDish[]>([]);
@@ -100,6 +141,7 @@ export function MenuPlanningView() {
   const [activeTab, setActiveTab] = useState<DishTab>("pending");
   const [typeFilter, setTypeFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [dishSort, setDishSort] = useState<DishSort>("default");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -237,7 +279,7 @@ export function MenuPlanningView() {
   const collectionTypes = libraryId ? dishTypes : [];
   const visibleDishes = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase("es");
-    return (collectionDishes ?? []).filter((dish) => {
+    const filtered = (collectionDishes ?? []).filter((dish) => {
       const matchesQuery =
         !normalizedQuery ||
         `${dish.name} ${dish.categories.map((category) => category.name).join(" ")}`
@@ -251,7 +293,23 @@ export function MenuPlanningView() {
           dish.categories.some((category) => category.id === categoryFilter))
       );
     });
-  }, [activeTab, categoryFilter, collectionDishes, searchQuery, typeFilter]);
+    if (dishSort === "default") return filtered;
+    return [...filtered].sort((left, right) => {
+      if (left.rating === null && right.rating === null) return 0;
+      if (left.rating === null) return 1;
+      if (right.rating === null) return -1;
+      return dishSort === "rating-desc"
+        ? right.rating - left.rating
+        : left.rating - right.rating;
+    });
+  }, [
+    activeTab,
+    categoryFilter,
+    collectionDishes,
+    dishSort,
+    searchQuery,
+    typeFilter,
+  ]);
   const pendingCount = (collectionDishes ?? []).filter(
     (dish) => dish.status === "pending",
   ).length;
@@ -293,6 +351,22 @@ export function MenuPlanningView() {
     setSearchQuery("");
     setTypeFilter("");
     setCategoryFilter("");
+  }
+
+  async function rateDish(dish: MenuDish, rating: number) {
+    try {
+      const updated = await updateMenuDish(dish.id, {
+        rating: rating === 0 ? null : rating,
+      });
+      setDishes((current) =>
+        current.map((currentDish) =>
+          currentDish.id === updated.id ? updated : currentDish,
+        ),
+      );
+      setMessage(rating === 0 ? "Valoración quitada." : "Plato valorado.");
+    } catch {
+      setMessage("No se pudo guardar la valoración.");
+    }
   }
 
   async function addDish(event: FormEvent) {
@@ -662,6 +736,17 @@ export function MenuPlanningView() {
             </select>
           </label>
         ) : null}
+        <label className="menuFilterField">
+          Ordenar platos
+          <select
+            value={dishSort}
+            onChange={(event) => setDishSort(event.target.value as DishSort)}
+          >
+            <option value="default">Orden habitual</option>
+            <option value="rating-desc">Mejor valorados</option>
+            <option value="rating-asc">Peor valorados</option>
+          </select>
+        </label>
       </div>
 
       <div className="menuFilterSummary" aria-live="polite">
@@ -749,6 +834,10 @@ export function MenuPlanningView() {
                         ))}
                       </div>
                     ) : null}
+                    <DishRating
+                      dish={dish}
+                      onRate={(rating) => void rateDish(dish, rating)}
+                    />
                   </div>
                   <div className="menuDishActions">
                     <button

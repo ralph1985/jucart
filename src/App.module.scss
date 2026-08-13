@@ -1398,7 +1398,10 @@ h2 {
   display: grid;
   align-items: end;
   padding: 0.75rem max(0.55rem, env(safe-area-inset-right, 0px))
-    max(0.75rem, env(safe-area-inset-bottom, 0px))
+    calc(
+      var(--sheet-keyboard-inset, 0px) +
+        max(0.75rem, env(safe-area-inset-bottom, 0px))
+    )
     max(0.55rem, env(safe-area-inset-left, 0px));
   background: rgb(15 23 42 / 36%);
   backdrop-filter: blur(0.2rem);
@@ -1408,7 +1411,10 @@ h2 {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   width: min(100%, 42rem);
-  max-height: min(44rem, calc(100dvh - 1.5rem));
+  max-height: min(
+    44rem,
+    calc(100dvh - var(--sheet-keyboard-inset, 0px) - 1.5rem)
+  );
   min-height: 14rem;
   margin: 0 auto;
   overflow: hidden;

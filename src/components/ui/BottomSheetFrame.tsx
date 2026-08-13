@@ -7,6 +7,7 @@ import type {
 } from "react";
 
 import styles from "../../App.module.scss";
+import { useVisualViewportInset } from "../../hooks/useVisualViewportInset";
 
 type BottomSheetFrameProps = {
   ariaDescribedBy?: string;
@@ -49,10 +50,16 @@ export function BottomSheetFrame({
   subtitle,
   title,
 }: BottomSheetFrameProps) {
+  const keyboardInset = useVisualViewportInset();
+  const viewportStyle = {
+    "--sheet-keyboard-inset": `${keyboardInset}px`,
+  } as CSSProperties;
+
   return (
     <div
       ref={backdropRef}
       className={styles.bottomSheetBackdrop}
+      style={viewportStyle}
       onClick={onClose}
     >
       <section
@@ -65,6 +72,7 @@ export function BottomSheetFrame({
         style={
           {
             ...style,
+            ...viewportStyle,
             "--sheet-drag-offset": `${dragOffset}px`,
           } as CSSProperties
         }

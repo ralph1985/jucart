@@ -3332,7 +3332,7 @@ h2 {
 
 .column {
   display: flex;
-  flex: 0 0 calc(100vw - 1.5rem);
+  flex: 0 0 100%;
   flex-direction: column;
   height: 100%;
   min-height: 0;

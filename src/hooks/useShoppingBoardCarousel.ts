@@ -9,6 +9,8 @@ import {
 
 type BoardSection = { id: string };
 
+const SHOPPING_BOARD_WHEEL_THRESHOLD = 64;
+
 type UseShoppingBoardCarouselOptions<TSection extends BoardSection> = {
   api: UseEmblaCarouselType[1];
   isActive: boolean;
@@ -68,7 +70,7 @@ export function useShoppingBoardCarousel<TSection extends BoardSection>({
         wheelResetTimeoutRef.current = null;
       }, 140);
 
-      if (Math.abs(wheelDeltaRef.current) < 24) {
+      if (Math.abs(wheelDeltaRef.current) < SHOPPING_BOARD_WHEEL_THRESHOLD) {
         return;
       }
 

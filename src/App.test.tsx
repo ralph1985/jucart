@@ -3819,12 +3819,27 @@ describe("App", () => {
     const currentIndex = emblaCarouselMock.api.selectedScrollSnap();
     emblaCarouselMock.api.scrollTo.mockClear();
 
-    fireEvent.wheel(board, { deltaX: 32, deltaY: 0 });
+    fireEvent.wheel(board, { deltaX: 64, deltaY: 0 });
 
     expect(emblaCarouselMock.api.scrollTo).toHaveBeenLastCalledWith(
       currentIndex + 1,
       expect.any(Boolean),
     );
+  });
+
+  it("ignores small horizontal mouse-wheel gestures", async () => {
+    render(<App />);
+
+    await waitForAddFab();
+
+    const board = screen.getByRole("region", {
+      name: "Lista por secciones",
+    });
+    emblaCarouselMock.api.scrollTo.mockClear();
+
+    fireEvent.wheel(board, { deltaX: 32, deltaY: 0 });
+
+    expect(emblaCarouselMock.api.scrollTo).not.toHaveBeenCalled();
   });
 
   it("does not navigate the carousel for a vertical wheel gesture", async () => {

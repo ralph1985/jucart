@@ -3808,6 +3808,40 @@ describe("App", () => {
     expect(within(dialog).getByLabelText("Supermercado")).toHaveValue("dia");
   });
 
+  it("translates horizontal mouse-wheel gestures into carousel navigation", async () => {
+    render(<App />);
+
+    await waitForAddFab();
+
+    const board = screen.getByRole("region", {
+      name: "Lista por secciones",
+    });
+    const currentIndex = emblaCarouselMock.api.selectedScrollSnap();
+    emblaCarouselMock.api.scrollTo.mockClear();
+
+    fireEvent.wheel(board, { deltaX: 32, deltaY: 0 });
+
+    expect(emblaCarouselMock.api.scrollTo).toHaveBeenLastCalledWith(
+      currentIndex + 1,
+      expect.any(Boolean),
+    );
+  });
+
+  it("does not navigate the carousel for a vertical wheel gesture", async () => {
+    render(<App />);
+
+    await waitForAddFab();
+
+    const board = screen.getByRole("region", {
+      name: "Lista por secciones",
+    });
+    emblaCarouselMock.api.scrollTo.mockClear();
+
+    fireEvent.wheel(board, { deltaX: 4, deltaY: 40 });
+
+    expect(emblaCarouselMock.api.scrollTo).not.toHaveBeenCalled();
+  });
+
   it("removes purchased products after confirmation", async () => {
     await replaceStoredShoppingItems([
       {

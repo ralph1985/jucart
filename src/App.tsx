@@ -1580,7 +1580,7 @@ export function App() {
     slidesToScroll: 1,
     startIndex: selectedSectionIndex,
   });
-  useShoppingBoardCarousel({
+  const { handleWheel: handleBoardWheel } = useShoppingBoardCarousel({
     api: boardApi,
     isActive: activeView === "shopping",
     onSelectSection: setSelectedSectionId,
@@ -5310,6 +5310,7 @@ export function App() {
           lastHiddenPurchasedItem={lastHiddenPurchasedItem}
           lastRemovedItems={lastRemovedItems}
           onButtonPointerDown={handleButtonPointerDown}
+          onBoardWheel={handleBoardWheel}
           onColumnKeyDown={handleColumnKeyDown}
           onSelectSection={selectSection}
           renderItems={(

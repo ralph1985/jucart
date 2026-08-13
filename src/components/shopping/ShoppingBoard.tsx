@@ -3,6 +3,7 @@ import type {
   MutableRefObject,
   PointerEvent,
   ReactNode,
+  WheelEvent,
 } from "react";
 
 import styles from "../../App.module.scss";
@@ -21,6 +22,7 @@ type ShoppingBoardProps = {
   lastHiddenPurchasedItem: ShoppingItem | null;
   lastRemovedItems: ShoppingItem[];
   onButtonPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
+  onBoardWheel: (event: WheelEvent<HTMLElement>) => void;
   onColumnKeyDown: (
     event: KeyboardEvent<HTMLElement>,
     sectionId: ShoppingSectionId,
@@ -50,6 +52,7 @@ export function ShoppingBoard({
   lastHiddenPurchasedItem,
   lastRemovedItems,
   onButtonPointerDown,
+  onBoardWheel,
   onColumnKeyDown,
   onSelectSection,
   renderItems,
@@ -70,6 +73,7 @@ export function ShoppingBoard({
         }}
         className={styles.board}
         aria-label="Lista por secciones"
+        onWheel={onBoardWheel}
         tabIndex={0}
       >
         <div className={styles.boardTrack}>

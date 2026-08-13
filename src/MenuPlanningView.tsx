@@ -138,6 +138,8 @@ export function MenuPlanningView() {
   const [dishName, setDishName] = useState("");
   const [dishTypeId, setDishTypeId] = useState("");
   const [dishCategoryIds, setDishCategoryIds] = useState<string[]>([]);
+  const [dishDescription, setDishDescription] = useState("");
+  const [dishComment, setDishComment] = useState("");
   const [activeTab, setActiveTab] = useState<DishTab>("pending");
   const [typeFilter, setTypeFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -147,6 +149,8 @@ export function MenuPlanningView() {
   const [editingName, setEditingName] = useState("");
   const [editingTypeId, setEditingTypeId] = useState("");
   const [editingCategoryIds, setEditingCategoryIds] = useState<string[]>([]);
+  const [editingDescription, setEditingDescription] = useState("");
+  const [editingComment, setEditingComment] = useState("");
   const [newTypeName, setNewTypeName] = useState("");
   const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
   const [classificationTab, setClassificationTab] =
@@ -282,7 +286,7 @@ export function MenuPlanningView() {
     const filtered = (collectionDishes ?? []).filter((dish) => {
       const matchesQuery =
         !normalizedQuery ||
-        `${dish.name} ${dish.categories.map((category) => category.name).join(" ")}`
+        `${dish.name} ${dish.description ?? ""} ${dish.comment ?? ""} ${dish.categories.map((category) => category.name).join(" ")}`
           .toLocaleLowerCase("es")
           .includes(normalizedQuery);
       return (
@@ -380,11 +384,15 @@ export function MenuPlanningView() {
         dishName,
         dishTypeId || null,
         dishCategoryIds,
+        dishDescription,
+        dishComment,
       );
       setDishes((current) => [dish, ...current]);
       setDishName("");
       setDishTypeId("");
       setDishCategoryIds([]);
+      setDishDescription("");
+      setDishComment("");
       setMessage("Plato añadido.");
       closeDishSheet();
     } catch {
@@ -423,6 +431,8 @@ export function MenuPlanningView() {
     setEditingName(dish.name);
     setEditingTypeId(dish.dishTypeId ?? "");
     setEditingCategoryIds(dish.categories.map((category) => category.id));
+    setEditingDescription(dish.description ?? "");
+    setEditingComment(dish.comment ?? "");
     setIsDishSheetOpen(true);
   }
 
@@ -431,6 +441,8 @@ export function MenuPlanningView() {
     setDishName("");
     setDishTypeId("");
     setDishCategoryIds([]);
+    setDishDescription("");
+    setDishComment("");
     setIsDishSheetOpen(true);
   }
 
@@ -459,6 +471,8 @@ export function MenuPlanningView() {
         name: editingName,
         dishTypeId: editingTypeId || null,
         categoryIds: editingCategoryIds,
+        description: editingDescription,
+        comment: editingComment,
       });
       setDishes((current) =>
         current.map((currentDish) =>
@@ -834,6 +848,16 @@ export function MenuPlanningView() {
                         ))}
                       </div>
                     ) : null}
+                    {dish.description ? (
+                      <p className="menuDishTextSummary">
+                        <strong>Descripción:</strong> {dish.description}
+                      </p>
+                    ) : null}
+                    {dish.comment ? (
+                      <p className="menuDishTextSummary">
+                        <strong>Comentario:</strong> {dish.comment}
+                      </p>
+                    ) : null}
                     <DishRating
                       dish={dish}
                       onRate={(rating) => void rateDish(dish, rating)}
@@ -976,6 +1000,34 @@ export function MenuPlanningView() {
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="menuFilterField">
+              Descripción (opcional)
+              <textarea
+                maxLength={1000}
+                value={editingDish ? editingDescription : dishDescription}
+                onChange={(event) =>
+                  editingDish
+                    ? setEditingDescription(event.target.value)
+                    : setDishDescription(event.target.value)
+                }
+                placeholder="Qué es, qué lleva o cómo se prepara…"
+                disabled={isSaving}
+              />
+            </label>
+            <label className="menuFilterField">
+              Comentario (opcional)
+              <textarea
+                maxLength={1000}
+                value={editingDish ? editingComment : dishComment}
+                onChange={(event) =>
+                  editingDish
+                    ? setEditingComment(event.target.value)
+                    : setDishComment(event.target.value)
+                }
+                placeholder="Apuntes, preferencias o cambios…"
+                disabled={isSaving}
+              />
             </label>
             <div className="bottomSheetFooter">
               <button type="button" onClick={closeDishSheet}>

@@ -61,6 +61,8 @@ const pendingDish = {
   createdAt: "2026-08-10T10:00:00Z",
   updatedAt: "2026-08-10T10:00:00Z",
   rating: null,
+  description: null,
+  comment: null,
   categories: [],
 } as const;
 const cookedDish = {
@@ -70,6 +72,8 @@ const cookedDish = {
   status: "cooked",
   cookedAt: "2026-08-09T18:00:00Z",
   rating: 4,
+  description: "Tortilla clásica de patata",
+  comment: "Añadir cebolla",
 } as const;
 
 describe("MenuPlanningView", () => {
@@ -128,6 +132,8 @@ describe("MenuPlanningView", () => {
         "Macarrones",
         null,
         [],
+        "",
+        "",
       ),
     );
 
@@ -156,11 +162,21 @@ describe("MenuPlanningView", () => {
     fireEvent.change(screen.getByLabelText("Nombre del plato"), {
       target: { value: "Tortilla de patata" },
     });
+    fireEvent.change(screen.getByLabelText("Descripción (opcional)"), {
+      target: { value: "Una tortilla jugosa" },
+    });
+    fireEvent.change(screen.getByLabelText("Comentario (opcional)"), {
+      target: { value: "Hacerla con cebolla" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     await waitFor(() =>
       expect(mocks.updateDish).toHaveBeenCalledWith(
         "dish-2",
-        expect.objectContaining({ name: "Tortilla de patata" }),
+        expect.objectContaining({
+          name: "Tortilla de patata",
+          description: "Una tortilla jugosa",
+          comment: "Hacerla con cebolla",
+        }),
       ),
     );
 
@@ -188,6 +204,27 @@ describe("MenuPlanningView", () => {
       target: { value: "tortilla" },
     });
     expect(screen.queryByText("Lentejas")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /Cocinados/ }));
+    expect(screen.getByText("Tortilla")).toBeInTheDocument();
+  });
+
+  it("busca platos por descripción y comentario", async () => {
+    mocks.getDishes.mockResolvedValue([
+      { ...pendingDish, description: "Receta de cuchara", comment: null },
+      { ...cookedDish, description: null, comment: "Para días fríos" },
+    ]);
+    render(<MenuPlanningView />);
+    await waitFor(() =>
+      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
+    );
+
+    fireEvent.change(screen.getByLabelText("Buscar platos"), {
+      target: { value: "cuchara" },
+    });
+    expect(screen.getByText("Lentejas")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Buscar platos"), {
+      target: { value: "fríos" },
+    });
     fireEvent.click(screen.getByRole("tab", { name: /Cocinados/ }));
     expect(screen.getByText("Tortilla")).toBeInTheDocument();
   });

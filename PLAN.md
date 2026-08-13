@@ -608,3 +608,15 @@ Objetivo: permitir valorar las ideas de la biblioteca común para decidir más r
 - [x] Permitir ordenar los platos por mejor o peor valoración, dejando los no valorados al final.
 - [x] Mantener la compatibilidad con platos existentes sin valoración.
 - [x] Añadir tests de persistencia, edición, borrado y ordenación de valoraciones.
+
+## Hito 44 — Descripción y comentarios de platos
+
+Objetivo: conservar información útil sobre cada plato sin convertir la biblioteca en una lista difícil de consultar.
+
+- [x] Añadir descripción y comentario opcionales, compartidos por plato.
+- [x] Limitar ambos campos a 1000 caracteres y normalizar valores vacíos.
+- [x] Editar ambos textos desde el bottom sheet de alta y edición.
+- [x] Mostrar resúmenes truncados en la biblioteca.
+- [x] Incluir descripción y comentario en la búsqueda de platos.
+- [x] Mantener compatibilidad con platos existentes sin estos campos.
+- [x] Añadir tests de persistencia, edición, limpieza, visualización y búsqueda.

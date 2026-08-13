@@ -15,6 +15,8 @@ export type MenuDish = {
   createdAt: string;
   updatedAt: string;
   rating: number | null;
+  description: string | null;
+  comment: string | null;
   categories: MenuDishCategory[];
 };
 export type MenuDishType = { id: string; name: string };
@@ -61,6 +63,8 @@ type MenuDishRow = {
   created_at: string;
   updated_at: string;
   rating: number | null;
+  description: string | null;
+  comment: string | null;
   menu_dish_types: { id: string; name: string } | null;
   menu_dish_category_links: Array<{
     position: number;
@@ -111,6 +115,8 @@ function mapDish(row: MenuDishRow): MenuDish {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     rating: row.rating ?? null,
+    description: row.description ?? null,
+    comment: row.comment ?? null,
     categories: (row.menu_dish_category_links ?? [])
       .filter((link) => link.menu_dish_categories)
       .sort((left, right) => left.position - right.position)
@@ -123,7 +129,12 @@ function mapDish(row: MenuDishRow): MenuDish {
 }
 
 const dishColumns =
-  "id, library_id, name, dish_type_id, status, cooked_at, rating, created_at, updated_at, menu_dish_types(id, name), menu_dish_category_links(position, menu_dish_categories(id, name, position))";
+  "id, library_id, name, dish_type_id, status, cooked_at, rating, description, comment, created_at, updated_at, menu_dish_types(id, name), menu_dish_category_links(position, menu_dish_categories(id, name, position))";
+
+function normalizeDishText(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized || null;
+}
 
 export async function getMenuDishLibrary(): Promise<string> {
   const { data, error } = await (table("menu_dish_libraries")
@@ -154,6 +165,8 @@ export async function createMenuDish(
   name: string,
   dishTypeId: string | null,
   categoryIds: string[] = [],
+  description: string | null = null,
+  comment: string | null = null,
 ): Promise<MenuDish> {
   const { data, error } = await (table("menu_dishes")
     .insert({
@@ -162,6 +175,8 @@ export async function createMenuDish(
       dish_type_id: dishTypeId,
       status: "pending",
       cooked_at: null,
+      description: normalizeDishText(description),
+      comment: normalizeDishText(comment),
     })
     .select(dishColumns)
     .single() as unknown as Promise<TableResult>);
@@ -210,6 +225,8 @@ export async function updateMenuDish(
     status?: MenuDishStatus;
     cookedAt?: string | null;
     rating?: number | null;
+    description?: string | null;
+    comment?: string | null;
     categoryIds?: string[];
   },
 ): Promise<MenuDish> {
@@ -219,6 +236,10 @@ export async function updateMenuDish(
   if (values.status !== undefined) update.status = values.status;
   if (values.cookedAt !== undefined) update.cooked_at = values.cookedAt;
   if (values.rating !== undefined) update.rating = values.rating;
+  if (values.description !== undefined)
+    update.description = normalizeDishText(values.description);
+  if (values.comment !== undefined)
+    update.comment = normalizeDishText(values.comment);
   const { data, error } = await (table("menu_dishes")
     .update(update)
     .eq("id", dishId)

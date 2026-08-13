@@ -61,6 +61,8 @@ const row = {
   created_at: "2026-08-10T10:00:00Z",
   updated_at: "2026-08-10T10:00:00Z",
   rating: null,
+  description: null,
+  comment: null,
   menu_dish_types: { id: "type-1", name: "Legumbres" },
   menu_dish_category_links: [
     {
@@ -153,6 +155,8 @@ describe("menuPlanning", () => {
         status: "cooked",
         cookedAt: "2026-08-10T12:00:00Z",
         rating: 4,
+        description: "Un plato de cuchara",
+        comment: "Mejor con pimentón",
         categoryIds: ["category-1"],
       }),
     ).resolves.toMatchObject({
@@ -169,6 +173,21 @@ describe("menuPlanning", () => {
       updateMenuDishCategory("category-1", " Hortalizas "),
     ).resolves.toBeUndefined();
     await expect(deleteMenuDishCategory("category-1")).resolves.toBeUndefined();
+  });
+
+  it("normaliza descripciones y comentarios vacíos", async () => {
+    const dishQuery = query(row);
+    mocks.from.mockReturnValue(dishQuery);
+
+    await updateMenuDish("dish-1", {
+      description: "  ",
+      comment: "  Nota útil  ",
+    });
+
+    expect(dishQuery.update).toHaveBeenCalledWith({
+      description: null,
+      comment: "Nota útil",
+    });
   });
 
   it("gestiona tipos y recategorización remota con deshacer", async () => {

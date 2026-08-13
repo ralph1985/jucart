@@ -3932,6 +3932,8 @@ h2 {
   .board {
     width: min(100% - 2rem, 80rem);
     margin: 0 auto;
+    overflow-x: auto;
+    overflow-y: hidden;
     padding-inline: 0;
   }
 
@@ -3940,7 +3942,7 @@ h2 {
   }
 
   .column {
-    flex-basis: min(28rem, 100%);
+    flex-basis: 100%;
   }
 
   .header {

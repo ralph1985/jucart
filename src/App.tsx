@@ -1574,13 +1574,16 @@ export function App() {
   const [boardRef, boardApi] = useEmblaCarousel({
     align: "start",
     containScroll: false,
+    breakpoints: {
+      "(min-width: 42rem)": { active: false },
+    },
     dragFree: false,
     duration: shouldAnimate() ? 25 : 0,
     skipSnaps: false,
     slidesToScroll: 1,
     startIndex: selectedSectionIndex,
   });
-  const { handleWheel: handleBoardWheel } = useShoppingBoardCarousel({
+  useShoppingBoardCarousel({
     api: boardApi,
     isActive: activeView === "shopping",
     onSelectSection: setSelectedSectionId,
@@ -5310,7 +5313,6 @@ export function App() {
           lastHiddenPurchasedItem={lastHiddenPurchasedItem}
           lastRemovedItems={lastRemovedItems}
           onButtonPointerDown={handleButtonPointerDown}
-          onBoardWheel={handleBoardWheel}
           onColumnKeyDown={handleColumnKeyDown}
           onSelectSection={selectSection}
           renderItems={(

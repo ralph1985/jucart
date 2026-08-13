@@ -584,19 +584,19 @@ Objetivo: cerrar los casos de mantenimiento y borrado sin pérdida accidental in
 
 Objetivo: permitir que las personas reciban versiones nuevas sin borrar manualmente los datos del navegador ni reinstalar la aplicación.
 
-- [ ] Detectar desde la aplicación que existe una nueva versión del Service Worker.
-- [ ] Mostrar un aviso discreto cuando haya una actualización disponible.
-- [ ] Añadir una acción `Actualizar` que active la nueva versión y recargue la aplicación.
-- [ ] Mantener la caché local y los datos de Dexie intactos durante la actualización.
-- [ ] Comprobar actualizaciones al iniciar y al volver a primer plano.
-- [ ] Gestionar correctamente una pestaña abierta con un bundle antiguo.
-- [ ] Añadir una migración única del Service Worker que recargue clientes antiguos ya controlados.
-- [ ] Guardar una marca de migración para no repetir esa recarga en futuras actualizaciones.
-- [ ] Añadir tests del aviso, activación, recarga y estados sin conexión.
+- [x] Detectar desde la aplicación que existe una nueva versión del Service Worker.
+- [x] Mostrar una modal obligatoria cuando haya una actualización disponible.
+- [x] Añadir una acción `Actualizar` que active la nueva versión y recargue la aplicación.
+- [x] Mantener la caché local y los datos de Dexie intactos durante la actualización.
+- [x] Comprobar actualizaciones al iniciar y al volver a primer plano.
+- [x] Gestionar correctamente una pestaña abierta con un bundle antiguo.
+- [x] Añadir una migración única del Service Worker que recargue clientes antiguos ya controlados.
+- [x] Guardar una marca de migración para no repetir esa recarga en futuras actualizaciones.
+- [x] Añadir tests de la modal, activación, recarga y errores de actualización.
 - [ ] Verificar el comportamiento en escritorio, móvil y PWA instalada.
-- [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+- [x] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 
-La versión visible actual es `0.12.0`. El coordinador revisará periódicamente si los cambios acumulados justifican una nueva versión y preguntará antes de modificarla.
+La versión visible actual es `0.16.0`. El coordinador revisará periódicamente si los cambios acumulados justifican un nuevo incremento y preguntará antes de modificarla.
 
 ## Hito 43 — Valoración compartida de platos
 

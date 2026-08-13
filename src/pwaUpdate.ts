@@ -2,6 +2,7 @@ import { registerSW } from "virtual:pwa-register";
 
 import {
   pwaUpdateApplyEvent,
+  pwaUpdateApplyFailedEvent,
   pwaUpdateAvailableEvent,
 } from "./pwaUpdateEvents";
 
@@ -28,7 +29,9 @@ export function registerPwaUpdate() {
   });
 
   const applyUpdate = () => {
-    void updateSW(true);
+    void updateSW(true).catch(() => {
+      window.dispatchEvent(new Event(pwaUpdateApplyFailedEvent));
+    });
   };
   window.addEventListener(pwaUpdateApplyEvent, applyUpdate);
 

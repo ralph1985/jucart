@@ -119,6 +119,7 @@ import {
 import type { ShoppingList, ShoppingListMember } from "./shoppingLists";
 import {
   pwaUpdateApplyEvent,
+  pwaUpdateApplyFailedEvent,
   pwaUpdateAvailableEvent,
 } from "./pwaUpdateEvents";
 import { updateBadge } from "./services/badgeService";
@@ -126,7 +127,7 @@ import { AppHeader } from "./components/app/AppHeader";
 import type { SyncStatus } from "./components/app/AppHeader";
 import { AppBottomNav } from "./components/app/AppBottomNav";
 import type { AppView } from "./components/app/AppBottomNav";
-import { PwaUpdateBanner } from "./components/app/PwaUpdateBanner";
+import { PwaUpdateModal } from "./components/app/PwaUpdateModal";
 import { FloatingActionButton } from "./components/app/FloatingActionButton";
 import { ShoppingControls } from "./components/shopping/ShoppingControls";
 import { ShoppingBoard } from "./components/shopping/ShoppingBoard";
@@ -1422,6 +1423,7 @@ export function App() {
   >({});
   const [isPwaUpdateAvailable, setIsPwaUpdateAvailable] = useState(false);
   const [isPwaUpdateApplying, setIsPwaUpdateApplying] = useState(false);
+  const [pwaUpdateError, setPwaUpdateError] = useState<string | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isSupabaseConfigured() ? "syncing" : "local",
@@ -1910,13 +1912,24 @@ export function App() {
 
   useEffect(() => {
     const handleUpdateAvailable = () => setIsPwaUpdateAvailable(true);
+    const handleUpdateApplyFailed = () => {
+      setIsPwaUpdateApplying(false);
+      setPwaUpdateError(
+        "No se pudo aplicar la actualización. Comprueba la conexión y vuelve a intentarlo.",
+      );
+    };
 
     window.addEventListener(pwaUpdateAvailableEvent, handleUpdateAvailable);
+    window.addEventListener(pwaUpdateApplyFailedEvent, handleUpdateApplyFailed);
 
     return () => {
       window.removeEventListener(
         pwaUpdateAvailableEvent,
         handleUpdateAvailable,
+      );
+      window.removeEventListener(
+        pwaUpdateApplyFailedEvent,
+        handleUpdateApplyFailed,
       );
     };
   }, []);
@@ -4325,6 +4338,7 @@ export function App() {
 
   function handlePwaUpdate() {
     setIsPwaUpdateApplying(true);
+    setPwaUpdateError(null);
     window.dispatchEvent(new Event(pwaUpdateApplyEvent));
   }
 
@@ -4965,7 +4979,8 @@ export function App() {
           </p>
         </div>
       ) : null}
-      <PwaUpdateBanner
+      <PwaUpdateModal
+        errorMessage={pwaUpdateError}
         isAvailable={isPwaUpdateAvailable}
         isApplying={isPwaUpdateApplying}
         onButtonPointerDown={handleButtonPointerDown}

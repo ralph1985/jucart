@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   pwaUpdateApplyEvent,
+  pwaUpdateApplyFailedEvent,
   pwaUpdateAvailableEvent,
 } from "./pwaUpdateEvents";
 
@@ -88,6 +89,20 @@ describe("pwaUpdate", () => {
 
     expect(pwaMocks.updateSW).toHaveBeenCalledWith(true);
     cleanup();
+  });
+
+  it("avisa si falla la activación de la actualización", async () => {
+    const listener = vi.fn();
+    window.addEventListener(pwaUpdateApplyFailedEvent, listener);
+    pwaMocks.updateSW.mockRejectedValueOnce(new Error("offline"));
+    const cleanup = registerPwaUpdate();
+
+    window.dispatchEvent(new Event(pwaUpdateApplyEvent));
+    await Promise.resolve();
+
+    expect(listener).toHaveBeenCalledOnce();
+    cleanup();
+    window.removeEventListener(pwaUpdateApplyFailedEvent, listener);
   });
 
   it("permite registrarse aunque aún no exista una registration", () => {

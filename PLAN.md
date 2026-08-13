@@ -596,7 +596,7 @@ Objetivo: permitir que las personas reciban versiones nuevas sin borrar manualme
 - [ ] Verificar el comportamiento en escritorio, móvil y PWA instalada.
 - [x] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 
-La versión visible actual es `0.16.0`. El coordinador revisará periódicamente si los cambios acumulados justifican un nuevo incremento y preguntará antes de modificarla.
+La versión visible actual es `0.17.0`. El coordinador revisará periódicamente si los cambios acumulados justifican un nuevo incremento y preguntará antes de modificarla.
 
 ## Hito 43 — Valoración compartida de platos
 

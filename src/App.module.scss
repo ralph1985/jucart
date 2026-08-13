@@ -3942,7 +3942,7 @@ h2 {
   }
 
   .column {
-    flex-basis: 100%;
+    flex-basis: min(28rem, 100%);
   }
 
   .header {

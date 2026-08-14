@@ -78,30 +78,25 @@ async function main() {
 async function exportContext(filesDir) {
   const [sections, tickets, files, canonicalProducts, canonicalProductAliases] =
     await Promise.all([
-      fetchRows("shopping_sections", "list_id", config.listId, "position.asc"),
-      fetchRows(
-        "shopping_tickets",
-        "list_id",
-        config.listId,
-        "uploaded_at.asc",
-      ),
+      fetchRows("shopping_sections", null, null, "list_id.asc,position.asc"),
+      fetchRows("shopping_tickets", null, null, "list_id.asc,uploaded_at.asc"),
       fetchRows(
         "shopping_ticket_files",
-        "list_id",
-        config.listId,
-        "position.asc",
+        null,
+        null,
+        "list_id.asc,position.asc",
       ),
       fetchRows(
         "shopping_canonical_products",
-        "list_id",
-        config.listId,
-        "normalized_name.asc",
+        null,
+        null,
+        "list_id.asc,normalized_name.asc",
       ),
       fetchRows(
         "shopping_canonical_product_aliases",
-        "list_id",
-        config.listId,
-        "normalized_alias.asc",
+        null,
+        null,
+        "list_id.asc,normalized_alias.asc",
       ),
     ]);
   const pendingTickets = tickets.filter(
@@ -144,6 +139,7 @@ async function exportContext(filesDir) {
 
     exportedTickets.push({
       id: ticket.id,
+      list_id: ticket.list_id,
       section_id: ticket.section_id,
       uploaded_by: ticket.uploaded_by,
       uploaded_at: ticket.uploaded_at,
@@ -154,7 +150,7 @@ async function exportContext(filesDir) {
 
   return {
     generatedAt: new Date().toISOString(),
-    listId: config.listId,
+    listIds: [...new Set(pendingTickets.map((ticket) => ticket.list_id))],
     rules: {
       processing:
         "Procesa todos los tickets pendientes del contexto. Si una línea es dudosa, marca solo esa línea como needs_review.",
@@ -169,16 +165,19 @@ async function exportContext(filesDir) {
     },
     sections: sections.map((section) => ({
       id: section.id,
+      list_id: section.list_id,
       name: section.name,
     })),
     canonicalProducts: canonicalProducts.map((product) => ({
       id: product.id,
+      list_id: product.list_id,
       name: product.name,
       normalized_name: product.normalized_name,
       comparison_unit: product.comparison_unit,
     })),
     canonicalProductAliases: canonicalProductAliases.map((alias) => ({
       id: alias.id,
+      list_id: alias.list_id,
       canonical_product_id: alias.canonical_product_id,
       alias: alias.alias,
       normalized_alias: alias.normalized_alias,
@@ -191,36 +190,39 @@ async function applyExtraction(rawExtraction, startedAt) {
   const extractionTickets = normalizeExtraction(rawExtraction);
   const [tickets, canonicalProducts, canonicalProductAliases] =
     await Promise.all([
-      fetchRows("shopping_tickets", "list_id", config.listId),
+      fetchRows("shopping_tickets"),
       fetchRows(
         "shopping_canonical_products",
-        "list_id",
-        config.listId,
-        "normalized_name.asc",
+        null,
+        null,
+        "list_id.asc,normalized_name.asc",
       ),
       fetchRows(
         "shopping_canonical_product_aliases",
-        "list_id",
-        config.listId,
-        "normalized_alias.asc",
+        null,
+        null,
+        "list_id.asc,normalized_alias.asc",
       ),
     ]);
   const ticketsById = new Map(tickets.map((ticket) => [ticket.id, ticket]));
-  const productsById = new Map(
-    canonicalProducts.map((product) => [product.id, product]),
-  );
-  const productsByNormalizedName = new Map(
-    canonicalProducts.map((product) => [product.normalized_name, product]),
-  );
-  const aliasesByNormalizedAlias = new Map(
-    canonicalProductAliases.map((alias) => [alias.normalized_alias, alias]),
-  );
+  const catalogsByListId = new Map();
+
+  for (const product of canonicalProducts) {
+    const catalog = getCatalog(catalogsByListId, product.list_id);
+    catalog.productsById.set(product.id, product);
+    catalog.productsByNormalizedName.set(product.normalized_name, product);
+  }
+
+  for (const alias of canonicalProductAliases) {
+    const catalog = getCatalog(catalogsByListId, alias.list_id);
+    catalog.aliasesByNormalizedAlias.set(alias.normalized_alias, alias);
+  }
 
   for (const ticket of extractionTickets) {
     const currentTicket = ticketsById.get(ticket.id);
 
     if (!currentTicket) {
-      fail(`Unknown ticket id for this list: ${ticket.id}`);
+      fail(`Unknown ticket id: ${ticket.id}`);
     }
 
     if (
@@ -233,26 +235,32 @@ async function applyExtraction(rawExtraction, startedAt) {
   }
 
   for (const ticket of extractionTickets) {
+    const currentTicket = ticketsById.get(ticket.id);
+    const listId = currentTicket.list_id;
+
     await patchRows(
       "shopping_tickets",
-      `id=eq.${encodeURIComponent(ticket.id)}&list_id=eq.${config.listId}`,
+      `id=eq.${encodeURIComponent(ticket.id)}&list_id=eq.${encodeURIComponent(listId)}`,
       { status: "processing", error_message: null },
     );
   }
 
   let insertedLineCount = 0;
-  let acceptedLineCount = 0;
   let reviewLineCount = 0;
+  const statsByListId = new Map();
 
   for (const ticket of extractionTickets) {
     const currentTicket = ticketsById.get(ticket.id);
+    const listId = currentTicket.list_id;
+    const catalog = getCatalog(catalogsByListId, listId);
     const plannedProductsByClientId = new Map();
 
     for (const product of ticket.canonicalProducts) {
       const normalizedName = normalizeCatalogText(
         product.normalized_name || product.name,
       );
-      const existingProduct = productsByNormalizedName.get(normalizedName);
+      const existingProduct =
+        catalog.productsByNormalizedName.get(normalizedName);
 
       if (existingProduct) {
         plannedProductsByClientId.set(product.client_id, existingProduct);
@@ -263,7 +271,7 @@ async function applyExtraction(rawExtraction, startedAt) {
         "shopping_canonical_products",
         [
           {
-            list_id: config.listId,
+            list_id: listId,
             name: product.name,
             normalized_name: normalizedName,
             comparison_unit: product.comparison_unit,
@@ -272,8 +280,8 @@ async function applyExtraction(rawExtraction, startedAt) {
       );
 
       if (insertedProduct) {
-        productsById.set(insertedProduct.id, insertedProduct);
-        productsByNormalizedName.set(
+        catalog.productsById.set(insertedProduct.id, insertedProduct);
+        catalog.productsByNormalizedName.set(
           insertedProduct.normalized_name,
           insertedProduct,
         );
@@ -285,7 +293,7 @@ async function applyExtraction(rawExtraction, startedAt) {
     const lineRows = ticket.lines.map((line) => {
       const canonicalProductId = resolveCanonicalProductId(
         line.canonical_product_id,
-        productsById,
+        catalog.productsById,
         plannedProductsByClientId,
       );
 
@@ -297,16 +305,17 @@ async function applyExtraction(rawExtraction, startedAt) {
 
       if (canonicalProductId && line.product_name) {
         const normalizedAlias = normalizeCatalogText(line.product_name);
-        const existingAlias = aliasesByNormalizedAlias.get(normalizedAlias);
+        const existingAlias =
+          catalog.aliasesByNormalizedAlias.get(normalizedAlias);
 
         if (!existingAlias) {
           aliasRows.push({
-            list_id: config.listId,
+            list_id: listId,
             canonical_product_id: canonicalProductId,
             alias: line.product_name,
             normalized_alias: normalizedAlias,
           });
-          aliasesByNormalizedAlias.set(normalizedAlias, {
+          catalog.aliasesByNormalizedAlias.set(normalizedAlias, {
             canonical_product_id: canonicalProductId,
           });
         }
@@ -314,7 +323,7 @@ async function applyExtraction(rawExtraction, startedAt) {
 
       return {
         ticket_id: ticket.id,
-        list_id: config.listId,
+        list_id: listId,
         line_index: line.line_index,
         raw_text: line.raw_text || null,
         product_name: line.product_name || null,
@@ -343,22 +352,34 @@ async function applyExtraction(rawExtraction, startedAt) {
       await buildPriceObservationRows({
         currentTicket,
         lineRows,
-        productsById,
+        productsById: catalog.productsById,
         ticket,
+        listId,
       }),
       "ticket_line_id",
     );
 
     insertedLineCount += lineRows.length;
-    acceptedLineCount += lineRows.filter((line) => !line.needs_review).length;
     reviewLineCount += lineRows.filter((line) => line.needs_review).length;
+
+    const stats = statsByListId.get(listId) ?? {
+      linesAccepted: 0,
+      linesNeedingReview: 0,
+      ticketsProcessed: 0,
+    };
+    stats.linesAccepted += lineRows.filter((line) => !line.needs_review).length;
+    stats.linesNeedingReview += lineRows.filter(
+      (line) => line.needs_review,
+    ).length;
+    stats.ticketsProcessed += 1;
+    statsByListId.set(listId, stats);
 
     const hasReview = lineRows.some((line) => line.needs_review);
     const status = hasReview ? "needs_review" : "processed";
 
     await patchRows(
       "shopping_tickets",
-      `id=eq.${encodeURIComponent(ticket.id)}&list_id=eq.${config.listId}`,
+      `id=eq.${encodeURIComponent(ticket.id)}&list_id=eq.${encodeURIComponent(listId)}`,
       {
         status,
         processed_at: new Date().toISOString(),
@@ -367,17 +388,20 @@ async function applyExtraction(rawExtraction, startedAt) {
     );
   }
 
-  await recordTicketProcessingRun({
-    errorMessage: null,
-    finishedAt: new Date().toISOString(),
-    linesAccepted: acceptedLineCount,
-    linesNeedingReview: reviewLineCount,
-    startedAt,
-    status: "success",
-    summary: `Processed ${extractionTickets.length} ticket(s), ${acceptedLineCount} accepted line(s), ${reviewLineCount} review line(s).`,
-    ticketsFailed: 0,
-    ticketsProcessed: extractionTickets.length,
-  });
+  for (const [listId, stats] of statsByListId) {
+    await recordTicketProcessingRun({
+      errorMessage: null,
+      finishedAt: new Date().toISOString(),
+      linesAccepted: stats.linesAccepted,
+      linesNeedingReview: stats.linesNeedingReview,
+      listId,
+      startedAt,
+      status: "success",
+      summary: `Processed ${stats.ticketsProcessed} ticket(s), ${stats.linesAccepted} accepted line(s), ${stats.linesNeedingReview} review line(s).`,
+      ticketsFailed: 0,
+      ticketsProcessed: stats.ticketsProcessed,
+    });
+  }
 
   console.log(
     `Processed ${extractionTickets.length} ticket(s), ${insertedLineCount} line(s), ${reviewLineCount} needing review.`,
@@ -389,6 +413,7 @@ async function buildPriceObservationRows({
   lineRows,
   productsById,
   ticket,
+  listId,
 }) {
   const persistedLines = await fetchRows(
     "shopping_ticket_lines",
@@ -423,7 +448,7 @@ async function buildPriceObservationRows({
     }
 
     observationRows.push({
-      list_id: config.listId,
+      list_id: listId,
       source: "ticket",
       ticket_id: ticket.id,
       ticket_line_id: ticketLine.id,
@@ -473,6 +498,7 @@ function roundPrice(value, decimals) {
 async function markContextTicketsFailed(context, message, startedAt) {
   const tickets = Array.isArray(context?.tickets) ? context.tickets : [];
   const trimmedMessage = message.trim().slice(0, 500);
+  const failedByListId = new Map();
 
   for (const ticket of tickets) {
     if (typeof ticket?.id !== "string" || !ticket.id) {
@@ -481,26 +507,32 @@ async function markContextTicketsFailed(context, message, startedAt) {
 
     await patchRows(
       "shopping_tickets",
-      `id=eq.${encodeURIComponent(ticket.id)}&list_id=eq.${config.listId}`,
+      `id=eq.${encodeURIComponent(ticket.id)}&list_id=eq.${encodeURIComponent(ticket.list_id)}`,
       {
         status: "failed",
         processed_at: new Date().toISOString(),
         error_message: trimmedMessage || "No se pudo procesar el ticket.",
       },
     );
+
+    const listId = ticket.list_id;
+    failedByListId.set(listId, (failedByListId.get(listId) ?? 0) + 1);
   }
 
-  await recordTicketProcessingRun({
-    errorMessage: trimmedMessage || "No se pudo procesar el ticket.",
-    finishedAt: new Date().toISOString(),
-    linesAccepted: 0,
-    linesNeedingReview: 0,
-    startedAt,
-    status: "failed",
-    summary: `Marked ${tickets.length} ticket(s) as failed.`,
-    ticketsFailed: tickets.length,
-    ticketsProcessed: 0,
-  });
+  for (const [listId, ticketsFailed] of failedByListId) {
+    await recordTicketProcessingRun({
+      errorMessage: trimmedMessage || "No se pudo procesar el ticket.",
+      finishedAt: new Date().toISOString(),
+      linesAccepted: 0,
+      linesNeedingReview: 0,
+      listId,
+      startedAt,
+      status: "failed",
+      summary: `Marked ${ticketsFailed} ticket(s) as failed.`,
+      ticketsFailed,
+      ticketsProcessed: 0,
+    });
+  }
 
   console.log(`Marked ${tickets.length} ticket(s) as failed.`);
 }
@@ -510,6 +542,7 @@ async function recordTicketProcessingRun({
   finishedAt,
   linesAccepted,
   linesNeedingReview,
+  listId,
   startedAt,
   status,
   summary,
@@ -518,7 +551,7 @@ async function recordTicketProcessingRun({
 }) {
   await insertRowsReturning("shopping_ticket_processing_runs", [
     {
-      list_id: config.listId,
+      list_id: listId,
       source: "codex",
       status,
       summary,
@@ -639,6 +672,21 @@ function resolveCanonicalProductId(
   return plannedProductsByClientId.get(canonicalProductId)?.id ?? "";
 }
 
+function getCatalog(catalogsByListId, listId) {
+  let catalog = catalogsByListId.get(listId);
+
+  if (!catalog) {
+    catalog = {
+      aliasesByNormalizedAlias: new Map(),
+      productsById: new Map(),
+      productsByNormalizedName: new Map(),
+    };
+    catalogsByListId.set(listId, catalog);
+  }
+
+  return catalog;
+}
+
 async function downloadTicketFile(file, localPath) {
   const { data, error } = await supabase.storage
     .from(file.storage_bucket)
@@ -668,15 +716,12 @@ async function readSupabaseConfig() {
   const combinedEnv = { ...baseEnv, ...localEnv, ...backupEnv, ...process.env };
   const url = combinedEnv.VITE_SUPABASE_URL?.trim();
   const serviceRoleKey = combinedEnv.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  const listId = combinedEnv.VITE_SUPABASE_LIST_ID?.trim();
 
-  if (!url || !serviceRoleKey || !listId) {
-    fail(
-      "Missing VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or VITE_SUPABASE_LIST_ID.",
-    );
+  if (!url || !serviceRoleKey) {
+    fail("Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
   }
 
-  return { listId, serviceRoleKey, url: url.replace(/\/$/, "") };
+  return { serviceRoleKey, url: url.replace(/\/$/, "") };
 }
 
 async function readEnvFile(envPath) {

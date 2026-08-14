@@ -20,6 +20,11 @@ type ExtendableEventLike = Event & {
   waitUntil: (promise: Promise<unknown>) => void;
 };
 
+type MessageEventLike = {
+  data?: unknown;
+  waitUntil?: (promise: Promise<unknown>) => void;
+};
+
 type NotificationEventLike = Event & {
   notification: {
     close: () => void;
@@ -88,6 +93,10 @@ serviceWorker.addEventListener("activate", (event) => {
   (event as ExtendableEventLike).waitUntil(handleActivateEvent(serviceWorker));
 });
 
+serviceWorker.addEventListener("message", (event) => {
+  handleMessageEvent(event as MessageEventLike, serviceWorker);
+});
+
 serviceWorker.addEventListener("fetch", (event) => {
   handleFetchEvent(event as FetchEventLike, serviceWorker);
 });
@@ -104,7 +113,21 @@ export async function handleInstallEvent(env: ServiceWorkerEnvironment) {
   const cache = await env.caches.open(precacheCacheName);
 
   await cache.addAll(getPrecacheUrls(precacheManifest));
-  await env.skipWaiting?.();
+}
+
+export function handleMessageEvent(
+  event: MessageEventLike,
+  env: ServiceWorkerEnvironment,
+) {
+  if (!isSkipWaitingMessage(event.data) || !env.skipWaiting) {
+    return;
+  }
+
+  const skipWaitingPromise = env.skipWaiting();
+
+  if (event.waitUntil) {
+    event.waitUntil(skipWaitingPromise);
+  }
 }
 
 export async function handleActivateEvent(env: ServiceWorkerEnvironment) {
@@ -277,6 +300,17 @@ function getPrecacheUrls(entries: PrecacheEntry[]) {
   return entries
     .map((entry) => (typeof entry === "string" ? entry : entry.url))
     .filter((url) => url.trim().length > 0);
+}
+
+function isSkipWaitingMessage(
+  value: unknown,
+): value is { type: "SKIP_WAITING" } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    value.type === "SKIP_WAITING"
+  );
 }
 
 function hashPrecacheManifest(entries: PrecacheEntry[]) {

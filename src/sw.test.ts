@@ -8,6 +8,7 @@ import {
   handleInstallEvent,
   handleNotificationClickEvent,
   handlePushEvent,
+  handleMessageEvent,
   parsePushPayload,
 } from "./sw";
 
@@ -225,7 +226,7 @@ describe("service worker push notifications", () => {
     expect(env.cache.put).not.toHaveBeenCalled();
   });
 
-  it("instala la precaché y activa inmediatamente cuando esas APIs existen", async () => {
+  it("instala la precaché sin activar la versión pendiente automáticamente", async () => {
     const env = createEnvironment();
     const skipWaiting = vi.fn(() => Promise.resolve());
     (env as { skipWaiting?: () => Promise<void> }).skipWaiting = skipWaiting;
@@ -233,7 +234,29 @@ describe("service worker push notifications", () => {
     await handleInstallEvent(env);
 
     expect(env.cache.addAll).toHaveBeenCalled();
+    expect(skipWaiting).not.toHaveBeenCalled();
+  });
+
+  it("activa la versión pendiente cuando recibe SKIP_WAITING", async () => {
+    const env = createEnvironment();
+    const skipWaiting = vi.fn(() => Promise.resolve());
+    (env as { skipWaiting?: () => Promise<void> }).skipWaiting = skipWaiting;
+    const waitUntil = vi.fn();
+
+    handleMessageEvent({ data: { type: "SKIP_WAITING" }, waitUntil }, env);
+
     expect(skipWaiting).toHaveBeenCalledOnce();
+    expect(waitUntil).toHaveBeenCalledOnce();
+  });
+
+  it("ignora mensajes que no controlan la actualización", () => {
+    const env = createEnvironment();
+    const skipWaiting = vi.fn(() => Promise.resolve());
+    (env as { skipWaiting?: () => Promise<void> }).skipWaiting = skipWaiting;
+
+    handleMessageEvent({ data: { type: "OTHER" } }, env);
+
+    expect(skipWaiting).not.toHaveBeenCalled();
   });
 
   it("instala y activa aunque las APIs opcionales no estén disponibles", async () => {

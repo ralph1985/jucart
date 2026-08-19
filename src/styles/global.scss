@@ -180,9 +180,9 @@ select {
   z-index: 2;
   bottom: 0;
   margin-inline: -1.1rem;
-  margin-bottom: -1.1rem;
+  margin-bottom: 0;
   border-top: 1px solid var(--color-border);
-  padding: 0.85rem 1.1rem max(0.85rem, env(safe-area-inset-bottom, 0px));
+  padding: 0.35rem 1.1rem max(0.35rem, env(safe-area-inset-bottom, 0px));
   background: var(--surface);
   box-shadow: 0 -0.7rem 1.1rem
     color-mix(in srgb, var(--surface) 88%, transparent);

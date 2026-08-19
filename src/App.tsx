@@ -128,6 +128,8 @@ import type { SyncStatus } from "./components/app/AppHeader";
 import { AppBottomNav } from "./components/app/AppBottomNav";
 import type { AppView } from "./components/app/AppBottomNav";
 import { PwaUpdateModal } from "./components/app/PwaUpdateModal";
+import { NoticeInboxSheet } from "./components/app/NoticeInboxSheet";
+import type { NoticeInboxItem } from "./components/app/NoticeInboxSheet";
 import { FloatingActionButton } from "./components/app/FloatingActionButton";
 import { ShoppingControls } from "./components/shopping/ShoppingControls";
 import { ShoppingBoard } from "./components/shopping/ShoppingBoard";
@@ -272,7 +274,8 @@ type AppOverlay =
   | "freezer-edit-sheet"
   | "clear-dialog"
   | "edit-dialog"
-  | "confirm-sheet";
+  | "confirm-sheet"
+  | "notice-inbox";
 
 type BottomSheetOverlay = Extract<
   AppOverlay,
@@ -285,6 +288,7 @@ type BottomSheetOverlay = Extract<
   | "clear-dialog"
   | "edit-dialog"
   | "confirm-sheet"
+  | "notice-inbox"
 >;
 
 type AddProductNotice =
@@ -1467,6 +1471,7 @@ export function App() {
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isSectionAddSheetOpen, setIsSectionAddSheetOpen] = useState(false);
   const [isFreezerAddSheetOpen, setIsFreezerAddSheetOpen] = useState(false);
+  const [isNoticeInboxOpen, setIsNoticeInboxOpen] = useState(false);
   const [closingBottomSheet, setClosingBottomSheet] =
     useState<BottomSheetOverlay | null>(null);
   const [addItemQuantity, setAddItemQuantity] = useState("1");
@@ -1513,6 +1518,8 @@ export function App() {
   const clearSheetRef = useRef<HTMLElement>(null);
   const confirmationSheetBackdropRef = useRef<HTMLDivElement>(null);
   const confirmationSheetRef = useRef<HTMLElement>(null);
+  const noticeInboxBackdropRef = useRef<HTMLDivElement>(null);
+  const noticeInboxRef = useRef<HTMLElement>(null);
   const sectionNameInputRef = useRef<HTMLInputElement>(null);
   const sectionColumnRefs = useRef<
     Partial<Record<ShoppingSectionId, HTMLElement>>
@@ -1797,6 +1804,80 @@ export function App() {
         : historyTab === "menu-categories"
           ? displayedMenuDishRecategorizationChanges.length
           : displayedHistoryEvents.length;
+  const noticeInboxItems: NoticeInboxItem[] = [
+    ...(unseenRemoteHistoryEvents.length > 0
+      ? [
+          {
+            id: "remote-changes",
+            count: unseenRemoteHistoryEvents.length,
+            label:
+              unseenRemoteHistoryEvents.length === 1
+                ? "Hay 1 cambio de otro dispositivo."
+                : `Hay ${unseenRemoteHistoryEvents.length} cambios de otro dispositivo.`,
+            actionLabel: "Ver cambios",
+            onOpen: () => {
+              closeNoticeInbox();
+              showUnseenHistoryView();
+            },
+          },
+        ]
+      : []),
+    ...(unseenRecategorizationChanges.length > 0
+      ? [
+          {
+            id: "recategorizations",
+            count: unseenRecategorizationChanges.length,
+            label:
+              unseenRecategorizationChanges.length === 1
+                ? "Hay 1 recategorización nueva."
+                : `Hay ${unseenRecategorizationChanges.length} recategorizaciones nuevas.`,
+            actionLabel: "Ver categorías",
+            onOpen: () => {
+              closeNoticeInbox();
+              showUnseenRecategorizationView();
+            },
+          },
+        ]
+      : []),
+    ...(unseenProductNormalizationChanges.length > 0
+      ? [
+          {
+            id: "normalizations",
+            count: unseenProductNormalizationChanges.length,
+            label:
+              unseenProductNormalizationChanges.length === 1
+                ? "Hay 1 normalización nueva."
+                : `Hay ${unseenProductNormalizationChanges.length} normalizaciones nuevas.`,
+            actionLabel: "Ver normalización",
+            onOpen: () => {
+              closeNoticeInbox();
+              showUnseenProductNormalizationView();
+            },
+          },
+        ]
+      : []),
+    ...(unseenMenuDishRecategorizationChanges.length > 0
+      ? [
+          {
+            id: "menu-recategorizes",
+            count: unseenMenuDishRecategorizationChanges.length,
+            label:
+              unseenMenuDishRecategorizationChanges.length === 1
+                ? "Hay 1 recategorización nueva de platos."
+                : `Hay ${unseenMenuDishRecategorizationChanges.length} recategorizaciones nuevas de platos.`,
+            actionLabel: "Ver tipos de plato",
+            onOpen: () => {
+              closeNoticeInbox();
+              showUnseenMenuDishRecategorizationView();
+            },
+          },
+        ]
+      : []),
+  ];
+  const noticeCount = noticeInboxItems.reduce(
+    (total, item) => total + item.count,
+    0,
+  );
   const removePurchasedButtonText =
     selectedPurchasedCount === 1
       ? "Borrar 1 producto"
@@ -2729,6 +2810,12 @@ export function App() {
     isOpen: confirmationRequest !== null,
     sheetRef: confirmationSheetRef,
   });
+  useBottomSheetOpenAnimation({
+    backdropRef: noticeInboxBackdropRef,
+    isClosing: closingBottomSheet === "notice-inbox",
+    isOpen: isNoticeInboxOpen,
+    sheetRef: noticeInboxRef,
+  });
 
   useEffect(() => {
     if (lastRemovedItems.length === 0) {
@@ -3065,6 +3152,33 @@ export function App() {
     runHapticFeedback("light");
   }
 
+  function closeNoticeInbox(syncHistory = true) {
+    closeBottomSheetWithAnimation({
+      overlay: "notice-inbox",
+      sheet: noticeInboxRef.current,
+      backdrop: noticeInboxBackdropRef.current,
+      onClose: () => {
+        if (syncHistory) {
+          consumeOverlayHistory("notice-inbox");
+        }
+
+        setIsNoticeInboxOpen(false);
+        setClosingBottomSheet(null);
+        resetSheetDrag();
+      },
+    });
+  }
+
+  function openNoticeInbox() {
+    if (noticeCount === 0) {
+      return;
+    }
+
+    pushOverlayHistory("notice-inbox");
+    setIsNoticeInboxOpen(true);
+    runHapticFeedback("light");
+  }
+
   function closeSectionAddSheet(restoreFabFocus = true, syncHistory = true) {
     closeBottomSheetWithAnimation({
       overlay: "section-add-sheet",
@@ -3162,6 +3276,11 @@ export function App() {
       return;
     }
 
+    if (isNoticeInboxOpen) {
+      closeNoticeInbox();
+      return;
+    }
+
     if (confirmationRequest) {
       closeConfirmation();
       return;
@@ -3221,6 +3340,11 @@ export function App() {
 
       if (overlay === "confirm-sheet") {
         closeConfirmation(false);
+        return;
+      }
+
+      if (overlay === "notice-inbox") {
+        closeNoticeInbox(false);
         return;
       }
 
@@ -4997,6 +5121,8 @@ export function App() {
         onThemePreferenceChange={handleThemePreferenceChange}
         onButtonPointerDown={handleButtonPointerDown}
         getSyncStatusText={getSyncStatusText}
+        noticeCount={noticeCount}
+        onOpenNotices={openNoticeInbox}
       />
 
       {activeView === "shopping" ? (
@@ -5245,78 +5371,18 @@ export function App() {
         />
       ) : null}
 
-      {unseenRemoteHistoryEvents.length > 0 && activeView !== "history" ? (
-        <section className={styles.remoteChangesBanner} role="status">
-          <span>
-            {unseenRemoteHistoryEvents.length === 1
-              ? "Hay 1 cambio de otro dispositivo."
-              : `Hay ${unseenRemoteHistoryEvents.length} cambios de otro dispositivo.`}
-          </span>
-          <button
-            className={styles.undoButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={showUnseenHistoryView}
-          >
-            Ver cambios
-          </button>
-        </section>
-      ) : null}
-
-      {unseenRecategorizationChanges.length > 0 && activeView !== "history" ? (
-        <section className={styles.remoteChangesBanner} role="status">
-          <span>
-            {unseenRecategorizationChanges.length === 1
-              ? "Hay 1 recategorización nueva."
-              : `Hay ${unseenRecategorizationChanges.length} recategorizaciones nuevas.`}
-          </span>
-          <button
-            className={styles.undoButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={showUnseenRecategorizationView}
-          >
-            Ver categorías
-          </button>
-        </section>
-      ) : null}
-
-      {unseenProductNormalizationChanges.length > 0 &&
-      activeView !== "history" ? (
-        <section className={styles.remoteChangesBanner} role="status">
-          <span>
-            {unseenProductNormalizationChanges.length === 1
-              ? "Hay 1 normalización nueva."
-              : `Hay ${unseenProductNormalizationChanges.length} normalizaciones nuevas.`}
-          </span>
-          <button
-            className={styles.undoButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={showUnseenProductNormalizationView}
-          >
-            Ver normalización
-          </button>
-        </section>
-      ) : null}
-
-      {unseenMenuDishRecategorizationChanges.length > 0 &&
-      activeView !== "history" ? (
-        <section className={styles.remoteChangesBanner} role="status">
-          <span>
-            {unseenMenuDishRecategorizationChanges.length === 1
-              ? "Hay 1 recategorización nueva de platos."
-              : `Hay ${unseenMenuDishRecategorizationChanges.length} recategorizaciones nuevas de platos.`}
-          </span>
-          <button
-            className={styles.undoButton}
-            type="button"
-            onPointerDown={handleButtonPointerDown}
-            onClick={showUnseenMenuDishRecategorizationView}
-          >
-            Ver tipos de plato
-          </button>
-        </section>
+      {isNoticeInboxOpen ? (
+        <NoticeInboxSheet
+          backdropRef={noticeInboxBackdropRef}
+          dragOffset={sheetDragOffset}
+          items={noticeInboxItems}
+          onButtonPointerDown={handleButtonPointerDown}
+          onClose={closeNoticeInbox}
+          onDragEnd={handleAddSheetDragEnd}
+          onDragMove={handleAddSheetDragMove}
+          onDragStart={handleAddSheetDragStart}
+          sheetRef={noticeInboxRef}
+        />
       ) : null}
 
       {activeView === "shopping" ? (

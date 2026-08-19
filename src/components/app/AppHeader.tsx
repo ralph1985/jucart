@@ -1,7 +1,7 @@
 import type { PointerEventHandler, RefObject } from "react";
 
 import styles from "../../App.module.scss";
-import { HeaderLogo } from "../ui/Icon";
+import { HeaderLogo, Icon } from "../ui/Icon";
 import { formatAppDate, type AppReleaseInfo } from "../../appVersion";
 
 export type ThemePreference = "auto" | "light" | "dark";
@@ -32,6 +32,8 @@ type AppHeaderProps = {
   onThemePreferenceChange: () => void;
   onButtonPointerDown: PointerEventHandler<HTMLButtonElement>;
   getSyncStatusText: (status: SyncStatus) => string;
+  noticeCount: number;
+  onOpenNotices: () => void;
 };
 
 export function AppHeader({
@@ -45,6 +47,8 @@ export function AppHeader({
   onThemePreferenceChange,
   onButtonPointerDown,
   getSyncStatusText,
+  noticeCount,
+  onOpenNotices,
 }: AppHeaderProps) {
   return (
     <section className={styles.header} aria-labelledby="app-title">
@@ -91,6 +95,24 @@ export function AppHeader({
             ) : null}
             {getSyncStatusText(syncStatus)}
           </p>
+          <button
+            className={styles.noticeBellButton}
+            type="button"
+            aria-label={
+              noticeCount === 0
+                ? "Abrir avisos"
+                : `Abrir avisos. ${noticeCount} pendientes.`
+            }
+            onPointerDown={onButtonPointerDown}
+            onClick={onOpenNotices}
+          >
+            <Icon name="bell" />
+            {noticeCount > 0 ? (
+              <span className={styles.noticeBellCount} aria-hidden="true">
+                {noticeCount > 99 ? "99+" : noticeCount}
+              </span>
+            ) : null}
+          </button>
           <button
             className={styles.themeToggle}
             type="button"

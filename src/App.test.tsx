@@ -3407,6 +3407,7 @@ describe("App", () => {
 
     await waitForAddFab();
 
+    fireEvent.click(screen.getByRole("button", { name: /Abrir avisos/ }));
     expect(
       screen.getByText("Hay 1 recategorización nueva."),
     ).toBeInTheDocument();
@@ -3470,6 +3471,11 @@ describe("App", () => {
     render(<App />);
 
     await waitForAddFab();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /Abrir avisos\. 2 pendientes/,
+      }),
+    );
     expect(
       await screen.findByText("Hay 2 recategorizaciones nuevas de platos."),
     ).toBeInTheDocument();
@@ -3527,6 +3533,7 @@ describe("App", () => {
 
     await waitForAddFab();
 
+    fireEvent.click(screen.getByRole("button", { name: /Abrir avisos/ }));
     expect(screen.getByText("Hay 1 normalización nueva.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Ver normalización" }));
@@ -3575,6 +3582,7 @@ describe("App", () => {
 
     await waitForAddFab();
 
+    fireEvent.click(screen.getByRole("button", { name: /Abrir avisos/ }));
     expect(
       screen.getByText("Hay 1 cambio de otro dispositivo."),
     ).toBeInTheDocument();

@@ -545,6 +545,47 @@
   outline-offset: 2px;
 }
 
+.noticeBellButton {
+  position: relative;
+  display: inline-grid;
+  width: 2.15rem;
+  height: 2.15rem;
+  place-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  color: var(--color-text-strong);
+  cursor: pointer;
+}
+
+.noticeBellButton:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.noticeBellButton .buttonIcon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.noticeBellCount {
+  position: absolute;
+  top: -0.28rem;
+  right: -0.28rem;
+  display: inline-grid;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  place-items: center;
+  border: 2px solid var(--surface);
+  border-radius: 999rem;
+  padding: 0 0.16rem;
+  background: var(--color-accent-strong);
+  color: var(--color-on-accent);
+  font-size: 0.56rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
 .developerAuthForm {
   display: grid;
   gap: 0.45rem;
@@ -1517,6 +1558,84 @@ h2 {
 .bottomSheetContent form {
   display: grid;
   gap: 0.85rem;
+}
+
+.noticeInboxSheet {
+  min-height: 0;
+}
+
+.noticeInboxList {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.noticeInboxItem {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-surface);
+  padding: 0.7rem;
+  background: var(--surface-muted);
+}
+
+.noticeInboxItemIcon {
+  display: inline-grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  place-items: center;
+  border-radius: 0.7rem;
+  background: var(--surface);
+  color: var(--color-accent);
+}
+
+.noticeInboxItemIcon .buttonIcon {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.noticeInboxItemBody {
+  min-width: 0;
+}
+
+.noticeInboxItemBody p {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 0.86rem;
+  font-weight: 760;
+  line-height: 1.35;
+}
+
+.noticeInboxAction {
+  margin-top: 0.28rem;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-accent-strong);
+  font-size: 0.76rem;
+  font-weight: 820;
+  text-decoration: underline;
+  text-underline-offset: 0.16rem;
+  cursor: pointer;
+}
+
+.noticeInboxAction:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+  border-radius: 0.2rem;
+}
+
+.noticeInboxCount {
+  display: inline-grid;
+  min-width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border-radius: 999rem;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 0.72rem;
+  font-weight: 850;
 }
 
 .bottomSheetFooter {

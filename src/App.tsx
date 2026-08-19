@@ -1617,7 +1617,8 @@ export function App() {
     editingFreezerItem !== null ||
     editingItem !== null ||
     isClearDialogOpen ||
-    confirmationRequest !== null;
+    confirmationRequest !== null ||
+    isNoticeInboxOpen;
   const bottomSheetFocusKey = isAddSheetOpen
     ? "add"
     : isTicketUploadSheetOpen
@@ -1632,11 +1633,13 @@ export function App() {
               ? "clear-dialog"
               : confirmationRequest !== null
                 ? "confirm"
-                : isSectionAddSheetOpen
-                  ? "section-add"
-                  : isFreezerAddSheetOpen
-                    ? "freezer-add"
-                    : null;
+                : isNoticeInboxOpen
+                  ? "notice-inbox"
+                  : isSectionAddSheetOpen
+                    ? "section-add"
+                    : isFreezerAddSheetOpen
+                      ? "freezer-add"
+                      : null;
   const sheetKeyboardInset = useBottomSheetViewport({
     focusKey: bottomSheetFocusKey,
     isOpen: isBottomSheetOpen,
@@ -3054,6 +3057,11 @@ export function App() {
 
     if (confirmationRequest) {
       confirmationSheetRef.current?.focus({ preventScroll: true });
+      return;
+    }
+
+    if (isNoticeInboxOpen) {
+      noticeInboxRef.current?.focus({ preventScroll: true });
       return;
     }
 

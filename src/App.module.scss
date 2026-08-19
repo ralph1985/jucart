@@ -1553,11 +1553,47 @@ h2 {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0 1.1rem 1.1rem;
+  scroll-padding-bottom: 6rem;
 }
 
 .bottomSheetContent form {
   display: grid;
   gap: 0.85rem;
+}
+
+/* Keep every action row reachable while only the sheet content scrolls. */
+.bottomSheetContent > form > .addSheetFooter,
+.bottomSheetContent > form > .addSheetActions,
+.bottomSheetContent > form > .bottomSheetFooter,
+.bottomSheetContent > form > .modalActions,
+.bottomSheetContent > .modalActions {
+  position: sticky;
+  z-index: 2;
+  bottom: 0;
+  margin-bottom: calc(-1.1rem - env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--color-border);
+  padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
+  box-shadow: 0 -0.7rem 1.1rem
+    color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.bottomSheetContent > form > .addSheetFooter,
+.bottomSheetContent > form > .addSheetActions {
+  padding-top: 0.7rem;
+}
+
+.bottomSheetContent > form > .modalActions,
+.bottomSheetContent > .modalActions {
+  padding-top: 0.85rem;
+}
+
+.addSheetActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding-top: 0.85rem;
 }
 
 .noticeInboxSheet {

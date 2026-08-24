@@ -392,9 +392,6 @@ deno_version = 2
 [functions.send-push-notification]
 verify_jwt = false
 
-[functions.remote-actions]
-verify_jwt = false
-
 [analytics]
 enabled = true
 port = 54327

@@ -5,7 +5,6 @@ const mocks = vi.hoisted(() => ({
   getConfig: vi.fn(),
   from: vi.fn(),
   rpc: vi.fn(),
-  createRemoteAction: vi.fn(),
 }));
 vi.mock("@supabase/supabase-js", () => ({ createClient: mocks.createClient }));
 vi.mock("./supabaseConfig", () => ({ getSupabaseConfig: mocks.getConfig }));
@@ -21,18 +20,11 @@ import {
   getMenuDishLibrary,
   getMenuDishes,
   getMenuDishTypes,
-  getLatestMenuDishRecategorization,
   getMenuDishRecategorizationHistory,
-  requestMenuDishRecategorization,
-  undoMenuDishRecategorization,
   updateMenuDishType,
   deleteMenuDishType,
   updateMenuDish,
 } from "./menuPlanning";
-
-vi.mock("./remoteActions", () => ({
-  createRemoteAction: mocks.createRemoteAction,
-}));
 
 function query(data: unknown, error: unknown = null) {
   const value: Record<string, unknown> = { data, error };
@@ -84,7 +76,6 @@ describe("menuPlanning", () => {
       anonKey: "key",
     });
     mocks.createClient.mockReturnValue({ from: mocks.from, rpc: mocks.rpc });
-    mocks.createRemoteAction.mockResolvedValue("action-1");
     mocks.rpc.mockResolvedValue({ data: 1, error: null });
   });
 
@@ -209,19 +200,6 @@ describe("menuPlanning", () => {
       updateMenuDishType("type-1", " Verduras "),
     ).resolves.toBeUndefined();
     await expect(deleteMenuDishType("type-1")).resolves.toBeUndefined();
-    await expect(requestMenuDishRecategorization("library-1")).resolves.toBe(
-      "action-1",
-    );
-    await expect(
-      getLatestMenuDishRecategorization("library-1"),
-    ).resolves.toMatchObject({
-      id: "run-1",
-      dishesRecategorized: 1,
-    });
-    await expect(undoMenuDishRecategorization("run-1")).resolves.toBe(1);
-    expect(mocks.rpc).toHaveBeenCalledWith("undo_menu_dish_recategorization", {
-      p_run_id: "run-1",
-    });
   });
 
   it("carga el histórico de recategorización de platos", async () => {

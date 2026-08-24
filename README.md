@@ -115,18 +115,6 @@ pnpm supabase:db:push
 
 El flujo por defecto usa Supabase remoto. No es necesario levantar Docker ni una instancia local para el desarrollo habitual.
 
-### Acciones remotas del servidor
-
-La vista Dev puede solicitar un backup de Supabase sin exponer el servidor local. La orden se guarda en Supabase y un agente Linux la recoge mediante la Edge Function `remote-actions`.
-
-En el servidor que ejecutará las tareas, configura `JUCART_SUPABASE_URL`, `JUCART_REMOTE_ACTION_AGENT_SECRET` con el mismo secreto guardado en Supabase y, opcionalmente, `JUCART_REMOTE_ACTION_AGENT_ID`. Después inicia el agente con:
-
-```bash
-pnpm remote-actions:agent
-```
-
-El agente solo permite acciones incluidas explícitamente en su allowlist. Para mantenerlo activo tras reinicios debe ejecutarse bajo el supervisor habitual del servidor, como systemd.
-
 Las Edge Functions se despliegan con:
 
 ```bash

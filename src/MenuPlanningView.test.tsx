@@ -21,10 +21,6 @@ const mocks = vi.hoisted(() => ({
   updateCategory: vi.fn(),
   deleteType: vi.fn(),
   deleteCategory: vi.fn(),
-  getLatestRun: vi.fn(),
-  requestRecategorization: vi.fn(),
-  undoRecategorization: vi.fn(),
-  getRemoteAction: vi.fn(),
 }));
 
 vi.mock("./menuPlanning", () => ({
@@ -41,12 +37,7 @@ vi.mock("./menuPlanning", () => ({
   updateMenuDishCategory: mocks.updateCategory,
   deleteMenuDishType: mocks.deleteType,
   deleteMenuDishCategory: mocks.deleteCategory,
-  getLatestMenuDishRecategorization: mocks.getLatestRun,
-  requestMenuDishRecategorization: mocks.requestRecategorization,
-  undoMenuDishRecategorization: mocks.undoRecategorization,
 }));
-
-vi.mock("./remoteActions", () => ({ getRemoteAction: mocks.getRemoteAction }));
 
 import { MenuPlanningView } from "./MenuPlanningView";
 
@@ -105,10 +96,6 @@ describe("MenuPlanningView", () => {
     mocks.updateCategory.mockResolvedValue(undefined);
     mocks.deleteType.mockResolvedValue(undefined);
     mocks.deleteCategory.mockResolvedValue(undefined);
-    mocks.getLatestRun.mockResolvedValue(null);
-    mocks.requestRecategorization.mockResolvedValue("action-1");
-    mocks.undoRecategorization.mockResolvedValue(1);
-    mocks.getRemoteAction.mockResolvedValue(null);
     mocks.deleteDish.mockResolvedValue(undefined);
     vi.spyOn(window, "confirm").mockReturnValue(true);
   });
@@ -375,28 +362,12 @@ describe("MenuPlanningView", () => {
     await waitFor(() =>
       expect(mocks.createType).toHaveBeenCalledWith("library-1", "Pasta"),
     );
-    fireEvent.click(screen.getByRole("tab", { name: "Categorías" }));
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Recategorizar platos" }),
-    );
-    await waitFor(() =>
-      expect(mocks.requestRecategorization).toHaveBeenCalledWith("library-1"),
-    );
     expect(
       screen.getByRole("button", { name: /Marcar cocinado: Lentejas/ }),
     ).toBeInTheDocument();
   });
 
-  it("permite renombrar, eliminar y deshacer la última recategorización", async () => {
-    mocks.getLatestRun.mockResolvedValue({
-      id: "run-1",
-      libraryId: "library-1",
-      summary: "1 plato recategorizado",
-      dishesRecategorized: 1,
-      createdAt: "2026-08-10T12:00:00Z",
-      revertedAt: null,
-    });
+  it("permite renombrar y eliminar tipos de plato", async () => {
     render(<MenuPlanningView />);
     await waitFor(() =>
       expect(screen.getByText("Lentejas")).toBeInTheDocument(),
@@ -430,39 +401,9 @@ describe("MenuPlanningView", () => {
     await waitFor(() =>
       expect(mocks.deleteType).toHaveBeenCalledWith("type-1"),
     );
-    fireEvent.click(within(dialog).getByRole("tab", { name: "Categorías" }));
-    fireEvent.click(
-      within(dialog).getByRole("button", {
-        name: /Deshacer última recategorización/,
-      }),
-    );
-    await waitFor(() =>
-      expect(mocks.undoRecategorization).toHaveBeenCalledWith("run-1"),
-    );
-
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-    );
-  });
-
-  it("informa si Codex no puede aceptar la solicitud", async () => {
-    mocks.requestRecategorization.mockRejectedValueOnce(new Error("offline"));
-    render(<MenuPlanningView />);
-    await waitFor(() =>
-      expect(screen.getByText("Lentejas")).toBeInTheDocument(),
-    );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Gestionar tipos de plato" }),
-    );
-    fireEvent.click(screen.getByRole("tab", { name: "Categorías" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Recategorizar platos" }),
-    );
-    await waitFor(() =>
-      expect(
-        screen.getByText("No se pudo solicitar la recategorización."),
-      ).toBeInTheDocument(),
     );
   });
 

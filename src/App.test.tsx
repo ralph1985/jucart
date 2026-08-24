@@ -22,7 +22,6 @@ import {
   resetShoppingItemsDatabase,
 } from "./shoppingItemsDb";
 import * as shoppingItemsSupabase from "./shoppingItemsSupabase";
-import * as remoteActions from "./remoteActions";
 import * as supabaseConfig from "./supabaseConfig";
 import * as menuPlanning from "./menuPlanning";
 import type { ShoppingData } from "./shoppingItemsDb";
@@ -655,62 +654,9 @@ describe("App", () => {
     expect(document.getElementById("developer-section-backup")).toHaveAttribute(
       "hidden",
     );
-    openDeveloperSection("Acciones remotas");
-    expect(
-      document.getElementById("developer-section-actions"),
-    ).not.toHaveAttribute("hidden");
     expect(
       screen.getByRole("button", { name: /^Backup Supabase/ }),
     ).toHaveTextContent("Sin copias registradas");
-    expect(
-      screen.getByRole("button", { name: "Recategorizar productos" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Normalizar productos" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Procesar tickets" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Actualizar precios externos" }),
-    ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Ejecutar backup" }));
-    fireEvent.click(
-      within(
-        screen.getByRole("dialog", { name: "Ejecutar acción remota" }),
-      ).getByRole("button", { name: "Cancelar" }),
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Ejecutar backup" }));
-    fireEvent.click(
-      within(
-        screen.getByRole("dialog", { name: "Ejecutar acción remota" }),
-      ).getByRole("button", { name: "Ejecutar ahora" }),
-    );
-    await waitFor(() =>
-      expect(
-        screen.getByText("No se pudo solicitar «Ejecutar backup»."),
-      ).toBeInTheDocument(),
-    );
-
-    const createRemoteActionSpy = vi
-      .spyOn(remoteActions, "createRemoteAction")
-      .mockResolvedValue("action-2");
-    fireEvent.click(
-      screen.getByRole("button", { name: "Normalizar productos" }),
-    );
-    fireEvent.click(
-      within(
-        screen.getByRole("dialog", { name: "Ejecutar acción remota" }),
-      ).getByRole("button", { name: "Ejecutar ahora" }),
-    );
-    await waitFor(() =>
-      expect(createRemoteActionSpy).toHaveBeenCalledWith(
-        "normalize_products",
-        expect.stringMatching(/^normalize_products-/),
-      ),
-    );
   });
 
   it("hides the developer view from normal users", async () => {
@@ -3319,7 +3265,7 @@ describe("App", () => {
   });
 
   it("shows recategorization changes in the history categories tab", async () => {
-    await replaceStoredShoppingData({
+    const recategorizationData: ShoppingData = {
       items: [],
       sections: [{ id: "mercadona", name: "Mercadona", color: "mint" }],
       historyEvents: [],
@@ -3332,9 +3278,9 @@ describe("App", () => {
           summary: "Recategorizado 1 producto.",
           catalogEntriesAdded: 1,
           itemsRecategorized: 1,
-          startedAt: Date.parse("2026-07-21T01:00:00.000Z"),
-          finishedAt: Date.parse("2026-07-21T01:00:05.000Z"),
-          createdAt: Date.parse("2026-07-21T01:00:05.000Z"),
+          startedAt: Date.parse("2026-08-20T01:00:00.000Z"),
+          finishedAt: Date.parse("2026-08-20T01:00:05.000Z"),
+          createdAt: Date.parse("2026-08-20T01:00:05.000Z"),
         },
       ],
       recategorizationChanges: [
@@ -3347,10 +3293,14 @@ describe("App", () => {
           nextCategoryId: "vegetables",
           reason: "Cebollas pertenece a verdura.",
           catalogEntryId: "vegetables-cebollas",
-          createdAt: Date.parse("2026-07-21T01:00:05.000Z"),
+          createdAt: Date.parse("2026-08-20T01:00:05.000Z"),
         },
       ],
-    });
+    };
+    await replaceStoredShoppingData(recategorizationData);
+    vi.spyOn(shoppingItemsDb, "getCachedShoppingData").mockResolvedValue(
+      recategorizationData,
+    );
 
     render(<App />);
 
@@ -3358,7 +3308,9 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Historial" }));
     fireEvent.click(screen.getByRole("tab", { name: "Categorías" }));
 
-    expect(screen.getByText("Categoría actualizada")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("Categoría actualizada")).toBeInTheDocument(),
+    );
     expect(screen.getByText("Cebollas")).toBeInTheDocument();
     expect(screen.getByText("Otros → Verdura")).toBeInTheDocument();
     expect(

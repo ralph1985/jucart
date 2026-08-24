@@ -99,12 +99,6 @@ import type {
 import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
 import { isSupabaseConfigured } from "./supabaseConfig";
 import {
-  createRemoteAction,
-  getLatestRemoteAction,
-  subscribeToRemoteActions,
-} from "./remoteActions";
-import type { RemoteAction, RemoteActionName } from "./remoteActions";
-import {
   createShoppingList,
   deleteShoppingList,
   getShoppingListMembers,
@@ -158,10 +152,6 @@ import { DeveloperAppContext } from "./components/developer/DeveloperAppContext"
 import { DeveloperViewShell } from "./components/developer/DeveloperViewShell";
 import { DeveloperAuthCard } from "./components/developer/DeveloperAuthCard";
 import { DeveloperBackupCard } from "./components/developer/DeveloperBackupCard";
-import {
-  DeveloperRemoteActionsCard,
-  type DeveloperRemoteActionDefinition,
-} from "./components/developer/DeveloperRemoteActionsCard";
 import { DeveloperPushNotificationCard } from "./components/developer/DeveloperPushNotificationCard";
 import { DeveloperStatusOverview } from "./components/developer/DeveloperStatusOverview";
 import { FreezerView } from "./components/freezer/FreezerView";
@@ -206,22 +196,6 @@ const lastSeenMenuDishRecategorizationChangeAtStorageKey =
 const pushInviteDismissedStorageKey = "jucart:push-invite-dismissed";
 const ticketPageSize = 10;
 const priceObservationPageSize = 10;
-
-const remoteActionDefinitions: ReadonlyArray<DeveloperRemoteActionDefinition> =
-  [
-    { name: "recategorize_products", label: "Recategorizar productos" },
-    { name: "normalize_products", label: "Normalizar productos" },
-    { name: "process_tickets", label: "Procesar tickets" },
-    { name: "update_external_prices", label: "Actualizar precios externos" },
-    { name: "supabase_backup", label: "Ejecutar backup" },
-  ];
-
-function getRemoteActionLabel(action: string | null | undefined) {
-  return (
-    remoteActionDefinitions.find((definition) => definition.name === action)
-      ?.label ?? "Acción del servidor"
-  );
-}
 
 function orderSectionsByShoppingLists(
   sections: ShoppingSection[],
@@ -1442,11 +1416,6 @@ export function App() {
   const [developerBackupError, setDeveloperBackupError] = useState<
     string | null
   >(null);
-  const [remoteAction, setRemoteAction] = useState<RemoteAction | null>(null);
-  const [remoteActionError, setRemoteActionError] = useState<string | null>(
-    null,
-  );
-  const [isRemoteActionPending, setIsRemoteActionPending] = useState(false);
   const [openDeveloperSection, setOpenDeveloperSection] =
     useState<DeveloperSectionId | null>(null);
   const [pushNotificationSnapshot, setPushNotificationSnapshot] = useState(
@@ -2438,33 +2407,7 @@ export function App() {
     }
 
     void refreshDeveloperBackupRun();
-    void refreshRemoteAction();
   }, [currentShoppingUserId, isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!isLoaded || !isCurrentUserAdministrator || !isSupabaseConfigured()) {
-      return;
-    }
-
-    return subscribeToRemoteActions(() => {
-      void refreshRemoteAction();
-    });
-  }, [isCurrentUserAdministrator, isLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (
-      !remoteAction ||
-      (remoteAction.status !== "pending" && remoteAction.status !== "running")
-    ) {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      void refreshRemoteAction();
-    }, 2000);
-
-    return () => window.clearInterval(intervalId);
-  }, [remoteAction?.id, remoteAction?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     try {
@@ -4048,65 +3991,6 @@ export function App() {
     } catch {
       setDeveloperBackupError("No se pudo cargar el estado del backup.");
     }
-  }
-
-  async function refreshRemoteAction() {
-    if (!isCurrentUserAdministrator) {
-      return;
-    }
-
-    try {
-      const latestAction = await getLatestRemoteAction();
-      setRemoteAction(latestAction);
-      setRemoteActionError(null);
-    } catch {
-      setRemoteActionError("No se pudo cargar el estado de la acción remota.");
-    }
-  }
-
-  async function executeRemoteAction(action: RemoteActionName) {
-    const label = getRemoteActionLabel(action);
-    setIsRemoteActionPending(true);
-    setRemoteActionError(null);
-
-    try {
-      const actionId = await createRemoteAction(
-        action,
-        `${action}-${createLocalId()}`,
-      );
-      await refreshRemoteAction();
-      setRemoteAction((currentAction) =>
-        currentAction?.id === actionId
-          ? currentAction
-          : {
-              id: actionId,
-              action,
-              status: "pending",
-              resultSummary: null,
-              errorMessage: null,
-              createdAt: Date.now(),
-              startedAt: null,
-              finishedAt: null,
-            },
-      );
-    } catch {
-      setRemoteActionError(`No se pudo solicitar «${label}».`);
-    } finally {
-      setIsRemoteActionPending(false);
-    }
-  }
-
-  function handleRemoteAction(action: RemoteActionName) {
-    const label = getRemoteActionLabel(action);
-    openConfirmation({
-      title: "Ejecutar acción remota",
-      description: `¿Quieres ejecutar «${label}» ahora?`,
-      confirmLabel: "Ejecutar ahora",
-      onConfirm: () => {
-        closeConfirmation();
-        void executeRemoteAction(action);
-      },
-    });
   }
 
   async function handlePushNotificationAction() {
@@ -5740,24 +5624,6 @@ export function App() {
               statusText={getDeveloperBackupStatusText(
                 getDeveloperBackupStatus(developerBackupRun),
               )}
-            />
-          </DeveloperDisclosure>
-          <DeveloperDisclosure
-            id="actions"
-            title="Acciones remotas"
-            summary={
-              remoteAction?.resultSummary ?? "Tareas autorizadas del servidor"
-            }
-            expanded={openDeveloperSection === "actions"}
-            onToggle={toggleDeveloperSection}
-          >
-            <DeveloperRemoteActionsCard
-              action={remoteAction}
-              definitions={remoteActionDefinitions}
-              error={remoteActionError}
-              isPending={isRemoteActionPending}
-              onAction={(action) => void handleRemoteAction(action)}
-              onButtonPointerDown={handleButtonPointerDown}
             />
           </DeveloperDisclosure>
           <DeveloperDisclosure

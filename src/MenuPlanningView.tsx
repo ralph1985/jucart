@@ -13,29 +13,19 @@ import {
   createMenuDishType,
   deleteMenuDish,
   deleteMenuDishType,
-  getLatestMenuDishRecategorization,
   getMenuDishLibrary,
   getMenuDishCategories,
   getMenuDishTypes,
   getMenuDishes,
-  requestMenuDishRecategorization,
-  undoMenuDishRecategorization,
   updateMenuDish,
   updateMenuDishCategory,
   updateMenuDishType,
   deleteMenuDishCategory,
 } from "./menuPlanning";
-import type {
-  MenuDish,
-  MenuDishCategory,
-  MenuDishRecategorizationRun,
-  MenuDishType,
-} from "./menuPlanning";
+import type { MenuDish, MenuDishCategory, MenuDishType } from "./menuPlanning";
 import { useSheetDrag } from "./hooks/useSheetDrag";
 import { BottomSheetFrame } from "./components/ui/BottomSheetFrame";
 import { ConfirmSheet } from "./components/ui/ConfirmSheet";
-import { getRemoteAction } from "./remoteActions";
-import type { RemoteAction } from "./remoteActions";
 
 type DishTab = "pending" | "cooked";
 type DishSort = "default" | "rating-desc" | "rating-asc";
@@ -167,9 +157,6 @@ export function MenuPlanningView() {
     null,
   );
   const [editingCategoryName, setEditingCategoryName] = useState("");
-  const [remoteAction, setRemoteAction] = useState<RemoteAction | null>(null);
-  const [latestRun, setLatestRun] =
-    useState<MenuDishRecategorizationRun | null>(null);
   const [message, setMessage] = useState("Cargando platos…");
   const [modalMessage, setModalMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -214,17 +201,14 @@ export function MenuPlanningView() {
   const loadCollection = useCallback(async (nextLibraryId: string) => {
     setMessage("Cargando platos…");
     try {
-      const [nextDishes, nextTypes, nextCategories, nextRun] =
-        await Promise.all([
-          getMenuDishes(nextLibraryId),
-          getMenuDishTypes(nextLibraryId),
-          getMenuDishCategories(nextLibraryId),
-          getLatestMenuDishRecategorization(nextLibraryId),
-        ]);
+      const [nextDishes, nextTypes, nextCategories] = await Promise.all([
+        getMenuDishes(nextLibraryId),
+        getMenuDishTypes(nextLibraryId),
+        getMenuDishCategories(nextLibraryId),
+      ]);
       setDishes(nextDishes);
       setDishTypes(nextTypes);
       setDishCategories(nextCategories);
-      setLatestRun(nextRun);
       setMessage("");
     } catch {
       setMessage("No se pudo cargar la biblioteca de platos.");
@@ -240,25 +224,6 @@ export function MenuPlanningView() {
       })
       .catch(() => setMessage("No se pudo cargar la biblioteca de platos."));
   }, [loadCollection]);
-
-  useEffect(() => {
-    if (
-      !remoteAction ||
-      !libraryId ||
-      !["pending", "running"].includes(remoteAction.status)
-    )
-      return;
-    const intervalId = window.setInterval(() => {
-      void getRemoteAction(remoteAction.id)
-        .then((nextAction) => {
-          if (!nextAction) return;
-          setRemoteAction(nextAction);
-          if (nextAction.status === "completed") void loadCollection(libraryId);
-        })
-        .catch(() => undefined);
-    }, 2000);
-    return () => window.clearInterval(intervalId);
-  }, [libraryId, loadCollection, remoteAction]);
 
   useEffect(() => {
     if (!isTypesModalOpen) return;
@@ -345,8 +310,6 @@ export function MenuPlanningView() {
     [dishCategories, dishes],
   );
   const statusMessage = message;
-  const recategorizationRunning =
-    remoteAction?.status === "pending" || remoteAction?.status === "running";
   const hasActiveFilters = Boolean(
     searchQuery.trim() || typeFilter || categoryFilter,
   );
@@ -612,38 +575,6 @@ export function MenuPlanningView() {
     setIsTypesModalOpen(false);
     setEditingTypeIdInModal(null);
     resetClassificationDrag();
-  }
-
-  async function requestRecategorization() {
-    if (!libraryId || recategorizationRunning) return;
-    setModalMessage("Solicitando recategorización…");
-    try {
-      const actionId = await requestMenuDishRecategorization(libraryId);
-      setRemoteAction({
-        id: actionId,
-        action: "recategorize_menu_dishes",
-        status: "pending",
-        resultSummary: null,
-        errorMessage: null,
-        createdAt: Date.now(),
-        startedAt: null,
-        finishedAt: null,
-      });
-      setModalMessage("Codex revisará los platos automáticamente.");
-    } catch {
-      setModalMessage("No se pudo solicitar la recategorización.");
-    }
-  }
-
-  async function undoRecategorization() {
-    if (!latestRun || latestRun.revertedAt) return;
-    try {
-      await undoMenuDishRecategorization(latestRun.id);
-      await loadCollection(libraryId);
-      setModalMessage("Última recategorización deshecha.");
-    } catch {
-      setModalMessage("No se pudo deshacer la recategorización.");
-    }
   }
 
   const editingDish = editingId
@@ -1283,49 +1214,6 @@ export function MenuPlanningView() {
                   </button>
                 </div>
               </form>
-            </section>
-          ) : null}
-          {classificationTab === "categories" ? (
-            <section
-              className="menuRecategorizationPanel"
-              aria-label="Recategorización con Codex"
-            >
-              <h4>Recategorizar con Codex</h4>
-              <p>
-                Analiza los nombres y asigna automáticamente los tipos más
-                claros.
-              </p>
-              <button
-                type="button"
-                onClick={() => void requestRecategorization()}
-                disabled={recategorizationRunning || dishes.length === 0}
-              >
-                {recategorizationRunning
-                  ? "Recategorizando…"
-                  : "Recategorizar platos"}
-              </button>
-              {remoteAction?.status === "failed" ? (
-                <p role="alert">
-                  {remoteAction.errorMessage ?? "La recategorización falló."}
-                </p>
-              ) : null}
-              {remoteAction?.status === "completed" ? (
-                <p role="status">
-                  {remoteAction.resultSummary ??
-                    latestRun?.summary ??
-                    "Recategorización completada."}
-                </p>
-              ) : null}
-              {latestRun && !latestRun.revertedAt ? (
-                <button
-                  className="menuUndoRecategorizationButton"
-                  type="button"
-                  onClick={() => void undoRecategorization()}
-                >
-                  Deshacer última recategorización (
-                  {latestRun.dishesRecategorized})
-                </button>
-              ) : null}
             </section>
           ) : null}
           {modalMessage ? (

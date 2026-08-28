@@ -5547,7 +5547,9 @@ export function App() {
         </HistoryView>
       ) : null}
 
-      {activeView === "menu" ? <MenuPlanningView /> : null}
+      {activeView === "menu" ? (
+        <MenuPlanningView onButtonPointerDown={handleButtonPointerDown} />
+      ) : null}
 
       {activeView === "developer" &&
       isCurrentUserAdministrator &&

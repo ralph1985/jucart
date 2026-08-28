@@ -108,7 +108,11 @@ describe("MenuPlanningView", () => {
     expect(screen.getByText("por cocinar")).toBeInTheDocument();
     expect(screen.queryByText("Tortilla")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Añadir un plato/ }));
+    const addDishButton = screen.getByRole("button", {
+      name: "Añadir plato",
+    });
+    expect(addDishButton.className).toContain("floatingAddButton");
+    fireEvent.click(addDishButton);
     fireEvent.change(screen.getByLabelText("Nombre del plato"), {
       target: { value: "Macarrones" },
     });
@@ -121,6 +125,11 @@ describe("MenuPlanningView", () => {
         [],
         "",
         "",
+      ),
+    );
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Añadir plato" }),
       ),
     );
 
@@ -337,9 +346,7 @@ describe("MenuPlanningView", () => {
         screen.getByText("No se pudo cargar la biblioteca de platos."),
       ).toBeInTheDocument(),
     );
-    expect(
-      screen.getByRole("button", { name: /Añadir un plato/ }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Añadir plato" })).toBeDisabled();
   });
 
   it("gestiona tipos desde una modal y solicita la recategorización", async () => {

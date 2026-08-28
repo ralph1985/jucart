@@ -1,5 +1,6 @@
 import {
   FormEvent,
+  PointerEventHandler,
   useCallback,
   useEffect,
   useMemo,
@@ -26,6 +27,11 @@ import type { MenuDish, MenuDishCategory, MenuDishType } from "./menuPlanning";
 import { useSheetDrag } from "./hooks/useSheetDrag";
 import { BottomSheetFrame } from "./components/ui/BottomSheetFrame";
 import { ConfirmSheet } from "./components/ui/ConfirmSheet";
+import { FloatingActionButton } from "./components/app/FloatingActionButton";
+
+type MenuPlanningViewProps = {
+  onButtonPointerDown?: PointerEventHandler<HTMLButtonElement>;
+};
 
 type DishTab = "pending" | "cooked";
 type DishSort = "default" | "rating-desc" | "rating-asc";
@@ -98,6 +104,7 @@ function DishRating({
         const isSelected = dish.rating === rating;
         return (
           <button
+            key={rating}
             className="menuDishRatingButton"
             type="button"
             aria-label={
@@ -120,7 +127,10 @@ function DishRating({
   );
 }
 
-export function MenuPlanningView() {
+export function MenuPlanningView({
+  onButtonPointerDown = () => undefined,
+}: MenuPlanningViewProps) {
+  const menuScreenRef = useRef<HTMLElement>(null);
   const [libraryId, setLibraryId] = useState("");
   const [dishes, setDishes] = useState<MenuDish[]>([]);
   const [dishTypes, setDishTypes] = useState<MenuDishType[]>([]);
@@ -582,7 +592,11 @@ export function MenuPlanningView() {
     : null;
 
   return (
-    <section aria-labelledby="menu-title" className="menuPlanningScreen">
+    <section
+      ref={menuScreenRef}
+      aria-labelledby="menu-title"
+      className="menuPlanningScreen"
+    >
       <header className="menuPlanningHeader">
         <div>
           <p className="menuPlanningEyebrow">Biblioteca compartida</p>
@@ -599,22 +613,16 @@ export function MenuPlanningView() {
         </div>
       </header>
 
-      <button
-        ref={dishTriggerRef}
-        className="menuAddDishForm menuAddDishTrigger"
-        type="button"
-        onClick={openDishSheet}
-        disabled={!libraryId}
-      >
-        <div className="menuAddDishHeading">
-          <div>
-            <strong>Añadir un plato</strong>
-            <p>Una idea para decidir la semana sin empezar desde cero.</p>
-          </div>
-          <span>{pendingCount} por cocinar</span>
-        </div>
-        <span className="menuAddDishTriggerAction">Abrir editor</span>
-      </button>
+      {!isDishSheetOpen ? (
+        <FloatingActionButton
+          buttonRef={dishTriggerRef}
+          label="Añadir plato"
+          icon="plus"
+          disabled={!libraryId}
+          onButtonPointerDown={onButtonPointerDown}
+          onClick={openDishSheet}
+        />
+      ) : null}
 
       <div
         className="menuDishTabs"

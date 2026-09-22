@@ -164,6 +164,27 @@ test("adds, purchases and restores a shopping product", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("keeps a purchased product after reloading", async ({ page }) => {
+  await addShoppingProduct(page, "Yogur comprado e2e");
+
+  await page
+    .getByRole("button", { name: "Marcar Yogur comprado e2e como comprado" })
+    .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Devolver Yogur comprado e2e a pendientes",
+    }),
+  ).toBeVisible();
+
+  await page.reload();
+
+  await expect(
+    page.getByRole("button", {
+      name: "Devolver Yogur comprado e2e a pendientes",
+    }),
+  ).toBeVisible();
+});
+
 test("keeps local products after reloading", async ({ page }) => {
   await addShoppingProduct(page, "Pan e2e");
   await expect(page.getByText("Pan e2e")).toBeVisible();

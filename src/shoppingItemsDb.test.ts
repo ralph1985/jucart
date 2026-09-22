@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getShoppingItemsStorageMode,
@@ -10,6 +10,8 @@ import {
   resetShoppingItemsDatabase,
 } from "./shoppingItemsDb";
 import { defaultShoppingSections } from "./shoppingItems";
+import * as shoppingItemsSupabase from "./shoppingItemsSupabase";
+import * as supabaseConfig from "./supabaseConfig";
 
 const historyEvent = {
   id: "history-1",
@@ -32,6 +34,7 @@ const historyEvent = {
 };
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await resetShoppingItemsDatabase();
 });
 
@@ -186,6 +189,51 @@ describe("shopping items database", () => {
     await replaceStoredShoppingItems([]);
 
     expect(getShoppingItemsStorageMode()).toBe("local");
+  });
+
+  it("conserva el cambio local si el guardado remoto falla", async () => {
+    const remoteData = {
+      items: [
+        {
+          id: "item-1",
+          name: "Leche",
+          sectionId: "mercadona",
+          addedBy: "rafa" as const,
+          purchased: false,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+      freezerItems: [],
+    };
+    const localData = {
+      ...remoteData,
+      items: [
+        {
+          ...remoteData.items[0],
+          purchased: true,
+          updatedAt: 200,
+        },
+      ],
+    };
+
+    vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "getSupabaseShoppingData",
+    ).mockResolvedValue(remoteData);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "replaceSupabaseShoppingData",
+    ).mockRejectedValue(new Error("remote unavailable"));
+
+    await replaceStoredShoppingData(localData);
+
+    await expect(getStoredShoppingData()).resolves.toMatchObject({
+      items: [{ id: "item-1", purchased: true, updatedAt: 200 }],
+    });
   });
 
   it("stores and reads custom shopping sections", async () => {

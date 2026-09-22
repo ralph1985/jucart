@@ -70,6 +70,82 @@ export type ShoppingData = {
 
 let lastStorageMode: ShoppingItemsStorageMode = "local";
 let remoteWriteQueue: Promise<unknown> = Promise.resolve();
+const pendingShoppingItemStatesStorageKey =
+  "jucart:pending-shopping-item-states";
+
+type PendingShoppingItemState = Pick<ShoppingItem, "purchased" | "updatedAt">;
+
+function readPendingShoppingItemStates() {
+  try {
+    const storedStates = window.localStorage.getItem(
+      pendingShoppingItemStatesStorageKey,
+    );
+
+    if (!storedStates) {
+      return {} as Record<string, PendingShoppingItemState>;
+    }
+
+    const parsedStates = JSON.parse(storedStates) as Record<
+      string,
+      Partial<PendingShoppingItemState>
+    >;
+
+    return Object.fromEntries(
+      Object.entries(parsedStates).filter(
+        ([, state]) =>
+          typeof state.purchased === "boolean" &&
+          typeof state.updatedAt === "number",
+      ),
+    ) as Record<string, PendingShoppingItemState>;
+  } catch {
+    return {} as Record<string, PendingShoppingItemState>;
+  }
+}
+
+function writePendingShoppingItemStates(
+  states: Record<string, PendingShoppingItemState>,
+) {
+  try {
+    if (Object.keys(states).length === 0) {
+      window.localStorage.removeItem(pendingShoppingItemStatesStorageKey);
+      return;
+    }
+
+    window.localStorage.setItem(
+      pendingShoppingItemStatesStorageKey,
+      JSON.stringify(states),
+    );
+  } catch {
+    return;
+  }
+}
+
+function rememberPendingShoppingItemState(item: ShoppingItem) {
+  const states = readPendingShoppingItemStates();
+  states[item.id] = {
+    purchased: item.purchased,
+    updatedAt: item.updatedAt,
+  };
+  writePendingShoppingItemStates(states);
+}
+
+function clearPersistedShoppingItemStates(items: ShoppingItem[]) {
+  const states = readPendingShoppingItemStates();
+
+  for (const item of items) {
+    const pendingState = states[item.id];
+
+    if (
+      pendingState &&
+      item.updatedAt >= pendingState.updatedAt &&
+      item.purchased === pendingState.purchased
+    ) {
+      delete states[item.id];
+    }
+  }
+
+  writePendingShoppingItemStates(states);
+}
 
 function mergeRecordsById<T extends { id: string }>(
   remoteRecords: T[],
@@ -314,6 +390,11 @@ export async function getCachedShoppingData(): Promise<ShoppingData> {
   return getLocalShoppingData();
 }
 
+export async function persistCachedShoppingItem(item: ShoppingItem) {
+  rememberPendingShoppingItemState(item);
+  await db.shoppingItems.put(item);
+}
+
 export async function getStoredShoppingData(): Promise<ShoppingData> {
   if (isSupabaseConfigured()) {
     try {
@@ -322,10 +403,13 @@ export async function getStoredShoppingData(): Promise<ShoppingData> {
       const remoteData = await getSupabaseShoppingData();
 
       if (remoteData) {
-        await replaceLocalShoppingData(remoteData);
+        const localData = await getLocalShoppingData();
+        const dataToStore = mergeShoppingDataForSync(remoteData, localData);
+
+        await replaceLocalShoppingData(dataToStore);
         lastStorageMode = "remote";
 
-        return remoteData;
+        return dataToStore;
       }
     } catch {
       lastStorageMode = "fallback";
@@ -429,8 +513,16 @@ export async function resetShoppingItemsDatabase() {
 
 async function getLocalShoppingItems() {
   const items = await db.shoppingItems.orderBy("createdAt").toArray();
+  const pendingStates = readPendingShoppingItemStates();
 
-  return items.map(normalizeStoredShoppingItem);
+  return items.map((item) => {
+    const normalizedItem = normalizeStoredShoppingItem(item);
+    const pendingState = pendingStates[normalizedItem.id];
+
+    return pendingState && pendingState.updatedAt >= normalizedItem.updatedAt
+      ? { ...normalizedItem, ...pendingState }
+      : normalizedItem;
+  });
 }
 
 async function getLocalShoppingData() {
@@ -544,6 +636,7 @@ async function replaceLocalShoppingData(data: ShoppingData) {
       );
     },
   );
+  clearPersistedShoppingItemStates(data.items);
 }
 
 async function getLocalShoppingHistoryEvents() {

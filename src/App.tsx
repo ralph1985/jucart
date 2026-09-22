@@ -83,6 +83,7 @@ import {
   getCachedShoppingData,
   getShoppingItemsStorageMode,
   getStoredShoppingData,
+  persistCachedShoppingItem,
   replaceStoredShoppingData,
   synchronizeCachedShoppingData,
 } from "./shoppingItemsDb";
@@ -3740,6 +3741,7 @@ export function App() {
         changedItem,
         changedItem.purchased ? "purchased" : "unpurchased",
       );
+      void persistCachedShoppingItem(changedItem).catch(() => undefined);
     }
 
     markLocalDataChange();

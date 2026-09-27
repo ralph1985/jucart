@@ -212,7 +212,7 @@ export function mergeShoppingDataForSync(
   return {
     ...remoteData,
     items: mergedItems,
-    sections: mergeRecordsById(remoteData.sections, localData.sections),
+    sections: remoteData.sections,
     historyEvents: mergeRecordsById(
       remoteData.historyEvents,
       localData.historyEvents,

@@ -118,6 +118,32 @@ describe("shopping items database", () => {
     expect(mergeShoppingDataForSync(remoteData, localData).items).toEqual([]);
   });
 
+  it("descarta secciones locales obsoletas al cargar las listas remotas", () => {
+    const remoteData = {
+      items: [],
+      sections: [
+        {
+          id: "10000000-0000-4000-8000-000000000001::mercadona",
+          name: "Mercadona",
+          color: "mint" as const,
+        },
+      ],
+      historyEvents: [],
+      freezerItems: [],
+    };
+    const localData = {
+      ...remoteData,
+      sections: [
+        { id: "mercadona", name: "Mercadona", color: "mint" as const },
+        ...remoteData.sections,
+      ],
+    };
+
+    expect(mergeShoppingDataForSync(remoteData, localData).sections).toEqual(
+      remoteData.sections,
+    );
+  });
+
   it("stores and reads products ordered by creation date", async () => {
     await replaceStoredShoppingItems([
       {

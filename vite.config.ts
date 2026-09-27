@@ -20,7 +20,7 @@ export default defineConfig({
       manifest: {
         name: "Jucart",
         short_name: "Jucart",
-        description: "Lista de la compra privada y offline.",
+        description: "Lista de la compra privada.",
         lang: "es",
         theme_color: "#dff4ea",
         background_color: "#edf4f2",
@@ -73,7 +73,7 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
+        globPatterns: [],
       },
     }),
   ],

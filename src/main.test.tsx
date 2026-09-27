@@ -21,19 +21,10 @@ describe("main", () => {
     mainMocks.createRoot.mockReturnValue({ render: mainMocks.render });
   });
 
-  it("registers the service worker and renders the app", async () => {
+  it("renders the app without registering a service worker", async () => {
     const rootElement = document.getElementById("root");
 
     await import("./main");
-    const { registerSW } = await import("virtual:pwa-register");
-
-    expect(registerSW).toHaveBeenCalledWith(
-      expect.objectContaining({
-        immediate: true,
-        onNeedRefresh: expect.any(Function),
-        onRegisteredSW: expect.any(Function),
-      }),
-    );
     expect(mainMocks.createRoot).toHaveBeenCalledWith(rootElement);
     expect(mainMocks.render).toHaveBeenCalledOnce();
   });

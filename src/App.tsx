@@ -112,17 +112,11 @@ import {
   transferShoppingListOwnership,
 } from "./shoppingLists";
 import type { ShoppingList, ShoppingListMember } from "./shoppingLists";
-import {
-  pwaUpdateApplyEvent,
-  pwaUpdateApplyFailedEvent,
-  pwaUpdateAvailableEvent,
-} from "./pwaUpdateEvents";
 import { updateBadge } from "./services/badgeService";
 import { AppHeader } from "./components/app/AppHeader";
 import type { SyncStatus } from "./components/app/AppHeader";
 import { AppBottomNav } from "./components/app/AppBottomNav";
 import type { AppView } from "./components/app/AppBottomNav";
-import { PwaUpdateModal } from "./components/app/PwaUpdateModal";
 import { NoticeInboxSheet } from "./components/app/NoticeInboxSheet";
 import type { NoticeInboxItem } from "./components/app/NoticeInboxSheet";
 import { FloatingActionButton } from "./components/app/FloatingActionButton";
@@ -1400,9 +1394,6 @@ export function App() {
   const [shoppingListMembers, setShoppingListMembers] = useState<
     Record<string, ShoppingListMember[]>
   >({});
-  const [isPwaUpdateAvailable, setIsPwaUpdateAvailable] = useState(false);
-  const [isPwaUpdateApplying, setIsPwaUpdateApplying] = useState(false);
-  const [pwaUpdateError, setPwaUpdateError] = useState<string | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
     isSupabaseConfigured() ? "syncing" : "local",
@@ -1965,30 +1956,6 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const handleUpdateAvailable = () => setIsPwaUpdateAvailable(true);
-    const handleUpdateApplyFailed = () => {
-      setIsPwaUpdateApplying(false);
-      setPwaUpdateError(
-        "No se pudo aplicar la actualización. Comprueba la conexión y vuelve a intentarlo.",
-      );
-    };
-
-    window.addEventListener(pwaUpdateAvailableEvent, handleUpdateAvailable);
-    window.addEventListener(pwaUpdateApplyFailedEvent, handleUpdateApplyFailed);
-
-    return () => {
-      window.removeEventListener(
-        pwaUpdateAvailableEvent,
-        handleUpdateAvailable,
-      );
-      window.removeEventListener(
-        pwaUpdateApplyFailedEvent,
-        handleUpdateApplyFailed,
-      );
-    };
-  }, []);
-
-  useEffect(() => {
     let isActive = true;
 
     async function refreshPushNotificationSnapshot() {
@@ -2240,28 +2207,6 @@ export function App() {
       return refreshItemsFromSupabase();
     };
 
-    let unsubscribe: () => void = () => undefined;
-
-    async function startSupabaseSubscription() {
-      const { subscribeToSupabaseShoppingItems } =
-        await import("./shoppingItemsSupabase");
-
-      if (!isActive) {
-        return;
-      }
-
-      unsubscribe = subscribeToSupabaseShoppingItems(() => {
-        if (pendingLocalStoresRef.current > 0) {
-          queuedRemoteRefreshRef.current = true;
-          return;
-        }
-
-        void refreshItemsFromSupabase();
-      });
-    }
-
-    void startSupabaseSubscription();
-
     /*
      * The initial render uses IndexedDB. Refresh once after the Supabase chunk
      * loads so cached data is reconciled with the remote list.
@@ -2279,7 +2224,6 @@ export function App() {
     return () => {
       isActive = false;
       refreshRemoteDataRef.current = null;
-      unsubscribe();
       document.removeEventListener("visibilitychange", refreshItemsWhenVisible);
     };
   }, [beginRemoteRequest, isLoaded, shoppingLists]);
@@ -4354,12 +4298,6 @@ export function App() {
     });
   }
 
-  function handlePwaUpdate() {
-    setIsPwaUpdateApplying(true);
-    setPwaUpdateError(null);
-    window.dispatchEvent(new Event(pwaUpdateApplyEvent));
-  }
-
   async function handlePushNotificationDiagnostic() {
     setIsPushDiagnosticPending(true);
     setPushNotificationDiagnostic({
@@ -4997,13 +4935,6 @@ export function App() {
           </p>
         </div>
       ) : null}
-      <PwaUpdateModal
-        errorMessage={pwaUpdateError}
-        isAvailable={isPwaUpdateAvailable}
-        isApplying={isPwaUpdateApplying}
-        onButtonPointerDown={handleButtonPointerDown}
-        onUpdate={handlePwaUpdate}
-      />
       <AppHeader
         appRelease={appRelease}
         isLoaded={isLoaded}

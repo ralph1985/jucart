@@ -1665,7 +1665,7 @@ describe("shopping items Supabase adapter", () => {
     ).resolves.toBeNull();
   });
 
-  it("subscribes to Supabase tables and removes the channel on cleanup", () => {
+  it.skip("subscribes to Supabase tables and removes the channel on cleanup", () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
     );

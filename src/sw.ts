@@ -1,5 +1,3 @@
-type PrecacheEntry = string | { revision?: string | null; url: string };
-
 type PushPayload = {
   body?: unknown;
   title?: unknown;
@@ -20,22 +18,12 @@ type ExtendableEventLike = Event & {
   waitUntil: (promise: Promise<unknown>) => void;
 };
 
-type MessageEventLike = {
-  data?: unknown;
-  waitUntil?: (promise: Promise<unknown>) => void;
-};
-
 type NotificationEventLike = Event & {
   notification: {
     close: () => void;
     data?: unknown;
   };
   waitUntil: (promise: Promise<unknown>) => void;
-};
-
-type FetchEventLike = Event & {
-  request: Request;
-  respondWith: (response: Promise<Response>) => void;
 };
 
 type WindowClientLike = {
@@ -54,7 +42,6 @@ type ClientsLike = {
 };
 
 type ServiceWorkerEnvironment = {
-  caches: CacheStorage;
   clients: ClientsLike;
   location: Location;
   registration: {
@@ -72,33 +59,29 @@ type ServiceWorkerGlobal = ServiceWorkerEnvironment & {
 
 declare global {
   interface Window {
-    __WB_MANIFEST?: PrecacheEntry[];
+    __WB_MANIFEST?: unknown[];
   }
 }
 
+// vite-plugin-pwa requires this injection point even though Jucart does not
+// precache resources or intercept fetches.
+void self.__WB_MANIFEST;
+
 const serviceWorker = self as unknown as ServiceWorkerGlobal;
-const precacheManifest = self.__WB_MANIFEST ?? [];
-const precacheCacheName = `jucart-precache-${hashPrecacheManifest(precacheManifest)}`;
 const defaultNotificationTitle = "Cambios en Jucart";
 const defaultNotificationBody = "Hay cambios nuevos en la lista";
 const defaultNotificationUrl = "/";
-const legacyRefreshCacheName = "jucart-migrations";
-const legacyRefreshMarker = "pwa-update-v1";
 
 serviceWorker.addEventListener("install", (event) => {
-  (event as ExtendableEventLike).waitUntil(handleInstallEvent(serviceWorker));
+  (event as ExtendableEventLike).waitUntil(
+    serviceWorker.skipWaiting?.() ?? Promise.resolve(),
+  );
 });
 
 serviceWorker.addEventListener("activate", (event) => {
-  (event as ExtendableEventLike).waitUntil(handleActivateEvent(serviceWorker));
-});
-
-serviceWorker.addEventListener("message", (event) => {
-  handleMessageEvent(event as MessageEventLike, serviceWorker);
-});
-
-serviceWorker.addEventListener("fetch", (event) => {
-  handleFetchEvent(event as FetchEventLike, serviceWorker);
+  (event as ExtendableEventLike).waitUntil(
+    serviceWorker.clients.claim?.() ?? Promise.resolve(),
+  );
 });
 
 serviceWorker.addEventListener("push", (event) => {
@@ -108,84 +91,6 @@ serviceWorker.addEventListener("push", (event) => {
 serviceWorker.addEventListener("notificationclick", (event) => {
   handleNotificationClickEvent(event as NotificationEventLike, serviceWorker);
 });
-
-export async function handleInstallEvent(env: ServiceWorkerEnvironment) {
-  const cache = await env.caches.open(precacheCacheName);
-
-  await cache.addAll(getPrecacheUrls(precacheManifest));
-}
-
-export function handleMessageEvent(
-  event: MessageEventLike,
-  env: ServiceWorkerEnvironment,
-) {
-  if (!isSkipWaitingMessage(event.data) || !env.skipWaiting) {
-    return;
-  }
-
-  const skipWaitingPromise = env.skipWaiting();
-
-  if (event.waitUntil) {
-    event.waitUntil(skipWaitingPromise);
-  }
-}
-
-export async function handleActivateEvent(env: ServiceWorkerEnvironment) {
-  const cacheNames = await env.caches.keys();
-  const oldPrecacheNames = cacheNames.filter(
-    (cacheName) =>
-      cacheName.startsWith("jucart-precache-") &&
-      cacheName !== precacheCacheName,
-  );
-
-  await Promise.all(
-    oldPrecacheNames.map((cacheName) => env.caches.delete(cacheName)),
-  );
-  await env.clients.claim?.();
-  await refreshLegacyClients(env);
-}
-
-async function refreshLegacyClients(env: ServiceWorkerEnvironment) {
-  const migrationCache = await env.caches.open(legacyRefreshCacheName);
-
-  if (await migrationCache.match(legacyRefreshMarker)) {
-    return;
-  }
-
-  await migrationCache.put(legacyRefreshMarker, new Response("done"));
-
-  const windowClients = await env.clients.matchAll({
-    includeUncontrolled: true,
-    type: "window",
-  });
-
-  await Promise.all(
-    windowClients.map(async (client) => {
-      try {
-        await client.navigate?.(client.url);
-      } catch {
-        // A client can disappear while the new service worker activates.
-      }
-    }),
-  );
-}
-
-export function handleFetchEvent(
-  event: FetchEventLike,
-  env: ServiceWorkerEnvironment,
-) {
-  if (event.request.method !== "GET") {
-    return;
-  }
-
-  if (event.request.mode === "navigate") {
-    event.respondWith(getCachedResponse("/index.html", event.request, env));
-
-    return;
-  }
-
-  event.respondWith(getCachedResponse(event.request, event.request, env));
-}
 
 export function handlePushEvent(
   event: PushEventLike,
@@ -263,16 +168,6 @@ export function getNotificationTargetUrl(data: unknown, origin: string) {
   return sanitizeNotificationUrl(data.url, origin);
 }
 
-async function getCachedResponse(
-  cacheRequest: RequestInfo,
-  fallbackRequest: Request,
-  env: ServiceWorkerEnvironment,
-) {
-  const cachedResponse = await env.caches.match(cacheRequest);
-
-  return cachedResponse ?? fetch(fallbackRequest);
-}
-
 async function openOrFocusJucart(targetUrl: string, clients: ClientsLike) {
   const windowClients = await clients.matchAll({
     includeUncontrolled: true,
@@ -294,41 +189,6 @@ async function openOrFocusJucart(targetUrl: string, clients: ClientsLike) {
   }
 
   await clients.openWindow?.(targetUrl);
-}
-
-function getPrecacheUrls(entries: PrecacheEntry[]) {
-  return entries
-    .map((entry) => (typeof entry === "string" ? entry : entry.url))
-    .filter((url) => url.trim().length > 0);
-}
-
-function isSkipWaitingMessage(
-  value: unknown,
-): value is { type: "SKIP_WAITING" } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "type" in value &&
-    value.type === "SKIP_WAITING"
-  );
-}
-
-function hashPrecacheManifest(entries: PrecacheEntry[]) {
-  const manifestKey = entries
-    .map((entry) =>
-      typeof entry === "string"
-        ? entry
-        : `${entry.url}:${entry.revision ?? "unversioned"}`,
-    )
-    .join("|");
-  let hash = 0;
-
-  for (let index = 0; index < manifestKey.length; index += 1) {
-    hash = (hash << 5) - hash + manifestKey.charCodeAt(index);
-    hash |= 0;
-  }
-
-  return Math.abs(hash).toString(36);
 }
 
 function sanitizeNotificationUrl(value: unknown, origin: string) {

@@ -555,16 +555,12 @@ Objetivo: garantizar que todo el contenido de una lista queda aislado de las dem
 - [ ] Añadir tests de aislamiento por tabla y por Storage.
 - [ ] Ejecutar la validación completa del repositorio antes de cerrar el hito.
 
-## Hito 40 — Offline autenticado y sincronización
+## Hito 40 — Retirado: offline autenticado
 
-Objetivo: conservar la utilidad offline de la PWA sin conceder acceso a datos no autorizados.
+Estado: retirado. Jucart no ofrecerá uso offline ni cola de cambios sin conexión.
 
-- [ ] Permitir trabajar offline con las listas autorizadas y previamente cacheadas.
-- [ ] Guardar cambios offline en Dexie y sincronizarlos al recuperar conexión.
-- [ ] Rechazar o poner en cola cambios cuya pertenencia ya no sea válida.
-- [ ] Invalidar el acceso local a datos privados al cerrar sesión.
-- [ ] Gestionar sesiones caducadas y recuperación de acceso al volver a tener red.
-- [ ] Añadir tests de lectura, escritura, cola y reconciliación offline.
+- [x] Retirar el precache y la actualización controlada desde la interfaz.
+- [x] Mantener Dexie solo como caché de arranque, sin prometer funcionamiento sin conexión.
 
 ## Hito 41 — Ciclo de vida y eliminación de listas
 
@@ -580,21 +576,11 @@ Objetivo: cerrar los casos de mantenimiento y borrado sin pérdida accidental in
 - [ ] Añadir tests de transferencia, expulsión, abandono, recuperación y borrado definitivo.
 - [ ] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
 
-## Hito 42 — Actualización controlada de la PWA
+## Hito 42 — Retirado: actualización controlada de la PWA
 
-Objetivo: permitir que las personas reciban versiones nuevas sin borrar manualmente los datos del navegador ni reinstalar la aplicación.
+Estado: retirado. La aplicación deja que el navegador actualice los recursos sin una modal propia.
 
-- [x] Detectar desde la aplicación que existe una nueva versión del Service Worker.
-- [x] Mostrar una modal obligatoria cuando haya una actualización disponible.
-- [x] Añadir una acción `Actualizar` que active la nueva versión y recargue la aplicación.
-- [x] Mantener la caché local y los datos de Dexie intactos durante la actualización.
-- [x] Comprobar actualizaciones al iniciar y al volver a primer plano.
-- [x] Gestionar correctamente una pestaña abierta con un bundle antiguo.
-- [x] Añadir una migración única del Service Worker que recargue clientes antiguos ya controlados.
-- [x] Guardar una marca de migración para no repetir esa recarga en futuras actualizaciones.
-- [x] Añadir tests de la modal, activación, recarga y errores de actualización.
-- [ ] Verificar el comportamiento en escritorio, móvil y PWA instalada.
-- [x] Ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build` antes de cerrar el hito.
+- [x] Retirar la modal, el registro de actualización y la precaché offline.
 
 La versión visible actual es `0.18.0`. El coordinador revisará periódicamente si los cambios acumulados justifican un nuevo incremento y preguntará antes de modificarla.
 

@@ -908,63 +908,6 @@
   backdrop-filter: blur(0.75rem);
 }
 
-.pwaUpdateModalBackdrop {
-  position: fixed;
-  z-index: 100;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem;
-  background: rgb(15 23 42 / 48%);
-  backdrop-filter: blur(0.35rem);
-}
-
-.pwaUpdateModal {
-  width: min(100%, 25rem);
-  border: 1px solid var(--color-border-strong);
-  border-radius: 1.25rem;
-  padding: 1.35rem;
-  background: var(--surface);
-  color: var(--color-text-strong);
-  box-shadow: 0 1.2rem 3rem var(--surface-shadow-strong);
-}
-
-.pwaUpdateModalKicker {
-  display: block;
-  color: var(--color-accent-strong);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.pwaUpdateModal h2 {
-  margin: 0.45rem 0 0;
-  font-size: 1.35rem;
-}
-
-.pwaUpdateModal p {
-  margin: 0.75rem 0 0;
-  color: var(--color-text-muted);
-  line-height: 1.45;
-}
-
-.pwaUpdateModal .primaryButton {
-  width: 100%;
-  margin-top: 1.15rem;
-}
-
-.pwaUpdateModalError {
-  color: var(--color-danger-text) !important;
-  font-size: 0.82rem;
-}
-
-.pwaUpdateModal:focus-visible {
-  outline: 3px solid rgb(47 128 237 / 22%);
-  outline-offset: 3px;
-}
-
 .pushInviteIcon {
   display: inline-grid;
   width: 2.35rem;
@@ -1291,10 +1234,6 @@ h2 {
 
 .syncStatussyncing {
   color: #1d4f91;
-}
-
-.syncStatusoffline {
-  color: #9f1239;
 }
 
 .syncStatuslocal {

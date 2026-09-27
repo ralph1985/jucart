@@ -12,8 +12,8 @@ La aplicación funciona localmente y puede sincronizar las listas entre disposit
 - Historial de cambios y recategorizaciones.
 - Categorías y productos canónicos mantenidos con apoyo de Codex.
 - Congelador organizado por cajones, con cantidades y fecha de congelación.
-- PWA instalable con soporte offline mediante IndexedDB y Service Worker.
-- Sincronización remota con Supabase y actualización mediante Realtime.
+- PWA instalable y notificaciones push opcionales mediante Service Worker.
+- Sincronización remota con Supabase al cargar, al volver a primer plano o al actualizar manualmente.
 - Bandeja privada de tickets y extracción nocturna de líneas y precios.
 - Historial de precios y semillas externas diferenciadas por procedencia.
 
@@ -26,7 +26,7 @@ Jucart es una aplicación privada. La ejecución completa necesita las credencia
 - React, TypeScript y Vite.
 - SCSS Modules.
 - Dexie e IndexedDB para persistencia local y caché.
-- Supabase para autenticación, datos remotos, Storage y Realtime.
+- Supabase para autenticación, datos remotos y Storage.
 - `vite-plugin-pwa`, Anime.js y Embla Carousel.
 - Vitest, React Testing Library y Playwright.
 - ESLint, Prettier y pnpm.
@@ -66,13 +66,13 @@ Cuando Supabase está configurado, la aplicación muestra la pantalla de acceso 
 ```text
 React/Vite
     ├── Dexie / IndexedDB (persistencia local y fallback)
-    └── Supabase remoto (Auth, Postgres, Storage y Realtime)
+    └── Supabase remoto (Auth, Postgres y Storage)
 
 Procesos locales independientes:
     backups · cron de categorías · normalización · tickets · precios externos
 ```
 
-La PWA mantiene los datos locales para poder consultar y modificar la aplicación sin conexión. Supabase se utiliza cuando existe configuración remota y la sesión tiene acceso a las listas correspondientes.
+Dexie conserva una caché local para acelerar el arranque. Supabase se utiliza cuando existe configuración remota y la sesión tiene acceso a las listas correspondientes.
 
 El modelo remoto y su correspondencia con IndexedDB están documentados en [`docs/database-schema.md`](docs/database-schema.md). Las decisiones de producto y arquitectura están en [`docs/decisions.md`](docs/decisions.md).
 
@@ -163,7 +163,7 @@ La aplicación principal está implementada como una sola pantalla con navegaci�
 - Los hitos 31–35 cubren productos canónicos, tickets, procesamiento con Codex, historial de precios y proveedores externos.
 - El Hito 30 de notificaciones push está pausado: la arquitectura existe, pero falta cerrar la validación manual en iPhone.
 - Los hitos 36–37 incorporan autenticación y la migración de listas compartidas.
-- Los hitos 38–42 continúan el endurecimiento de roles, aislamiento, offline autenticado, ciclo de vida de listas y actualización controlada de la PWA.
+- Los hitos 38–42 documentan trabajo histórico de endurecimiento de roles, aislamiento, ciclo de vida de listas y PWA.
 
 El detalle de tareas, estado y próximos pasos está en [`PLAN.md`](PLAN.md).
 

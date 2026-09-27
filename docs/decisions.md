@@ -27,7 +27,7 @@ La interfaz se organiza como un tablero por columnas: en escritorio se muestran 
 
 En el Hito 21, los productos se agrupan por categoría dentro de cada lista para comprar productos relacionados juntos.
 
-Desde el Hito 27, las categorías y el catálogo maestro viven en Supabase como datos globales. La app los lee para inferir la categoría a partir del nombre del producto. El código mantiene un fallback local para uso offline o fallo remoto, pero Supabase es la fuente operativa del catálogo.
+Desde el Hito 27, las categorías y el catálogo maestro viven en Supabase como datos globales. La app los lee para inferir la categoría a partir del nombre del producto. Dexie mantiene una caché local, pero Supabase es la fuente operativa del catálogo.
 
 La categoría inferida se guarda en el producto y se recalcula al renombrarlo. Los productos antiguos sin categoría se normalizan al cargar usando el catálogo disponible. La automatización diaria con Codex puede añadir entradas al catálogo remoto y actualizar `shopping_items.category_id` cuando la recategorización sea clara.
 
@@ -149,9 +149,7 @@ El primer paso añade Supabase CLI, configuración, una migración versionada pa
 
 La interfaz mantiene la misma API interna de persistencia. Cuando `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_SUPABASE_LIST_ID` están configurados, lee y guarda en Supabase. Dexie queda como caché local y fallback si falta configuración o falla la red.
 
-Realtime usa Postgres Changes sobre `shopping_items` y `shopping_sections` filtrado por `list_id`. Al recibir un evento remoto, la app recarga los datos completos desde Supabase en lugar de aplicar parches item a item. Para una lista pequeña es más simple y evita inconsistencias entre eventos locales, borrados múltiples, cambios de orden y deshacer.
-
-La app también recarga los datos al volver a primer plano, para recuperar cambios remotos que no hayan llegado mientras la PWA estaba suspendida o en background.
+La app no mantiene una suscripción de Realtime. Recarga los datos al cargar, al volver a primer plano o mediante actualización manual, evitando conexiones persistentes y reconciliaciones por eventos concurrentes.
 
 En el Hito 18, la UI muestra un estado discreto de sincronización. La app también evita guardar automáticamente justo después de la carga inicial, para no reenviar una lista recién cargada ni arriesgar que una caché local antigua pise datos remotos al arrancar. La capa de persistencia informa si el último acceso fue remoto, local o fallback local.
 
@@ -167,15 +165,13 @@ El backup completo se guarda como un archivo comprimido local con `schema.sql`, 
 
 La vista de desarrollador muestra esos metadatos y datos operativos de la app. Se oculta cuando el selector de persona está en Begoña. Esto no es seguridad real ni sustituye a autenticación; es una regla de interfaz suficiente para una app privada sin login.
 
-## PWA y offline
+## PWA sin caché offline
 
-En el Hito 3, Jucart usa `vite-plugin-pwa` con Service Worker generado por Workbox.
-
-El Service Worker se registra con actualización automática y precachea el shell de la aplicación: HTML, JS, CSS, manifest e iconos. La navegación usa fallback a `index.html`, suficiente para una aplicación de una sola pantalla.
+Jucart mantiene `vite-plugin-pwa` y el Service Worker exclusivamente para las notificaciones push e instalación. El Service Worker no intercepta solicitudes ni precachea recursos, por lo que la aplicación requiere red para cargarse.
 
 Los iconos son provisionales y locales: SVG, PNG 192x192 y PNG 512x512. No se añade una dependencia solo para generar iconos.
 
-La persistencia offline sigue dependiendo de IndexedDB mediante Dexie. Cuando no hay red o Supabase falla, la modificación de datos locales no requiere conexión. Al recuperar la conexión, la app sincroniza la caché local con el evento `online` antes de refrescar la vista. La escritura remota fusiona los productos por identificador y `updatedAt`, conserva las altas hechas en otros dispositivos y usa los eventos de borrado locales para no resucitar productos eliminados. Las escrituras remotas se serializan para evitar que dos guardados simultáneos vuelvan a sobrescribirse.
+Dexie mantiene una caché de arranque. La aplicación no ofrece uso offline como característica ni garantiza cambios sin conexión.
 
 ## Usuarios, listas y permisos
 
@@ -193,7 +189,7 @@ Cada lista tendrá un código único reutilizable. Introducir un código válido
 
 Los permisos cubren todo el contenido asociado a la lista: productos, congelador, categorías, historial, tickets, precios y notificaciones. La protección se implementa mediante RLS, Storage y RPC, no solo ocultando controles en la interfaz. Las tablas y Storage ya no conceden acceso a `anon`; las operaciones de navegador requieren una sesión autenticada y pertenencia a la lista.
 
-La PWA mantendrá el uso offline para listas previamente autorizadas. Dexie conservará los datos locales y los cambios pendientes hasta recuperar conexión. El cierre de sesión invalidará el acceso local a datos privados y una sesión no autenticada no podrá abrir datos remotos.
+Dexie conserva una caché local de las listas autorizadas. El cierre de sesión invalidará el acceso local a datos privados y una sesión no autenticada no podrá abrir datos remotos.
 
 La lista actual se migra conservando sus datos y se divide por supermercado sin eliminar productos antiguos. Rafa es propietario y Begoña miembro desde la migración. La eliminación lógica y la recuperación técnica quedan fuera de esta fase.
 
@@ -215,7 +211,7 @@ Supabase Edge Functions actúa como servidor de envío. La clave privada VAPID v
 
 El disparo v1 sale de un trigger `after insert` sobre `shopping_history_events`. El trigger usa `pg_net` para invocar la Edge Function de forma asíncrona tras el commit, con `verify_jwt = false` y una cabecera `x-jucart-push-secret`. Ese secreto compartido vive como secret de la Edge Function y como secreto cifrado en Supabase Vault bajo `jucart_push_trigger_secret`; no se invoca desde el frontend.
 
-La primera versión se limita a eventos relevantes del historial manual de compra. No incluye recordatorios programados, recategorizaciones automáticas, backups ni preferencias finas por tipo de evento. El payload de push debe ser mínimo y genérico; al abrirse, la app refresca los datos desde Supabase como ya hace con Realtime y al volver a primer plano.
+La primera versión se limita a eventos relevantes del historial manual de compra. No incluye recordatorios programados, recategorizaciones automáticas, backups ni preferencias finas por tipo de evento. El payload de push debe ser mínimo y genérico; al abrirse, la app refresca los datos desde Supabase al volver a primer plano.
 
 En iOS/iPadOS, el soporte se considera solo para Jucart instalada en pantalla de inicio. No se diseña esta fase para pestañas normales de Safari.
 

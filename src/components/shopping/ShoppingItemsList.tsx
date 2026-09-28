@@ -224,6 +224,17 @@ export function ShoppingItemsList({
     const itemTicketPriceSummary = itemPriceSummary?.ticketSummary ?? null;
     const itemBestExternalPrice =
       itemPriceSummary?.bestExternalObservation ?? null;
+    const hasPriceSummary = Boolean(
+      itemTicketPriceSummary || itemBestExternalPrice,
+    );
+    const itemClassName = [
+      styles.item,
+      hasPriceSummary ? styles.itemWithPrice : "",
+      item.purchased ? styles.itemPurchased : "",
+      highlightedItemId === item.id ? styles.itemHighlighted : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     const itemContent = (
       <li
         ref={(itemElement) => {
@@ -233,15 +244,7 @@ export function ShoppingItemsList({
             delete itemRefs.current[item.id];
           }
         }}
-        className={
-          item.purchased
-            ? `${styles.item} ${styles.itemPurchased} ${
-                highlightedItemId === item.id ? styles.itemHighlighted : ""
-              }`
-            : `${styles.item} ${
-                highlightedItemId === item.id ? styles.itemHighlighted : ""
-              }`
-        }
+        className={itemClassName}
         key={item.id}
         tabIndex={highlightedItemId === item.id ? -1 : undefined}
       >

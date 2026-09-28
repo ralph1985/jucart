@@ -1776,6 +1776,7 @@ describe("App", () => {
     const productDetails = screen.getByRole("group", {
       name: "Detalles de Plátanos",
     });
+    expect(productDetails.closest("li")?.className).toContain("itemWithPrice");
     expect(
       within(productDetails).getByRole("group", {
         name: "Último precio real 1,80 €/kg, media real 2,00 €/kg, Mejor precio externo 1,70 €/kg",

@@ -262,101 +262,107 @@ export function ShoppingItemsList({
         >
           <Icon name="check" />
         </button>
-        <span
-          className={
-            item.purchased
-              ? `${styles.itemName} ${styles.itemNamePurchased}`
-              : styles.itemName
-          }
+        <div
+          className={styles.itemDetails}
+          role="group"
+          aria-label={`Detalles de ${item.name}`}
         >
-          {item.name}
-          {item.quantity ? (
-            <span className={styles.itemQuantity}>
-              {formatQuantity(item.quantity)}
-            </span>
-          ) : null}
-          {item.notes ? (
-            <span className={styles.itemNotes}>{item.notes}</span>
-          ) : null}
-        </span>
-        {itemTicketPriceSummary || itemBestExternalPrice ? (
           <span
-            className={styles.itemPriceSummary}
-            role="group"
-            aria-label={[
-              itemTicketPriceSummary
-                ? `Último precio real ${formatPrice(
-                    itemTicketPriceSummary.latestPrice,
-                    itemTicketPriceSummary.comparisonUnit,
-                  )}, media real ${formatPrice(
-                    itemTicketPriceSummary.averagePrice,
-                    itemTicketPriceSummary.comparisonUnit,
-                  )}`
-                : null,
-              itemBestExternalPrice
-                ? `Mejor precio externo ${formatPrice(
-                    itemBestExternalPrice.observedPrice,
-                    itemBestExternalPrice.comparisonUnit,
-                  )}`
-                : null,
-            ]
-              .filter(Boolean)
-              .join(", ")}
-            title={
-              itemTicketPriceSummary
-                ? `${itemTicketPriceSummary.observationCount} ${
-                    itemTicketPriceSummary.observationCount === 1
-                      ? "observación real"
-                      : "observaciones reales"
-                  }`
-                : "Solo precio externo"
+            className={
+              item.purchased
+                ? `${styles.itemName} ${styles.itemNamePurchased}`
+                : styles.itemName
             }
           >
-            <span className={styles.itemPriceValues}>
-              {itemTicketPriceSummary ? (
-                <>
-                  <span>
-                    Últ.{" "}
-                    {formatPrice(
+            {item.name}
+            {item.quantity ? (
+              <span className={styles.itemQuantity}>
+                {formatQuantity(item.quantity)}
+              </span>
+            ) : null}
+            {item.notes ? (
+              <span className={styles.itemNotes}>{item.notes}</span>
+            ) : null}
+          </span>
+          {itemTicketPriceSummary || itemBestExternalPrice ? (
+            <span
+              className={styles.itemPriceSummary}
+              role="group"
+              aria-label={[
+                itemTicketPriceSummary
+                  ? `Último precio real ${formatPrice(
                       itemTicketPriceSummary.latestPrice,
                       itemTicketPriceSummary.comparisonUnit,
-                    )}
-                  </span>
-                  <span>
-                    Media{" "}
-                    {formatPrice(
+                    )}, media real ${formatPrice(
                       itemTicketPriceSummary.averagePrice,
                       itemTicketPriceSummary.comparisonUnit,
+                    )}`
+                  : null,
+                itemBestExternalPrice
+                  ? `Mejor precio externo ${formatPrice(
+                      itemBestExternalPrice.observedPrice,
+                      itemBestExternalPrice.comparisonUnit,
+                    )}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+              title={
+                itemTicketPriceSummary
+                  ? `${itemTicketPriceSummary.observationCount} ${
+                      itemTicketPriceSummary.observationCount === 1
+                        ? "observación real"
+                        : "observaciones reales"
+                    }`
+                  : "Solo precio externo"
+              }
+            >
+              <span className={styles.itemPriceValues}>
+                {itemTicketPriceSummary ? (
+                  <>
+                    <span>
+                      Últ.{" "}
+                      {formatPrice(
+                        itemTicketPriceSummary.latestPrice,
+                        itemTicketPriceSummary.comparisonUnit,
+                      )}
+                    </span>
+                    <span>
+                      Media{" "}
+                      {formatPrice(
+                        itemTicketPriceSummary.averagePrice,
+                        itemTicketPriceSummary.comparisonUnit,
+                      )}
+                    </span>
+                  </>
+                ) : null}
+                {itemBestExternalPrice ? (
+                  <span className={styles.itemExternalPrice}>
+                    Ext.{" "}
+                    {formatPrice(
+                      itemBestExternalPrice.observedPrice,
+                      itemBestExternalPrice.comparisonUnit,
                     )}
                   </span>
-                </>
-              ) : null}
-              {itemBestExternalPrice ? (
-                <span className={styles.itemExternalPrice}>
-                  Ext.{" "}
-                  {formatPrice(
-                    itemBestExternalPrice.observedPrice,
-                    itemBestExternalPrice.comparisonUnit,
-                  )}
-                </span>
-              ) : null}
+                ) : null}
+              </span>
+              <button
+                className={styles.itemPriceDetailButton}
+                type="button"
+                aria-label={`Ver precios de ${item.name}`}
+                title="Ver precios"
+                onPointerDown={onButtonPointerDown}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenPrice(item);
+                }}
+              >
+                <Icon name="history" />
+              </button>
             </span>
-            <button
-              className={styles.itemPriceDetailButton}
-              type="button"
-              aria-label={`Ver precios de ${item.name}`}
-              title="Ver precios"
-              onPointerDown={onButtonPointerDown}
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpenPrice(item);
-              }}
-            >
-              <Icon name="history" />
-            </button>
-          </span>
-        ) : null}
-        <span className={styles.itemMeta}>{getUserName(item.addedBy)}</span>
+          ) : null}
+          <span className={styles.itemMeta}>{getUserName(item.addedBy)}</span>
+        </div>
         <div className={styles.itemActions}>
           <button
             className={styles.iconButton}

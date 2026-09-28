@@ -1773,6 +1773,11 @@ describe("App", () => {
     expect(await screen.findByText("Últ. 1,80 €/kg")).toBeInTheDocument();
     expect(screen.getByText("Media 2,00 €/kg")).toBeInTheDocument();
     expect(screen.getByText("Ext. 1,70 €/kg")).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", {
+        name: "Último precio real 1,80 €/kg, media real 2,00 €/kg, Mejor precio externo 1,70 €/kg",
+      }),
+    ).toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Ver precios de Plátanos" }),

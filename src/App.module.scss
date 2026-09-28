@@ -3837,8 +3837,9 @@ h2 {
 .itemPriceSummary {
   grid-column: 2;
   grid-row: 2;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
   gap: 0.12rem 0.28rem;
   min-width: 0;
   color: #475569;
@@ -3847,9 +3848,14 @@ h2 {
   line-height: 1.08;
 }
 
-.itemPriceSummary span {
-  display: inline-flex;
+.itemPriceValues {
+  display: grid;
+  gap: 0.12rem;
   min-width: 0;
+}
+
+.itemPriceValues > span {
+  display: block;
   overflow-wrap: anywhere;
 }
 

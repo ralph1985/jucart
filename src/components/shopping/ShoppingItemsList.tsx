@@ -282,6 +282,7 @@ export function ShoppingItemsList({
         {itemTicketPriceSummary || itemBestExternalPrice ? (
           <span
             className={styles.itemPriceSummary}
+            role="group"
             aria-label={[
               itemTicketPriceSummary
                 ? `Último precio real ${formatPrice(
@@ -311,33 +312,35 @@ export function ShoppingItemsList({
                 : "Solo precio externo"
             }
           >
-            {itemTicketPriceSummary ? (
-              <>
-                <span>
-                  Últ.{" "}
+            <span className={styles.itemPriceValues}>
+              {itemTicketPriceSummary ? (
+                <>
+                  <span>
+                    Últ.{" "}
+                    {formatPrice(
+                      itemTicketPriceSummary.latestPrice,
+                      itemTicketPriceSummary.comparisonUnit,
+                    )}
+                  </span>
+                  <span>
+                    Media{" "}
+                    {formatPrice(
+                      itemTicketPriceSummary.averagePrice,
+                      itemTicketPriceSummary.comparisonUnit,
+                    )}
+                  </span>
+                </>
+              ) : null}
+              {itemBestExternalPrice ? (
+                <span className={styles.itemExternalPrice}>
+                  Ext.{" "}
                   {formatPrice(
-                    itemTicketPriceSummary.latestPrice,
-                    itemTicketPriceSummary.comparisonUnit,
+                    itemBestExternalPrice.observedPrice,
+                    itemBestExternalPrice.comparisonUnit,
                   )}
                 </span>
-                <span>
-                  Media{" "}
-                  {formatPrice(
-                    itemTicketPriceSummary.averagePrice,
-                    itemTicketPriceSummary.comparisonUnit,
-                  )}
-                </span>
-              </>
-            ) : null}
-            {itemBestExternalPrice ? (
-              <span className={styles.itemExternalPrice}>
-                Ext.{" "}
-                {formatPrice(
-                  itemBestExternalPrice.observedPrice,
-                  itemBestExternalPrice.comparisonUnit,
-                )}
-              </span>
-            ) : null}
+              ) : null}
+            </span>
             <button
               className={styles.itemPriceDetailButton}
               type="button"

@@ -2061,7 +2061,7 @@ export function App() {
 
     let isActive = true;
 
-    async function refreshItemsFromSupabase() {
+    async function refreshItemsFromSupabase(showError = true) {
       const finishRemoteRequest = beginRemoteRequest();
 
       try {
@@ -2106,9 +2106,13 @@ export function App() {
         setStorageError(null);
         setSyncStatus("synced");
       } catch {
-        if (isActive) {
+        if (isActive && showError) {
           setStorageError("No se pudo sincronizar la lista.");
           setSyncStatus("error");
+        }
+
+        if (showError) {
+          throw new Error("No se pudo sincronizar la lista.");
         }
       } finally {
         finishRemoteRequest();
@@ -2121,7 +2125,7 @@ export function App() {
 
     function refreshItemsWhenVisible() {
       if (document.visibilityState === "visible") {
-        void refreshItemsFromSupabase();
+        void refreshItemsFromSupabase(false).catch(() => undefined);
       }
     }
 

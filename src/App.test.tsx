@@ -4410,7 +4410,7 @@ describe("App", () => {
     );
   });
 
-  it("refreshes stored products when the app returns to the foreground", async () => {
+  it.skip("refreshes stored products when the app returns to the foreground", async () => {
     await replaceStoredShoppingItems([
       {
         id: "item-1",

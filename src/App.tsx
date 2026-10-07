@@ -2123,7 +2123,7 @@ export function App() {
     let isActive = true;
     const refreshRevision = localDataRevisionRef.current;
 
-    async function refreshItemsFromSupabase(showError = true) {
+    async function refreshItemsFromSupabase() {
       const finishRemoteRequest = beginRemoteRequest();
 
       try {
@@ -2173,14 +2173,12 @@ export function App() {
         setStorageError(null);
         setSyncStatus("synced");
       } catch {
-        if (isActive && showError) {
+        if (isActive) {
           setStorageError("No se pudo sincronizar la lista.");
           setSyncStatus("error");
         }
 
-        if (showError) {
-          throw new Error("No se pudo sincronizar la lista.");
-        }
+        throw new Error("No se pudo sincronizar la lista.");
       } finally {
         finishRemoteRequest();
       }
@@ -2190,18 +2188,9 @@ export function App() {
       return refreshItemsFromSupabase();
     };
 
-    function refreshItemsWhenVisible() {
-      if (document.visibilityState === "visible") {
-        void refreshItemsFromSupabase(false).catch(() => undefined);
-      }
-    }
-
-    document.addEventListener("visibilitychange", refreshItemsWhenVisible);
-
     return () => {
       isActive = false;
       refreshRemoteDataRef.current = null;
-      document.removeEventListener("visibilitychange", refreshItemsWhenVisible);
     };
   }, [beginRemoteRequest, isLoaded, shoppingLists]);
 

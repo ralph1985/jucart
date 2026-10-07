@@ -2018,6 +2018,60 @@ export function App() {
         setStorageError(null);
         setSyncStatus("synced");
       } catch {
+        try {
+          const remoteData = await getSupabaseShoppingData();
+          const remoteItemsById = new Map(
+            remoteData?.items.map((item) => [item.id, item]),
+          );
+          const remoteSectionsById = new Map(
+            remoteData?.sections.map((section) => [section.id, section]),
+          );
+          const remoteHistoryIds = new Set(
+            remoteData?.historyEvents.map((event) => event.id),
+          );
+          const remoteFreezerIds = new Set(
+            remoteData?.freezerItems.map((item) => item.id),
+          );
+          const remoteWriteWasApplied =
+            remoteData !== null &&
+            remoteData !== undefined &&
+            remoteItemsById.size === data.items.length &&
+            data.items.every((item) => {
+              const remoteItem = remoteItemsById.get(item.id);
+
+              return (
+                remoteItem?.name === item.name &&
+                remoteItem.purchased === item.purchased &&
+                remoteItem.quantity === item.quantity &&
+                remoteItem.sectionId === item.sectionId
+              );
+            }) &&
+            remoteSectionsById.size === data.sections.length &&
+            data.sections.every((section) => {
+              const remoteSection = remoteSectionsById.get(section.id);
+
+              return (
+                remoteSection?.name === section.name &&
+                remoteSection.color === section.color
+              );
+            }) &&
+            remoteHistoryIds.size === data.historyEvents.length &&
+            data.historyEvents.every((event) =>
+              remoteHistoryIds.has(event.id),
+            ) &&
+            remoteFreezerIds.size === data.freezerItems.length &&
+            data.freezerItems.every((item) => remoteFreezerIds.has(item.id));
+
+          if (remoteWriteWasApplied) {
+            pendingAddDraftRef.current = null;
+            setStorageError(null);
+            setSyncStatus("synced");
+            return;
+          }
+        } catch {
+          // Keep the original write error when verification is unavailable.
+        }
+
         const pendingAddDraft = pendingAddDraftRef.current;
 
         if (pendingAddDraft && addSheetOpenRef.current) {

@@ -5,7 +5,7 @@ import { HeaderLogo, Icon } from "../ui/Icon";
 import { formatAppDate, type AppReleaseInfo } from "../../appVersion";
 
 export type ThemePreference = "auto" | "light" | "dark";
-export type SyncStatus = "local" | "syncing" | "synced" | "offline";
+export type SyncStatus = "syncing" | "synced" | "error";
 
 const themePreferenceLabels: Record<ThemePreference, string> = {
   auto: "Auto",

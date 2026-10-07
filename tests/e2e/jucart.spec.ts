@@ -5,14 +5,6 @@ async function resetJucartStorage(page: Page) {
   await page.goto("/");
   await page.evaluate(async () => {
     window.localStorage.clear();
-
-    await new Promise<void>((resolve, reject) => {
-      const request = window.indexedDB.deleteDatabase("jucart");
-
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-      request.onblocked = () => resolve();
-    });
   });
   await page.reload();
   await expect(page.getByRole("heading", { name: "Jucart" })).toBeVisible();
@@ -31,7 +23,7 @@ async function addShoppingProduct(page: Page, name: string) {
   await dialog.getByRole("button", { name: "Añadir" }).click();
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
-  await waitForStoredShoppingProduct(page, name);
+  await expect(page.getByText(name, { exact: true }).last()).toBeVisible();
 }
 
 async function createShoppingList(page: Page, name: string) {
@@ -45,29 +37,6 @@ async function createShoppingList(page: Page, name: string) {
   await dialog.getByRole("button", { name: "Crear" }).click();
   await expect(dialog).not.toBeVisible();
   await expect(page.getByText(name, { exact: true }).last()).toBeVisible();
-}
-
-async function waitForStoredShoppingProduct(page: Page, name: string) {
-  await page.waitForFunction(async (productName) => {
-    return await new Promise<boolean>((resolve) => {
-      const openRequest = window.indexedDB.open("jucart");
-
-      openRequest.onerror = () => resolve(false);
-      openRequest.onsuccess = () => {
-        const database = openRequest.result;
-        const transaction = database.transaction("shoppingItems", "readonly");
-        const getAllRequest = transaction.objectStore("shoppingItems").getAll();
-
-        getAllRequest.onerror = () => resolve(false);
-        getAllRequest.onsuccess = () => {
-          const products = getAllRequest.result as Array<{ name?: string }>;
-
-          resolve(products.some((product) => product.name === productName));
-          database.close();
-        };
-      };
-    });
-  }, name);
 }
 
 async function pullToRefresh(page: Page) {

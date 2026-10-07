@@ -41,9 +41,23 @@ import {
   ShoppingRecategorizationRun,
   ShoppingUserId,
 } from "./shoppingItems";
-import type { ShoppingData } from "./shoppingItemsDb";
 import { getSupabaseConfig } from "./supabaseConfig";
 import type { SupabaseConfig } from "./supabaseConfig";
+
+export type ShoppingData = {
+  items: ShoppingItem[];
+  sections: ShoppingSection[];
+  historyEvents: ShoppingHistoryEvent[];
+  freezerItems: FreezerItem[];
+  categories?: ShoppingCategory[];
+  productCatalogEntries?: ShoppingProductCatalogEntry[];
+  recategorizationRuns?: ShoppingRecategorizationRun[];
+  recategorizationChanges?: ShoppingRecategorizationChange[];
+  canonicalProducts?: ShoppingCanonicalProduct[];
+  canonicalProductAliases?: ShoppingCanonicalProductAlias[];
+  productNormalizationRuns?: ShoppingProductNormalizationRun[];
+  productNormalizationChanges?: ShoppingProductNormalizationChange[];
+};
 
 type ShoppingItemRow = {
   id: string;

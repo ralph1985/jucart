@@ -1,6 +1,6 @@
 # Esquema de base de datos
 
-Jucart guarda los datos en Supabase remoto cuando la aplicación tiene configuradas `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_SUPABASE_LIST_ID`. Dexie mantiene una copia local en IndexedDB para caché y fallback.
+Jucart guarda los datos exclusivamente en Supabase remoto cuando la aplicación tiene configuradas `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_SUPABASE_LIST_ID`. No existe una copia local de los datos.
 
 En la interfaz se habla de "listas" porque es el lenguaje de uso. En el código y en la base de datos remota esas listas se llaman `shopping_sections`, por continuidad con el tablero original por secciones.
 
@@ -347,54 +347,7 @@ VITE_SUPABASE_LIST_ID
 
 `shopping_items.section_id` y `shopping_sections.id` se relacionan por `list_id`, pero las migraciones no declaran una foreign key. La coherencia se mantiene desde la aplicación: no se puede borrar una lista con productos y las escrituras reemplazan productos y listas de la misma `list_id`.
 
-## IndexedDB
-
-La base local se llama `jucart` y tiene tres tablas Dexie:
-
-```txt
-jucart
-  shoppingItems
-    id
-    sectionId
-    categoryId
-    addedBy
-    createdAt
-    updatedAt
-    purchased
-
-  shoppingSections
-    id
-    position
-
-  shoppingHistoryEvents
-    id
-    itemId
-    type
-    actor
-    clientId
-    createdAt
-
-  shoppingCategories
-    id
-    position
-
-  shoppingProductCatalogEntries
-    id
-    categoryId
-    normalizedName
-
-  shoppingRecategorizationRuns
-    id
-    createdAt
-
-  shoppingRecategorizationChanges
-    id
-    runId
-    itemId
-    createdAt
-```
-
-Al cargar, si Supabase está disponible, la aplicación lee datos remotos, categorías y catálogo, y actualiza IndexedDB. Si Supabase no está configurado o falla, usa IndexedDB como almacenamiento local con fallback de categorías en código.
+Al cargar, la aplicación lee los datos remotos directamente desde Supabase. Si Supabase no está configurado o falla, muestra un error y no usa datos antiguos locales.
 
 ## Migraciones
 

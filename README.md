@@ -25,7 +25,7 @@ Jucart es una aplicación privada. La ejecución completa necesita las credencia
 
 - React, TypeScript y Vite.
 - SCSS Modules.
-- Dexie e IndexedDB para persistencia local y caché.
+- Supabase como única fuente de datos y persistencia online.
 - Supabase para autenticación, datos remotos y Storage.
 - `vite-plugin-pwa`, Anime.js y Embla Carousel.
 - Vitest, React Testing Library y Playwright.
@@ -49,7 +49,7 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-Sin variables de Supabase, Jucart funciona en modo local con Dexie. Para usar el proyecto remoto, completa `.env.local` con valores del proyecto autorizado:
+Jucart necesita Supabase para funcionar. Completa `.env.local` con valores del proyecto autorizado:
 
 ```dotenv
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
@@ -65,16 +65,16 @@ Cuando Supabase está configurado, la aplicación muestra la pantalla de acceso 
 
 ```text
 React/Vite
-    ├── Dexie / IndexedDB (persistencia local y fallback)
+    ├── Supabase (persistencia online)
     └── Supabase remoto (Auth, Postgres y Storage)
 
 Procesos locales independientes:
     backups · cron de categorías · normalización · tickets · precios externos
 ```
 
-Dexie conserva una caché local para acelerar el arranque. Supabase se utiliza cuando existe configuración remota y la sesión tiene acceso a las listas correspondientes.
+La aplicación no mantiene caché ni datos persistentes locales: si no hay conexión o configuración válida de Supabase, muestra un error y no intenta trabajar con datos antiguos.
 
-El modelo remoto y su correspondencia con IndexedDB están documentados en [`docs/database-schema.md`](docs/database-schema.md). Las decisiones de producto y arquitectura están en [`docs/decisions.md`](docs/decisions.md).
+El modelo remoto está documentado en [`docs/database-schema.md`](docs/database-schema.md). Las decisiones de producto y arquitectura están en [`docs/decisions.md`](docs/decisions.md).
 
 ## Comandos
 

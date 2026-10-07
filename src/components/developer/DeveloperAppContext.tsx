@@ -5,7 +5,6 @@ type DeveloperAppContextProps = {
   pendingCount: number;
   purchasedCount: number;
   sectionCount: number;
-  storageMode: string;
   supabaseConfigured: boolean;
   syncStatusText: string;
 };
@@ -15,7 +14,6 @@ export function DeveloperAppContext({
   pendingCount,
   purchasedCount,
   sectionCount,
-  storageMode,
   supabaseConfigured,
   syncStatusText,
 }: DeveloperAppContextProps) {
@@ -29,10 +27,6 @@ export function DeveloperAppContext({
         <span className={styles.developerStatusSuccess}>{syncStatusText}</span>
       </div>
       <dl className={styles.developerMetrics}>
-        <div>
-          <dt>Almacenamiento</dt>
-          <dd>{storageMode}</dd>
-        </div>
         <div>
           <dt>Supabase</dt>
           <dd>{supabaseConfigured ? "Configurado" : "No configurado"}</dd>

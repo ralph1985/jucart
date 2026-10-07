@@ -28,8 +28,8 @@
 
 ## Hito 2 — Persistencia local
 
-- [x] Instalar e integrar Dexie.
-- [x] Crear la base de datos IndexedDB.
+- [x] Instalar e integrar la persistencia local anterior.
+- [x] Crear la base de datos la base local anterior.
 - [x] Guardar los cambios automáticamente.
 - [x] Recuperar los datos al iniciar.
 - [x] Gestionar errores básicos de almacenamiento.
@@ -167,7 +167,7 @@
 - [x] Enlazar el repo con el proyecto remoto.
 - [x] Publicar la migración en Supabase remoto.
 - [x] Conectar la interfaz a Supabase.
-- [x] Mantener Dexie como fallback local durante la transición.
+- [x] Mantener la persistencia local anterior como fallback local durante la transición.
 - [x] Añadir tests razonables del adaptador Supabase.
 - [x] Suscribirse a Realtime para refrescar cambios remotos.
 
@@ -193,7 +193,7 @@
 - [x] Permitir reordenar listas.
 - [x] Permitir borrar listas vacías.
 - [x] Impedir borrar listas con productos.
-- [x] Persistir las listas en IndexedDB.
+- [x] Persistir las listas en la base local anterior.
 - [x] Sincronizar las listas con Supabase remoto.
 - [x] Mantener compatibilidad con las listas iniciales.
 - [x] Añadir tests razonables de lógica, persistencia e interfaz.
@@ -206,7 +206,7 @@
 - [x] Recalcular categoría al renombrar un producto.
 - [x] Agrupar productos por categoría dentro de cada lista.
 - [x] Mantener pendientes antes que comprados.
-- [x] Persistir categoría en IndexedDB.
+- [x] Persistir categoría en la base local anterior.
 - [x] Sincronizar categoría con Supabase remoto.
 - [x] Mantener compatibilidad con productos antiguos sin categoría.
 - [x] Añadir tests razonables de catálogo, persistencia y agrupación.
@@ -216,7 +216,7 @@
 - [x] Registrar eventos de productos añadidos, comprados, devueltos a pendiente, movidos de lista y borrados.
 - [x] Crear eventos iniciales para productos existentes cuando no haya historial previo.
 - [x] Guardar snapshots completos de los productos en cada evento de historial.
-- [x] Persistir el historial en IndexedDB.
+- [x] Persistir el historial en la base local anterior.
 - [x] Sincronizar el historial con Supabase remoto.
 - [x] Añadir una vista interna de Historial desde el menú inferior.
 - [x] Mostrar solo eventos de los últimos 30 días en la vista.
@@ -254,7 +254,7 @@
 - [x] Evitar interpretar números ambiguos como cantidades.
 - [x] Mostrar la cantidad en la tarjeta solo cuando exista.
 - [x] Permitir editar o borrar la cantidad desde el modal de edición.
-- [x] Persistir cantidad en IndexedDB y Supabase remoto.
+- [x] Persistir cantidad en la base local anterior y Supabase remoto.
 - [x] Mantener compatibilidad con productos e historial sin cantidad.
 - [x] Añadir tests razonables de lógica, persistencia, Supabase e interfaz.
 
@@ -266,7 +266,7 @@
 - [x] Mostrar primero los productos más antiguos para planificar comidas.
 - [x] Permitir editar productos y moverlos entre cajones.
 - [x] Permitir marcar productos como usados con deshacer inmediato.
-- [x] Persistir el congelador en IndexedDB y Supabase remoto.
+- [x] Persistir el congelador en la base local anterior y Supabase remoto.
 - [x] Añadir tests razonables de lógica, persistencia, Supabase e interfaz.
 
 ## Hito 27 — Catálogo remoto de categorías
@@ -283,7 +283,7 @@
 
 - [x] Registrar ejecuciones de recategorización en Supabase.
 - [x] Registrar cambios de categoría producto a producto.
-- [x] Cachear el historial de recategorizaciones en IndexedDB.
+- [x] Cachear el historial de recategorizaciones en la base local anterior.
 - [x] Mostrar pestañas de cambios y categorías en la vista Historial.
 - [x] Incluir el historial de recategorización en backups.
 - [x] Añadir tests razonables de Supabase e interfaz.
@@ -384,7 +384,7 @@ Objetivo: crear una base estable para que el historial de precios no duplique pr
 - [x] Aplicar los cambios de unidad natural solo a observaciones nuevas, sin recalcular precios históricos.
 - [x] Crear aliases por producto canónico para variantes como `plátano`, `plátanos` o nombres más largos de supermercado.
 - [x] Preparar el modelo para que Codex pueda generar y mantener productos canónicos por la noche, sin revisión manual en el flujo normal.
-- [x] Aplicar al alta una normalización inmediata usando los aliases canónicos ya conocidos en Supabase/Dexie.
+- [x] Aplicar al alta una normalización inmediata usando los aliases canónicos ya conocidos en Supabase/la persistencia local anterior.
 - [x] Hacer la normalización inmediata sin avisos ni confirmaciones para mantener el alta rápida.
 - [x] No registrar en Historial las normalizaciones inmediatas del alta; solo registrar las ejecuciones nocturnas de Codex.
 - [x] Permitir que Codex fusione productos canónicos duplicados cuando detecte que representan el mismo producto.
@@ -496,7 +496,7 @@ Objetivo: precargar precios iniciales desde fuentes externas solo cuando aporten
 
 ## Estrategia de evolución para usuarios y permisos
 
-Las fases 36 a 41 se harán de forma incremental y compatible con la aplicación actual. Cada fase debe poder desplegarse sin perder productos, listas ni sesiones válidas. La migración mantiene el `list_id` activo y la caché local, pero desde el Hito 36 el cliente configurado exige una sesión de contraseña antes de mostrar datos y Supabase deja de conceder acceso anónimo. No se pide a las personas borrar datos del navegador: las actualizaciones conservan IndexedDB y el Service Worker ofrece la recarga controlada.
+Las fases 36 a 41 se harán de forma incremental y compatible con la aplicación actual. Cada fase debe poder desplegarse sin perder productos, listas ni sesiones válidas. La migración mantiene el `list_id` activo y la caché local, pero desde el Hito 36 el cliente configurado exige una sesión de contraseña antes de mostrar datos y Supabase deja de conceder acceso anónimo. No se pide a las personas borrar datos del navegador: las actualizaciones conservan la base local anterior y el Service Worker ofrece la recarga controlada.
 
 ## Hito 36 — Cuentas y autenticación
 
@@ -560,7 +560,7 @@ Objetivo: garantizar que todo el contenido de una lista queda aislado de las dem
 Estado: retirado. Jucart no ofrecerá uso offline ni cola de cambios sin conexión.
 
 - [x] Retirar el precache y la actualización controlada desde la interfaz.
-- [x] Mantener Dexie solo como caché de arranque, sin prometer funcionamiento sin conexión.
+- [x] Eliminar la persistencia local, la caché de arranque y la cola de cambios.
 
 ## Hito 41 — Ciclo de vida y eliminación de listas
 

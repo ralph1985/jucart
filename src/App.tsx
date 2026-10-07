@@ -79,15 +79,6 @@ import {
   updateShoppingItem,
 } from "./shoppingItems";
 import {
-  ShoppingData,
-  getCachedShoppingData,
-  getShoppingItemsStorageMode,
-  getStoredShoppingData,
-  persistCachedShoppingItem,
-  replaceStoredShoppingData,
-  synchronizeCachedShoppingData,
-} from "./shoppingItemsDb";
-import {
   diagnosePushNotifications,
   disablePushNotifications,
   enablePushNotifications,
@@ -97,7 +88,11 @@ import type {
   PushNotificationDiagnostic,
   PushNotificationSnapshot,
 } from "./pushNotifications";
-import type { DeveloperBackupRun } from "./shoppingItemsSupabase";
+import {
+  getSupabaseShoppingData,
+  replaceSupabaseShoppingData,
+} from "./shoppingItemsSupabase";
+import type { DeveloperBackupRun, ShoppingData } from "./shoppingItemsSupabase";
 import { isSupabaseConfigured } from "./supabaseConfig";
 import {
   createShoppingList,
@@ -227,10 +222,6 @@ const freezerViewEnabled = import.meta.env.MODE === "test";
 
 type TicketFilter = "all" | ShoppingTicketStatus;
 
-type TimestampedItem = {
-  id: string;
-  updatedAt: number;
-};
 type HapticFeedback = "light" | "medium" | "success" | "warning";
 type DeveloperBackupStatus = "empty" | "success" | "failed" | "stale";
 type DeveloperSectionId = "auth" | "backup" | "actions" | "push";
@@ -698,11 +689,7 @@ function getSyncStatusText(status: SyncStatus) {
     return "Sincronizado";
   }
 
-  if (status === "offline") {
-    return "Offline";
-  }
-
-  return "Local";
+  return "Error de conexión";
 }
 
 function getHistoryEventText(event: ShoppingHistoryEvent) {
@@ -1093,54 +1080,8 @@ function formatShortHash(value: string | null) {
   return value ? value.slice(0, 12) : "Sin hash";
 }
 
-function getSyncStatusFromStorageMode() {
-  const storageMode = getShoppingItemsStorageMode();
-
-  if (storageMode === "remote") {
-    return "synced";
-  }
-
-  if (storageMode === "fallback") {
-    return "offline";
-  }
-
-  return "local";
-}
-
-function keepNewerLocalItems<Item extends TimestampedItem>(
-  remoteItems: Item[],
-  localItems: Item[],
-) {
-  const localItemsById = new Map(localItems.map((item) => [item.id, item]));
-
-  return remoteItems.map((remoteItem) => {
-    const localItem = localItemsById.get(remoteItem.id);
-
-    return localItem && localItem.updatedAt > remoteItem.updatedAt
-      ? localItem
-      : remoteItem;
-  });
-}
-
-function mergeRemoteShoppingDataWithNewerLocalData(
-  remoteData: ShoppingData,
-  localItems: ShoppingItem[],
-  localFreezerItems: FreezerItem[],
-): ShoppingData {
-  return {
-    ...remoteData,
-    items: keepNewerLocalItems(remoteData.items, localItems),
-    freezerItems: keepNewerLocalItems(
-      remoteData.freezerItems ?? [],
-      localFreezerItems,
-    ),
-  };
-}
-
 function getLoadingStatusText() {
-  return isSupabaseConfigured()
-    ? "Cargando lista de Supabase..."
-    : "Cargando lista...";
+  return "Cargando lista online...";
 }
 
 function normalizeShoppingSearchQuery(value: string) {
@@ -1395,9 +1336,7 @@ export function App() {
     Record<string, ShoppingListMember[]>
   >({});
   const [storageError, setStorageError] = useState<string | null>(null);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>(
-    isSupabaseConfigured() ? "syncing" : "local",
-  );
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("syncing");
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
   const [pullRefreshMessage, setPullRefreshMessage] = useState<string | null>(
     null,
@@ -1489,8 +1428,6 @@ export function App() {
     Partial<Record<ShoppingSectionId, HTMLButtonElement>>
   >({});
   const activeSectionIndicatorRef = useRef<HTMLSpanElement>(null);
-  const itemsRef = useRef(items);
-  const freezerItemsRef = useRef(freezerItems);
   const sectionsRef = useRef(sections);
   const selectedSectionIdRef = useRef(selectedSectionId);
   const hasAnimatedInitialColumnsRef = useRef(false);
@@ -1509,9 +1446,7 @@ export function App() {
   const pendingAddDraftRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
   const skipNextStoreRef = useRef(true);
-  const localDataRevisionRef = useRef(0);
-  const pendingLocalStoresRef = useRef(0);
-  const queuedRemoteRefreshRef = useRef(false);
+  const remoteWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
   const refreshRemoteDataRef = useRef<(() => Promise<void>) | null>(null);
   const pullRefreshMessageTimeoutRef = useRef<number | null>(null);
   const { consume: consumeOverlayHistory, push: pushOverlayHistory } =
@@ -1858,9 +1793,6 @@ export function App() {
       isPushInviteDismissed,
     );
 
-  itemsRef.current = items;
-  freezerItemsRef.current = freezerItems;
-
   const beginRemoteRequest = useCallback(() => {
     if (!isSupabaseConfigured()) {
       return () => undefined;
@@ -1878,10 +1810,6 @@ export function App() {
       hasFinished = true;
       setPendingRemoteRequests((currentCount) => Math.max(0, currentCount - 1));
     };
-  }, []);
-
-  const markLocalDataChange = useCallback(() => {
-    localDataRevisionRef.current += 1;
   }, []);
 
   useEffect(() => {
@@ -1978,7 +1906,15 @@ export function App() {
 
     async function loadItems() {
       try {
-        const storedData = await getCachedShoppingData();
+        const [storedData, nextPriceObservations] = await Promise.all([
+          getSupabaseShoppingData(),
+          getStoredPriceObservations(),
+        ]);
+
+        if (!storedData) {
+          throw new Error("Supabase no está configurado.");
+        }
+
         const shouldCreateInitialHistory =
           storedData.historyEvents.length === 0 && storedData.items.length > 0;
         const nextHistoryEvents = shouldCreateInitialHistory
@@ -2010,18 +1946,21 @@ export function App() {
           setProductNormalizationChanges(
             storedData.productNormalizationChanges ?? [],
           );
+          setPriceObservations(nextPriceObservations);
           setSelectedSectionId((currentSectionId) =>
             isShoppingSectionId(currentSectionId, storedData.sections)
               ? currentSectionId
               : storedData.sections[0]?.id || "general",
           );
           setStorageError(null);
-          setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
+          setSyncStatus("synced");
         }
       } catch {
         if (isActive) {
-          setStorageError("No se pudo cargar la lista guardada.");
-          setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
+          setStorageError(
+            "No se pudo cargar la lista online. Revisa la conexión.",
+          );
+          setSyncStatus("error");
         }
       } finally {
         if (isActive) {
@@ -2053,27 +1992,31 @@ export function App() {
 
     async function storeItems() {
       const finishRemoteRequest = beginRemoteRequest();
-      pendingLocalStoresRef.current += 1;
+      const data: ShoppingData = {
+        items,
+        sections,
+        historyEvents,
+        freezerItems,
+        categories,
+        productCatalogEntries,
+        recategorizationRuns,
+        recategorizationChanges,
+        canonicalProducts,
+        canonicalProductAliases,
+        productNormalizationRuns,
+        productNormalizationChanges,
+      };
 
       try {
-        setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
-        await replaceStoredShoppingData({
-          items,
-          sections,
-          historyEvents,
-          freezerItems,
-          categories,
-          productCatalogEntries,
-          recategorizationRuns,
-          recategorizationChanges,
-          canonicalProducts,
-          canonicalProductAliases,
-          productNormalizationRuns,
-          productNormalizationChanges,
+        setSyncStatus("syncing");
+        const queuedWrite = remoteWriteQueueRef.current.then(async () => {
+          await replaceSupabaseShoppingData(data);
         });
+        remoteWriteQueueRef.current = queuedWrite.catch(() => undefined);
+        await queuedWrite;
         pendingAddDraftRef.current = null;
         setStorageError(null);
-        setSyncStatus(getSyncStatusFromStorageMode());
+        setSyncStatus("synced");
       } catch {
         const pendingAddDraft = pendingAddDraftRef.current;
 
@@ -2087,21 +2030,9 @@ export function App() {
         }
 
         setStorageError("No se pudieron guardar los últimos cambios.");
-        setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
+        setSyncStatus("error");
       } finally {
-        pendingLocalStoresRef.current = Math.max(
-          0,
-          pendingLocalStoresRef.current - 1,
-        );
         finishRemoteRequest();
-
-        if (
-          pendingLocalStoresRef.current === 0 &&
-          queuedRemoteRefreshRef.current
-        ) {
-          queuedRemoteRefreshRef.current = false;
-          refreshRemoteDataRef.current?.();
-        }
       }
     }
 
@@ -2131,12 +2062,11 @@ export function App() {
     let isActive = true;
 
     async function refreshItemsFromSupabase() {
-      const refreshStartedAtRevision = localDataRevisionRef.current;
       const finishRemoteRequest = beginRemoteRequest();
 
       try {
         const [storedData, nextPriceObservations] = await Promise.all([
-          getStoredShoppingData(),
+          getSupabaseShoppingData(),
           getStoredPriceObservations(),
         ]);
 
@@ -2144,59 +2074,41 @@ export function App() {
           return;
         }
 
-        if (pendingLocalStoresRef.current > 0) {
-          queuedRemoteRefreshRef.current = true;
+        if (!storedData) {
           return;
         }
 
-        if (localDataRevisionRef.current !== refreshStartedAtRevision) {
-          return;
-        }
-
-        const nextStoredData = mergeRemoteShoppingDataWithNewerLocalData(
-          storedData,
-          itemsRef.current,
-          freezerItemsRef.current,
-        );
-
-        skipNextStoreRef.current = true;
-        setItems(nextStoredData.items);
-        setFreezerItems(nextStoredData.freezerItems ?? []);
+        setItems(storedData.items);
+        setFreezerItems(storedData.freezerItems ?? []);
         setSections(
-          orderSectionsByShoppingLists(nextStoredData.sections, shoppingLists),
+          orderSectionsByShoppingLists(storedData.sections, shoppingLists),
         );
-        setCategories(nextStoredData.categories ?? defaultShoppingCategories);
+        setCategories(storedData.categories ?? defaultShoppingCategories);
         setProductCatalogEntries(
-          nextStoredData.productCatalogEntries ??
+          storedData.productCatalogEntries ??
             defaultShoppingProductCatalogEntries,
         );
-        setCanonicalProducts(nextStoredData.canonicalProducts ?? []);
-        setCanonicalProductAliases(
-          nextStoredData.canonicalProductAliases ?? [],
-        );
-        setHistoryEvents(nextStoredData.historyEvents);
-        setRecategorizationRuns(nextStoredData.recategorizationRuns ?? []);
-        setRecategorizationChanges(
-          nextStoredData.recategorizationChanges ?? [],
-        );
-        setProductNormalizationRuns(
-          nextStoredData.productNormalizationRuns ?? [],
-        );
+        setCanonicalProducts(storedData.canonicalProducts ?? []);
+        setCanonicalProductAliases(storedData.canonicalProductAliases ?? []);
+        setHistoryEvents(storedData.historyEvents);
+        setRecategorizationRuns(storedData.recategorizationRuns ?? []);
+        setRecategorizationChanges(storedData.recategorizationChanges ?? []);
+        setProductNormalizationRuns(storedData.productNormalizationRuns ?? []);
         setProductNormalizationChanges(
-          nextStoredData.productNormalizationChanges ?? [],
+          storedData.productNormalizationChanges ?? [],
         );
         setPriceObservations(nextPriceObservations);
         setSelectedSectionId((currentSectionId) =>
-          isShoppingSectionId(currentSectionId, nextStoredData.sections)
+          isShoppingSectionId(currentSectionId, storedData.sections)
             ? currentSectionId
-            : nextStoredData.sections[0]?.id || "general",
+            : storedData.sections[0]?.id || "general",
         );
         setStorageError(null);
-        setSyncStatus(getSyncStatusFromStorageMode());
+        setSyncStatus("synced");
       } catch {
         if (isActive) {
           setStorageError("No se pudo sincronizar la lista.");
-          setSyncStatus(isSupabaseConfigured() ? "offline" : "local");
+          setSyncStatus("error");
         }
       } finally {
         finishRemoteRequest();
@@ -2206,12 +2118,6 @@ export function App() {
     refreshRemoteDataRef.current = () => {
       return refreshItemsFromSupabase();
     };
-
-    /*
-     * The initial render uses IndexedDB. Refresh once after the Supabase chunk
-     * loads so cached data is reconciled with the remote list.
-     */
-    void refreshItemsFromSupabase();
 
     function refreshItemsWhenVisible() {
       if (document.visibilityState === "visible") {
@@ -2227,36 +2133,6 @@ export function App() {
       document.removeEventListener("visibilitychange", refreshItemsWhenVisible);
     };
   }, [beginRemoteRequest, isLoaded, shoppingLists]);
-
-  useEffect(() => {
-    if (!isLoaded || !isSupabaseConfigured()) {
-      return;
-    }
-
-    let isActive = true;
-
-    function synchronizeWhenOnline() {
-      const finishRemoteRequest = beginRemoteRequest();
-      setSyncStatus("syncing");
-
-      void synchronizeCachedShoppingData()
-        .then(() => refreshRemoteDataRef.current?.())
-        .catch(() => {
-          if (isActive) {
-            setStorageError("No se pudo sincronizar la lista recuperada.");
-            setSyncStatus("offline");
-          }
-        })
-        .finally(finishRemoteRequest);
-    }
-
-    window.addEventListener("online", synchronizeWhenOnline);
-
-    return () => {
-      isActive = false;
-      window.removeEventListener("online", synchronizeWhenOnline);
-    };
-  }, [beginRemoteRequest, isLoaded]);
 
   useEffect(() => {
     if (!isLoaded || !isSupabaseConfigured()) {
@@ -3456,7 +3332,6 @@ export function App() {
           ?.name ?? previousItem.sectionId)
       : "";
 
-    markLocalDataChange();
     setHistoryEvents((currentHistoryEvents) => [
       ...currentHistoryEvents,
       createShoppingHistoryEvent(
@@ -3475,7 +3350,6 @@ export function App() {
     changedItems: ShoppingItem[],
     type: "purchased" | "unpurchased" | "deleted",
   ) {
-    markLocalDataChange();
     setHistoryEvents((currentHistoryEvents) => [
       ...currentHistoryEvents,
       ...changedItems.map((item) => {
@@ -3550,7 +3424,6 @@ export function App() {
         addHistoryEvent(movedItem, "moved", previousItem);
       }
 
-      markLocalDataChange();
       setItems(nextItems);
     }
 
@@ -3612,15 +3485,6 @@ export function App() {
   function handleUndoRemoveItems() {
     if (lastRemovedItems.length === 0) {
       return;
-    }
-
-    const currentItemIds = new Set(items.map((item) => item.id));
-    const restorableItems = lastRemovedItems.filter(
-      (item) => !currentItemIds.has(item.id),
-    );
-
-    if (restorableItems.length > 0) {
-      markLocalDataChange();
     }
 
     setItems((currentItems) => {
@@ -3685,10 +3549,8 @@ export function App() {
         changedItem,
         changedItem.purchased ? "purchased" : "unpurchased",
       );
-      void persistCachedShoppingItem(changedItem).catch(() => undefined);
     }
 
-    markLocalDataChange();
     setItems(nextItems);
     runAnimation(itemRefs.current[itemId] ?? [], {
       scale: [0.96, 1],
@@ -3714,7 +3576,6 @@ export function App() {
       return;
     }
 
-    markLocalDataChange();
     setFreezerItems(nextItems);
     setLastUsedFreezerItem(null);
     setFreezerItemName("");
@@ -3761,7 +3622,6 @@ export function App() {
     );
 
     if (nextItems !== freezerItems) {
-      markLocalDataChange();
       setFreezerItems(nextItems);
       runHapticFeedback("success");
     }
@@ -3786,7 +3646,6 @@ export function App() {
     );
 
     if (nextItems !== freezerItems) {
-      markLocalDataChange();
       setFreezerItems(nextItems);
       window.requestAnimationFrame(() => {
         const movedItemElement = freezerItemRefs.current[itemId];
@@ -3814,7 +3673,6 @@ export function App() {
     }
 
     setLastUsedFreezerItem(item);
-    markLocalDataChange();
     setFreezerItems(removeFreezerItem(freezerItems, itemId));
     runHapticFeedback("warning");
   }
@@ -3822,10 +3680,6 @@ export function App() {
   function handleUndoUseFreezerItem() {
     if (!lastUsedFreezerItem) {
       return;
-    }
-
-    if (!freezerItems.some((item) => item.id === lastUsedFreezerItem.id)) {
-      markLocalDataChange();
     }
 
     setFreezerItems((currentItems) => {
@@ -3847,35 +3701,6 @@ export function App() {
     }
   }
 
-  async function refreshLocalShoppingData() {
-    const storedData = await getCachedShoppingData();
-
-    skipNextStoreRef.current = true;
-    setItems(storedData.items);
-    setFreezerItems(storedData.freezerItems ?? []);
-    setSections(storedData.sections);
-    setCategories(storedData.categories ?? defaultShoppingCategories);
-    setProductCatalogEntries(
-      storedData.productCatalogEntries ?? defaultShoppingProductCatalogEntries,
-    );
-    setCanonicalProducts(storedData.canonicalProducts ?? []);
-    setCanonicalProductAliases(storedData.canonicalProductAliases ?? []);
-    setHistoryEvents(storedData.historyEvents);
-    setRecategorizationRuns(storedData.recategorizationRuns ?? []);
-    setRecategorizationChanges(storedData.recategorizationChanges ?? []);
-    setProductNormalizationRuns(storedData.productNormalizationRuns ?? []);
-    setProductNormalizationChanges(
-      storedData.productNormalizationChanges ?? [],
-    );
-    setSelectedSectionId((currentSectionId) =>
-      isShoppingSectionId(currentSectionId, storedData.sections)
-        ? currentSectionId
-        : storedData.sections[0]?.id || "general",
-    );
-    setStorageError(null);
-    setSyncStatus(isSupabaseConfigured() ? "syncing" : "local");
-  }
-
   async function refreshCurrentView() {
     if (!isLoaded || isPullRefreshing) {
       return;
@@ -3889,10 +3714,8 @@ export function App() {
         await refreshTicketsAfterReviewAction();
       } else if (activeView === "developer" && isSupabaseConfigured()) {
         await refreshDeveloperBackupRun();
-      } else if (isSupabaseConfigured()) {
-        await refreshRemoteDataRef.current?.();
       } else {
-        await refreshLocalShoppingData();
+        await refreshRemoteDataRef.current?.();
       }
 
       setPullRefreshMessage("Actualizado");
@@ -4141,7 +3964,6 @@ export function App() {
     );
 
     runHapticFeedback("success");
-    markLocalDataChange();
     setSections(coloredSections);
     setSelectedSectionId(nextSection.id);
     setSectionActionMessage(null);
@@ -4784,7 +4606,6 @@ export function App() {
     const nextSections = renameShoppingSection(sections, sectionId, name);
 
     if (nextSections !== sections) {
-      markLocalDataChange();
       setSections(nextSections);
     }
   }
@@ -4803,7 +4624,6 @@ export function App() {
 
     runHapticFeedback("medium");
     setSectionActionMessage(null);
-    markLocalDataChange();
     setSections(nextSections);
   }
 
@@ -4819,7 +4639,6 @@ export function App() {
 
     runHapticFeedback("light");
     setSectionActionMessage(null);
-    markLocalDataChange();
     setSections(nextSections);
   }
 
@@ -4847,7 +4666,6 @@ export function App() {
     }
 
     runHapticFeedback("warning");
-    markLocalDataChange();
     setSections(nextSections);
     setSectionActionMessage(
       sectionToRemove ? `${sectionToRemove.name} borrada.` : null,
@@ -4872,6 +4690,16 @@ export function App() {
 
   function toggleDeveloperSection(id: DeveloperSectionId) {
     setOpenDeveloperSection((currentId) => (currentId === id ? null : id));
+  }
+
+  if (!isSupabaseConfigured()) {
+    return (
+      <main className={styles.app}>
+        <p className={styles.error} role="alert">
+          Jucart necesita una conexión online con Supabase para funcionar.
+        </p>
+      </main>
+    );
   }
 
   if (isSupabaseConfigured() && authSnapshot.status !== "signed_in") {
@@ -5501,7 +5329,7 @@ export function App() {
               getDeveloperBackupStatus(developerBackupRun) === "stale" ||
               pushNotificationSnapshot.status === "error" ||
               pushNotificationSnapshot.status === "denied" ||
-              syncStatus === "offline"
+              syncStatus === "error"
             }
             hasPushProblem={
               pushNotificationSnapshot.status === "error" ||
@@ -5530,7 +5358,6 @@ export function App() {
               pendingCount={pendingCount}
               purchasedCount={purchasedCount}
               sectionCount={sections.length}
-              storageMode={getShoppingItemsStorageMode()}
               supabaseConfigured={isSupabaseConfigured()}
               syncStatusText={getSyncStatusText(syncStatus)}
             />

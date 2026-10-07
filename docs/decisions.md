@@ -27,7 +27,7 @@ La interfaz se organiza como un tablero por columnas: en escritorio se muestran 
 
 En el Hito 21, los productos se agrupan por categoría dentro de cada lista para comprar productos relacionados juntos.
 
-Desde el Hito 27, las categorías y el catálogo maestro viven en Supabase como datos globales. La app los lee para inferir la categoría a partir del nombre del producto. Dexie mantiene una caché local, pero Supabase es la fuente operativa del catálogo.
+Desde el Hito 27, las categorías y el catálogo maestro viven en Supabase como datos globales. La app los lee para inferir la categoría a partir del nombre del producto. Supabase es la única fuente operativa del catálogo.
 
 La categoría inferida se guarda en el producto y se recalcula al renombrarlo. Los productos antiguos sin categoría se normalizan al cargar usando el catálogo disponible. La automatización diaria con Codex puede añadir entradas al catálogo remoto y actualizar `shopping_items.category_id` cuando la recategorización sea clara.
 
@@ -65,7 +65,7 @@ No se implementan usuarios, login ni permisos. El dato se guarda como parte del 
 
 En el Hito 7, Jucart recuerda la última sección y la última persona seleccionadas usando `localStorage`.
 
-Esta preferencia no forma parte de los productos ni requiere IndexedDB. Solo acelera el alta siguiente en el mismo navegador. Después de añadir un producto, el foco vuelve al campo de texto para poder seguir escribiendo sin tocar de nuevo la pantalla.
+Esta preferencia no forma parte de los productos ni se persiste localmente. Solo controla el foco del alta actual. Después de añadir un producto, el foco vuelve al campo de texto para poder seguir escribiendo sin tocar de nuevo la pantalla.
 
 En el Hito 24, el alta añade sugerencias rápidas bajo el campo de producto cuando se empieza a escribir.
 
@@ -133,13 +133,13 @@ En el Hito 16, tocar el check de una tarjeta alterna entre pendiente y comprado.
 
 El check es la acción principal durante la compra. Editar y borrar siguen como botones separados para evitar cambios accidentales de estado.
 
-## Persistencia local
+## Persistencia online
 
-En el Hito 2, Jucart guarda la lista en IndexedDB usando Dexie.
+Jucart guarda la lista exclusivamente en Supabase.
 
-La aplicación lee todos los productos al arrancar y, después de esa carga inicial, reemplaza la lista guardada cada vez que cambia el estado local. Para una lista privada y pequeña evita una capa de sincronización más compleja y mantiene el código fácil de seguir.
+La aplicación lee todos los productos al arrancar y, después de esa carga inicial, reemplaza la lista remota cada vez que cambia el estado. Para una lista privada y pequeña evita una capa de sincronización local más compleja.
 
-Los errores básicos de lectura o escritura se muestran en la pantalla sin bloquear el uso de la lista en memoria.
+Los errores de lectura o escritura se muestran en la pantalla y no se presentan datos antiguos como si fueran actuales.
 
 ## Supabase remoto
 
@@ -147,15 +147,15 @@ En el Hito 17, Jucart empieza la transición a Supabase para poder sincronizar l
 
 El primer paso añade Supabase CLI, configuración, una migración versionada para `shopping_items` y conexión desde la capa de persistencia. Para este proyecto se prioriza un Supabase remoto de uso personal en lugar de Docker local, porque la aplicación la usarán solo Rafa y Begoña y el objetivo inmediato es sincronizar varios teléfonos.
 
-La interfaz mantiene la misma API interna de persistencia. Cuando `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_SUPABASE_LIST_ID` están configurados, lee y guarda en Supabase. Dexie queda como caché local y fallback si falta configuración o falla la red.
+Cuando `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_SUPABASE_LIST_ID` están configurados, la aplicación lee y guarda en Supabase. La configuración y la red son requisitos del flujo de uso.
 
 La app no mantiene una suscripción de Realtime. Recarga los datos al cargar, al volver a primer plano o mediante actualización manual, evitando conexiones persistentes y reconciliaciones por eventos concurrentes.
 
-En el Hito 18, la UI muestra un estado discreto de sincronización. La app también evita guardar automáticamente justo después de la carga inicial, para no reenviar una lista recién cargada ni arriesgar que una caché local antigua pise datos remotos al arrancar. La capa de persistencia informa si el último acceso fue remoto, local o fallback local.
+En el Hito 18, la UI muestra un estado discreto de sincronización. La app evita guardar automáticamente justo después de la carga inicial, para no reenviar una lista recién cargada.
 
 La tabla usa `list_id` para identificar una lista compartida y la aplicación filtra por `VITE_SUPABASE_LIST_ID`. Esta decisión es pragmática para una app privada de uso personal; no se planifica una capa de autenticación o permisos más compleja mientras ese siga siendo el alcance.
 
-El esquema de Supabase y la copia local IndexedDB están documentados en [`docs/database-schema.md`](database-schema.md).
+El esquema de Supabase está documentado en [`docs/database-schema.md`](database-schema.md).
 
 ## Backup local de Supabase
 
@@ -171,7 +171,7 @@ Jucart mantiene `vite-plugin-pwa` y el Service Worker exclusivamente para las no
 
 Los iconos son provisionales y locales: SVG, PNG 192x192 y PNG 512x512. No se añade una dependencia solo para generar iconos.
 
-Dexie mantiene una caché de arranque. La aplicación no ofrece uso offline como característica ni garantiza cambios sin conexión.
+La aplicación no mantiene caché local ni ofrece uso offline.
 
 ## Usuarios, listas y permisos
 
@@ -189,13 +189,13 @@ Cada lista tendrá un código único reutilizable. Introducir un código válido
 
 Los permisos cubren todo el contenido asociado a la lista: productos, congelador, categorías, historial, tickets, precios y notificaciones. La protección se implementa mediante RLS, Storage y RPC, no solo ocultando controles en la interfaz. Las tablas y Storage ya no conceden acceso a `anon`; las operaciones de navegador requieren una sesión autenticada y pertenencia a la lista.
 
-Dexie conserva una caché local de las listas autorizadas. El cierre de sesión invalidará el acceso local a datos privados y una sesión no autenticada no podrá abrir datos remotos.
+El cierre de sesión termina el acceso a los datos remotos y una sesión no autenticada no puede abrirlos.
 
 La lista actual se migra conservando sus datos y se divide por supermercado sin eliminar productos antiguos. Rafa es propietario y Begoña miembro desde la migración. La eliminación lógica y la recuperación técnica quedan fuera de esta fase.
 
 ## Actualización de la PWA
 
-Las actualizaciones del shell de la PWA no deben exigir a las personas borrar datos del navegador, desinstalar la aplicación ni limpiar manualmente la caché. El Service Worker seguirá usando recursos versionados y la aplicación detectará cuando haya una versión nueva esperando. En ese caso mostrará un aviso con una acción `Actualizar`, que activará la nueva versión y recargará la pestaña conservando IndexedDB/Dexie. La aplicación también comprobará actualizaciones al iniciar y al volver a primer plano para resolver el caso de una pestaña que llevaba tiempo abierta. La primera versión que incluye este mecanismo ejecutará además una migración única: al activarse, recargará los clientes antiguos que ya estuvieran controlados y guardará una marca para no repetir esa recarga en futuras actualizaciones.
+La aplicación no implementa un flujo propio de actualización ni conserva datos de aplicación en el navegador. El navegador puede actualizar los recursos de la PWA y el Service Worker se reserva para las notificaciones push.
 
 La release visible usa SemVer desde `package.json`. La cabecera muestra la versión, la fecha de build y la fecha en que el navegador activó esa versión. El coordinador revisa periódicamente si los cambios acumulados justifican un incremento y pregunta antes de modificar la versión.
 
@@ -219,7 +219,7 @@ En iOS/iPadOS, el soporte se considera solo para Jucart instalada en pantalla de
 
 A partir del Hito 31, Jucart planifica un historial de precios basado en productos canónicos. El objetivo es que variantes como `plátano`, `plátanos` o nombres más largos de un ticket apunten al mismo producto para no falsear subidas, bajadas o comparativas. El nombre canónico debe ser el nombre más habitual de compra, no necesariamente el singular gramatical. Los canónicos deben ser preferentemente generales, no uno por marca o formato, salvo que separar sea imprescindible para comparar precios con sentido. Los formatos distintos de un mismo producto se comparan mediante precio unitario en lugar de crear canónicos separados por tamaño. Codex elige la unidad natural de comparación de cada producto, como `€/kg`, `€/L` o `€/unidad`, y puede cambiarla si nuevos datos hacen más adecuada otra unidad. Los cambios de unidad natural aplican solo a observaciones nuevas; no recalculan precios históricos.
 
-Los productos canónicos y sus aliases están pensados para que Codex los mantenga automáticamente por la noche. El usuario no debe revisar cada asociación en el flujo normal. La app también aplica al alta una normalización inmediata usando los aliases canónicos ya conocidos en Supabase o Dexie; no necesita llamar a Codex en tiempo real para escribir un producto. Esa normalización inmediata no muestra avisos ni confirmaciones para mantener el alta rápida y no se registra en Historial. Codex puede renombrar automáticamente el nombre visible de productos pendientes al nombre canónico elegido. También puede fusionar productos canónicos duplicados cuando detecte que representan el mismo producto, pero la fusión debe preservar la cantidad del producto que siga pendiente de compra para no perder la lista semanal. Si el mismo producto está pendiente en listas distintas, cada entrada pendiente se conserva en su lista para poder comparar precios por supermercado. Si la fusión ocurre dentro de la misma lista y ambos productos están pendientes, sus cantidades se suman cuando existan, dejando que Codex resuelva también cantidades ambiguas. Si solo uno está pendiente, se conserva el pendiente y el otro se elimina de esa lista.
+Los productos canónicos y sus aliases están pensados para que Codex los mantenga automáticamente por la noche. El usuario no debe revisar cada asociación en el flujo normal. La app también aplica al alta una normalización inmediata usando los aliases canónicos ya conocidos en Supabase; no necesita llamar a Codex en tiempo real para escribir un producto. Esa normalización inmediata no muestra avisos ni confirmaciones para mantener el alta rápida y no se registra en Historial. Codex puede renombrar automáticamente el nombre visible de productos pendientes al nombre canónico elegido. También puede fusionar productos canónicos duplicados cuando detecte que representan el mismo producto, pero la fusión debe preservar la cantidad del producto que siga pendiente de compra para no perder la lista semanal. Si el mismo producto está pendiente en listas distintas, cada entrada pendiente se conserva en su lista para poder comparar precios por supermercado. Si la fusión ocurre dentro de la misma lista y ambos productos están pendientes, sus cantidades se suman cuando existan, dejando que Codex resuelva también cantidades ambiguas. Si solo uno está pendiente, se conserva el pendiente y el otro se elimina de esa lista.
 
 La normalización nocturna de productos canónicos se ejecuta con un script y cron propios, independientes del proceso de recategorización. Ambos pueden convivir, pero no comparten wrapper ni comando para que las responsabilidades y los logs queden separados.
 

@@ -23,11 +23,11 @@ Jucart es una aplicación web privada para gestionar una lista de la compra pers
 
 ## Estado Técnico Actual
 
-- Stack: React, TypeScript, Vite, SCSS Modules, Dexie, Supabase, `vite-plugin-pwa`, Anime.js, Embla Carousel, Vitest, React Testing Library, ESLint, Prettier y pnpm.
+- Stack: React, TypeScript, Vite, SCSS Modules, Supabase, `vite-plugin-pwa`, Anime.js, Embla Carousel, Vitest, React Testing Library, ESLint, Prettier y pnpm.
 - Entrada de la app: `src/main.tsx`.
 - Pantalla principal: `src/App.tsx`.
 - Lógica local de productos: `src/shoppingItems.ts`.
-- Persistencia local y caché IndexedDB/Dexie: `src/shoppingItemsDb.ts`.
+- Persistencia remota y lectura/escritura online: `src/shoppingItemsSupabase.ts`.
 - Persistencia remota Supabase y Realtime: `src/shoppingItemsSupabase.ts`.
 - Migraciones Supabase: `supabase/migrations/*.sql`.
 - Estilos globales: `src/styles/global.scss`.
@@ -41,7 +41,7 @@ Jucart es una aplicación web privada para gestionar una lista de la compra pers
 - No implementar funciones de hitos futuros por anticipado.
 - No tocar `.env` ni credenciales.
 - Supabase remoto ya forma parte de la sincronización actual; no ampliar autenticación, permisos ni exposición pública sin petición explícita.
-- Dexie, Supabase, `vite-plugin-pwa` y Anime.js ya forman parte del proyecto; no añadir alternativas paralelas sin necesidad actual.
+- Supabase, `vite-plugin-pwa` y Anime.js ya forman parte del proyecto; no añadir alternativas paralelas sin necesidad actual.
 - Antes de cerrar un hito, ejecutar `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test` y `pnpm build`.
 
 ## Flujo Operativo Del Repo

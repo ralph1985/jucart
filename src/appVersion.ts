@@ -1,5 +1,5 @@
 const appActivationStorageKey = "jucart:app-release";
-const fallbackVersion = "0.18.1";
+const fallbackVersion = "0.18.2";
 const fallbackBuildDate = "1970-01-01T00:00:00.000Z";
 
 export type AppReleaseInfo = {

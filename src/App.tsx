@@ -1446,6 +1446,8 @@ export function App() {
   const pendingAddDraftRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
   const skipNextStoreRef = useRef(true);
+  const localDataRevisionRef = useRef(0);
+  const remoteWritePendingRef = useRef(false);
   const remoteWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
   const refreshRemoteDataRef = useRef<(() => Promise<void>) | null>(null);
   const pullRefreshMessageTimeoutRef = useRef<number | null>(null);
@@ -1992,6 +1994,8 @@ export function App() {
 
     async function storeItems() {
       const finishRemoteRequest = beginRemoteRequest();
+      const localDataRevision = ++localDataRevisionRef.current;
+      remoteWritePendingRef.current = true;
       const data: ShoppingData = {
         items,
         sections,
@@ -2086,6 +2090,9 @@ export function App() {
         setStorageError("No se pudieron guardar los últimos cambios.");
         setSyncStatus("error");
       } finally {
+        if (localDataRevisionRef.current === localDataRevision) {
+          remoteWritePendingRef.current = false;
+        }
         finishRemoteRequest();
       }
     }
@@ -2114,6 +2121,7 @@ export function App() {
     }
 
     let isActive = true;
+    const refreshRevision = localDataRevisionRef.current;
 
     async function refreshItemsFromSupabase(showError = true) {
       const finishRemoteRequest = beginRemoteRequest();
@@ -2128,10 +2136,15 @@ export function App() {
           return;
         }
 
-        if (!storedData) {
+        if (
+          !storedData ||
+          remoteWritePendingRef.current ||
+          refreshRevision !== localDataRevisionRef.current
+        ) {
           return;
         }
 
+        skipNextStoreRef.current = true;
         setItems(storedData.items);
         setFreezerItems(storedData.freezerItems ?? []);
         setSections(

@@ -38,7 +38,6 @@ import {
   addShoppingItem,
   addShoppingSection,
   CanonicalProductComparisonUnit,
-  createInitialShoppingHistoryEvents,
   createShoppingHistoryEvent,
   defaultShoppingCategories,
   defaultShoppingProductCatalogEntries,
@@ -90,9 +89,15 @@ import type {
 } from "./pushNotifications";
 import {
   getSupabaseShoppingData,
-  replaceSupabaseShoppingData,
+  mutateSupabaseShoppingItems,
+  replaceSupabaseFreezerItems,
+  subscribeToSupabaseShoppingItems,
+  updateSupabaseShoppingSectionColor,
 } from "./shoppingItemsSupabase";
-import type { DeveloperBackupRun, ShoppingData } from "./shoppingItemsSupabase";
+import type {
+  DeveloperBackupRun,
+  ShoppingItemMutation,
+} from "./shoppingItemsSupabase";
 import { isSupabaseConfigured } from "./supabaseConfig";
 import {
   createShoppingList,
@@ -1341,7 +1346,7 @@ export function App() {
   const [pullRefreshMessage, setPullRefreshMessage] = useState<string | null>(
     null,
   );
-  const [, setPendingRemoteRequests] = useState(0);
+  const [pendingRemoteRequests, setPendingRemoteRequests] = useState(0);
   const [developerBackupRun, setDeveloperBackupRun] =
     useState<DeveloperBackupRun | null>(null);
   const [developerBackupError, setDeveloperBackupError] = useState<
@@ -1445,11 +1450,18 @@ export function App() {
   >(null);
   const pendingAddDraftRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
-  const skipNextStoreRef = useRef(true);
+  const skipNextFreezerStoreRef = useRef(true);
   const localDataRevisionRef = useRef(0);
   const remoteWritePendingRef = useRef(false);
   const remoteWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const refreshRemoteDataRef = useRef<(() => Promise<void>) | null>(null);
+  const refreshRemoteDataRef = useRef<
+    ((surfaceFailure?: boolean) => Promise<void>) | null
+  >(null);
+  const realtimeRefreshPendingRef = useRef(false);
+  const realtimeRefreshTimeoutRef = useRef<number | null>(null);
+  const remoteSyncFailureDomainsRef = useRef(
+    new Set<"products" | "freezer" | "sections">(),
+  );
   const pullRefreshMessageTimeoutRef = useRef<number | null>(null);
   const { consume: consumeOverlayHistory, push: pushOverlayHistory } =
     useOverlayHistory<AppOverlay>({
@@ -1814,6 +1826,29 @@ export function App() {
     };
   }, []);
 
+  const markRemoteSyncFailure = useCallback(
+    (domain: "products" | "freezer" | "sections") => {
+      remoteSyncFailureDomainsRef.current.add(domain);
+      setStorageError("No se pudieron guardar los últimos cambios.");
+      setSyncStatus("error");
+    },
+    [],
+  );
+
+  const markRemoteSyncSuccess = useCallback(
+    (domain: "products" | "freezer" | "sections") => {
+      remoteSyncFailureDomainsRef.current.delete(domain);
+
+      if (remoteSyncFailureDomainsRef.current.size === 0) {
+        setStorageError(null);
+        setSyncStatus("synced");
+      } else {
+        setSyncStatus("error");
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -1917,18 +1952,8 @@ export function App() {
           throw new Error("Supabase no está configurado.");
         }
 
-        const shouldCreateInitialHistory =
-          storedData.historyEvents.length === 0 && storedData.items.length > 0;
-        const nextHistoryEvents = shouldCreateInitialHistory
-          ? createInitialShoppingHistoryEvents(
-              storedData.items,
-              historyClientId,
-              storedData.sections,
-            )
-          : storedData.historyEvents;
-
         if (isActive) {
-          skipNextStoreRef.current = !shouldCreateInitialHistory;
+          skipNextFreezerStoreRef.current = true;
           setItems(storedData.items);
           setFreezerItems(storedData.freezerItems ?? []);
           setSections(storedData.sections);
@@ -1939,7 +1964,7 @@ export function App() {
           );
           setCanonicalProducts(storedData.canonicalProducts ?? []);
           setCanonicalProductAliases(storedData.canonicalProductAliases ?? []);
-          setHistoryEvents(nextHistoryEvents);
+          setHistoryEvents(storedData.historyEvents);
           setRecategorizationRuns(storedData.recategorizationRuns ?? []);
           setRecategorizationChanges(storedData.recategorizationChanges ?? []);
           setProductNormalizationRuns(
@@ -1954,6 +1979,7 @@ export function App() {
               ? currentSectionId
               : storedData.sections[0]?.id || "general",
           );
+          remoteSyncFailureDomainsRef.current.clear();
           setStorageError(null);
           setSyncStatus("synced");
         }
@@ -1987,132 +2013,62 @@ export function App() {
       return;
     }
 
-    if (skipNextStoreRef.current) {
-      skipNextStoreRef.current = false;
+    if (skipNextFreezerStoreRef.current) {
+      skipNextFreezerStoreRef.current = false;
       return;
     }
 
-    async function storeItems() {
+    const localDataRevision = ++localDataRevisionRef.current;
+    remoteWritePendingRef.current = true;
+    setSyncStatus("syncing");
+    const queuedWrite = remoteWriteQueueRef.current.then(async () => {
       const finishRemoteRequest = beginRemoteRequest();
-      const localDataRevision = ++localDataRevisionRef.current;
-      remoteWritePendingRef.current = true;
-      const data: ShoppingData = {
-        items,
-        sections,
-        historyEvents,
-        freezerItems,
-        categories,
-        productCatalogEntries,
-        recategorizationRuns,
-        recategorizationChanges,
-        canonicalProducts,
-        canonicalProductAliases,
-        productNormalizationRuns,
-        productNormalizationChanges,
-      };
 
       try {
-        setSyncStatus("syncing");
-        const queuedWrite = remoteWriteQueueRef.current.then(async () => {
-          await replaceSupabaseShoppingData(data);
-        });
-        remoteWriteQueueRef.current = queuedWrite.catch(() => undefined);
-        await queuedWrite;
-        pendingAddDraftRef.current = null;
-        setStorageError(null);
-        setSyncStatus("synced");
-      } catch {
-        try {
-          const remoteData = await getSupabaseShoppingData();
-          const remoteItemsById = new Map(
-            remoteData?.items.map((item) => [item.id, item]),
-          );
-          const remoteSectionsById = new Map(
-            remoteData?.sections.map((section) => [section.id, section]),
-          );
-          const remoteHistoryIds = new Set(
-            remoteData?.historyEvents.map((event) => event.id),
-          );
-          const remoteFreezerIds = new Set(
-            remoteData?.freezerItems.map((item) => item.id),
-          );
-          const remoteWriteWasApplied =
-            remoteData !== null &&
-            remoteData !== undefined &&
-            remoteItemsById.size === data.items.length &&
-            data.items.every((item) => {
-              const remoteItem = remoteItemsById.get(item.id);
+        await replaceSupabaseFreezerItems(freezerItems);
+        const remoteData = await getSupabaseShoppingData();
+        const remoteFreezerItemsById = new Map(
+          remoteData?.freezerItems.map((item) => [item.id, item]),
+        );
+        const freezerWriteWasApplied =
+          remoteData !== null &&
+          remoteData !== undefined &&
+          remoteFreezerItemsById.size === freezerItems.length &&
+          freezerItems.every((item) => {
+            const remoteItem = remoteFreezerItemsById.get(item.id);
 
-              return (
-                remoteItem?.name === item.name &&
-                remoteItem.purchased === item.purchased &&
-                remoteItem.quantity === item.quantity &&
-                remoteItem.sectionId === item.sectionId
-              );
-            }) &&
-            remoteSectionsById.size === data.sections.length &&
-            data.sections.every((section) => {
-              const remoteSection = remoteSectionsById.get(section.id);
-
-              return (
-                remoteSection?.name === section.name &&
-                remoteSection.color === section.color
-              );
-            }) &&
-            remoteHistoryIds.size === data.historyEvents.length &&
-            data.historyEvents.every((event) =>
-              remoteHistoryIds.has(event.id),
-            ) &&
-            remoteFreezerIds.size === data.freezerItems.length &&
-            data.freezerItems.every((item) => remoteFreezerIds.has(item.id));
-
-          if (remoteWriteWasApplied) {
-            pendingAddDraftRef.current = null;
-            setStorageError(null);
-            setSyncStatus("synced");
-            return;
-          }
-        } catch {
-          // Keep the original write error when verification is unavailable.
-        }
-
-        const pendingAddDraft = pendingAddDraftRef.current;
-
-        if (pendingAddDraft && addSheetOpenRef.current) {
-          setItemName(pendingAddDraft);
-          setAddProductNotice({
-            type: "error",
-            message: "No se pudo guardar el producto. Revisa la conexión.",
+            return (
+              remoteItem?.name === item.name &&
+              remoteItem.drawerId === item.drawerId &&
+              remoteItem.quantity === item.quantity &&
+              remoteItem.frozenAt === item.frozenAt
+            );
           });
-          window.requestAnimationFrame(() => itemNameInputRef.current?.focus());
+
+        if (!freezerWriteWasApplied) {
+          throw new Error("El cambio del congelador no se confirmó.");
         }
 
-        setStorageError("No se pudieron guardar los últimos cambios.");
-        setSyncStatus("error");
+        if (localDataRevisionRef.current === localDataRevision) {
+          markRemoteSyncSuccess("freezer");
+        }
+      } catch {
+        markRemoteSyncFailure("freezer");
       } finally {
         if (localDataRevisionRef.current === localDataRevision) {
           remoteWritePendingRef.current = false;
         }
         finishRemoteRequest();
       }
-    }
+    });
 
-    void storeItems();
+    remoteWriteQueueRef.current = queuedWrite.catch(() => undefined);
   }, [
     beginRemoteRequest,
-    canonicalProductAliases,
-    canonicalProducts,
-    categories,
     freezerItems,
-    historyEvents,
     isLoaded,
-    items,
-    productCatalogEntries,
-    productNormalizationChanges,
-    productNormalizationRuns,
-    recategorizationChanges,
-    recategorizationRuns,
-    sections,
+    markRemoteSyncFailure,
+    markRemoteSyncSuccess,
   ]);
 
   useEffect(() => {
@@ -2121,9 +2077,9 @@ export function App() {
     }
 
     let isActive = true;
-    const refreshRevision = localDataRevisionRef.current;
 
-    async function refreshItemsFromSupabase() {
+    async function refreshItemsFromSupabase(surfaceFailure = true) {
+      const refreshRevision = localDataRevisionRef.current;
       const finishRemoteRequest = beginRemoteRequest();
 
       try {
@@ -2144,7 +2100,7 @@ export function App() {
           return;
         }
 
-        skipNextStoreRef.current = true;
+        skipNextFreezerStoreRef.current = true;
         setItems(storedData.items);
         setFreezerItems(storedData.freezerItems ?? []);
         setSections(
@@ -2170,29 +2126,74 @@ export function App() {
             ? currentSectionId
             : storedData.sections[0]?.id || "general",
         );
+        remoteSyncFailureDomainsRef.current.clear();
         setStorageError(null);
         setSyncStatus("synced");
       } catch {
-        if (isActive) {
+        if (isActive && surfaceFailure) {
           setStorageError("No se pudo sincronizar la lista.");
           setSyncStatus("error");
         }
 
-        throw new Error("No se pudo sincronizar la lista.");
+        if (surfaceFailure) {
+          throw new Error("No se pudo sincronizar la lista.");
+        }
       } finally {
         finishRemoteRequest();
       }
     }
 
-    refreshRemoteDataRef.current = () => {
-      return refreshItemsFromSupabase();
+    refreshRemoteDataRef.current = refreshItemsFromSupabase;
+    const unsubscribe = subscribeToSupabaseShoppingItems(() => {
+      if (remoteWritePendingRef.current) {
+        realtimeRefreshPendingRef.current = true;
+        return;
+      }
+
+      if (realtimeRefreshTimeoutRef.current !== null) {
+        return;
+      }
+
+      realtimeRefreshTimeoutRef.current = window.setTimeout(() => {
+        realtimeRefreshTimeoutRef.current = null;
+        void refreshItemsFromSupabase(false);
+      }, 50);
+    });
+    const refreshWhenVisible = () => {
+      if (
+        document.visibilityState === "visible" &&
+        !remoteWritePendingRef.current
+      ) {
+        void refreshItemsFromSupabase(false);
+      }
     };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
       isActive = false;
       refreshRemoteDataRef.current = null;
+      unsubscribe();
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      if (realtimeRefreshTimeoutRef.current !== null) {
+        window.clearTimeout(realtimeRefreshTimeoutRef.current);
+        realtimeRefreshTimeoutRef.current = null;
+      }
     };
   }, [beginRemoteRequest, isLoaded, shoppingLists]);
+
+  useEffect(() => {
+    if (
+      pendingRemoteRequests !== 0 ||
+      remoteWritePendingRef.current ||
+      !realtimeRefreshPendingRef.current ||
+      !refreshRemoteDataRef.current
+    ) {
+      return;
+    }
+
+    realtimeRefreshPendingRef.current = false;
+    void refreshRemoteDataRef.current(false);
+  }, [pendingRemoteRequests]);
 
   useEffect(() => {
     if (!isLoaded || !isSupabaseConfigured()) {
@@ -3204,6 +3205,98 @@ export function App() {
     };
   });
 
+  function enqueueShoppingMutations(mutations: ShoppingItemMutation[]) {
+    if (mutations.length === 0) {
+      return;
+    }
+
+    const localDataRevision = ++localDataRevisionRef.current;
+    remoteWritePendingRef.current = true;
+    setSyncStatus("syncing");
+
+    const queuedWrite = remoteWriteQueueRef.current.then(async () => {
+      const finishRemoteRequest = beginRemoteRequest();
+      let remoteData: Awaited<ReturnType<typeof getSupabaseShoppingData>> =
+        null;
+      let writeError: unknown = null;
+
+      try {
+        try {
+          await mutateSupabaseShoppingItems(mutations);
+        } catch (error) {
+          writeError = error;
+        }
+
+        remoteData = await getSupabaseShoppingData();
+        const remoteItemsById = new Map(
+          remoteData?.items.map((item) => [item.id, item]),
+        );
+        const remoteHistoryIds = new Set(
+          remoteData?.historyEvents.map((event) => event.id),
+        );
+        const mutationsWereApplied = mutations.every((mutation) => {
+          const remoteItem = remoteItemsById.get(mutation.item.id);
+          const itemMatches =
+            mutation.action === "delete"
+              ? remoteItem === undefined
+              : remoteItem?.name === mutation.item.name &&
+                remoteItem.notes === mutation.item.notes &&
+                remoteItem.quantity === mutation.item.quantity &&
+                remoteItem.sectionId === mutation.item.sectionId &&
+                remoteItem.categoryId === mutation.item.categoryId &&
+                remoteItem.canonicalProductId ===
+                  mutation.item.canonicalProductId &&
+                remoteItem.purchased === mutation.item.purchased &&
+                remoteItem.version === mutation.item.version;
+          const historyMatches = mutation.historyEvent
+            ? remoteHistoryIds.has(mutation.historyEvent.id)
+            : true;
+
+          return itemMatches && historyMatches;
+        });
+
+        if (!remoteData || !mutationsWereApplied) {
+          throw writeError ?? new Error("La mutación remota no se confirmó.");
+        }
+
+        if (localDataRevisionRef.current === localDataRevision) {
+          setItems(remoteData.items);
+          setHistoryEvents(remoteData.historyEvents);
+          pendingAddDraftRef.current = null;
+          markRemoteSyncSuccess("products");
+        }
+      } catch {
+        if (localDataRevisionRef.current === localDataRevision) {
+          if (remoteData) {
+            setItems(remoteData.items);
+            setHistoryEvents(remoteData.historyEvents);
+          }
+
+          const pendingAddDraft = pendingAddDraftRef.current;
+
+          if (pendingAddDraft && addSheetOpenRef.current) {
+            setItemName(pendingAddDraft);
+            setAddProductNotice({
+              type: "error",
+              message: "No se pudo guardar el producto. Revisa la conexión.",
+            });
+            window.requestAnimationFrame(() =>
+              itemNameInputRef.current?.focus(),
+            );
+          }
+        }
+        markRemoteSyncFailure("products");
+      } finally {
+        if (localDataRevisionRef.current === localDataRevision) {
+          remoteWritePendingRef.current = false;
+        }
+        finishRemoteRequest();
+      }
+    });
+
+    remoteWriteQueueRef.current = queuedWrite.catch(() => undefined);
+  }
+
   function addItemFromName(
     rawName: string,
     rawQuantity?: string,
@@ -3250,7 +3343,22 @@ export function App() {
       runHapticFeedback("success");
 
       if (reactivatedItem) {
-        addHistoryEvent(reactivatedItem, "unpurchased");
+        const previousItem = items.find(
+          (item) => item.id === reactivatedItem.id,
+        );
+        const historyEvent = addHistoryEvent(reactivatedItem, "unpurchased");
+
+        if (previousItem) {
+          enqueueShoppingMutations([
+            {
+              action: "update",
+              operationId: historyEvent.id,
+              item: reactivatedItem,
+              previousItem,
+              historyEvent,
+            },
+          ]);
+        }
       }
 
       setItems(reactivatedItems);
@@ -3287,7 +3395,15 @@ export function App() {
       runHapticFeedback("success");
 
       if (addedItem) {
-        addHistoryEvent(addedItem, "added");
+        const historyEvent = addHistoryEvent(addedItem, "added");
+        enqueueShoppingMutations([
+          {
+            action: "insert",
+            operationId: historyEvent.id,
+            item: addedItem,
+            historyEvent,
+          },
+        ]);
         pendingAddDraftRef.current = rawName;
       }
 
@@ -3392,40 +3508,48 @@ export function App() {
           ?.name ?? previousItem.sectionId)
       : "";
 
+    const historyEvent = createShoppingHistoryEvent(
+      item,
+      type,
+      currentShoppingUserId,
+      historyClientId,
+      sectionName,
+      previousItem,
+      previousSectionName,
+    );
+
     setHistoryEvents((currentHistoryEvents) => [
       ...currentHistoryEvents,
-      createShoppingHistoryEvent(
-        item,
-        type,
-        currentShoppingUserId,
-        historyClientId,
-        sectionName,
-        previousItem,
-        previousSectionName,
-      ),
+      historyEvent,
     ]);
+
+    return historyEvent;
   }
 
   function addHistoryEvents(
     changedItems: ShoppingItem[],
     type: "purchased" | "unpurchased" | "deleted",
   ) {
+    const nextHistoryEvents = changedItems.map((item) => {
+      const sectionName =
+        sections.find((section) => section.id === item.sectionId)?.name ??
+        item.sectionId;
+
+      return createShoppingHistoryEvent(
+        item,
+        type,
+        currentShoppingUserId,
+        historyClientId,
+        sectionName,
+      );
+    });
+
     setHistoryEvents((currentHistoryEvents) => [
       ...currentHistoryEvents,
-      ...changedItems.map((item) => {
-        const sectionName =
-          sections.find((section) => section.id === item.sectionId)?.name ??
-          item.sectionId;
-
-        return createShoppingHistoryEvent(
-          item,
-          type,
-          currentShoppingUserId,
-          historyClientId,
-          sectionName,
-        );
-      }),
+      ...nextHistoryEvents,
     ]);
+
+    return nextHistoryEvents;
   }
 
   function startEditing(item: ShoppingItem) {
@@ -3476,12 +3600,26 @@ export function App() {
 
       runHapticFeedback("success");
 
+      let historyEvent: ShoppingHistoryEvent | undefined;
+
       if (
         previousItem &&
         movedItem &&
         previousItem.sectionId !== movedItem.sectionId
       ) {
-        addHistoryEvent(movedItem, "moved", previousItem);
+        historyEvent = addHistoryEvent(movedItem, "moved", previousItem);
+      }
+
+      if (previousItem && movedItem) {
+        enqueueShoppingMutations([
+          {
+            action: "update",
+            operationId: historyEvent?.id ?? createLocalId(),
+            item: movedItem,
+            previousItem,
+            historyEvent,
+          },
+        ]);
       }
 
       setItems(nextItems);
@@ -3514,7 +3652,16 @@ export function App() {
     runHapticFeedback("warning");
     setLastRemovedItems(removedItems);
     setLastHiddenPurchasedItem(null);
-    addHistoryEvents(removedItems, "deleted");
+    const historyEvents = addHistoryEvents(removedItems, "deleted");
+    enqueueShoppingMutations(
+      removedItems.map((item, index) => ({
+        action: "delete",
+        operationId: historyEvents[index].id,
+        item,
+        previousItem: item,
+        historyEvent: historyEvents[index],
+      })),
+    );
     setItems(items.filter((item) => !removedItemIds.has(item.id)));
     consumeOverlayHistory("clear-dialog");
     setIsClearDialogOpen(false);
@@ -3536,7 +3683,16 @@ export function App() {
         runHapticFeedback("warning");
         setLastRemovedItems([removedItem]);
         setLastHiddenPurchasedItem(null);
-        addHistoryEvent(removedItem, "deleted");
+        const historyEvent = addHistoryEvent(removedItem, "deleted");
+        enqueueShoppingMutations([
+          {
+            action: "delete",
+            operationId: historyEvent.id,
+            item: removedItem,
+            previousItem: removedItem,
+            historyEvent,
+          },
+        ]);
         setItems(removeShoppingItem(items, itemId));
       },
     });
@@ -3547,20 +3703,36 @@ export function App() {
       return;
     }
 
-    setItems((currentItems) => {
-      const latestItemIds = new Set(currentItems.map((item) => item.id));
-      const latestRestorableItems = lastRemovedItems.filter(
-        (item) => !latestItemIds.has(item.id),
-      );
+    const latestItemIds = new Set(items.map((item) => item.id));
+    const restoredAt = Date.now();
+    const latestRestorableItems = lastRemovedItems
+      .filter((item) => !latestItemIds.has(item.id))
+      .map((item) => ({
+        ...item,
+        version: 1,
+        updatedAt: restoredAt,
+      }));
 
-      if (latestRestorableItems.length === 0) {
-        return currentItems;
-      }
+    if (latestRestorableItems.length === 0) {
+      return;
+    }
 
-      return [...currentItems, ...latestRestorableItems].sort(
+    const historyEvents = latestRestorableItems.map((item) =>
+      addHistoryEvent(item, "added"),
+    );
+    enqueueShoppingMutations(
+      latestRestorableItems.map((item, index) => ({
+        action: "insert",
+        operationId: historyEvents[index].id,
+        item,
+        historyEvent: historyEvents[index],
+      })),
+    );
+    setItems(
+      [...items, ...latestRestorableItems].sort(
         (firstItem, secondItem) => firstItem.createdAt - secondItem.createdAt,
-      );
-    });
+      ),
+    );
     setLastRemovedItems([]);
     runHapticFeedback("success");
   }
@@ -3582,7 +3754,19 @@ export function App() {
           : item,
       ),
     );
-    addHistoryEvent(restoredHiddenPurchasedItem, "unpurchased");
+    const historyEvent = addHistoryEvent(
+      restoredHiddenPurchasedItem,
+      "unpurchased",
+    );
+    enqueueShoppingMutations([
+      {
+        action: "update",
+        operationId: historyEvent.id,
+        item: restoredHiddenPurchasedItem,
+        previousItem: lastHiddenPurchasedItem,
+        historyEvent,
+      },
+    ]);
     setLastHiddenPurchasedItem(null);
     runHapticFeedback("success");
   }
@@ -3605,10 +3789,19 @@ export function App() {
     const changedItem = nextItems.find((item) => item.id === itemId);
 
     if (changedItem) {
-      addHistoryEvent(
+      const historyEvent = addHistoryEvent(
         changedItem,
         changedItem.purchased ? "purchased" : "unpurchased",
       );
+      enqueueShoppingMutations([
+        {
+          action: "update",
+          operationId: historyEvent.id,
+          item: changedItem,
+          previousItem: toggledItem,
+          historyEvent,
+        },
+      ]);
     }
 
     setItems(nextItems);
@@ -4700,6 +4893,41 @@ export function App() {
     runHapticFeedback("light");
     setSectionActionMessage(null);
     setSections(nextSections);
+
+    const localDataRevision = ++localDataRevisionRef.current;
+    remoteWritePendingRef.current = true;
+    setSyncStatus("syncing");
+    const queuedWrite = remoteWriteQueueRef.current.then(async () => {
+      const finishRemoteRequest = beginRemoteRequest();
+
+      try {
+        await updateSupabaseShoppingSectionColor(sectionId, color);
+        const remoteData = await getSupabaseShoppingData();
+        const remoteSection = remoteData?.sections.find(
+          (section) => section.id === sectionId,
+        );
+
+        if (!remoteData || remoteSection?.color !== color) {
+          throw new Error("El color remoto no se confirmó.");
+        }
+
+        if (localDataRevisionRef.current === localDataRevision) {
+          setSections(
+            orderSectionsByShoppingLists(remoteData.sections, shoppingLists),
+          );
+          markRemoteSyncSuccess("sections");
+        }
+      } catch {
+        markRemoteSyncFailure("sections");
+      } finally {
+        if (localDataRevisionRef.current === localDataRevision) {
+          remoteWritePendingRef.current = false;
+        }
+        finishRemoteRequest();
+      }
+    });
+
+    remoteWriteQueueRef.current = queuedWrite.catch(() => undefined);
   }
 
   function handleRemoveSection(sectionId: ShoppingSectionId) {

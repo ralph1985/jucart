@@ -14,7 +14,10 @@ import { defaultShoppingSections } from "./shoppingItems";
 import * as shoppingItemsSupabase from "./shoppingItemsSupabase";
 import * as supabaseConfig from "./supabaseConfig";
 import * as menuPlanning from "./menuPlanning";
-import type { ShoppingData } from "./shoppingItemsSupabase";
+import type {
+  ShoppingData,
+  ShoppingItemMutation,
+} from "./shoppingItemsSupabase";
 
 function createEmptyShoppingData(): ShoppingData {
   return {
@@ -27,8 +30,53 @@ function createEmptyShoppingData(): ShoppingData {
 
 let remoteShoppingData = createEmptyShoppingData();
 
-async function replaceSupabaseShoppingData(data: ShoppingData) {
+async function setRemoteShoppingData(data: ShoppingData) {
   remoteShoppingData = data;
+}
+
+async function replaceSupabaseFreezerItems(
+  freezerItems: ShoppingData["freezerItems"],
+) {
+  remoteShoppingData = { ...remoteShoppingData, freezerItems };
+  return true;
+}
+
+async function updateSupabaseShoppingSectionColor(
+  sectionId: string,
+  color: ShoppingData["sections"][number]["color"],
+) {
+  remoteShoppingData = {
+    ...remoteShoppingData,
+    sections: remoteShoppingData.sections.map((section) =>
+      section.id === sectionId ? { ...section, color } : section,
+    ),
+  };
+  return true;
+}
+
+async function mutateSupabaseShoppingItems(mutations: ShoppingItemMutation[]) {
+  for (const mutation of mutations) {
+    const otherItems = remoteShoppingData.items.filter(
+      (item) => item.id !== mutation.item.id,
+    );
+    remoteShoppingData = {
+      ...remoteShoppingData,
+      items:
+        mutation.action === "delete"
+          ? otherItems
+          : [...otherItems, mutation.item],
+      historyEvents: mutation.historyEvent
+        ? [
+            ...remoteShoppingData.historyEvents.filter(
+              (event) => event.id !== mutation.historyEvent?.id,
+            ),
+            mutation.historyEvent,
+          ]
+        : remoteShoppingData.historyEvents,
+    };
+  }
+
+  return true;
 }
 
 async function replaceStoredShoppingItems(items: ShoppingData["items"]) {
@@ -273,11 +321,20 @@ describe("App", () => {
     ).mockImplementation(async () => remoteShoppingData);
     vi.spyOn(
       shoppingItemsSupabase,
-      "replaceSupabaseShoppingData",
-    ).mockImplementation(async (data) => {
-      remoteShoppingData = data;
-      return true;
-    });
+      "replaceSupabaseFreezerItems",
+    ).mockImplementation(replaceSupabaseFreezerItems);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "mutateSupabaseShoppingItems",
+    ).mockImplementation(mutateSupabaseShoppingItems);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "updateSupabaseShoppingSectionColor",
+    ).mockImplementation(updateSupabaseShoppingSectionColor);
+    vi.spyOn(
+      shoppingItemsSupabase,
+      "subscribeToSupabaseShoppingItems",
+    ).mockReturnValue(() => undefined);
   });
 
   async function waitForAddFab() {
@@ -394,6 +451,83 @@ describe("App", () => {
     );
   });
 
+  it("refreshes the list when Supabase Realtime reports a remote change", async () => {
+    let onRemoteChange: (() => void) | undefined;
+
+    vi.mocked(
+      shoppingItemsSupabase.subscribeToSupabaseShoppingItems,
+    ).mockImplementation((onChange) => {
+      onRemoteChange = onChange;
+      return () => undefined;
+    });
+    render(<App />);
+
+    await waitForAddFab();
+    await waitFor(() => expect(onRemoteChange).toBeDefined());
+    remoteShoppingData = {
+      ...remoteShoppingData,
+      items: [
+        {
+          id: "item-remote",
+          name: "Leche",
+          sectionId: "mercadona",
+          addedBy: "begona",
+          purchased: false,
+          version: 1,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+    };
+
+    act(() => onRemoteChange?.());
+
+    expect(await screen.findByText("Leche")).toBeInTheDocument();
+  });
+
+  it("keeps applying Realtime changes after a local mutation", async () => {
+    let onRemoteChange: (() => void) | undefined;
+
+    vi.mocked(
+      shoppingItemsSupabase.subscribeToSupabaseShoppingItems,
+    ).mockImplementation((onChange) => {
+      onRemoteChange = onChange;
+      return () => undefined;
+    });
+    render(<App />);
+    const dialog = await openAddSheet();
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
+      target: { value: "Pan" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
+    await waitFor(() =>
+      expect(
+        shoppingItemsSupabase.mutateSupabaseShoppingItems,
+      ).toHaveBeenCalled(),
+    );
+    await screen.findByText("Sincronizado");
+
+    remoteShoppingData = {
+      ...remoteShoppingData,
+      items: [
+        ...remoteShoppingData.items,
+        {
+          id: "item-remote",
+          name: "Leche",
+          sectionId: "mercadona",
+          addedBy: "begona",
+          purchased: false,
+          version: 1,
+          createdAt: 200,
+          updatedAt: 200,
+        },
+      ],
+    };
+    act(() => onRemoteChange?.());
+
+    expect(await screen.findByText("Leche")).toBeInTheDocument();
+  });
+
   it("adds, uses and restores freezer items", async () => {
     render(<App />);
 
@@ -432,6 +566,11 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Usar primero" }));
     expect(screen.getAllByText("Lentejas").length).toBeGreaterThan(0);
     expect(screen.getAllByText("2 raciones").length).toBeGreaterThan(0);
+    await waitFor(() =>
+      expect(
+        shoppingItemsSupabase.replaceSupabaseFreezerItems,
+      ).toHaveBeenCalled(),
+    );
 
     fireEvent.click(
       within(addFreezerDialog).getByRole("button", { name: "Cerrar" }),
@@ -507,6 +646,48 @@ describe("App", () => {
 
     expect(screen.queryByText("Lentejas usado.")).not.toBeInTheDocument();
     expect(screen.getAllByText("Lentejas").length).toBeGreaterThan(0);
+  });
+
+  it("does not hide a freezer sync failure after a product mutation succeeds", async () => {
+    vi.mocked(
+      shoppingItemsSupabase.replaceSupabaseFreezerItems,
+    ).mockRejectedValueOnce(new Error("freezer write failed"));
+
+    render(<App />);
+
+    await waitForAddFab();
+    fireEvent.click(screen.getByRole("button", { name: "Congelador" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Añadir producto congelado" }),
+    );
+
+    const freezerDialog = screen.getByRole("dialog", {
+      name: "Añadir producto congelado",
+    });
+    fireEvent.change(within(freezerDialog).getByLabelText("Producto"), {
+      target: { value: "Caldo" },
+    });
+    fireEvent.click(
+      within(freezerDialog).getByRole("button", { name: "Añadir" }),
+    );
+
+    expect(await screen.findByText("Error de conexión")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Lista" }));
+    const productDialog = await openAddSheet();
+    fireEvent.change(within(productDialog).getByLabelText("Producto"), {
+      target: { value: "Pan" },
+    });
+    fireEvent.click(
+      within(productDialog).getByRole("button", { name: "Añadir" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        shoppingItemsSupabase.mutateSupabaseShoppingItems,
+      ).toHaveBeenCalled(),
+    );
+    expect(await screen.findByText("Error de conexión")).toBeInTheDocument();
   });
 
   it("shows the splash and integrated skeleton while stored products are loading", async () => {
@@ -1233,6 +1414,70 @@ describe("App", () => {
       ).getByRole("button", { name: "Eliminar producto" }),
     );
     expect(screen.queryByText("Leche")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        shoppingItemsSupabase.mutateSupabaseShoppingItems,
+      ).toHaveBeenCalledTimes(4),
+    );
+    expect(
+      vi
+        .mocked(shoppingItemsSupabase.mutateSupabaseShoppingItems)
+        .mock.calls.map(([mutations]) => mutations[0].action),
+    ).toEqual(["insert", "update", "update", "delete"]);
+  });
+
+  it("persists product actions as granular mutations", async () => {
+    render(<App />);
+    const dialog = await openAddSheet();
+
+    vi.mocked(shoppingItemsSupabase.mutateSupabaseShoppingItems).mockClear();
+    fireEvent.change(within(dialog).getByLabelText("Producto"), {
+      target: { value: "Leche" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Añadir" }));
+
+    await waitFor(() =>
+      expect(
+        shoppingItemsSupabase.mutateSupabaseShoppingItems,
+      ).toHaveBeenCalledWith([
+        expect.objectContaining({
+          action: "insert",
+          item: expect.objectContaining({ name: "Leche" }),
+          historyEvent: expect.objectContaining({ type: "added" }),
+        }),
+      ]),
+    );
+  });
+
+  it("reconciles a rejected product mutation with the remote state", async () => {
+    await setRemoteShoppingData({
+      ...createEmptyShoppingData(),
+      items: [
+        {
+          id: "item-1",
+          name: "Pan",
+          sectionId: "mercadona",
+          addedBy: "rafa",
+          purchased: false,
+          version: 1,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+    });
+    vi.mocked(
+      shoppingItemsSupabase.mutateSupabaseShoppingItems,
+    ).mockRejectedValue(new Error("shopping_item_conflict"));
+
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Marcar Pan como comprado" }),
+    );
+
+    expect(await screen.findByText("Error de conexión")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Marcar Pan como comprado" }),
+    ).toBeInTheDocument();
   });
 
   it("fills products from quick suggestions and filters duplicate suggestions", async () => {
@@ -1489,27 +1734,33 @@ describe("App", () => {
     });
 
     vi.spyOn(supabaseConfig, "isSupabaseConfigured").mockReturnValue(true);
-    vi.spyOn(shoppingItemsSupabase, "getSupabaseShoppingData").mockReturnValue(
-      storedDataPromise,
-    );
+    const getSupabaseShoppingData = vi
+      .spyOn(shoppingItemsSupabase, "getSupabaseShoppingData")
+      .mockReturnValue(storedDataPromise);
 
     render(<App />);
 
     await act(async () => {
-      resolveStoredData({
+      const initialData = {
         items: [],
         sections: defaultShoppingSections,
         historyEvents: [],
         freezerItems: [],
-      });
+      };
+      remoteShoppingData = initialData;
+      resolveStoredData(initialData);
 
       await storedDataPromise;
     });
+    getSupabaseShoppingData.mockImplementation(async () => remoteShoppingData);
 
     vi.spyOn(
       shoppingItemsSupabase,
-      "replaceSupabaseShoppingData",
-    ).mockReturnValue(storeDataPromise);
+      "mutateSupabaseShoppingItems",
+    ).mockImplementation(async (mutations) => {
+      await storeDataPromise;
+      return mutateSupabaseShoppingItems(mutations);
+    });
 
     const dialog = await openAddSheet();
 
@@ -1944,7 +2195,7 @@ describe("App", () => {
     ).not.toBeInTheDocument();
   });
 
-  it.skip("keeps a purchased item stable while its Supabase echo arrives during save", async () => {
+  it("keeps a purchased item stable while its Supabase echo arrives during save", async () => {
     let onSupabaseChange: (() => void) | undefined;
     let resolveStoreData: (value: boolean) => void = () => {};
     const storeDataPromise = new Promise<boolean>((resolve) => {
@@ -1958,6 +2209,7 @@ describe("App", () => {
           sectionId: "mercadona",
           addedBy: "rafa",
           purchased: false,
+          version: 1,
           createdAt: 100,
           updatedAt: 100,
         },
@@ -1972,6 +2224,7 @@ describe("App", () => {
         {
           ...initialData.items[0],
           purchased: true,
+          version: 2,
           updatedAt: 200,
         },
       ],
@@ -1993,10 +2246,11 @@ describe("App", () => {
     const getSupabaseShoppingData = vi
       .spyOn(shoppingItemsSupabase, "getSupabaseShoppingData")
       .mockResolvedValueOnce(initialData)
-      .mockResolvedValueOnce(syncedData);
+      .mockResolvedValueOnce(syncedData)
+      .mockResolvedValue(syncedData);
     vi.spyOn(
       shoppingItemsSupabase,
-      "replaceSupabaseShoppingData",
+      "mutateSupabaseShoppingItems",
     ).mockReturnValue(storeDataPromise);
 
     render(<App />);
@@ -2010,7 +2264,7 @@ describe("App", () => {
 
     await waitFor(() =>
       expect(
-        shoppingItemsSupabase.replaceSupabaseShoppingData,
+        shoppingItemsSupabase.mutateSupabaseShoppingItems,
       ).toHaveBeenCalled(),
     );
     expect(
@@ -2032,14 +2286,14 @@ describe("App", () => {
     });
 
     await waitFor(() =>
-      expect(getSupabaseShoppingData).toHaveBeenCalledTimes(2),
+      expect(getSupabaseShoppingData).toHaveBeenCalledTimes(3),
     );
     expect(
       screen.getByRole("button", { name: "Devolver Leche a pendientes" }),
     ).toBeInTheDocument();
   });
 
-  it.skip("does not apply a stale Supabase refresh over a freezer move", async () => {
+  it("does not apply a stale Supabase refresh over a freezer move", async () => {
     let resolveStaleRefresh: (data: ShoppingData) => void = () => {};
     const staleRefreshPromise = new Promise<ShoppingData>((resolve) => {
       resolveStaleRefresh = resolve;
@@ -2065,16 +2319,13 @@ describe("App", () => {
       shoppingItemsSupabase,
       "subscribeToSupabaseShoppingItems",
     ).mockReturnValue(() => undefined);
-    vi.spyOn(
-      shoppingItemsSupabase,
-      "getSupabaseShoppingData",
-    ).mockResolvedValue(initialData);
-    vi.spyOn(shoppingItemsSupabase, "getSupabaseShoppingData")
+    const getSupabaseShoppingData = vi
+      .spyOn(shoppingItemsSupabase, "getSupabaseShoppingData")
       .mockResolvedValueOnce(initialData)
       .mockReturnValueOnce(staleRefreshPromise);
     vi.spyOn(
       shoppingItemsSupabase,
-      "replaceSupabaseShoppingData",
+      "replaceSupabaseFreezerItems",
     ).mockResolvedValue(true);
 
     render(<App />);
@@ -2093,6 +2344,9 @@ describe("App", () => {
     await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
+    await waitFor(() =>
+      expect(getSupabaseShoppingData).toHaveBeenCalledTimes(2),
+    );
 
     fireEvent.click(
       within(caldoItem as HTMLElement).getByRole("button", { name: "Medio" }),
@@ -2116,7 +2370,7 @@ describe("App", () => {
     ).not.toBeInTheDocument();
   });
 
-  it.skip("keeps a moved freezer item stable when the post-save Supabase echo is stale", async () => {
+  it("reconciles a freezer move when its post-save readback stays stale", async () => {
     let onSupabaseChange: (() => void) | undefined;
     let resolveStoreData: (value: boolean) => void = () => {};
     const storeDataPromise = new Promise<boolean>((resolve) => {
@@ -2154,10 +2408,11 @@ describe("App", () => {
     const getSupabaseShoppingData = vi
       .spyOn(shoppingItemsSupabase, "getSupabaseShoppingData")
       .mockResolvedValueOnce(initialData)
-      .mockResolvedValueOnce(initialData);
+      .mockResolvedValueOnce(initialData)
+      .mockResolvedValue(initialData);
     vi.spyOn(
       shoppingItemsSupabase,
-      "replaceSupabaseShoppingData",
+      "replaceSupabaseFreezerItems",
     ).mockReturnValue(storeDataPromise);
 
     render(<App />);
@@ -2175,7 +2430,7 @@ describe("App", () => {
 
     await waitFor(() =>
       expect(
-        shoppingItemsSupabase.replaceSupabaseShoppingData,
+        shoppingItemsSupabase.replaceSupabaseFreezerItems,
       ).toHaveBeenCalled(),
     );
     expect(
@@ -2194,13 +2449,15 @@ describe("App", () => {
     });
 
     await waitFor(() =>
-      expect(getSupabaseShoppingData).toHaveBeenCalledTimes(2),
+      expect(getSupabaseShoppingData).toHaveBeenCalledTimes(3),
     );
     expect(
-      within(caldoItem as HTMLElement).getByText("Abajo", { selector: "span" }),
+      within(caldoItem as HTMLElement).getByText("Arriba", {
+        selector: "span",
+      }),
     ).toBeInTheDocument();
     expect(
-      within(caldoItem as HTMLElement).queryByText("Arriba", {
+      within(caldoItem as HTMLElement).queryByText("Abajo", {
         selector: "span",
       }),
     ).not.toBeInTheDocument();
@@ -2666,7 +2923,7 @@ describe("App", () => {
       .spyOn(shoppingItemsSupabase, "excludeSupabaseTicketLine")
       .mockResolvedValue();
 
-    await replaceSupabaseShoppingData({
+    await setRemoteShoppingData({
       items: [],
       sections: defaultShoppingSections,
       historyEvents: [],
@@ -2774,7 +3031,7 @@ describe("App", () => {
       .spyOn(shoppingItemsSupabase, "resolveSupabaseTicketLine")
       .mockResolvedValue();
 
-    await replaceSupabaseShoppingData({
+    await setRemoteShoppingData({
       items: [],
       sections: defaultShoppingSections,
       historyEvents: [],
@@ -3244,7 +3501,7 @@ describe("App", () => {
         },
       ],
     };
-    await replaceSupabaseShoppingData(recategorizationData);
+    await setRemoteShoppingData(recategorizationData);
     vi.spyOn(
       shoppingItemsSupabase,
       "getSupabaseShoppingData",
@@ -3270,7 +3527,7 @@ describe("App", () => {
   });
 
   it("notifies unseen recategorization changes separately", async () => {
-    await replaceSupabaseShoppingData({
+    await setRemoteShoppingData({
       items: [],
       sections: [{ id: "mercadona", name: "Mercadona", color: "mint" }],
       historyEvents: [],
@@ -3391,7 +3648,7 @@ describe("App", () => {
   });
 
   it("shows product normalization changes in their history tab", async () => {
-    await replaceSupabaseShoppingData({
+    await setRemoteShoppingData({
       items: [],
       sections: [{ id: "mercadona", name: "Mercadona", color: "mint" }],
       historyEvents: [],
@@ -3451,7 +3708,7 @@ describe("App", () => {
   it("notifies unseen history events from another device", async () => {
     window.localStorage.setItem("jucart:history-client-id", "client-local");
 
-    await replaceSupabaseShoppingData({
+    await setRemoteShoppingData({
       items: [],
       sections: [{ id: "mercadona", name: "Mercadona", color: "mint" }],
       historyEvents: [
@@ -4410,7 +4667,7 @@ describe("App", () => {
     );
   });
 
-  it.skip("refreshes stored products when the app returns to the foreground", async () => {
+  it("refreshes stored products when the app returns to the foreground", async () => {
     await replaceStoredShoppingItems([
       {
         id: "item-1",

@@ -40,6 +40,7 @@ const baseItem: ShoppingItem = {
   sectionId: "mercadona",
   addedBy: "rafa",
   purchased: false,
+  version: 1,
   createdAt: 100,
   updatedAt: 100,
 };
@@ -194,6 +195,7 @@ describe("shopping item logic", () => {
         categoryId: "bakery",
         addedBy: "begona",
         purchased: false,
+        version: 1,
         createdAt: 100,
         updatedAt: 100,
       },
@@ -269,6 +271,7 @@ describe("shopping item logic", () => {
         canonicalProductId: "canonical-platano",
         addedBy: "rafa",
         purchased: false,
+        version: 1,
         createdAt: 200,
         updatedAt: 200,
       },
@@ -379,6 +382,7 @@ describe("shopping item logic", () => {
         quantity: "3",
         canonicalProductId: "canonical-platano",
         purchased: false,
+        version: 2,
         updatedAt: 300,
       },
     ]);
@@ -403,6 +407,7 @@ describe("shopping item logic", () => {
         categoryId: "dairy",
         addedBy: "rafa",
         purchased: false,
+        version: 1,
         createdAt: 100,
         updatedAt: 100,
       },
@@ -429,6 +434,7 @@ describe("shopping item logic", () => {
         categoryId: "dairy",
         addedBy: "rafa",
         purchased: false,
+        version: 1,
         createdAt: 100,
         updatedAt: 100,
       },
@@ -453,6 +459,7 @@ describe("shopping item logic", () => {
         categoryId: "baby",
         addedBy: "rafa",
         purchased: false,
+        version: 1,
         createdAt: 100,
         updatedAt: 100,
       },
@@ -506,6 +513,7 @@ describe("shopping item logic", () => {
         categoryId: "dairy",
         addedBy: "rafa",
         purchased: false,
+        version: 1,
         createdAt: 200,
         updatedAt: 200,
       },
@@ -526,6 +534,7 @@ describe("shopping item logic", () => {
         ...baseItem,
         quantity: "3",
         purchased: false,
+        version: 2,
         updatedAt: 200,
       },
     ]);
@@ -550,6 +559,7 @@ describe("shopping item logic", () => {
         categoryId: "dairy",
         addedBy: "begona",
         purchased: false,
+        version: 1,
         createdAt: 200,
         updatedAt: 200,
       },
@@ -561,6 +571,7 @@ describe("shopping item logic", () => {
       {
         ...baseItem,
         purchased: true,
+        version: 2,
         updatedAt: 200,
       },
     ]);
@@ -715,7 +726,7 @@ describe("shopping item logic", () => {
   it("updates product name and section", () => {
     expect(
       updateShoppingItem(
-        [baseItem],
+        [{ ...baseItem, canonicalProductId: "canonical-pan" }],
         "item-1",
         "  Pan   integral ",
         "alcampo",
@@ -727,6 +738,8 @@ describe("shopping item logic", () => {
         name: "Pan integral",
         sectionId: "alcampo",
         categoryId: "bakery",
+        canonicalProductId: undefined,
+        version: 2,
         updatedAt: 200,
       },
     ]);
@@ -747,6 +760,7 @@ describe("shopping item logic", () => {
         ...baseItem,
         quantity: "x2",
         categoryId: "dairy",
+        version: 2,
         updatedAt: 200,
       },
     ]);

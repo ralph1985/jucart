@@ -36,6 +36,7 @@ import {
   ShoppingTicketLineStatus,
   ShoppingTicketStatus,
   ShoppingSection,
+  ShoppingSectionColor,
   ShoppingSectionId,
   ShoppingRecategorizationChange,
   ShoppingRecategorizationRun,
@@ -59,6 +60,22 @@ export type ShoppingData = {
   productNormalizationChanges?: ShoppingProductNormalizationChange[];
 };
 
+type ShoppingItemMutationBase = {
+  operationId: string;
+  item: ShoppingItem;
+  historyEvent?: ShoppingHistoryEvent;
+};
+
+export type ShoppingItemMutation =
+  | (ShoppingItemMutationBase & {
+      action: "insert";
+      previousItem?: never;
+    })
+  | (ShoppingItemMutationBase & {
+      action: "update" | "delete";
+      previousItem: ShoppingItem;
+    });
+
 type ShoppingItemRow = {
   id: string;
   list_id: string;
@@ -70,6 +87,7 @@ type ShoppingItemRow = {
   canonical_product_id?: string | null;
   added_by: string;
   purchased: boolean;
+  version?: number;
   created_at: string;
   updated_at: string;
 };
@@ -897,7 +915,7 @@ export async function getSupabaseShoppingData(): Promise<ShoppingData | null> {
   };
 }
 
-export async function replaceSupabaseShoppingData(data: ShoppingData) {
+export async function replaceSupabaseFreezerItems(freezerItems: FreezerItem[]) {
   const config = getSupabaseConfig();
 
   if (!config) {
@@ -905,102 +923,18 @@ export async function replaceSupabaseShoppingData(data: ShoppingData) {
   }
 
   const client = getSupabaseClient(config);
-  const getItemListId = (item: ShoppingItem) =>
-    getScopedListId(item.sectionId) ?? config.listId;
-  const getSectionListId = (section: ShoppingSection) =>
-    getScopedListId(section.id) ?? config.listId;
-  const getHistoryListId = (event: ShoppingHistoryEvent) =>
-    getScopedListId(event.item.sectionId) ?? config.listId;
   const listIds = new Set([
     config.listId,
-    ...data.items.map(getItemListId),
-    ...data.sections.map(getSectionListId),
-    ...data.historyEvents.map(getHistoryListId),
-    ...data.freezerItems.map((item) => item.listId ?? config.listId),
+    ...freezerItems.map((item) => item.listId ?? config.listId),
   ]);
 
   for (const listId of listIds) {
-    const sections = data.sections.filter(
-      (section) => getSectionListId(section) === listId,
-    );
-    const sectionRows = sections.map((section, index) =>
-      mapShoppingSectionToRow(section, index, listId),
-    );
-    const items = data.items.filter((item) => getItemListId(item) === listId);
-    const itemRows = items.map((item) => mapShoppingItemToRow(item, listId));
-    const historyEvents = data.historyEvents.filter(
-      (event) => getHistoryListId(event) === listId,
-    );
-    const historyRows = historyEvents.map((event) =>
-      mapShoppingHistoryEventToRow(event, listId),
-    );
-    const freezerItems = data.freezerItems.filter(
+    const listFreezerItems = freezerItems.filter(
       (item) => (item.listId ?? config.listId) === listId,
     );
-    const freezerRows = freezerItems.map((item) =>
+    const freezerRows = listFreezerItems.map((item) =>
       mapFreezerItemToRow(item, listId),
     );
-
-    if (sectionRows.length > 0) {
-      const { error } = await client
-        .from("shopping_sections")
-        .upsert(sectionRows);
-      if (error) throw error;
-    }
-
-    let deleteSectionsQuery = client
-      .from("shopping_sections")
-      .delete()
-      .eq("list_id", listId);
-    if (sections.length > 0) {
-      deleteSectionsQuery = deleteSectionsQuery.not(
-        "id",
-        "in",
-        encodePostgrestTextList(
-          sections.map((section) => getUnscopedSectionId(section.id)),
-        ),
-      );
-    }
-    const { error: deleteSectionsError } = await deleteSectionsQuery;
-    if (deleteSectionsError) throw deleteSectionsError;
-
-    if (itemRows.length > 0) {
-      const { error } = await client.from("shopping_items").upsert(itemRows);
-      if (error) throw error;
-    }
-    let deleteItemsQuery = client
-      .from("shopping_items")
-      .delete()
-      .eq("list_id", listId);
-    if (items.length > 0) {
-      deleteItemsQuery = deleteItemsQuery.not(
-        "id",
-        "in",
-        encodePostgrestTextList(items.map((item) => item.id)),
-      );
-    }
-    const { error: deleteItemsError } = await deleteItemsQuery;
-    if (deleteItemsError) throw deleteItemsError;
-
-    if (historyRows.length > 0) {
-      const { error } = await client
-        .from("shopping_history_events")
-        .upsert(historyRows);
-      if (error) throw error;
-    }
-    let deleteHistoryQuery = client
-      .from("shopping_history_events")
-      .delete()
-      .eq("list_id", listId);
-    if (historyEvents.length > 0) {
-      deleteHistoryQuery = deleteHistoryQuery.not(
-        "id",
-        "in",
-        encodePostgrestTextList(historyEvents.map((event) => event.id)),
-      );
-    }
-    const { error: deleteHistoryError } = await deleteHistoryQuery;
-    if (deleteHistoryError) throw deleteHistoryError;
 
     if (freezerRows.length > 0) {
       const { error } = await client.from("freezer_items").upsert(freezerRows);
@@ -1010,11 +944,11 @@ export async function replaceSupabaseShoppingData(data: ShoppingData) {
       .from("freezer_items")
       .delete()
       .eq("list_id", listId);
-    if (freezerItems.length > 0) {
+    if (listFreezerItems.length > 0) {
       deleteFreezerQuery = deleteFreezerQuery.not(
         "id",
         "in",
-        encodePostgrestTextList(freezerItems.map((item) => item.id)),
+        encodePostgrestTextList(listFreezerItems.map((item) => item.id)),
       );
     }
     const { error: deleteFreezerError } = await deleteFreezerQuery;
@@ -1024,12 +958,100 @@ export async function replaceSupabaseShoppingData(data: ShoppingData) {
   return true;
 }
 
-// Realtime is deliberately disabled. Remote data refreshes only on load, when
-// the app returns to the foreground, and through the existing manual refresh.
-export function subscribeToSupabaseShoppingItems(_onChange: () => void) {
-  void _onChange;
+export async function updateSupabaseShoppingSectionColor(
+  sectionId: ShoppingSectionId,
+  color: ShoppingSectionColor,
+) {
+  const config = getSupabaseConfig();
 
-  return () => undefined;
+  if (!config) {
+    return false;
+  }
+
+  const listId = getScopedListId(sectionId) ?? config.listId;
+  const { error } = await getSupabaseClient(config)
+    .from("shopping_sections")
+    .update({ color })
+    .eq("list_id", listId)
+    .eq("id", getUnscopedSectionId(sectionId));
+
+  if (error) {
+    throw error;
+  }
+
+  return true;
+}
+
+export async function mutateSupabaseShoppingItems(
+  mutations: ShoppingItemMutation[],
+) {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return false;
+  }
+
+  if (mutations.length === 0) {
+    return true;
+  }
+
+  const payload = mutations.map((mutation) => {
+    const listId = getScopedListId(mutation.item.sectionId) ?? config.listId;
+    const sourceListId = mutation.previousItem
+      ? (getScopedListId(mutation.previousItem.sectionId) ?? config.listId)
+      : listId;
+
+    return {
+      action: mutation.action,
+      operation_id: mutation.operationId,
+      source_list_id: sourceListId,
+      expected_version: mutation.previousItem?.version ?? null,
+      item: mapShoppingItemToRow(mutation.item, listId),
+      history_event: mutation.historyEvent
+        ? mapShoppingHistoryEventToRow(mutation.historyEvent, listId)
+        : null,
+    };
+  });
+  const { error } = await getSupabaseClient(config).rpc(
+    "apply_shopping_item_mutations",
+    { p_mutations: payload },
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return true;
+}
+
+export function subscribeToSupabaseShoppingItems(onChange: () => void) {
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    return () => undefined;
+  }
+
+  const client = getSupabaseClient(config);
+  let channel = client.channel("shopping_items:all-lists");
+
+  for (const table of [
+    "shopping_items",
+    "shopping_sections",
+    "shopping_history_events",
+    "freezer_items",
+  ]) {
+    channel = channel.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table },
+      onChange,
+    );
+  }
+
+  const subscribedChannel = channel.subscribe();
+
+  return () => {
+    void client.removeChannel(subscribedChannel);
+  };
 }
 
 export type SupabasePushSubscriptionInput = {
@@ -1110,6 +1132,7 @@ export function mapRowToShoppingItem(
     canonicalProductId: row.canonical_product_id?.trim() || undefined,
     addedBy: normalizeUserId(row.added_by),
     purchased: row.purchased,
+    version: row.version ?? 1,
     createdAt: Date.parse(row.created_at),
     updatedAt: Date.parse(row.updated_at),
   };
@@ -1354,6 +1377,7 @@ export function mapShoppingItemToRow(
     canonical_product_id: item.canonicalProductId ?? null,
     added_by: item.addedBy,
     purchased: item.purchased,
+    version: item.version ?? 1,
     created_at: new Date(item.createdAt).toISOString(),
     updated_at: new Date(item.updatedAt).toISOString(),
   };
@@ -1437,7 +1461,12 @@ export function mapShoppingHistoryEventToRow(
       notes: normalizeShoppingItemNotes(event.item.notes),
       sectionId: getUnscopedSectionId(event.item.sectionId),
     },
-    previous_item_snapshot: event.previousItem,
+    previous_item_snapshot: event.previousItem
+      ? {
+          ...event.previousItem,
+          sectionId: getUnscopedSectionId(event.previousItem.sectionId),
+        }
+      : undefined,
     created_at: new Date(event.createdAt).toISOString(),
   };
 }

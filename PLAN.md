@@ -214,7 +214,7 @@
 ## Hito 22 — Historial y cambios remotos
 
 - [x] Registrar eventos de productos añadidos, comprados, devueltos a pendiente, movidos de lista y borrados.
-- [x] Crear eventos iniciales para productos existentes cuando no haya historial previo.
+- [x] Evitar generar historial sintético durante la carga; registrar eventos solo junto a la mutación real.
 - [x] Guardar snapshots completos de los productos en cada evento de historial.
 - [x] Persistir el historial en la base local anterior.
 - [x] Sincronizar el historial con Supabase remoto.
@@ -549,6 +549,9 @@ Objetivo: garantizar que todo el contenido de una lista queda aislado de las dem
 
 - [ ] Asociar a la lista los productos, congelador, categorías, historial, tickets, precios y notificaciones.
 - [ ] Revisar consultas, Realtime, Storage y RPC para exigir pertenencia a la lista.
+- [x] Publicar y verificar la RPC de mutaciones granulares con idempotencia, versión esperada e historial atómico.
+- [x] Retirar del cliente el reemplazo de fotografías completas de productos, secciones e historial.
+- [x] Proteger Realtime y los refrescos al recuperar visibilidad frente a respuestas obsoletas.
 - [x] Activar el bloqueo estricto después de migrar las siete listas y las dos cuentas.
 - [x] Evitar lecturas o escrituras de datos de otras listas cuando la sesión autenticada ya esté activa.
 - [ ] Mantener las operaciones técnicas de servidor separadas de los permisos del navegador.

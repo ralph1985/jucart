@@ -372,6 +372,7 @@ export type ShoppingItem = {
   canonicalProductId?: string;
   addedBy: ShoppingUserId;
   purchased: boolean;
+  version?: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -891,6 +892,7 @@ export function addShoppingItem(
       canonicalProductId: canonicalProduct?.id,
       addedBy,
       purchased: false,
+      version: 1,
       createdAt,
       updatedAt: createdAt,
     },
@@ -952,6 +954,7 @@ export function reactivatePurchasedShoppingItem(
               ? { canonicalProductId: item.canonicalProductId }
               : {}),
           purchased: false,
+          version: (item.version ?? 1) + 1,
           updatedAt: now(),
         }
       : item,
@@ -1054,7 +1057,12 @@ export function updateShoppingItemPurchasedState(
   purchased: boolean,
   now: () => number = () => Date.now(),
 ) {
-  return { ...item, purchased, updatedAt: now() };
+  return {
+    ...item,
+    purchased,
+    version: (item.version ?? 1) + 1,
+    updatedAt: now(),
+  };
 }
 
 function createShoppingHistoryItemSnapshot(
@@ -1148,6 +1156,9 @@ export function updateShoppingItem(
           quantity,
           sectionId,
           categoryId: inferShoppingCategoryId(name, productCatalogEntries),
+          canonicalProductId:
+            item.sectionId === sectionId ? item.canonicalProductId : undefined,
+          version: (item.version ?? 1) + 1,
           updatedAt: getNow(),
         }
       : item,

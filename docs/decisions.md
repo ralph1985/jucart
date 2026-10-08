@@ -39,9 +39,9 @@ En el Hito 22, Jucart añade un historial auditado para altas, compras, cambios 
 
 El historial guarda eventos inmutables para productos añadidos, marcados como comprados, devueltos a pendientes, movidos a otra lista y borrados. Cada evento incluye la persona que ejecutó la acción, el dispositivo local que la originó, la fecha y un snapshot completo del producto en ese momento.
 
-Cuando un producto cambia de lista, el evento conserva también el snapshot anterior para poder mostrar de qué lista venía y a cuál se movió.
+Cuando un producto cambia de lista, el evento conserva el snapshot anterior y el identificador de la lista de origen para poder auditar el movimiento. La operación solo se acepta si la sesión pertenece tanto al origen como al destino.
 
-Si al cargar existen productos pero no hay historial previo, la aplicación crea eventos `initial` para dejar constancia del estado inicial sin inventar compras o borrados anteriores. Esos eventos usan como actor la persona que añadió el producto.
+La aplicación no sintetiza historial durante la carga. Los eventos se escriben junto con la mutación que los origina, de modo que producto e historial se confirman o se rechazan en la misma transacción.
 
 La vista de Historial muestra los eventos de los últimos 30 días. Ese límite es de visualización: los datos no se borran automáticamente.
 
@@ -137,7 +137,11 @@ El check es la acción principal durante la compra. Editar y borrar siguen como 
 
 Jucart guarda la lista exclusivamente en Supabase.
 
-La aplicación lee todos los productos al arrancar y, después de esa carga inicial, reemplaza la lista remota cada vez que cambia el estado. Para una lista privada y pequeña evita una capa de sincronización local más compleja.
+La aplicación lee el estado autorizado al arrancar, pero no vuelve a guardar fotografías completas. Cada alta, edición, movimiento, cambio de estado o borrado se envía como una mutación granular mediante una RPC transaccional.
+
+Cada mutación incluye un `operation_id` idempotente y la versión esperada del producto. Supabase incrementa una versión entera gestionada por el servidor, rechaza conflictos y valida la pertenencia tanto a la lista de origen como a la de destino. Cuando la acción genera historial, el producto y su evento se escriben en la misma transacción.
+
+Realtime y la vuelta al primer plano solo disparan una nueva lectura autoritativa. Una revisión local impide que una respuesta iniciada antes de una mutación sobrescriba el cambio más reciente, y el estado `Sincronizado` solo se muestra después de comprobar mediante lectura remota el resultado de la escritura.
 
 Los errores de lectura o escritura se muestran en la pantalla y no se presentan datos antiguos como si fueran actuales.
 

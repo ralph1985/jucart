@@ -12,3 +12,4 @@ coverage
 var/backups/
 var/log/
 /Comidas.xlsx
+.hermes/

@@ -215,10 +215,12 @@ import {
   mapShoppingHistoryEventToRow,
   mapShoppingItemToRow,
   mapShoppingSectionToRow,
+  mutateSupabaseShoppingItems,
+  replaceSupabaseFreezerItems,
   registerSupabasePushSubscription,
-  replaceSupabaseShoppingData,
   resolveSupabaseTicketLine,
   subscribeToSupabaseShoppingItems,
+  updateSupabaseShoppingSectionColor,
   uploadSupabaseShoppingTicket,
 } from "./shoppingItemsSupabase";
 import * as supabaseConfig from "./supabaseConfig";
@@ -228,70 +230,6 @@ const configuredSupabase = {
   listId: "00000000-0000-4000-8000-000000000001",
   url: "https://example.supabase.co",
 };
-
-function createReplaceShoppingData(
-  overrides: Partial<Parameters<typeof replaceSupabaseShoppingData>[0]> = {},
-): Parameters<typeof replaceSupabaseShoppingData>[0] {
-  return {
-    categories: [],
-    freezerItems: [
-      {
-        id: "freezer-1",
-        name: "Caldo",
-        drawerId: "bottom",
-        frozenAt: Date.parse("2026-07-01T00:00:00.000Z"),
-        createdAt: Date.parse("2026-07-02T10:00:00.000Z"),
-        updatedAt: Date.parse("2026-07-02T10:05:00.000Z"),
-      },
-    ],
-    historyEvents: [
-      {
-        id: "history-1",
-        itemId: "item-1",
-        type: "initial",
-        actor: "rafa",
-        clientId: "client-1",
-        item: {
-          id: "item-1",
-          name: "Pan",
-          sectionId: "mercadona",
-          sectionName: "Mercadona",
-          addedBy: "rafa",
-          purchased: false,
-          createdAt: 100,
-          updatedAt: 100,
-        },
-        createdAt: Date.parse("2026-07-14T10:05:00.000Z"),
-      },
-    ],
-    items: [
-      {
-        id: "item-1",
-        name: "Pan",
-        sectionId: "mercadona",
-        addedBy: "rafa",
-        purchased: false,
-        createdAt: Date.parse("2026-07-14T10:00:00.000Z"),
-        updatedAt: Date.parse("2026-07-14T10:05:00.000Z"),
-      },
-    ],
-    productCatalogEntries: [],
-    canonicalProducts: [],
-    canonicalProductAliases: [],
-    productNormalizationChanges: [],
-    productNormalizationRuns: [],
-    recategorizationChanges: [],
-    recategorizationRuns: [],
-    sections: [
-      {
-        id: "mercadona",
-        name: "Mercadona",
-        color: "mint",
-      },
-    ],
-    ...overrides,
-  };
-}
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -649,91 +587,35 @@ describe("shopping items Supabase adapter", () => {
     },
   );
 
-  it("replaces Supabase shopping data with upserts and stale-row deletes", async () => {
+  it("replaces only freezer rows without touching shopping lists", async () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
     );
 
     await expect(
-      replaceSupabaseShoppingData(createReplaceShoppingData()),
-    ).resolves.toBe(true);
-
-    expect(supabaseMocks.operations).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          operation: "upsert",
-          table: "shopping_sections",
-        }),
-        expect.objectContaining({
-          operation: "upsert",
-          table: "shopping_items",
-        }),
-        expect.objectContaining({
-          operation: "upsert",
-          table: "shopping_history_events",
-        }),
-        expect.objectContaining({
-          operation: "upsert",
-          table: "freezer_items",
-        }),
-        expect.objectContaining({
-          args: ["id", "in", '("mercadona")'],
-          operation: "not",
-          table: "shopping_sections",
-        }),
-        expect.objectContaining({
-          args: ["id", "in", '("item-1")'],
-          operation: "not",
-          table: "shopping_items",
-        }),
-        expect.objectContaining({
-          args: ["id", "in", '("history-1")'],
-          operation: "not",
-          table: "shopping_history_events",
-        }),
-        expect.objectContaining({
-          args: ["id", "in", '("freezer-1")'],
-          operation: "not",
-          table: "freezer_items",
-        }),
+      replaceSupabaseFreezerItems([
+        {
+          id: "freezer-1",
+          name: "Guisantes",
+          drawerId: "middle",
+          frozenAt: Date.parse("2026-10-07T18:00:00.000Z"),
+          quantity: "1",
+          createdAt: Date.parse("2026-10-07T18:00:00.000Z"),
+          updatedAt: Date.parse("2026-10-07T18:00:00.000Z"),
+        },
       ]),
-    );
-  });
-
-  it("replaces empty Supabase shopping data without upserts", async () => {
-    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
-      configuredSupabase,
-    );
-
-    await expect(
-      replaceSupabaseShoppingData(
-        createReplaceShoppingData({
-          freezerItems: [],
-          historyEvents: [],
-          items: [],
-          sections: [],
-        }),
-      ),
     ).resolves.toBe(true);
 
     expect(
-      supabaseMocks.operations.some(
-        (operation) => operation.operation === "upsert",
+      supabaseMocks.operations.every(
+        (operation) => operation.table === "freezer_items",
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(supabaseMocks.operations).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          operation: "delete",
-          table: "shopping_sections",
-        }),
-        expect.objectContaining({
-          operation: "delete",
-          table: "shopping_items",
-        }),
-        expect.objectContaining({
-          operation: "delete",
-          table: "shopping_history_events",
+          operation: "upsert",
+          table: "freezer_items",
         }),
         expect.objectContaining({
           operation: "delete",
@@ -743,26 +625,189 @@ describe("shopping items Supabase adapter", () => {
     );
   });
 
-  it.each([
-    ["shopping_sections", "upsert"],
-    ["shopping_sections", "delete"],
-    ["shopping_items", "upsert"],
-    ["shopping_items", "delete"],
-    ["shopping_history_events", "upsert"],
-    ["shopping_history_events", "delete"],
-    ["freezer_items", "upsert"],
-    ["freezer_items", "delete"],
-  ] as const)("throws when Supabase %s %s fails", async (table, operation) => {
+  it("updates only the requested shopping section color", async () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
     );
-    supabaseMocks.setResult(table, operation, {
-      error: new Error(`${table} ${operation} failed`),
+
+    await expect(
+      updateSupabaseShoppingSectionColor(
+        `${configuredSupabase.listId}::general`,
+        "rose",
+      ),
+    ).resolves.toBe(true);
+
+    expect(supabaseMocks.operations).toEqual([
+      {
+        args: [{ color: "rose" }],
+        operation: "update",
+        table: "shopping_sections",
+      },
+      {
+        args: ["list_id", configuredSupabase.listId],
+        operation: "eq",
+        table: "shopping_sections",
+      },
+      {
+        args: ["id", "general"],
+        operation: "eq",
+        table: "shopping_sections",
+      },
+    ]);
+  });
+
+  it("applies shopping item mutations through one atomic RPC", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    const item = {
+      id: "item-1",
+      name: "Pan",
+      sectionId: `${configuredSupabase.listId}::general`,
+      addedBy: "rafa" as const,
+      purchased: false,
+      createdAt: Date.parse("2026-10-07T18:00:00.000Z"),
+      updatedAt: Date.parse("2026-10-07T18:00:00.000Z"),
+    };
+
+    await expect(
+      mutateSupabaseShoppingItems([
+        {
+          action: "insert",
+          operationId: "operation-1",
+          item,
+          historyEvent: {
+            id: "history-1",
+            itemId: item.id,
+            type: "added",
+            actor: "rafa",
+            clientId: "client-1",
+            item: { ...item, sectionName: "General" },
+            createdAt: Date.parse("2026-10-07T18:00:00.000Z"),
+          },
+        },
+      ]),
+    ).resolves.toBe(true);
+
+    expect(supabaseMocks.operations).toContainEqual({
+      args: [
+        {
+          p_mutations: [
+            expect.objectContaining({
+              action: "insert",
+              operation_id: "operation-1",
+              item: expect.objectContaining({
+                id: "item-1",
+                list_id: configuredSupabase.listId,
+                section_id: "general",
+              }),
+              history_event: expect.objectContaining({
+                id: "history-1",
+                list_id: configuredSupabase.listId,
+              }),
+            }),
+          ],
+        },
+      ],
+      operation: "rpc",
+      rpcName: "apply_shopping_item_mutations",
+      table: "rpc",
+    });
+    expect(
+      supabaseMocks.operations.some(
+        (operation) =>
+          operation.table === "shopping_items" ||
+          operation.table === "shopping_history_events",
+      ),
+    ).toBe(false);
+  });
+
+  it("scopes a move to its source and destination lists", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    const previousItem = {
+      id: "item-1",
+      name: "Pan",
+      sectionId: `${configuredSupabase.listId}::general`,
+      addedBy: "rafa" as const,
+      purchased: false,
+      version: 3,
+      createdAt: Date.parse("2026-10-07T18:00:00.000Z"),
+      updatedAt: Date.parse("2026-10-07T18:00:00.000Z"),
+    };
+    const destinationListId = "00000000-0000-4000-8000-000000000002";
+
+    await mutateSupabaseShoppingItems([
+      {
+        action: "update",
+        operationId: "operation-2",
+        item: {
+          ...previousItem,
+          sectionId: `${destinationListId}::general`,
+          updatedAt: Date.parse("2026-10-07T18:05:00.000Z"),
+        },
+        previousItem,
+      },
+    ]);
+
+    expect(supabaseMocks.client.rpc).toHaveBeenCalledWith(
+      "apply_shopping_item_mutations",
+      {
+        p_mutations: [
+          expect.objectContaining({
+            action: "update",
+            source_list_id: configuredSupabase.listId,
+            item: expect.objectContaining({ list_id: destinationListId }),
+            expected_version: 3,
+          }),
+        ],
+      },
+    );
+  });
+
+  it("propagates atomic mutation failures without fallback deletes", async () => {
+    vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
+      configuredSupabase,
+    );
+    supabaseMocks.queryResults.set("rpc:apply_shopping_item_mutations", {
+      data: null,
+      error: new Error("shopping_item_conflict"),
     });
 
     await expect(
-      replaceSupabaseShoppingData(createReplaceShoppingData()),
-    ).rejects.toThrow(`${table} ${operation} failed`);
+      mutateSupabaseShoppingItems([
+        {
+          action: "delete",
+          operationId: "operation-3",
+          item: {
+            id: "item-1",
+            name: "Pan",
+            sectionId: `${configuredSupabase.listId}::general`,
+            addedBy: "rafa",
+            purchased: true,
+            version: 2,
+            createdAt: 1,
+            updatedAt: 2,
+          },
+          previousItem: {
+            id: "item-1",
+            name: "Pan",
+            sectionId: `${configuredSupabase.listId}::general`,
+            addedBy: "rafa",
+            purchased: true,
+            version: 2,
+            createdAt: 1,
+            updatedAt: 2,
+          },
+        },
+      ]),
+    ).rejects.toThrow("shopping_item_conflict");
+    expect(
+      supabaseMocks.operations.some(
+        (operation) => operation.operation === "delete",
+      ),
+    ).toBe(false);
   });
 
   it("reads the latest developer backup run", async () => {
@@ -1665,7 +1710,7 @@ describe("shopping items Supabase adapter", () => {
     ).resolves.toBeNull();
   });
 
-  it.skip("subscribes to Supabase tables and removes the channel on cleanup", () => {
+  it("subscribes to Supabase shopping tables and removes the channel on cleanup", () => {
     vi.spyOn(supabaseConfig, "getSupabaseConfig").mockReturnValue(
       configuredSupabase,
     );
@@ -1677,7 +1722,7 @@ describe("shopping items Supabase adapter", () => {
     expect(supabaseMocks.client.channel).toHaveBeenCalledWith(
       "shopping_items:all-lists",
     );
-    expect(supabaseMocks.channel.on).toHaveBeenCalledTimes(15);
+    expect(supabaseMocks.channel.on).toHaveBeenCalledTimes(4);
     expect(supabaseMocks.channel.on).toHaveBeenCalledWith(
       "postgres_changes",
       expect.objectContaining({ table: "shopping_items" }),
@@ -1685,7 +1730,7 @@ describe("shopping items Supabase adapter", () => {
     );
     expect(supabaseMocks.channel.on).toHaveBeenCalledWith(
       "postgres_changes",
-      expect.objectContaining({ table: "shopping_tickets" }),
+      expect.objectContaining({ table: "shopping_history_events" }),
       onChange,
     );
     expect(supabaseMocks.channel.subscribe).toHaveBeenCalledOnce();
@@ -1873,6 +1918,7 @@ describe("shopping items Supabase adapter", () => {
         category_id: "dairy",
         added_by: "begona",
         purchased: true,
+        version: 4,
         created_at: "2026-07-14T10:00:00.000Z",
         updated_at: "2026-07-14T10:05:00.000Z",
       }),
@@ -1882,8 +1928,11 @@ describe("shopping items Supabase adapter", () => {
       quantity: "2",
       sectionId: "mercadona",
       categoryId: "dairy",
+      canonicalProductId: undefined,
       addedBy: "begona",
+      notes: undefined,
       purchased: true,
+      version: 4,
       createdAt: Date.parse("2026-07-14T10:00:00.000Z"),
       updatedAt: Date.parse("2026-07-14T10:05:00.000Z"),
     });
@@ -1900,6 +1949,7 @@ describe("shopping items Supabase adapter", () => {
           categoryId: "bakery",
           addedBy: "rafa",
           purchased: false,
+          version: 3,
           createdAt: Date.parse("2026-07-14T10:00:00.000Z"),
           updatedAt: Date.parse("2026-07-14T10:05:00.000Z"),
         },
@@ -1916,6 +1966,7 @@ describe("shopping items Supabase adapter", () => {
       canonical_product_id: null,
       added_by: "rafa",
       purchased: false,
+      version: 3,
       created_at: "2026-07-14T10:00:00.000Z",
       updated_at: "2026-07-14T10:05:00.000Z",
     });
@@ -2277,7 +2328,7 @@ describe("shopping items Supabase adapter", () => {
           previousItem: {
             id: "item-1",
             name: "Pan",
-            sectionId: "mercadona",
+            sectionId: "00000000-0000-4000-8000-000000000001::mercadona",
             sectionName: "Mercadona",
             categoryId: "bakery",
             addedBy: "begona",

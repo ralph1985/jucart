@@ -1459,6 +1459,7 @@ export function App() {
   >(null);
   const realtimeRefreshPendingRef = useRef(false);
   const realtimeRefreshTimeoutRef = useRef<number | null>(null);
+  const realtimeRefreshRetryTimeoutRef = useRef<number | null>(null);
   const remoteSyncFailureDomainsRef = useRef(
     new Set<"products" | "freezer" | "sections">(),
   );
@@ -2078,7 +2079,10 @@ export function App() {
 
     let isActive = true;
 
-    async function refreshItemsFromSupabase(surfaceFailure = true) {
+    async function refreshItemsFromSupabase(
+      surfaceFailure = false,
+      allowRetry = true,
+    ) {
       const refreshRevision = localDataRevisionRef.current;
       const finishRemoteRequest = beginRemoteRequest();
 
@@ -2126,17 +2130,29 @@ export function App() {
             ? currentSectionId
             : storedData.sections[0]?.id || "general",
         );
-        remoteSyncFailureDomainsRef.current.clear();
-        setStorageError(null);
-        setSyncStatus("synced");
+        if (remoteSyncFailureDomainsRef.current.size === 0) {
+          setStorageError(null);
+          setSyncStatus("synced");
+        } else {
+          setSyncStatus("error");
+        }
       } catch {
-        if (isActive && surfaceFailure) {
+        if (isActive) {
           setStorageError("No se pudo sincronizar la lista.");
           setSyncStatus("error");
         }
 
         if (surfaceFailure) {
           throw new Error("No se pudo sincronizar la lista.");
+        }
+
+        realtimeRefreshPendingRef.current = true;
+        if (allowRetry && realtimeRefreshRetryTimeoutRef.current === null) {
+          realtimeRefreshRetryTimeoutRef.current = window.setTimeout(() => {
+            realtimeRefreshRetryTimeoutRef.current = null;
+            realtimeRefreshPendingRef.current = false;
+            void refreshItemsFromSupabase(false, false);
+          }, 100);
         }
       } finally {
         finishRemoteRequest();
@@ -2177,6 +2193,10 @@ export function App() {
       if (realtimeRefreshTimeoutRef.current !== null) {
         window.clearTimeout(realtimeRefreshTimeoutRef.current);
         realtimeRefreshTimeoutRef.current = null;
+      }
+      if (realtimeRefreshRetryTimeoutRef.current !== null) {
+        window.clearTimeout(realtimeRefreshRetryTimeoutRef.current);
+        realtimeRefreshRetryTimeoutRef.current = null;
       }
     };
   }, [beginRemoteRequest, isLoaded, shoppingLists]);

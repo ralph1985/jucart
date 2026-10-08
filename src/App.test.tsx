@@ -485,6 +485,79 @@ describe("App", () => {
     expect(await screen.findByText("Leche")).toBeInTheDocument();
   });
 
+  it("retries a failed Realtime refresh without losing the remote change", async () => {
+    let onRemoteChange: (() => void) | undefined;
+    const refreshedData: ShoppingData = {
+      ...createEmptyShoppingData(),
+      items: [
+        {
+          id: "item-realtime-retry",
+          name: "Leche",
+          sectionId: "mercadona",
+          addedBy: "begona",
+          purchased: false,
+          version: 1,
+          createdAt: 100,
+          updatedAt: 100,
+        },
+      ],
+    };
+
+    vi.mocked(shoppingItemsSupabase.getSupabaseShoppingData)
+      .mockResolvedValueOnce(createEmptyShoppingData())
+      .mockRejectedValueOnce(new Error("realtime read failed"))
+      .mockResolvedValue(refreshedData);
+    vi.mocked(
+      shoppingItemsSupabase.subscribeToSupabaseShoppingItems,
+    ).mockImplementation((onChange) => {
+      onRemoteChange = onChange;
+      return () => undefined;
+    });
+
+    render(<App />);
+    await waitForAddFab();
+    await waitFor(() => expect(onRemoteChange).toBeDefined());
+
+    act(() => onRemoteChange?.());
+
+    expect(await screen.findByText("Leche")).toBeInTheDocument();
+    expect(shoppingItemsSupabase.getSupabaseShoppingData).toHaveBeenCalledTimes(
+      3,
+    );
+  });
+
+  it("applies defaults when sparse Supabase data loads and refreshes", async () => {
+    let onRemoteChange: (() => void) | undefined;
+    const sparseData = {
+      items: [],
+      sections: defaultShoppingSections,
+      historyEvents: [],
+    } as unknown as ShoppingData;
+
+    vi.mocked(shoppingItemsSupabase.getSupabaseShoppingData).mockResolvedValue(
+      sparseData,
+    );
+    vi.mocked(
+      shoppingItemsSupabase.subscribeToSupabaseShoppingItems,
+    ).mockImplementation((onChange) => {
+      onRemoteChange = onChange;
+      return () => undefined;
+    });
+
+    render(<App />);
+    await waitForAddFab();
+    await waitFor(() => expect(onRemoteChange).toBeDefined());
+
+    act(() => onRemoteChange?.());
+
+    await waitFor(() =>
+      expect(
+        shoppingItemsSupabase.getSupabaseShoppingData,
+      ).toHaveBeenCalledTimes(2),
+    );
+    expect(screen.getByText("Sincronizado")).toBeInTheDocument();
+  });
+
   it("keeps applying Realtime changes after a local mutation", async () => {
     let onRemoteChange: (() => void) | undefined;
 
@@ -648,7 +721,15 @@ describe("App", () => {
     expect(screen.getAllByText("Lentejas").length).toBeGreaterThan(0);
   });
 
-  it("does not hide a freezer sync failure after a product mutation succeeds", async () => {
+  it("does not hide a freezer sync failure after later sync activity succeeds", async () => {
+    let onRemoteChange: (() => void) | undefined;
+
+    vi.mocked(
+      shoppingItemsSupabase.subscribeToSupabaseShoppingItems,
+    ).mockImplementation((onChange) => {
+      onRemoteChange = onChange;
+      return () => undefined;
+    });
     vi.mocked(
       shoppingItemsSupabase.replaceSupabaseFreezerItems,
     ).mockRejectedValueOnce(new Error("freezer write failed"));
@@ -688,6 +769,15 @@ describe("App", () => {
       ).toHaveBeenCalled(),
     );
     expect(await screen.findByText("Error de conexión")).toBeInTheDocument();
+
+    act(() => onRemoteChange?.());
+
+    await waitFor(() =>
+      expect(
+        shoppingItemsSupabase.getSupabaseShoppingData,
+      ).toHaveBeenCalledTimes(3),
+    );
+    expect(screen.getByText("Error de conexión")).toBeInTheDocument();
   });
 
   it("shows the splash and integrated skeleton while stored products are loading", async () => {

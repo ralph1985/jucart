@@ -107,6 +107,9 @@ test("blocks Supabase requests outside the local test origin", async ({
     const endpoints = [
       "https://external-project.supabase.invalid/auth/v1/user",
       "https://external-project.supabase.invalid/rest/v1/shopping_items",
+      "https://external-project.supabase.invalid/storage/v1/object/test-bucket/test-file",
+      "https://external-project.supabase.invalid/functions/v1/test-function",
+      "https://external-project.supabase.invalid/graphql/v1/graphql",
     ];
 
     return Promise.all(
@@ -121,7 +124,34 @@ test("blocks Supabase requests outside the local test origin", async ({
     );
   });
 
-  expect(statuses).toEqual([403, 403]);
+  expect(statuses).toEqual([403, 403, 403, 403, 403]);
+});
+
+test("blocks external Supabase Realtime WebSocket connections", async ({
+  page,
+}) => {
+  const closeCode = await page.evaluate(async () => {
+    return new Promise<number>((resolve, reject) => {
+      const socket = new WebSocket(
+        "wss://external-project.supabase.invalid/realtime/v1/websocket?apikey=e2e-public-anon-key&vsn=1.0.0",
+      );
+      const timeout = window.setTimeout(() => {
+        socket.close();
+        reject(new Error("La conexión Realtime no se cerró a tiempo."));
+      }, 5000);
+
+      socket.addEventListener(
+        "close",
+        (event) => {
+          window.clearTimeout(timeout);
+          resolve(event.code);
+        },
+        { once: true },
+      );
+    });
+  });
+
+  expect(closeCode).toBe(1008);
 });
 
 test("refreshes the shopping, tickets, lists and history views", async ({

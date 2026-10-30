@@ -235,6 +235,9 @@ async function handleRpc(
 export async function installSupabaseMock(page: Page) {
   const database = createDatabase();
   const expiresAt = Math.floor(Date.now() / 1000) + 3600;
+  const localRealtimeUrl = new URL(supabaseUrl);
+  localRealtimeUrl.protocol =
+    localRealtimeUrl.protocol === "https:" ? "wss:" : "ws:";
   const session = {
     access_token: "e2e-access-token",
     token_type: "bearer",
@@ -244,7 +247,31 @@ export async function installSupabaseMock(page: Page) {
     user,
   };
 
-  for (const apiPath of ["auth/v1", "rest/v1"]) {
+  await page.routeWebSocket(
+    (url) => url.pathname === "/realtime/v1/websocket",
+    async (route) => {
+      const url = new URL(route.url());
+
+      if (url.origin === localRealtimeUrl.origin) {
+        route.connectToServer();
+        return;
+      }
+
+      await route.close({
+        code: 1008,
+        reason: "E2E bloqueó una conexión Supabase Realtime externa.",
+      });
+    },
+  );
+
+  for (const apiPath of [
+    "auth/v1",
+    "rest/v1",
+    "realtime/v1",
+    "storage/v1",
+    "functions/v1",
+    "graphql/v1",
+  ]) {
     await page.route(`**/${apiPath}/**`, async (route) => {
       const url = new URL(route.request().url());
 

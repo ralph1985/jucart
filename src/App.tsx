@@ -4135,7 +4135,11 @@ export function App() {
 
     try {
       await moveShoppingList(listId, direction);
-      setShoppingLists(await getShoppingLists());
+      const lists = await getShoppingLists();
+      setShoppingLists(lists);
+      setSections((currentSections) =>
+        orderSectionsByShoppingLists(currentSections, lists),
+      );
     } catch {
       setShoppingListMessage("No se pudo cambiar el orden de las listas.");
     } finally {
@@ -4212,8 +4216,9 @@ export function App() {
 
       try {
         await createShoppingList(sectionName, newSectionColor);
-        setShoppingLists(await getShoppingLists());
+        const lists = await getShoppingLists();
         await refreshRemoteDataRef.current?.();
+        setShoppingLists(lists);
         closeSectionAddSheet();
       } catch {
         setShoppingListMessage("No se pudo crear la lista.");

@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { installSupabaseMock } from "./supabaseMock";
 
-async function resetJucartStorage(page: Page) {
+async function signIntoJucart(page: Page) {
   await page.goto("/");
-  await page.evaluate(async () => {
-    window.localStorage.clear();
-  });
-  await page.reload();
   await expect(page.getByRole("heading", { name: "Jucart" })).toBeVisible();
+  await page.getByLabel("Email").fill("e2e@example.invalid");
+  await page.getByLabel("Contraseña").fill("e2e-only-password");
+  await page.getByRole("button", { name: "Entrar" }).click();
   await expect(
     page.getByRole("button", { name: "Añadir producto" }),
   ).toBeEnabled();
@@ -23,7 +23,9 @@ async function addShoppingProduct(page: Page, name: string) {
   await dialog.getByRole("button", { name: "Añadir" }).click();
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
-  await expect(page.getByText(name, { exact: true }).last()).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: `Detalles de ${name}` }),
+  ).toBeVisible();
 }
 
 async function createShoppingList(page: Page, name: string) {
@@ -82,13 +84,14 @@ async function pullToRefresh(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await resetJucartStorage(page);
+  await installSupabaseMock(page);
+  await signIntoJucart(page);
 });
 
-test("loads the local app shell", async ({ page }) => {
-  await expect(
-    page.getByText(/^(Local|Sincronizando|Sin conexión)$/),
-  ).toBeVisible();
+test("loads the authenticated app shell and syncs with the test API", async ({
+  page,
+}) => {
+  await expect(page.getByText("Sincronizado", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("navigation", { name: "Navegación principal" }),
   ).toBeVisible();
@@ -97,16 +100,67 @@ test("loads the local app shell", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("refreshes every mobile view with pull-to-refresh", async ({ page }) => {
-  const views = [
-    "Tickets",
-    "Gestionar listas",
-    "Historial",
-    "Vista de desarrollador",
-  ];
+test("blocks Supabase requests outside the local test origin", async ({
+  page,
+}) => {
+  const statuses = await page.evaluate(async () => {
+    const endpoints = [
+      "https://external-project.supabase.invalid/auth/v1/user",
+      "https://external-project.supabase.invalid/rest/v1/shopping_items",
+      "https://external-project.supabase.invalid/storage/v1/object/test-bucket/test-file",
+      "https://external-project.supabase.invalid/functions/v1/test-function",
+      "https://external-project.supabase.invalid/graphql/v1/graphql",
+    ];
+
+    return Promise.all(
+      endpoints.map(async (endpoint) => {
+        try {
+          const response = await fetch(endpoint);
+          return response.status;
+        } catch {
+          return null;
+        }
+      }),
+    );
+  });
+
+  expect(statuses).toEqual([403, 403, 403, 403, 403]);
+});
+
+test("blocks external Supabase Realtime WebSocket connections", async ({
+  page,
+}) => {
+  const closeCode = await page.evaluate(async () => {
+    return new Promise<number>((resolve, reject) => {
+      const socket = new WebSocket(
+        "wss://external-project.supabase.invalid/realtime/v1/websocket?apikey=e2e-public-anon-key&vsn=1.0.0",
+      );
+      const timeout = window.setTimeout(() => {
+        socket.close();
+        reject(new Error("La conexión Realtime no se cerró a tiempo."));
+      }, 5000);
+
+      socket.addEventListener(
+        "close",
+        (event) => {
+          window.clearTimeout(timeout);
+          resolve(event.code);
+        },
+        { once: true },
+      );
+    });
+  });
+
+  expect(closeCode).toBe(1008);
+});
+
+test("refreshes the shopping, tickets, lists and history views", async ({
+  page,
+}) => {
+  const views = ["Lista", "Tickets", "Gestionar listas", "Historial"];
 
   for (const view of views) {
-    await page.getByRole("button", { name: view }).click();
+    await page.getByRole("button", { name: view, exact: true }).click();
     await pullToRefresh(page);
   }
 });
@@ -154,7 +208,7 @@ test("keeps a purchased product after reloading", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("keeps local products after reloading", async ({ page }) => {
+test("keeps server products after reloading", async ({ page }) => {
   await addShoppingProduct(page, "Pan e2e");
   await expect(page.getByText("Pan e2e")).toBeVisible();
 
@@ -194,7 +248,11 @@ test.skip("adds a freezer product from the bottom sheet while the view is hidden
 test("creates a shopping list from the bottom sheet", async ({ page }) => {
   await page.getByRole("button", { name: "Gestionar listas" }).click();
 
-  await expect(page.getByRole("heading", { name: "Listas" })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Listas" })
+      .getByRole("heading", { level: 2 }),
+  ).toBeVisible();
   await expect(page.getByLabel("Nueva lista")).toBeHidden();
 
   await page.getByRole("button", { name: "Crear lista" }).click();
@@ -225,6 +283,9 @@ test("renames, colors and reorders shopping lists", async ({ page }) => {
     .last()
     .locator("xpath=ancestor::li");
   await initialListCard.getByRole("button", { name: "Ver detalles" }).click();
+  await expect(
+    page.getByRole("button", { name: "Poner Frutería e2e en color mint" }),
+  ).toBeVisible();
   await initialListCard.getByRole("button", { name: "Editar" }).click();
   const editDialog = page.getByRole("dialog", { name: "Editar lista" });
   await editDialog.getByLabel("Nombre de la lista").fill("Fruta e2e");
@@ -261,7 +322,7 @@ test("renames, colors and reorders shopping lists", async ({ page }) => {
       ),
     );
 
-  expect(boardListNames.at(-2)).toBe("Fruta e2e");
+  expect(boardListNames.at(0)).toBe("Fruta e2e");
   expect(boardListNames.at(-1)).toBe("General");
 
   const fruitColumn = page.getByRole("article", { name: /Fruta e2e/ });
@@ -299,7 +360,7 @@ test("edits a shopping product name, quantity and list", async ({ page }) => {
   await expect(dialog).toBeVisible();
   await dialog.getByLabel("Producto").fill("Yogur e2e");
   await dialog.getByLabel("Cantidad").fill("2 packs");
-  await dialog.getByLabel("Sección").selectOption("farmacia");
+  await dialog.getByLabel("Sección").selectOption({ label: "Farmacia" });
   await dialog.getByRole("button", { name: "Guardar" }).click();
 
   await expect(dialog).toBeHidden();

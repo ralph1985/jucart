@@ -95,7 +95,7 @@ pnpm test:e2e
 pnpm test:e2e:headed
 ```
 
-Los E2E construyen la aplicación con `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` y `VITE_SUPABASE_LIST_ID` vacías. Así prueban el fallback local sin escribir en Supabase remoto.
+Los E2E usan una configuración sintética de Supabase en `127.0.0.1:54321` y una API simulada por Playwright (`tests/e2e/supabaseMock.ts`). La autenticación y los datos son ficticios; no se conecta a un proyecto Supabase real.
 
 El hook `pre-push` ejecuta la validación E2E. Para activarlo en este checkout:
 
